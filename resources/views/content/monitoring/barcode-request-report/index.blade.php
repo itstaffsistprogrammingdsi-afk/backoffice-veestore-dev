@@ -1,0 +1,1004 @@
+@extends('layouts/contentNavbarLayout')
+
+@section('title', 'Monitoring - Request & Cetak Label')
+
+@push('vendor-style')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+@endpush
+
+@push('page-style')
+<style>
+  :root {
+    --br-primary: #5b5cf6;
+    --br-primary-dark: #4338ca;
+    --br-primary-soft: rgba(91, 92, 246, .12);
+    --br-success: #22c55e;
+    --br-success-soft: rgba(34, 197, 94, .14);
+    --br-info: #06b6d4;
+    --br-info-soft: rgba(6, 182, 212, .14);
+    --br-warning: #f59e0b;
+    --br-warning-soft: rgba(245, 158, 11, .16);
+    --br-danger: #ef4444;
+    --br-danger-soft: rgba(239, 68, 68, .14);
+    --br-purple: #8b5cf6;
+    --br-dark: #1e293b;
+    --br-muted: #64748b;
+    --br-body: #f6f7fb;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(91, 92, 246, .10), transparent 30%),
+      radial-gradient(circle at top right, rgba(6, 182, 212, .10), transparent 28%),
+      var(--br-body);
+  }
+
+  .select2-container {
+    width: 100% !important;
+  }
+
+  .select2-container--bootstrap-5 .select2-selection {
+    min-height: 40px;
+    border-radius: .75rem;
+    border-color: #dbe1ea;
+    box-shadow: none;
+  }
+
+  .form-control,
+  .form-select {
+    border-radius: .75rem;
+    border-color: #dbe1ea;
+  }
+
+  .select2-container--bootstrap-5.select2-container--focus .select2-selection,
+  .form-control:focus,
+  .form-select:focus {
+    border-color: var(--br-primary);
+    box-shadow: 0 0 0 .18rem rgba(91, 92, 246, .14);
+  }
+
+  .dashboard-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.4rem;
+    color: #fff;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255,255,255,.30), transparent 25%),
+      linear-gradient(135deg, #4f46e5 0%, #06b6d4 55%, #22c55e 120%);
+    box-shadow: 0 1.25rem 2.5rem rgba(79, 70, 229, .22);
+  }
+
+  .dashboard-hero::before {
+    content: "";
+    position: absolute;
+    width: 260px;
+    height: 260px;
+    right: -80px;
+    top: -100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.18);
+  }
+
+  .dashboard-hero::after {
+    content: "";
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    right: 120px;
+    bottom: -120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.13);
+  }
+
+  .dashboard-hero > .d-flex {
+    position: relative;
+    z-index: 2;
+  }
+
+  .dashboard-hero h4,
+  .dashboard-hero .text-muted,
+  .dashboard-hero .text-muted.fw-light {
+    color: #fff !important;
+  }
+
+  .hero-subtitle {
+    color: rgba(255,255,255,.84) !important;
+  }
+
+  .hero-badge {
+    border-radius: 999px;
+    padding: .55rem .85rem;
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,.22);
+    font-weight: 600;
+    font-size: .78rem;
+  }
+
+  .card {
+    border: 0;
+    border-radius: 1.15rem;
+    box-shadow: 0 .5rem 1.5rem rgba(15, 23, 42, .06);
+  }
+
+  .card-header {
+    border-bottom: 1px solid rgba(226, 232, 240, .8);
+    background: transparent;
+    padding: 1.25rem 1.35rem;
+  }
+
+  .card-body {
+    padding: 1.35rem;
+  }
+
+  .filter-box {
+    background: linear-gradient(180deg, rgba(248, 250, 252, .98), rgba(255,255,255,.98));
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 1.15rem;
+  }
+
+  .filter-actions {
+    display: flex;
+    gap: .6rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    border-radius: .75rem;
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    border-color: var(--br-primary);
+    background: linear-gradient(135deg, var(--br-primary), var(--br-purple));
+    box-shadow: 0 .45rem 1rem rgba(91, 92, 246, .22);
+  }
+
+  .btn-success {
+    border-color: var(--br-success);
+    background: linear-gradient(135deg, var(--br-success), #16a34a);
+  }
+
+  .summary-card {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    border: 1px solid rgba(226, 232, 240, .85);
+    border-radius: 1.15rem;
+    background: #fff;
+    transition: .22s ease;
+  }
+
+  .summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--br-primary), var(--br-info));
+  }
+
+  .summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 1rem 2rem rgba(15, 23, 42, .10);
+  }
+
+  .summary-card h4 {
+    color: var(--br-dark);
+    font-weight: 800;
+  }
+
+  .summary-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 25px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--br-primary), var(--br-primary-dark));
+  }
+
+  .summary-icon.success {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+  }
+
+  .summary-icon.info {
+    background: linear-gradient(135deg, #06b6d4, #0284c7);
+  }
+
+  .summary-icon.warning {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+  }
+
+  .summary-icon.danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+  }
+
+  .summary-icon.purple {
+    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  }
+
+  .table-responsive {
+    border-radius: 1rem;
+    border: 1px solid #e5e7eb;
+  }
+
+  .table td,
+  .table th {
+    vertical-align: middle;
+  }
+
+  .table-nowrap th,
+  .table-nowrap td {
+    white-space: nowrap;
+  }
+
+  .barcode-table thead th {
+    background: linear-gradient(180deg, #f8fafc, #eef2ff);
+    color: #334155;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .035em;
+    font-weight: 800;
+    border-bottom: 1px solid #dbe1ea;
+  }
+
+  .barcode-table tbody tr:hover {
+    background-color: rgba(91, 92, 246, .055);
+  }
+
+  .pagination-info {
+    font-size: .875rem;
+    color: var(--br-muted);
+  }
+
+  .reason-col,
+  .product-col {
+    min-width: 260px;
+    white-space: normal !important;
+  }
+
+  .request-col {
+    min-width: 170px;
+    white-space: normal !important;
+  }
+
+  .user-col {
+    min-width: 180px;
+    white-space: normal !important;
+  }
+
+  .badge-soft-success {
+    background: var(--br-success-soft) !important;
+    color: #15803d !important;
+    border-radius: 999px;
+    padding: .42rem .65rem;
+    font-weight: 700;
+  }
+
+  .badge-soft-warning {
+    background: var(--br-warning-soft) !important;
+    color: #b45309 !important;
+    border-radius: 999px;
+    padding: .42rem .65rem;
+    font-weight: 700;
+  }
+
+  .badge-soft-danger {
+    background: var(--br-danger-soft) !important;
+    color: #b91c1c !important;
+    border-radius: 999px;
+    padding: .42rem .65rem;
+    font-weight: 700;
+  }
+
+  .badge-soft-info {
+    background: var(--br-info-soft) !important;
+    color: #0369a1 !important;
+    border-radius: 999px;
+    padding: .42rem .65rem;
+    font-weight: 700;
+  }
+
+  .badge-soft-primary {
+    background: var(--br-primary-soft) !important;
+    color: var(--br-primary-dark) !important;
+    border-radius: 999px;
+    padding: .42rem .65rem;
+    font-weight: 700;
+  }
+
+  .badge-soft-secondary {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border-radius: 999px;
+    padding: .42rem .65rem;
+    font-weight: 700;
+  }
+
+  .period-alert {
+    border: 0;
+    border-radius: 1.1rem;
+    background: linear-gradient(135deg, rgba(6, 182, 212, .12), rgba(91, 92, 246, .10));
+    color: #0f172a;
+  }
+
+  @media (max-width: 767.98px) {
+    .dashboard-hero {
+      border-radius: 1rem;
+    }
+
+    .card-body {
+      padding: 1rem;
+    }
+  }
+</style>
+@endpush
+
+@section('content')
+@php
+  $summary = $summary ?? (object) [
+    'total_rows' => 0,
+    'total_request' => 0,
+    'total_pending' => 0,
+    'total_approved' => 0,
+    'total_rejected' => 0,
+    'total_item' => 0,
+    'total_printed' => 0,
+    'total_reprinted' => 0,
+    'total_printer' => 0,
+  ];
+
+  $totalRows = (int) ($summary->total_rows ?? 0);
+  $totalRequest = (int) ($summary->total_request ?? 0);
+  $totalPending = (int) ($summary->total_pending ?? 0);
+  $totalApproved = (int) ($summary->total_approved ?? 0);
+  $totalRejected = (int) ($summary->total_rejected ?? 0);
+  $totalItem = (int) ($summary->total_item ?? 0);
+  $totalPrinted = (int) ($summary->total_printed ?? 0);
+  $totalReprinted = (int) ($summary->total_reprinted ?? 0);
+  $totalPrinter = (int) ($summary->total_printer ?? 0);
+
+  $hasFilter = request()->hasAny([
+    'q',
+    'status',
+    'store_id',
+    'requested_by',
+    'printed_by',
+    'from',
+    'to',
+    'per_page',
+  ]);
+
+  $statusBadge = function ($status) {
+    return match(strtolower((string) $status)) {
+      'approved', 'printed' => 'badge-soft-success',
+      'rejected' => 'badge-soft-danger',
+      'pending' => 'badge-soft-warning',
+      default => 'badge-soft-secondary',
+    };
+  };
+
+  $statusLabel = function ($status) {
+    return match(strtolower((string) $status)) {
+      'approved' => 'Approved',
+      'printed' => 'Printed',
+      'rejected' => 'Rejected',
+      'pending' => 'Pending',
+      default => $status ? ucfirst(str_replace('_', ' ', $status)) : '-',
+    };
+  };
+@endphp
+
+<div class="container-xxl flex-grow-1 container-p-y">
+
+  {{-- HERO --}}
+  <div class="dashboard-hero p-4 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+      <div>
+        <h4 class="mb-1">
+          <span class="fw-light">Monitoring /</span> Request & Cetak Label
+        </h4>
+        <div class="hero-subtitle">
+          Pantau request label, jumlah cetak, cetak ulang, serta pengguna yang paling sering meminta atau mencetak ulang label.
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <span class="hero-badge">
+          <i class="mdi mdi-barcode-scan me-1"></i>
+          {{ number_format($totalRequest, 0, ',', '.') }} Request
+        </span>
+
+        <span class="hero-badge">
+          <i class="mdi mdi-package-variant-closed me-1"></i>
+          {{ number_format($totalItem, 0, ',', '.') }} Item
+        </span>
+
+        <span class="hero-badge">
+          <i class="mdi mdi-printer-outline me-1"></i>
+          {{ number_format($totalPrinted, 0, ',', '.') }} Label Dicetak
+        </span>
+
+        <span class="hero-badge">
+          <i class="mdi mdi-clock-outline me-1"></i>
+          Update: {{ $lastUpdate ?? now()->format('d-m-Y H:i:s') }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {{-- FILTER --}}
+  <div class="card mb-4">
+    <div class="card-header d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+      <div>
+        <h5 class="mb-1 fw-bold">Filter Monitoring Request & Cetak Label</h5>
+        <small class="text-muted">
+          Gunakan filter untuk mencari data berdasarkan periode, store, status, requester, printer, produk, item ID, dan reason.
+        </small>
+      </div>
+
+      <div class="d-flex gap-2 flex-wrap">
+          <button type="button"
+                  class="btn btn-outline-secondary btn-sm"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#advancedFilterBarcodeRequest">
+            <i class="mdi mdi-filter-variant me-1"></i> Filter
+          </button>
+
+          <a href="{{ route('monitoring.barcode-request-report.index') }}"
+             class="btn btn-outline-secondary btn-sm">
+            <i class="mdi mdi-refresh me-1"></i> Reset
+          </a>
+
+          <a href="{{ route('monitoring.barcode-request-report.export', request()->query()) }}"
+             class="btn btn-success btn-sm">
+          <i class="mdi mdi-file-excel-outline me-1"></i> Export Excel
+          </a>
+      </div>
+    </div>
+
+    <div class="card-body pt-0">
+      <div class="collapse {{ $hasFilter ? 'show' : '' }}" id="advancedFilterBarcodeRequest">
+        <div class="filter-box">
+          <form method="GET" action="{{ route('monitoring.barcode-request-report.index') }}" class="row g-3">
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Dari</label>
+              <input type="date"
+                     name="from"
+                     class="form-control"
+                     value="{{ $from }}">
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Sampai</label>
+              <input type="date"
+                     name="to"
+                     class="form-control"
+                     value="{{ $to }}">
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Store</label>
+              <select name="store_id" class="form-select js-select2-filter" data-placeholder="Semua Store">
+                <option value="">Semua Store</option>
+                @foreach($stores as $store)
+                  <option value="{{ $store->id }}" @selected((string) $storeId === (string) $store->id)>
+                    {{ $store->name }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select js-select2-filter" data-placeholder="Semua Status">
+                <option value="">Semua Status</option>
+                @foreach($statuses as $item)
+                  <option value="{{ $item }}" @selected((string) $status === (string) $item)>
+                    {{ $statusLabel($item) }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Requested By</label>
+              <select name="requested_by" class="form-select js-select2-filter" data-placeholder="Semua User">
+                <option value="">Semua User</option>
+                @foreach($users as $user)
+                  <option value="{{ $user->id }}" @selected((string) $requestedBy === (string) $user->id)>
+                    {{ $user->name }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Printed By</label>
+              <select name="printed_by" class="form-select js-select2-filter" data-placeholder="Semua User">
+                <option value="">Semua User</option>
+                @foreach($users as $user)
+                  <option value="{{ $user->id }}" @selected((string) $printedBy === (string) $user->id)>
+                    {{ $user->name }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Per Page</label>
+              <select name="per_page" class="form-select js-select2-filter" data-placeholder="Jumlah Data">
+                @foreach([10, 25, 50, 100, 200] as $size)
+                  <option value="{{ $size }}" @selected((int)($perPage ?? 10) === $size)>
+                    {{ $size }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="col-sm-6 col-md-3">
+              <label class="form-label">Cari</label>
+              <input type="text"
+                     name="q"
+                     class="form-control"
+                     value="{{ $q }}"
+                     placeholder="Store / user / product / reason / item id">
+            </div>
+
+            <div class="col-12">
+              <div class="text-muted small">
+                Summary dan tabel akan mengikuti filter periode, store, status, requested by, printed by, dan keyword.
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="filter-actions">
+                <button class="btn btn-primary btn-sm">
+                  <i class="mdi mdi-magnify me-1"></i> Tampilkan
+                </button>
+
+                <a href="{{ route('monitoring.barcode-request-report.export', request()->query()) }}"
+                   class="btn btn-success btn-sm">
+                  <i class="mdi mdi-file-excel me-1"></i> Export Excel
+                </a>
+
+                <a href="{{ route('monitoring.barcode-request-report.index') }}"
+                   class="btn btn-outline-secondary btn-sm">
+                  <i class="mdi mdi-refresh me-1"></i> Reset
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{-- PERIODE --}}
+  <div class="alert period-alert mb-4">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+      <div>
+        <strong><i class="mdi mdi-calendar-range me-1"></i> Periode Data:</strong>
+        {{ \Carbon\Carbon::parse($from)->format('d M Y') }}
+        s/d
+        {{ \Carbon\Carbon::parse($to)->format('d M Y') }}
+
+        @if($status)
+          <span class="ms-md-2">
+            | <strong>Status:</strong>
+            <span class="badge {{ $statusBadge($status) }}">
+              {{ $statusLabel($status) }}
+            </span>
+          </span>
+        @endif
+      </div>
+
+      <div class="small text-muted">
+        Data ditampilkan berdasarkan tanggal request dibuat.
+      </div>
+    </div>
+  </div>
+
+  {{-- SUMMARY --}}
+  <div class="row g-4 mb-4">
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Total Request</div>
+              <h4 class="mb-1">{{ number_format($totalRequest, 0, ',', '.') }}</h4>
+              <small class="text-muted">Permintaan barcode unik</small>
+            </div>
+            <div class="summary-icon">
+              <i class="mdi mdi-barcode-scan"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Pending</div>
+              <h4 class="mb-1">{{ number_format($totalPending, 0, ',', '.') }}</h4>
+              <small class="text-muted">Menunggu approval</small>
+            </div>
+            <div class="summary-icon warning">
+              <i class="mdi mdi-clock-alert-outline"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Approved</div>
+              <h4 class="mb-1">{{ number_format($totalApproved, 0, ',', '.') }}</h4>
+              <small class="text-muted">Request disetujui</small>
+            </div>
+            <div class="summary-icon success">
+              <i class="mdi mdi-check-circle-outline"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Rejected</div>
+              <h4 class="mb-1">{{ number_format($totalRejected, 0, ',', '.') }}</h4>
+              <small class="text-muted">Request ditolak</small>
+            </div>
+            <div class="summary-icon danger">
+              <i class="mdi mdi-close-circle-outline"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Total Item</div>
+              <h4 class="mb-1">{{ number_format($totalItem, 0, ',', '.') }}</h4>
+              <small class="text-muted">Item dalam request</small>
+            </div>
+            <div class="summary-icon info">
+              <i class="mdi mdi-package-variant-closed"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Total Label Dicetak</div>
+              <h4 class="mb-1">{{ number_format($totalPrinted, 0, ',', '.') }}</h4>
+              <small class="text-muted">Akumulasi nilai tertinggi print index per label</small>
+            </div>
+            <div class="summary-icon purple">
+              <i class="mdi mdi-printer-outline"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Total Cetak Ulang</div>
+              <h4 class="mb-1">{{ number_format($totalReprinted, 0, ',', '.') }}</h4>
+              <small class="text-muted">Jumlah cetak setelah cetakan pertama</small>
+            </div>
+            <div class="summary-icon warning">
+              <i class="mdi mdi-printer-alert-outline"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Total Printer</div>
+              <h4 class="mb-1">{{ number_format($totalPrinter, 0, ',', '.') }}</h4>
+              <small class="text-muted">User yang melakukan print</small>
+            </div>
+            <div class="summary-icon success">
+              <i class="mdi mdi-account-print-outline"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card summary-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-3">
+            <div>
+              <div class="text-muted small">Total Baris</div>
+              <h4 class="mb-1">{{ number_format($totalRows, 0, ',', '.') }}</h4>
+              <small class="text-muted">Baris laporan detail</small>
+            </div>
+            <div class="summary-icon info">
+              <i class="mdi mdi-table-row"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4 mb-4">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-1 fw-bold">Pengaju Label Terbanyak</h5>
+          <small class="text-muted">Berdasarkan jumlah request pada filter aktif.</small>
+        </div>
+        <div class="card-body pt-0">
+          @forelse($frequentRequesters ?? [] as $rank => $user)
+            <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+              <div class="d-flex align-items-center gap-3">
+                <span class="badge badge-soft-primary">#{{ $rank + 1 }}</span>
+                <div>
+                  <div class="fw-semibold">{{ $user->user_name ?? '-' }}</div>
+                  <small class="text-muted">{{ number_format((int) $user->item_count, 0, ',', '.') }} item label</small>
+                </div>
+              </div>
+              <span class="badge badge-soft-info">{{ number_format((int) $user->request_count, 0, ',', '.') }} request</span>
+            </div>
+          @empty
+            <div class="text-center text-muted py-4">Belum ada data request pada periode ini.</div>
+          @endforelse
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="card-header">
+          <h5 class="mb-1 fw-bold">Pengguna Cetak Ulang Terbanyak</h5>
+          <small class="text-muted">Cetak ulang adalah riwayat dengan <code>print_index</code> lebih dari 1.</small>
+        </div>
+        <div class="card-body pt-0">
+          @forelse($frequentReprinters ?? [] as $rank => $user)
+            <div class="d-flex align-items-center justify-content-between py-3 border-bottom">
+              <div class="d-flex align-items-center gap-3">
+                <span class="badge badge-soft-primary">#{{ $rank + 1 }}</span>
+                <div>
+                  <div class="fw-semibold">{{ $user->user_name ?? '-' }}</div>
+                  <small class="text-muted">{{ number_format((int) $user->reprinted_item_count, 0, ',', '.') }} item label</small>
+                </div>
+              </div>
+              <span class="badge badge-soft-warning">{{ number_format((int) $user->reprint_event_count, 0, ',', '.') }} cetak ulang</span>
+            </div>
+          @empty
+            <div class="text-center text-muted py-4">Belum ada cetak ulang pada periode ini.</div>
+          @endforelse
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{-- TABLE --}}
+  <div class="card">
+    <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+      <div>
+        <h5 class="mb-1 fw-bold">Detail Request & Cetak Label</h5>
+        <small class="text-muted">
+          Total Data: <b>{{ number_format($rows->total(), 0, ',', '.') }}</b>
+        </small>
+      </div>
+
+      @if($rows->count())
+        <div class="pagination-info">
+          Menampilkan <b>{{ $rows->firstItem() }}</b> - <b>{{ $rows->lastItem() }}</b>
+          dari <b>{{ number_format($rows->total(), 0, ',', '.') }}</b> data
+          | Halaman <b>{{ $rows->currentPage() }}</b> / <b>{{ $rows->lastPage() }}</b>
+        </div>
+      @endif
+    </div>
+
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped table-sm mb-0 table-nowrap barcode-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Tanggal Request</th>
+              <th>Request ID</th>
+              <th>Store</th>
+              <th>Status</th>
+              <th>Requested By</th>
+              <th>Approved By</th>
+              <th>Approved At</th>
+              <th>Printed By</th>
+              <th>Item ID</th>
+              <th>Item Status</th>
+              <th>Kode Produk</th>
+              <th>Nama Produk</th>
+              <th class="text-end">Print Index</th>
+              <th class="text-end">Jumlah Cetak</th>
+              <th class="text-end">Cetak Ulang</th>
+              <th>Printed At</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            @forelse($rows as $i => $row)
+              <tr>
+                <td>{{ $rows->firstItem() + $i }}</td>
+
+                <td class="text-nowrap">
+                  {{ $row->request_created_at ? \Carbon\Carbon::parse($row->request_created_at)->format('d M Y H:i') : '-' }}
+                </td>
+
+                <td class="request-col">
+                  <div class="fw-semibold">{{ $row->request_id ?? '-' }}</div>
+                  @if($row->request_item_id)
+                    <small class="text-muted">Item Row: {{ $row->request_item_id }}</small>
+                  @endif
+                </td>
+
+                <td>{{ $row->store_name ?? '-' }}</td>
+
+                <td>
+                  <span class="badge {{ $statusBadge($row->status ?? '-') }}">
+                    {{ $row->status_label ?? $statusLabel($row->status ?? '-') }}
+                  </span>
+                </td>
+
+                <td class="user-col">
+                  {{ $row->requested_by_name ?? '-' }}
+                </td>
+
+                <td class="user-col">
+                  {{ $row->approved_by_name ?? '-' }}
+                </td>
+
+                <td class="text-nowrap">
+                  {{ $row->approved_at ? \Carbon\Carbon::parse($row->approved_at)->format('d M Y H:i') : '-' }}
+                </td>
+
+                <td class="user-col">
+                  @if($row->printed_by_name)
+                    <span class="badge badge-soft-info">{{ $row->printed_by_name }}</span>
+                  @else
+                    <span class="badge badge-soft-secondary">Belum Print</span>
+                  @endif
+                </td>
+
+                <td>{{ $row->item_id ?? '-' }}</td>
+
+                <td>
+                  @if($row->item_status)
+                    <span class="badge badge-soft-secondary">{{ ucfirst($row->item_status) }}</span>
+                  @else
+                    -
+                  @endif
+                </td>
+
+                <td>{{ $row->product_code ?? '-' }}</td>
+
+                <td class="product-col">
+                  <div class="fw-semibold">{{ $row->product_name ?? '-' }}</div>
+                </td>
+
+                <td class="text-end">
+                  {{ $row->print_index !== null ? number_format((int) $row->print_index, 0, ',', '.') : '-' }}
+                </td>
+
+                <td class="text-end">
+                  {{ number_format((int) ($row->total_print_count ?? 0), 0, ',', '.') }}
+                </td>
+
+                <td class="text-end">
+                  {{ number_format(max((int) ($row->total_print_count ?? 0) - 1, 0), 0, ',', '.') }}
+                </td>
+
+                <td class="text-nowrap">
+                  {{ $row->printed_at ? \Carbon\Carbon::parse($row->printed_at)->format('d M Y H:i') : '-' }}
+                </td>
+
+                <td class="reason-col">
+                  {{ $row->reason ?? '-' }}
+                </td>
+              </tr>
+            @empty
+              <tr>
+                <td colspan="18" class="text-center text-muted py-4">
+                  Belum ada data request dan cetak label.
+                </td>
+              </tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
+
+      @if($rows->hasPages())
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mt-3">
+          <div class="pagination-info">
+            Menampilkan <b>{{ $rows->firstItem() }}</b> - <b>{{ $rows->lastItem() }}</b>
+            dari <b>{{ number_format($rows->total(), 0, ',', '.') }}</b> data
+          </div>
+
+          <div>
+            {{ $rows->onEachSide(1)->links() }}
+          </div>
+        </div>
+      @endif
+    </div>
+  </div>
+</div>
+@endsection
+
+@push('vendor-script')
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.full.min.js"></script>
+@endpush
+
+@push('page-script')
+<script>
+(function ($) {
+  'use strict';
+
+  function initFilterSelect2() {
+    $('.js-select2-filter').each(function () {
+      const $el = $(this);
+
+      if ($el.hasClass('select2-hidden-accessible')) {
+        $el.select2('destroy');
+      }
+
+      $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        allowClear: true,
+        placeholder: $el.data('placeholder') || 'Pilih data'
+      });
+    });
+  }
+
+  $(document).ready(function () {
+    initFilterSelect2();
+
+    const ttNodes = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    ttNodes.forEach(el => new bootstrap.Tooltip(el));
+  });
+})(window.jQuery);
+</script>
+@endpush

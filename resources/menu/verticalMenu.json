@@ -1,0 +1,407 @@
+{
+  "menu": [
+    {
+      "url": "/",
+      "name": "Dashboard",
+      "icon": "menu-icon tf-icons mdi mdi-home-outline",
+      "slug": "dashboard",
+      "submenu": [
+        {
+          "url": "/",
+          "name": "Analytics",
+          "slug": "dashboard-analytics"
+        }
+      ]
+    },
+    {
+      "url": "ecommerce/orders",
+      "name": "Ecommerce Order",
+      "icon": "menu-icon tf-icons mdi mdi-cart-arrow-right",
+      "slug": "ecommerce-orders"
+    },
+    {
+      "url": "ai-analytics",
+      "name": "AI Analytics",
+      "icon": "menu-icon tf-icons mdi mdi-robot-outline",
+      "slug": "ai-analytics"
+    },
+    {
+      "url": "ai-assistant",
+      "name": "AI Assistant",
+      "icon": "menu-icon tf-icons mdi mdi-chat-processing-outline",
+      "slug": "ai-assistant"
+    },
+    {
+      "name": "Master Product",
+      "icon": "menu-icon tf-icons mdi mdi-package-variant",
+      "slug": "master-product",
+      "submenu": [
+        {
+          "url": "master-data/product-categories",
+          "name": "Category",
+          "slug": "master-data-product-categories"
+        },
+        {
+          "url": "master-data/brands",
+          "name": "Brand",
+          "slug": "master-data-brands"
+        },
+        {
+          "url": "master-data/products",
+          "name": "Product",
+          "slug": "master-data-products"
+        },
+        {
+          "url": "master-data/product-prices",
+          "name": "Price",
+          "slug": "master-data-product-prices"
+        },
+        {
+          "url": "master-data/units",
+          "name": "Unit",
+          "slug": "master-data-units"
+        },
+        {
+          "url": "master-data/item-conditions",
+          "name": "Condition",
+          "slug": "master-data-item-conditions"
+        },
+        {
+          "url": "master-data/product-specifications",
+          "name": "Specification",
+          "slug": "master-data-product-specifications"
+        }
+      ]
+    },
+    {
+      "name": "Master Location",
+      "icon": "menu-icon tf-icons mdi mdi-map-marker-multiple",
+      "slug": "master-location",
+      "submenu": [
+        {
+          "url": "master-data/stores",
+          "name": "Store",
+          "slug": "master-data-stores"
+        },
+        {
+          "url": "master-data/warehouses",
+          "name": "Warehouses",
+          "slug": "master-data-warehouses"
+        },
+        {
+          "url": "master-data/locations-warehouse",
+          "name": "Warehouse Loc",
+          "slug": "master-data-locations-warehouse"
+        },
+        {
+          "url": "master-data/locations-store",
+          "name": "Store Loc",
+          "slug": "master-data-locations-store"
+        }
+      ]
+    },
+    {
+      "name": "Master Partner",
+      "icon": "menu-icon tf-icons mdi mdi-handshake-outline",
+      "slug": "master-partner",
+      "submenu": [
+        {
+          "url": "master-data/customers",
+          "name": "Customer",
+          "slug": "master-data-customers"
+        },
+        {
+          "url": "master-data/couriers",
+          "name": "Courier",
+          "slug": "master-data-couriers"
+        },
+        {
+          "url": "master-data/suppliers",
+          "name": "Supplier",
+          "slug": "master-data-suppliers"
+        },
+        {
+          "url": "master-data/partners",
+          "name": "Partner",
+          "slug": "master-data-partners"
+        }
+      ]
+    },
+    {
+      "name": "Promo",
+      "icon": "menu-icon tf-icons mdi mdi-sale",
+      "slug": "master-promo-discount",
+      "submenu": [
+        {
+          "url": "master-data/promos",
+          "name": "Promo",
+          "slug": "master-data-promos"
+        },
+        {
+          "url": "master-data/diskons",
+          "name": "Diskon",
+          "slug": "master-data-diskons"
+        },
+        {
+          "url": "master-data/products-diskons",
+          "name": "Prod. Discount",
+          "slug": "master-data-products-diskons"
+        },
+        {
+          "url": "master-data/vouchers",
+          "name": "Voucher",
+          "slug": "master-data-vouchers"
+        }
+      ]
+    },
+    {
+      "name": "E-commerce",
+      "icon": "menu-icon tf-icons mdi mdi-cart-outline",
+      "slug": "master-ecommerce",
+      "submenu": [
+        {
+          "url": "master-data/ecommerce-banners",
+          "name": "Banners",
+          "slug": "master-data-ecommerce-banners"
+        },
+        {
+          "url": "master-data/payment-methods",
+          "name": "Payments",
+          "slug": "master-data-payment-methods"
+        }
+      ]
+    },
+    {
+      "name": "Loyalty",
+      "icon": "menu-icon tf-icons mdi mdi-crown-outline",
+      "slug": "loyalty-membership",
+      "submenu": [
+        {
+          "url": "master-data/memberships",
+          "name": "Tiers",
+          "slug": "master-data-memberships"
+        },
+        {
+          "url": "master-data/membership-benefits",
+          "name": "Benefits",
+          "slug": "master-data-membership-benefits"
+        },
+        {
+          "url": "loyalty/customer-loyalty-points",
+          "name": "Points",
+          "slug": "loyalty-customer-loyalty-points"
+        },
+        {
+          "url": "loyalty/customer-loyalty-point-mutations",
+          "name": "Mutations",
+          "slug": "loyalty-customer-loyalty-point-mutations"
+        },
+        {
+          "url": "loyalty/customer-visits",
+          "name": "Visits",
+          "slug": "loyalty-customer-visits"
+        }
+      ]
+    },
+    {
+      "name": "Branch Operations",
+      "icon": "menu-icon tf-icons mdi mdi-store-outline",
+      "slug": "branch-operations",
+      "submenu": [
+        {
+          "url": "reports/order-cabang",
+          "name": "Orders",
+          "slug": "branch-order-cabang"
+        },
+        {
+          "url": "reports/retur-cabang",
+          "name": "Returns",
+          "slug": "branch-retur-cabang"
+        },
+        {
+          "url": "branch-operations/request-label",
+          "name": "Request Label",
+          "slug": "branch-request-label"
+        },
+        {
+          "url": "branch-operations/request-voucher",
+          "name": "Request Voucher",
+          "slug": "branch-request-voucher"
+        }
+      ]
+    },
+    {
+      "name": "CRM",
+      "icon": "menu-icon tf-icons mdi mdi-account-group-outline",
+      "slug": "crm",
+      "submenu": [
+        {
+          "url": "reports/crm",
+          "name": "CRM",
+          "slug": "crm-dashboard",
+          "exact_url_match": true
+        },
+        {
+          "url": "reports/crm/customer-profiles",
+          "name": "Customer Profile",
+          "slug": "crm-customer-profiles"
+        },
+        {
+          "url": "reports/crm/demographics",
+          "name": "Demografi Customer",
+          "slug": "crm-demographics"
+        }
+      ]
+    },
+    {
+      "url": "monitoring",
+      "name": "Monitoring",
+      "icon": "menu-icon tf-icons mdi mdi-monitor-eye",
+      "slug": "monitoring",
+      "landing_page": true,
+      "hide_submenu": true,
+      "submenu": [
+        {
+          "name": "Penjualan",
+          "slug": "monitoring-sales-payment",
+          "submenu": [
+            {"url":"monitoring/payment-income-realtime","name":"Pemasukan Realtime","slug":"monitoring-payment-income-realtime"},
+            {"url":"monitoring/payment-reconciliation","name":"Rekonsiliasi Payment","slug":"monitoring.payment-reconciliation"},
+            {"url":"monitoring/store-payment-transactions","name":"Store Payment","slug":"monitoring-store-payment-transactions"},
+            {"url":"monitoring/ecommerce-payment","name":"Ecommerce Payment","slug":"monitoring-ecommerce-payment"},
+            {"url":"monitoring/omset-cabang","name":"Omset Cabang","slug":"monitoring-omset-cabang"},
+            {"url":"monitoring/omset-kotor","name":"Omset Kotor","slug":"monitoring-omset-kotor"},
+            {"url":"monitoring/produk-terlaris","name":"Produk Terlaris","slug":"monitoring-produk-terlaris"},
+            {"url":"monitoring/cashier-shift-report","name":"Cashier Shift","slug":"monitoring-cashier-shift-report"},
+            {"url":"monitoring/void-cancel-customer","name":"Void Transaction","slug":"monitoring-void-cancel-customer"}
+          ]
+        },
+        {
+          "name": "Pesanan",
+          "slug": "monitoring-orders",
+          "submenu": [
+            {"url":"monitoring/fulfillment-control","name":"Fulfillment & SLA","slug":"monitoring.fulfillment-control"},
+            {"url":"monitoring/ecommerce-order-fulfillment","name":"Ecommerce Handled","slug":"monitoring-ecommerce-order-fulfillment"},
+            {"url":"monitoring/store-order-requests","name":"Store Order","slug":"monitoring-store-order-requests"},
+            {"url":"monitoring/store-return-requests","name":"Store Return","slug":"monitoring-store-return-requests"}
+          ]
+        },
+        {
+          "name": "Stok & Logistik",
+          "slug": "monitoring-inventory",
+          "submenu": [
+            {"url":"monitoring/stok-percabang","name":"Stok per Cabang","slug":"monitoring.stok-percabang"},
+            {"url":"monitoring/stok-wms","name":"Stok Warehouse","slug":"monitoring.stok-wms"},
+            {"url":"monitoring/warehouse-inbound","name":"Warehouse Inbound","slug":"monitoring-warehouse-inbound"},
+            {"url":"monitoring/warehouse-outbound","name":"Warehouse Outbound","slug":"monitoring.warehouse-outbound"},
+            {"url":"monitoring/store-inbound","name":"Store Inbound","slug":"monitoring.store-inbound"},
+            {"url":"monitoring/store-outbound","name":"Store Outbound","slug":"monitoring.store-outbound"},
+            {"url":"monitoring/quality-control","name":"Quality Control","slug":"monitoring.quality-control"},
+            {"url":"monitoring/mutasi-stock-wms","name":"Mutasi Stok WMS","slug":"monitoring-mutasi-stock-wms"},
+            {"url":"monitoring/tracking-barang","name":"Tracking Barang","slug":"monitoring-tracking-barang"},
+            {"url":"monitoring/anomali-item","name":"Anomali Item","slug":"monitoring-anomali-item"},
+            {"url":"monitoring/physical-stocks","name":"Stok Produk","slug":"monitoring-physical-stocks"},
+            {"url":"monitoring/product-slowmoving","name":"Produk Slowmoving","slug":"monitoring-product-slowmoving"},
+            {"url":"monitoring/product-aging","name":"Product Aging","slug":"monitoring-product-aging"},
+            {"url":"monitoring/stok-mendekati-kedaluwarsa","name":"Stok Mendekati Kedaluwarsa","slug":"monitoring-stok-mendekati-kedaluwarsa"},
+            {"url":"monitoring/stok-barier-cabang","name":"Branch Barrier","slug":"monitoring-stok-barier-cabang"},
+            {"url":"monitoring/store-stock-opnames","name":"Store Stok Opname","slug":"monitoring-store-stock-opnames"},
+            {"url":"monitoring/stok-barier-gudang","name":"WMS Barrier","slug":"monitoring-stok-barier-gudang"},
+            {"url":"monitoring/audit-wms-opnames","name":"WMS Stok Opname","slug":"monitoring-audit-wms-opnames"},
+            {"url":"monitoring/barcode-request-report","name":"Laporan Cetak Ulang Label","slug":"monitoring-barcode-request-report"}
+          ]
+        },
+        {
+          "name": "Customer & Promo",
+          "slug": "monitoring-customer-marketing",
+          "submenu": [
+            {"url":"monitoring/data-customer","name":"Data Customer","slug":"monitoring-data-customer"},
+            {"url":"monitoring/customer-membership","name":"Customer Membership","slug":"monitoring-customer-membership"},
+            {"url":"monitoring/customer-loyalty-points-report","name":"Customer Loyalty","slug":"monitoring-customer-loyalty-points-report"},
+            {"url":"monitoring/referral-score-report","name":"Referral & Referrer","slug":"monitoring-referral-score-report"},
+            {"url":"monitoring/redeem-point-report","name":"Redeem Point","slug":"monitoring-redeem-point-report"},
+            {"url":"monitoring/diskon","name":"Monitoring Diskon","slug":"monitoring-diskon"},
+            {"url":"monitoring/promo-usage","name":"Promo Usage","slug":"monitoring-promo-usage"},
+            {"url":"monitoring/voucher-reject-report","name":"Voucher Reject","slug":"monitoring-voucher-reject-report"},
+            {"url":"monitoring/request-voucher","name":"Request Voucher","slug":"monitoring-request-voucher"}
+          ]
+        },
+        {
+          "name": "Audit & SDM",
+          "slug": "monitoring-audit-data",
+          "submenu": [
+            {"url":"monitoring/audit-center","name":"Audit & Security","slug":"monitoring.audit-center"},
+            {"url":"monitoring/user-monitoring","name":"User Session Log","slug":"monitoring-user-monitoring"},
+            {"url":"monitoring/employee-shift-attendance","name":"Absensi Karyawan","slug":"monitoring-employee-shift-attendance"},
+            {"url":"monitoring/data-quality","name":"Kualitas Data","slug":"monitoring.data-quality"}
+          ]
+        },
+        {
+          "name": "Supplier",
+          "slug": "monitoring-supplier",
+          "submenu": [
+            {"url":"monitoring/supplier-insight","name":"Insight Supplier","slug":"monitoring.supplier-insight"},
+            {"url":"reports/supplier-products","name":"Supplier Products","slug":"reports-supplier-products"}
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Settings",
+      "icon": "menu-icon tf-icons mdi mdi-cog-outline",
+      "slug": "settings",
+      "submenu": [
+        {
+          "url": "settings/app/points",
+          "name": "Point Rate",
+          "slug": "settings-app-points"
+        },
+        {
+          "url": "settings/app/customer-loyalty-point-transaction-reward",
+          "name": "Loyalty Reward",
+          "slug": "settings-app-customer-loyalty-point-transaction-reward",
+          "default_value": "10 LP"
+        },
+        {
+          "url": "settings/app/affiliate-points/inviter",
+          "name": "Affiliate (Inviter)",
+          "slug": "settings-app-affiliate-points-inviter",
+          "default_value": "25 LP"
+        },
+        {
+          "url": "settings/app/affiliate-points/invitee",
+          "name": "Affiliate (Invitee)",
+          "slug": "settings-app-affiliate-points-invitee",
+          "default_value": "10 LP"
+        }
+      ]
+    },
+    {
+      "name": "User Management",
+      "icon": "menu-icon tf-icons mdi mdi-account-cog-outline",
+      "slug": "user-management",
+      "submenu": [
+        {
+          "url": "master-data/users",
+          "name": "Users",
+          "slug": "management-account-users"
+        },
+        {
+          "url": "management/roles-backoffice",
+          "name": "Roles",
+          "slug": "management-roles-backoffice"
+        },
+        {
+          "url": "management/role-permissions",
+          "name": "Permissions",
+          "slug": "management-role-permissions"
+        },
+        {
+          "url": "management/user-roles",
+          "name": "User Roles",
+          "slug": "management-user-roles"
+        }
+      ]
+    }
+  ]
+}

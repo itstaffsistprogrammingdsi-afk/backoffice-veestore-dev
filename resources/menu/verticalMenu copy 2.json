@@ -1,0 +1,142 @@
+{
+  "menu": [
+    {
+      "url": "/",
+      "name": "Dashboards",
+      "icon": "menu-icon tf-icons mdi mdi-home-outline",
+      "slug": "dashboard",
+      "badge": [
+        "danger",
+        "5"
+      ],
+      "submenu": [
+        {
+          "url": "/",
+          "name": "Analytics",
+          "slug": "dashboard-analytics"
+        }
+      ]
+    },
+    {
+      "name": "Master Data",
+      "icon": "menu-icon tf-icons mdi mdi-window-maximize",
+      "slug": "Master Data",
+      "submenu": [
+        {
+          "url": "master-data/suppliers",
+          "name": "Suppliers",
+          "slug": "master-data-suppliers"
+        },
+        {
+          "url": "master-data/warehouses",
+          "name": "Warehouses",
+          "slug": "master-data-warehouses"
+        },
+        {
+          "url": "master-data/locations",
+          "name": "Locations",
+          "slug": "master-data-locations"
+        },
+        {
+          "url": "master-data/units",
+          "name": "Units",
+          "slug": "master-data-units"
+        },
+        {
+          "url": "master-data/product-categories",
+          "name": "Product Categories",
+          "slug": "master-data-product-categories"
+        },
+        {
+          "url": "master-data/products",
+          "name": "Products",
+          "slug": "master-data-products"
+        },
+        {
+          "url": "master-data/promos",
+          "name": "Promos",
+          "slug": "master-data-promos"
+        },
+        {
+          "url": "master-data/stores",
+          "name": "Stores",
+          "slug": "master-data-stores"
+        },
+        {
+          "url": "master-data/couriers",
+          "name": "Couriers",
+          "slug": "master-data-couriers"
+        },
+        {
+          "url": "master-data/rfid-tags",
+          "name": "RFID Tags",
+          "slug": "master-data-rfid-tags"
+        },
+        {
+          "url": "master-data/customers",
+          "name": "Customers",
+          "slug": "master-data-customers"
+        },
+        {
+          "url": "master-data/memberships",
+          "name": "Memberships",
+          "slug": "master-data-memberships"
+        },
+        {
+          "url": "master-data/membership-benefits",
+          "name": "Membership Benefits",
+          "slug": "master-data-membership-benefits"
+        },
+        {
+          "url": "master-data/item-conditions",
+          "name": "Item Conditions",
+          "slug": "master-data-item-conditions"
+        },
+        {
+          "url": "master-data/payment-methods",
+          "name": "Payment Methods",
+          "slug": "master-data-payment-methods"
+        }
+      ]
+    },
+    {
+      "name": "Loyalty & Member",
+      "icon": "menu-icon tf-icons mdi mdi-crown-outline",
+      "slug": "loyalty-membership",
+      "submenu": [
+        {
+          "url": "loyalty/customer-memberships",
+          "name": "Customer Member",
+          "slug": "loyalty-customer-memberships"
+        },
+        {
+          "url": "loyalty/customer-loyalty-points",
+          "name": "Loyalty Points",
+          "slug": "loyalty-customer-loyalty-points"
+        },
+        {
+          "url": "loyalty/customer-loyalty-point-mutations",
+          "name": "Loyalty Point Mutasi",
+          "slug": "loyalty-customer-loyalty-point-mutations"
+        }
+      ]
+    },
+    {
+      "name": "Management Akun",
+      "icon": "menu-icon tf-icons mdi mdi-account-cog-outline",
+      "slug": "management-account",
+      "submenu": [
+        {
+          "url": "master-data/users",
+          "name": "Users",
+          "slug": "management-account-users"
+        },
+        {
+          "url": "management/roles",
+          "name": "Roles",
+          "slug": "management-account-roles"
+        }
+      ]
+    }
+  ]
+}

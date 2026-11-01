@@ -1,0 +1,20 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 0
+    paths:
+        - app
+    excludePaths:
+        - app/Console/Kernel.php
+        - app/Exceptions/Handler.php
+        - app/Http/Kernel.php
+        - app/Http/Middleware/Authenticate.php
+        - app/Http/Middleware/EncryptCookies.php
+        - app/Http/Middleware/PreventRequestsDuringMaintenance.php
+        - app/Http/Middleware/RedirectIfAuthenticated.php
+        - app/Http/Middleware/TrimStrings.php
+        - app/Http/Middleware/TrustHosts.php
+        - app/Http/Middleware/TrustProxies.php
+        - app/Http/Middleware/ValidateSignature.php
