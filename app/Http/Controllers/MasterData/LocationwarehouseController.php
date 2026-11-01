@@ -4,20 +4,21 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
-use App\Models\Warehouse;
 use App\Models\Store;
+use App\Models\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
-use Illuminate\Support\Str;
 
 class LocationwarehouseController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view master-data-locations-warehouse')->only(['index','treeData','qr']);
+        $this->middleware('permission:view master-data-locations-warehouse')->only(['index', 'treeData', 'qr']);
         $this->middleware('permission:create master-data-locations-warehouse')->only(['store']);
         $this->middleware('permission:update master-data-locations-warehouse')->only(['update']);
         $this->middleware('permission:delete master-data-locations-warehouse')->only(['destroy']);
@@ -25,230 +26,244 @@ class LocationwarehouseController extends Controller
 
     public function index(Request $request)
     {
-        $q    = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
         $type = $request->get('type');
 
-        $rawParents = Location::select('id','name','type','location_parent_id')
+        $locations = Location::query()
+            ->with('parent:id,name')
+            ->where('type', '!=', 'store')
+            ->when($q !== '', fn ($query) => $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'ILIKE', "%{$q}%")->orWhere('code', 'ILIKE', "%{$q}%");
+            }))
+            ->when($type, fn ($query) => $query->where('type', $type))
+            ->orderBy('name')
+            ->paginate(10)
+            ->withQueryString();
+
+        $types = ['warehouse', 'room', 'store_display', 'rack', 'staging', 'layer'];
+        $stores = Store::select('id', 'name')->orderBy('name')->get();
+        $warehouses = Warehouse::select('id', 'name')->orderBy('name')->get();
+        $parentOptions = Location::select('id', 'name')->orderBy('name')->get();
+
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Location Warehouse',
+            'description' => 'Kelola lokasi gudang.',
+            'searchPlaceholder' => 'Cari lokasi...',
+            'items' => $locations,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'type', 'label' => 'Tipe'],
+                ['key' => 'parent.name', 'label' => 'Parent'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Lokasi', 'required' => true],
+                ['key' => 'code', 'label' => 'Kode', 'required' => true],
+                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'required' => true, 'options' => collect($types)->map(fn ($type) => ['value' => $type, 'label' => $type])->values()->all()],
+                ['key' => 'location_parent_id', 'label' => 'Parent', 'type' => 'select', 'options' => $parentOptions->map(fn ($location) => ['value' => $location->id, 'label' => $location->name])->values()->all()],
+                ['key' => 'warehouse_id', 'label' => 'Warehouse', 'type' => 'select', 'options' => $warehouses->map(fn ($warehouse) => ['value' => $warehouse->id, 'label' => $warehouse->name])->values()->all()],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.locations-warehouse.index'),
+                'store' => route('master-data.locations-warehouse.store'),
+                'update' => route('master-data.locations-warehouse.update', ['location' => '__ID__']),
+                'destroy' => route('master-data.locations-warehouse.destroy', ['location' => '__ID__']),
+            ],
+        ]);
+    }
+
+    public function treeData(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        $type = $request->get('type');
+
+        $all = Location::select('id', 'name', 'code', 'type', 'location_parent_id')
             ->orderByRaw($this->orderByTypeCase())
             ->orderBy('name')
             ->get();
 
-        $byId = $rawParents->map(fn($x) => [
+        $byId = $all->map(fn ($x) => [
             'id' => $x->id,
             'name' => $x->name,
+            'code' => $x->code,
             'type' => $x->type,
             'location_parent_id' => $x->location_parent_id,
         ])->keyBy('id')->toArray();
 
-        $withOwner = $rawParents->map(function ($x) use ($byId) {
-            $owner = $this->findOwnerRootFromMap($byId, $x->id);
-            $x->owner_root_id   = $owner['id']   ?? null;
-            $x->owner_root_type = $owner['type'] ?? null;
-            return $x;
-        });
+        $childrenMap = $all->groupBy('location_parent_id');
 
-        // Halaman Warehouse: sembunyikan store & semua node yang owner-root=store
-        $allParents = $withOwner->filter(function ($x) {
-            if ($x->type === 'store') return false;
-            if (($x->owner_root_type ?? null) === 'store') return false;
-            return true;
-        })->values();
+        /*
+         * Ambil nama Warehouse dari pivot warehouse_locations.
+         * Child juga akan punya pivot warehouse_locations via attach/sync.
+         */
+        $warehouseLocationMap = DB::table('warehouse_locations as wl')
+            ->join('warehouses as w', 'w.id', '=', 'wl.warehouse_id')
+            ->select(
+                'wl.location_id',
+                'wl.warehouse_id',
+                'w.name as warehouse_name'
+            )
+            ->get()
+            ->keyBy('location_id');
 
-        $types = ['warehouse','room','store_display','rack','staging','layer'];
+        $ownerOf = function (?string $id) use ($byId) {
+            while ($id && isset($byId[$id])) {
+                $n = $byId[$id];
 
-        $warehouses = Warehouse::select('id','name')->orderBy('name')->get();
-        $stores     = Store::select('id','name')->orderBy('name')->get();
+                if (in_array($n['type'], ['warehouse', 'store'], true)) {
+                    return $n;
+                }
 
-        return view(
-            'content.master-data.locations warehouse.index',
-            compact('q','types','type','allParents','warehouses','stores')
-        );
-    }
-public function treeData(Request $request)
-{
-    $q    = trim((string) $request->get('q', ''));
-    $type = $request->get('type');
-
-    $all = Location::select('id','name','code','type','location_parent_id')
-        ->orderByRaw($this->orderByTypeCase())
-        ->orderBy('name')
-        ->get();
-
-    $byId = $all->map(fn($x) => [
-        'id' => $x->id,
-        'name' => $x->name,
-        'code' => $x->code,
-        'type' => $x->type,
-        'location_parent_id' => $x->location_parent_id,
-    ])->keyBy('id')->toArray();
-
-    $childrenMap = $all->groupBy('location_parent_id');
-
-    /*
-     * Ambil nama Warehouse dari pivot warehouse_locations.
-     * Child juga akan punya pivot warehouse_locations via attach/sync.
-     */
-    $warehouseLocationMap = DB::table('warehouse_locations as wl')
-        ->join('warehouses as w', 'w.id', '=', 'wl.warehouse_id')
-        ->select(
-            'wl.location_id',
-            'wl.warehouse_id',
-            'w.name as warehouse_name'
-        )
-        ->get()
-        ->keyBy('location_id');
-
-    $ownerOf = function (?string $id) use ($byId) {
-        while ($id && isset($byId[$id])) {
-            $n = $byId[$id];
-
-            if (in_array($n['type'], ['warehouse','store'], true)) {
-                return $n;
+                $id = $n['location_parent_id'];
             }
 
-            $id = $n['location_parent_id'];
-        }
+            return null;
+        };
 
-        return null;
-    };
-
-    $warehouseMetaOf = function (?string $locationId) use ($warehouseLocationMap, $ownerOf) {
-        if (!$locationId) {
-            return [
-                'warehouse_id' => null,
-                'warehouse_name' => null,
-            ];
-        }
-
-        $direct = $warehouseLocationMap->get($locationId);
-
-        if ($direct) {
-            return [
-                'warehouse_id' => $direct->warehouse_id,
-                'warehouse_name' => $direct->warehouse_name,
-            ];
-        }
-
-        $owner = $ownerOf($locationId);
-
-        if ($owner && ($owner['type'] ?? null) === 'warehouse') {
-            $ownerWarehouse = $warehouseLocationMap->get($owner['id']);
-
-            if ($ownerWarehouse) {
+        $warehouseMetaOf = function (?string $locationId) use ($warehouseLocationMap, $ownerOf) {
+            if (! $locationId) {
                 return [
-                    'warehouse_id' => $ownerWarehouse->warehouse_id,
-                    'warehouse_name' => $ownerWarehouse->warehouse_name,
+                    'warehouse_id' => null,
+                    'warehouse_name' => null,
+                ];
+            }
+
+            $direct = $warehouseLocationMap->get($locationId);
+
+            if ($direct) {
+                return [
+                    'warehouse_id' => $direct->warehouse_id,
+                    'warehouse_name' => $direct->warehouse_name,
+                ];
+            }
+
+            $owner = $ownerOf($locationId);
+
+            if ($owner && ($owner['type'] ?? null) === 'warehouse') {
+                $ownerWarehouse = $warehouseLocationMap->get($owner['id']);
+
+                if ($ownerWarehouse) {
+                    return [
+                        'warehouse_id' => $ownerWarehouse->warehouse_id,
+                        'warehouse_name' => $ownerWarehouse->warehouse_name,
+                    ];
+                }
+
+                return [
+                    'warehouse_id' => null,
+                    'warehouse_name' => $owner['name'] ?? null,
                 ];
             }
 
             return [
                 'warehouse_id' => null,
-                'warehouse_name' => $owner['name'] ?? null,
+                'warehouse_name' => null,
             ];
-        }
+        };
 
-        return [
-            'warehouse_id' => null,
-            'warehouse_name' => null,
-        ];
-    };
+        $matchedIds = $all->filter(function ($loc) use ($q, $type, $ownerOf, $warehouseMetaOf) {
+            $ok = true;
 
-    $matchedIds = $all->filter(function ($loc) use ($q, $type, $ownerOf, $warehouseMetaOf) {
-        $ok = true;
+            if ($q !== '') {
+                $qLower = mb_strtolower($q);
+                $warehouseMeta = $warehouseMetaOf($loc->id);
+                $warehouseName = $warehouseMeta['warehouse_name'] ?? '';
 
-        if ($q !== '') {
-            $qLower = mb_strtolower($q);
-            $warehouseMeta = $warehouseMetaOf($loc->id);
-            $warehouseName = $warehouseMeta['warehouse_name'] ?? '';
+                $ok = (mb_stripos(mb_strtolower($loc->name), $qLower) !== false)
+                   || (mb_stripos(mb_strtolower($loc->code), $qLower) !== false)
+                   || (mb_stripos(mb_strtolower($warehouseName), $qLower) !== false);
+            }
 
-            $ok = (mb_stripos(mb_strtolower($loc->name), $qLower) !== false)
-               || (mb_stripos(mb_strtolower($loc->code), $qLower) !== false)
-               || (mb_stripos(mb_strtolower($warehouseName), $qLower) !== false);
-        }
+            if ($ok && $type) {
+                $ok = $loc->type === $type;
+            }
 
-        if ($ok && $type) {
-            $ok = $loc->type === $type;
-        }
+            if (! $ok) {
+                return false;
+            }
 
-        if (!$ok) return false;
-
-        if ($loc->type === 'warehouse') return true;
-
-        $owner = $ownerOf($loc->id);
-
-        return $owner && ($owner['type'] === 'warehouse');
-    })->pluck('id')->flip();
-
-    $shouldInclude = function ($id) use (&$shouldInclude, $matchedIds, $childrenMap, $ownerOf) {
-        $owner = $ownerOf($id);
-
-        if (!$owner || $owner['type'] !== 'warehouse') {
-            return false;
-        }
-
-        if (isset($matchedIds[$id])) {
-            return true;
-        }
-
-        foreach ($childrenMap->get($id, []) as $child) {
-            if ($shouldInclude($child->id)) {
+            if ($loc->type === 'warehouse') {
                 return true;
             }
-        }
-
-        return false;
-    };
-
-    $buildTree = function ($parentId) use (&$buildTree, $childrenMap, $shouldInclude, $ownerOf, $warehouseMetaOf) {
-        $nodes = [];
-
-        foreach ($childrenMap->get($parentId, []) as $loc) {
-            if (!$shouldInclude($loc->id)) continue;
 
             $owner = $ownerOf($loc->id);
-            $warehouseMeta = $warehouseMetaOf($loc->id);
 
-            $node = [
-                'id'                 => $loc->id,
-                'name'               => $loc->name,
-                'code'               => $loc->code,
-                'type'               => $loc->type,
-                'location_parent_id' => $loc->location_parent_id,
-                'owner_root_id'      => $owner['id']   ?? null,
-                'owner_root_type'    => $owner['type'] ?? null,
+            return $owner && ($owner['type'] === 'warehouse');
+        })->pluck('id')->flip();
 
-                // Tambahan untuk kolom Warehouse dan modal edit
-                'warehouse_id'       => $warehouseMeta['warehouse_id'] ?? null,
-                'warehouse_name'     => $warehouseMeta['warehouse_name'] ?? null,
-            ];
+        $shouldInclude = function ($id) use (&$shouldInclude, $matchedIds, $childrenMap, $ownerOf) {
+            $owner = $ownerOf($id);
 
-            $children = $buildTree($loc->id);
-
-            if (!empty($children)) {
-                $node['_children'] = $children;
+            if (! $owner || $owner['type'] !== 'warehouse') {
+                return false;
             }
 
-            $nodes[] = $node;
-        }
+            if (isset($matchedIds[$id])) {
+                return true;
+            }
 
-        return $nodes;
-    };
+            foreach ($childrenMap->get($id, []) as $child) {
+                if ($shouldInclude($child->id)) {
+                    return true;
+                }
+            }
 
-    return response()->json($buildTree(null));
-}
+            return false;
+        };
+
+        $buildTree = function ($parentId) use (&$buildTree, $childrenMap, $shouldInclude, $ownerOf, $warehouseMetaOf) {
+            $nodes = [];
+
+            foreach ($childrenMap->get($parentId, []) as $loc) {
+                if (! $shouldInclude($loc->id)) {
+                    continue;
+                }
+
+                $owner = $ownerOf($loc->id);
+                $warehouseMeta = $warehouseMetaOf($loc->id);
+
+                $node = [
+                    'id' => $loc->id,
+                    'name' => $loc->name,
+                    'code' => $loc->code,
+                    'type' => $loc->type,
+                    'location_parent_id' => $loc->location_parent_id,
+                    'owner_root_id' => $owner['id'] ?? null,
+                    'owner_root_type' => $owner['type'] ?? null,
+
+                    // Tambahan untuk kolom Warehouse dan modal edit
+                    'warehouse_id' => $warehouseMeta['warehouse_id'] ?? null,
+                    'warehouse_name' => $warehouseMeta['warehouse_name'] ?? null,
+                ];
+
+                $children = $buildTree($loc->id);
+
+                if (! empty($children)) {
+                    $node['_children'] = $children;
+                }
+
+                $nodes[] = $node;
+            }
+
+            return $nodes;
+        };
+
+        return response()->json($buildTree(null));
+    }
 
     public function store(Request $request)
     {
         $formFrom = $request->input('_form', 'create');
 
         $data = $request->validate([
-            'name'               => 'required|string|max:255',
-            'code'               => 'required|string|max:100',
-            'type'               => 'required|in:warehouse,room,store_display,rack,staging,layer',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:100',
+            'type' => 'required|in:warehouse,room,store_display,rack,staging,layer',
             'location_parent_id' => 'nullable|uuid|exists:locations,id',
-            'warehouse_id'       => ['nullable','uuid','exists:warehouses,id', Rule::requiredIf(fn() => $request->type === 'warehouse')],
-            'store_id'           => ['nullable','uuid','exists:stores,id'],
-            '_form'              => 'nullable|in:create,quick_add',
+            'warehouse_id' => ['nullable', 'uuid', 'exists:warehouses,id', Rule::requiredIf(fn () => $request->type === 'warehouse')],
+            'store_id' => ['nullable', 'uuid', 'exists:stores,id'],
+            '_form' => 'nullable|in:create,quick_add',
         ]);
 
         $this->enforceParentRules($data['type'], $data['location_parent_id'] ?? null);
@@ -260,7 +275,7 @@ public function treeData(Request $request)
                 $data['warehouse_id'] ?? null
             );
 
-            if (!$warehouseId) {
+            if (! $warehouseId) {
                 throw ValidationException::withMessages([
                     'warehouse_id' => 'Warehouse tujuan tidak dapat ditemukan.',
                 ]);
@@ -297,15 +312,15 @@ public function treeData(Request $request)
             );
 
             $location = Location::create([
-                'name'               => $data['name'],
-                'code'               => $data['code'],
-                'type'               => $data['type'],
+                'name' => $data['name'],
+                'code' => $data['code'],
+                'type' => $data['type'],
                 'location_parent_id' => $data['location_parent_id'] ?? null,
             ]);
 
             if ($data['type'] === 'warehouse') {
                 DB::table('warehouse_locations')->insert([
-                    'location_id'  => $location->id,
+                    'location_id' => $location->id,
                     'warehouse_id' => $data['warehouse_id'],
                 ]);
             }
@@ -328,15 +343,15 @@ public function treeData(Request $request)
     public function update(Request $request, Location $location)
     {
         $data = $request->validate([
-            'name'               => 'required|string|max:255',
-            'code'               => 'required|string|max:100',
-            'type'               => 'required|in:warehouse,room,store_display,rack,staging,layer',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:100',
+            'type' => 'required|in:warehouse,room,store_display,rack,staging,layer',
             'location_parent_id' => 'nullable|uuid|exists:locations,id|not_in:'.$location->id,
-            'warehouse_id'       => ['nullable','uuid','exists:warehouses,id', Rule::requiredIf(fn() => $request->type === 'warehouse')],
-            'store_id'           => ['nullable','uuid','exists:stores,id'],
-            '_form'              => 'nullable|in:edit',
-            'id'                 => ['nullable','uuid', Rule::in([$location->id])],
-            'owner_root_id'      => 'nullable|uuid',
+            'warehouse_id' => ['nullable', 'uuid', 'exists:warehouses,id', Rule::requiredIf(fn () => $request->type === 'warehouse')],
+            'store_id' => ['nullable', 'uuid', 'exists:stores,id'],
+            '_form' => 'nullable|in:edit',
+            'id' => ['nullable', 'uuid', Rule::in([$location->id])],
+            'owner_root_id' => 'nullable|uuid',
         ]);
 
         $this->enforceParentRules($data['type'], $data['location_parent_id'] ?? null);
@@ -348,7 +363,7 @@ public function treeData(Request $request)
                 $data['warehouse_id'] ?? null
             );
 
-            if (!$warehouseId) {
+            if (! $warehouseId) {
                 throw ValidationException::withMessages([
                     'warehouse_id' => 'Warehouse tujuan tidak dapat ditemukan.',
                 ]);
@@ -385,9 +400,9 @@ public function treeData(Request $request)
                 ->firstOrFail();
 
             $lockedLocation->update([
-                'name'               => $data['name'],
-                'code'               => $data['code'],
-                'type'               => $data['type'],
+                'name' => $data['name'],
+                'code' => $data['code'],
+                'type' => $data['type'],
                 'location_parent_id' => $data['location_parent_id'] ?? null,
             ]);
 
@@ -418,8 +433,7 @@ public function treeData(Request $request)
         );
     }
 
-    public function destroy
-(Location $location)
+    public function destroy(Location $location)
     {
         DB::transaction(function () use ($location) {
             DB::table('warehouse_locations')->where('location_id', $location->id)->delete();
@@ -433,7 +447,7 @@ public function treeData(Request $request)
 
     public function qr(Location $location)
     {
-        if (in_array($location->type, ['warehouse','store'], true)) {
+        if (in_array($location->type, ['warehouse', 'store'], true)) {
             abort(404, 'QR tidak tersedia untuk tipe warehouse/store.');
         }
 
@@ -443,9 +457,12 @@ public function treeData(Request $request)
             ->where('location_id', $location->id)
             ->value('value');
 
-        if (!$value) abort(404, 'RFID/QR tidak tersedia untuk lokasi ini.');
+        if (! $value) {
+            abort(404, 'RFID/QR tidak tersedia untuk lokasi ini.');
+        }
 
         $svg = QrCode::format('svg')->size(260)->margin(1)->generate($value);
+
         return response($svg, 200, ['Content-Type' => 'image/svg+xml']);
     }
 
@@ -477,35 +494,58 @@ public function treeData(Request $request)
         $type = strtolower($type);
 
         if ($type === 'warehouse') {
-            if (!empty($parentId)) abort(422, 'Parent harus kosong untuk tipe Warehouse.');
+            if (! empty($parentId)) {
+                abort(422, 'Parent harus kosong untuk tipe Warehouse.');
+            }
+
             return;
         }
 
         if ($type === 'room') {
-            if (empty($parentId)) abort(422, 'Parent WAREHOUSE wajib diisi untuk tipe Room.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || $p->type !== 'warehouse') abort(422, 'Parent untuk Room harus WAREHOUSE.');
+            if (empty($parentId)) {
+                abort(422, 'Parent WAREHOUSE wajib diisi untuk tipe Room.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || $p->type !== 'warehouse') {
+                abort(422, 'Parent untuk Room harus WAREHOUSE.');
+            }
+
             return;
         }
 
         if ($type === 'store_display') {
-            if (empty($parentId)) abort(422, 'Parent WAREHOUSE wajib diisi untuk tipe Store Display.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || $p->type !== 'warehouse') abort(422, 'Parent untuk Store Display harus WAREHOUSE.');
+            if (empty($parentId)) {
+                abort(422, 'Parent WAREHOUSE wajib diisi untuk tipe Store Display.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || $p->type !== 'warehouse') {
+                abort(422, 'Parent untuk Store Display harus WAREHOUSE.');
+            }
+
             return;
         }
 
         if ($type === 'rack' || $type === 'staging') {
-            if (empty($parentId)) abort(422, 'Parent ROOM/STORE DISPLAY wajib diisi.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || !in_array($p->type, ['room','store_display'], true)) abort(422, 'Parent harus ROOM atau STORE DISPLAY.');
+            if (empty($parentId)) {
+                abort(422, 'Parent ROOM/STORE DISPLAY wajib diisi.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || ! in_array($p->type, ['room', 'store_display'], true)) {
+                abort(422, 'Parent harus ROOM atau STORE DISPLAY.');
+            }
+
             return;
         }
 
         if ($type === 'layer') {
-            if (empty($parentId)) abort(422, 'Parent RACK/STAGING wajib diisi.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || !in_array($p->type, ['rack','staging'], true)) abort(422, 'Parent untuk Layer harus RACK atau STAGING.');
+            if (empty($parentId)) {
+                abort(422, 'Parent RACK/STAGING wajib diisi.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || ! in_array($p->type, ['rack', 'staging'], true)) {
+                abort(422, 'Parent untuk Layer harus RACK atau STAGING.');
+            }
+
             return;
         }
     }
@@ -518,7 +558,9 @@ public function treeData(Request $request)
     private function resolveWarehouseIdFromParent(?string $parentId): ?string
     {
         $owner = $this->findAncestorByTypes($parentId, ['warehouse']);
-        if (!$owner) return null;
+        if (! $owner) {
+            return null;
+        }
 
         return DB::table('warehouse_locations')
             ->where('location_id', $owner->id)
@@ -561,7 +603,7 @@ public function treeData(Request $request)
         $type = strtolower($type);
 
         if (in_array($type, ['rack', 'staging', 'layer'], true)) {
-            if (!$parentId) {
+            if (! $parentId) {
                 throw ValidationException::withMessages([
                     'location_parent_id' => 'Parent lokasi wajib diisi.',
                 ]);
@@ -569,13 +611,13 @@ public function treeData(Request $request)
 
             return [
                 'kind' => 'parent',
-                'id'   => $parentId,
+                'id' => $parentId,
             ];
         }
 
         return [
             'kind' => 'warehouse',
-            'id'   => $warehouseId,
+            'id' => $warehouseId,
         ];
     }
 
@@ -590,7 +632,7 @@ public function treeData(Request $request)
         string $value,
         ?string $ignoreId = null
     ): void {
-        if (!in_array($field, ['name', 'code'], true)) {
+        if (! in_array($field, ['name', 'code'], true)) {
             throw new \InvalidArgumentException('Field unik tidak didukung.');
         }
 
@@ -621,19 +663,19 @@ public function treeData(Request $request)
             $query->where('l.id', '!=', $ignoreId);
         }
 
-        if (!$query->exists()) {
+        if (! $query->exists()) {
             return;
         }
 
         $fieldLabel = $field === 'name' ? 'Nama' : 'Kode';
         $typeLabel = match ($type) {
-            'warehouse'     => 'Warehouse',
-            'room'          => 'Room',
+            'warehouse' => 'Warehouse',
+            'room' => 'Room',
             'store_display' => 'Store Display',
-            'rack'          => 'Rack',
-            'staging'       => 'Staging',
-            'layer'         => 'Layer',
-            default         => ucfirst($type),
+            'rack' => 'Rack',
+            'staging' => 'Staging',
+            'layer' => 'Layer',
+            default => ucfirst($type),
         };
 
         $scopeLabel = ($scope['kind'] ?? null) === 'parent'
@@ -673,17 +715,16 @@ public function treeData(Request $request)
         );
     }
 
-
     private function locationTypeLabel(string $type): string
     {
         return match (strtolower($type)) {
-            'warehouse'     => 'Warehouse',
-            'room'          => 'Room',
+            'warehouse' => 'Warehouse',
+            'room' => 'Room',
             'store_display' => 'Store Display',
-            'rack'          => 'Rack',
-            'staging'       => 'Staging',
-            'layer'         => 'Layer',
-            default         => ucfirst($type),
+            'rack' => 'Rack',
+            'staging' => 'Staging',
+            'layer' => 'Layer',
+            default => ucfirst($type),
         };
     }
 
@@ -699,36 +740,46 @@ public function treeData(Request $request)
     {
         while ($id && isset($byId[$id])) {
             $n = $byId[$id];
-            if (in_array($n['type'], ['warehouse','store'], true)) {
+            if (in_array($n['type'], ['warehouse', 'store'], true)) {
                 return $n;
             }
             $id = $n['location_parent_id'];
         }
+
         return null;
     }
 
     private function findAncestorByTypes(?string $parentId, array $types): ?Location
     {
-        if (!$parentId) return null;
+        if (! $parentId) {
+            return null;
+        }
         $wanted = array_map('strtolower', $types);
 
         while ($parentId) {
-            $p = Location::select('id','type','location_parent_id')->find($parentId);
-            if (!$p) return null;
-            if (in_array(strtolower($p->type), $wanted, true)) return $p;
+            $p = Location::select('id', 'type', 'location_parent_id')->find($parentId);
+            if (! $p) {
+                return null;
+            }
+            if (in_array(strtolower($p->type), $wanted, true)) {
+                return $p;
+            }
             $parentId = $p->location_parent_id;
         }
+
         return null;
     }
 
     private function attachPivotToTopOwner(Location $loc): void
     {
-        if (!in_array($loc->type, ['room','store_display','rack','staging','layer'], true)) {
+        if (! in_array($loc->type, ['room', 'store_display', 'rack', 'staging', 'layer'], true)) {
             return;
         }
 
-        $owner = $this->findAncestorByTypes($loc->location_parent_id, ['warehouse','store']);
-        if (!$owner) return;
+        $owner = $this->findAncestorByTypes($loc->location_parent_id, ['warehouse', 'store']);
+        if (! $owner) {
+            return;
+        }
 
         DB::table('warehouse_locations')->where('location_id', $loc->id)->delete();
         DB::table('store_locations')->where('location_id', $loc->id)->delete();
@@ -737,7 +788,7 @@ public function treeData(Request $request)
             $wid = DB::table('warehouse_locations')->where('location_id', $owner->id)->value('warehouse_id');
             if ($wid) {
                 DB::table('warehouse_locations')->insert([
-                    'location_id'  => $loc->id,
+                    'location_id' => $loc->id,
                     'warehouse_id' => $wid,
                 ]);
             }
@@ -746,7 +797,7 @@ public function treeData(Request $request)
             if ($sid) {
                 DB::table('store_locations')->insert([
                     'location_id' => $loc->id,
-                    'store_id'    => $sid,
+                    'store_id' => $sid,
                 ]);
             }
         }
@@ -754,16 +805,16 @@ public function treeData(Request $request)
 
     private function syncRfidTag(Location $loc): void
     {
-        $needsTag = !in_array($loc->type, ['warehouse','store'], true);
+        $needsTag = ! in_array($loc->type, ['warehouse', 'store'], true);
 
         if ($needsTag) {
             $exists = DB::table('location_rfid_tags')->where('location_id', $loc->id)->exists();
-            if (!$exists) {
+            if (! $exists) {
                 DB::table('location_rfid_tags')->insert([
-                    'value'       => (string) Str::uuid(),
+                    'value' => (string) Str::uuid(),
                     'location_id' => $loc->id,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             } else {
                 DB::table('location_rfid_tags')
@@ -776,163 +827,166 @@ public function treeData(Request $request)
     }
 
     private function getDescendantLocationIds(string $rootId): array
-{
-    $ids = [];
-    $parents = [$rootId];
+    {
+        $ids = [];
+        $parents = [$rootId];
 
-    while (!empty($parents)) {
-        $children = Location::query()
-            ->whereIn('location_parent_id', $parents)
-            ->pluck('id')
-            ->all();
+        while (! empty($parents)) {
+            $children = Location::query()
+                ->whereIn('location_parent_id', $parents)
+                ->pluck('id')
+                ->all();
 
-        if (empty($children)) {
-            break;
+            if (empty($children)) {
+                break;
+            }
+
+            foreach ($children as $childId) {
+                $ids[] = $childId;
+            }
+
+            $parents = $children;
         }
 
-        foreach ($children as $childId) {
-            $ids[] = $childId;
-        }
-
-        $parents = $children;
+        return array_values(array_unique($ids));
     }
 
-    return array_values(array_unique($ids));
-}
-
-private function syncWarehousePivotToSubtree(Location $root, string $warehouseId): void
-{
-    $locationIds = $this->getSelfAndDescendantLocationIds($root->id);
-
-    $this->replaceWarehouseLocationsForIds($locationIds, $warehouseId);
-}
-
-private function syncCurrentOwnerPivotToSubtree(Location $root): void
-{
-    $locationIds = $this->getSelfAndDescendantLocationIds($root->id);
-
-    $owner = $root->type === 'warehouse'
-        ? $root
-        : $this->findAncestorByTypes($root->location_parent_id, ['warehouse','store']);
-
-    if (!$owner) {
-        DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
-        DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
-        return;
-    }
-
-    if ($owner->type === 'warehouse') {
-        $warehouseId = DB::table('warehouse_locations')
-            ->where('location_id', $owner->id)
-            ->value('warehouse_id');
-
-        if (!$warehouseId) {
-            DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
-            DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
-            return;
-        }
+    private function syncWarehousePivotToSubtree(Location $root, string $warehouseId): void
+    {
+        $locationIds = $this->getSelfAndDescendantLocationIds($root->id);
 
         $this->replaceWarehouseLocationsForIds($locationIds, $warehouseId);
-        return;
     }
 
-    if ($owner->type === 'store') {
-        $storeId = DB::table('store_locations')
-            ->where('location_id', $owner->id)
-            ->value('store_id');
+    private function syncCurrentOwnerPivotToSubtree(Location $root): void
+    {
+        $locationIds = $this->getSelfAndDescendantLocationIds($root->id);
 
-        if (!$storeId) {
+        $owner = $root->type === 'warehouse'
+            ? $root
+            : $this->findAncestorByTypes($root->location_parent_id, ['warehouse', 'store']);
+
+        if (! $owner) {
             DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
             DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
+
             return;
         }
 
-        $this->replaceStoreLocationsForIds($locationIds, $storeId);
-    }
-}
+        if ($owner->type === 'warehouse') {
+            $warehouseId = DB::table('warehouse_locations')
+                ->where('location_id', $owner->id)
+                ->value('warehouse_id');
 
-private function getSelfAndDescendantLocationIds(string $rootId): array
-{
-    return array_values(array_unique(array_merge(
-        [$rootId],
-        $this->getDescendantLocationIds($rootId)
-    )));
-}
+            if (! $warehouseId) {
+                DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
+                DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
 
-private function replaceWarehouseLocationsForIds(array $locationIds, string $warehouseId): void
-{
-    $locationIds = array_values(array_unique(array_filter($locationIds)));
+                return;
+            }
 
-    if (empty($locationIds)) {
-        return;
-    }
+            $this->replaceWarehouseLocationsForIds($locationIds, $warehouseId);
 
-    DB::table('warehouse_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
+            return;
+        }
 
-    DB::table('store_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
+        if ($owner->type === 'store') {
+            $storeId = DB::table('store_locations')
+                ->where('location_id', $owner->id)
+                ->value('store_id');
 
-    $rows = [];
+            if (! $storeId) {
+                DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
+                DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
 
-    foreach ($locationIds as $locationId) {
-        $rows[] = [
-            'location_id'  => $locationId,
-            'warehouse_id' => $warehouseId,
-        ];
+                return;
+            }
+
+            $this->replaceStoreLocationsForIds($locationIds, $storeId);
+        }
     }
 
-    foreach (array_chunk($rows, 500) as $chunk) {
-        DB::table('warehouse_locations')->insert($chunk);
-    }
-}
-
-private function replaceStoreLocationsForIds(array $locationIds, string $storeId): void
-{
-    $locationIds = array_values(array_unique(array_filter($locationIds)));
-
-    if (empty($locationIds)) {
-        return;
+    private function getSelfAndDescendantLocationIds(string $rootId): array
+    {
+        return array_values(array_unique(array_merge(
+            [$rootId],
+            $this->getDescendantLocationIds($rootId)
+        )));
     }
 
-    DB::table('warehouse_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
+    private function replaceWarehouseLocationsForIds(array $locationIds, string $warehouseId): void
+    {
+        $locationIds = array_values(array_unique(array_filter($locationIds)));
 
-    DB::table('store_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
+        if (empty($locationIds)) {
+            return;
+        }
 
-    $rows = [];
+        DB::table('warehouse_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
 
-    foreach ($locationIds as $locationId) {
-        $rows[] = [
-            'location_id' => $locationId,
-            'store_id'    => $storeId,
-        ];
+        DB::table('store_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
+
+        $rows = [];
+
+        foreach ($locationIds as $locationId) {
+            $rows[] = [
+                'location_id' => $locationId,
+                'warehouse_id' => $warehouseId,
+            ];
+        }
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('warehouse_locations')->insert($chunk);
+        }
     }
 
-    foreach (array_chunk($rows, 500) as $chunk) {
-        DB::table('store_locations')->insert($chunk);
+    private function replaceStoreLocationsForIds(array $locationIds, string $storeId): void
+    {
+        $locationIds = array_values(array_unique(array_filter($locationIds)));
+
+        if (empty($locationIds)) {
+            return;
+        }
+
+        DB::table('warehouse_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
+
+        DB::table('store_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
+
+        $rows = [];
+
+        foreach ($locationIds as $locationId) {
+            $rows[] = [
+                'location_id' => $locationId,
+                'store_id' => $storeId,
+            ];
+        }
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('store_locations')->insert($chunk);
+        }
     }
-}
 
-private function syncRfidTagToSubtree
-(Location $root): void
-{
-    $locationIds = array_merge(
-        [$root->id],
-        $this->getDescendantLocationIds($root->id)
-    );
+    private function syncRfidTagToSubtree(Location $root): void
+    {
+        $locationIds = array_merge(
+            [$root->id],
+            $this->getDescendantLocationIds($root->id)
+        );
 
-    $locations = Location::query()
-        ->whereIn('id', $locationIds)
-        ->get();
+        $locations = Location::query()
+            ->whereIn('id', $locationIds)
+            ->get();
 
-    foreach ($locations as $loc) {
-        $this->syncRfidTag($loc);
+        foreach ($locations as $loc) {
+            $this->syncRfidTag($loc);
+        }
     }
-}
 }

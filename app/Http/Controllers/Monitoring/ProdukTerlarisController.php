@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\ProdukTerlarisExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -30,7 +31,10 @@ class ProdukTerlarisController extends Controller
         // Grafik selalu membandingkan seluruh cabang; filter periode dan pencarian tetap diterapkan.
         $chartFilters = [...$filters, 'store_id' => null];
 
-        return view('content.monitoring.produk-terlaris.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Produk Terlaris',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $this->rows($filters)->paginate($filters['per_page'])->withQueryString(),
             'summary' => $this->summary($filters),
             'topProductChart' => $this->topProductChart($chartFilters),
@@ -41,6 +45,9 @@ class ProdukTerlarisController extends Controller
             'hasBrandColumn' => $this->hasBrandColumn(),
             'filters' => $filters,
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

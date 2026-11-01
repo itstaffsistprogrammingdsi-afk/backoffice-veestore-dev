@@ -8,9 +8,9 @@ use App\Http\Controllers\BranchOperations\StoreLabelPrintRequestController;
 use App\Http\Controllers\BranchOperations\StoreVoucherRequestController;
 use App\Http\Controllers\dashboard\Analytics;
 use App\Http\Controllers\Ecommerce\EcommerceOrderController;
-// Master Data
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointMutationController;
+// Master Data
 use App\Http\Controllers\Loyalty\CustomerVisitController;
 use App\Http\Controllers\Management\BackofficeRoleController;
 use App\Http\Controllers\Management\LabelPrintRequestApprovalController;
@@ -34,14 +34,15 @@ use App\Http\Controllers\MasterData\ProductDiscountController;
 use App\Http\Controllers\MasterData\ProductPriceController;
 use App\Http\Controllers\MasterData\ProductSpecificationController;
 use App\Http\Controllers\MasterData\PromoController;
+use App\Http\Controllers\MasterData\PromoSetupController;
 use App\Http\Controllers\MasterData\RfidTagController;
 use App\Http\Controllers\MasterData\StoreController;
 use App\Http\Controllers\MasterData\SupplierController;
 use App\Http\Controllers\MasterData\UnitController;
 use App\Http\Controllers\MasterData\UserManageController;
-// Monitoring
 use App\Http\Controllers\MasterData\VoucherController;
 use App\Http\Controllers\MasterData\WarehouseController;
+// Monitoring
 use App\Http\Controllers\Monitoring\AnomalyItemMonitoringController;
 use App\Http\Controllers\Monitoring\AuditWmsOpnameController;
 use App\Http\Controllers\Monitoring\BarcodeRequestReportController;
@@ -84,18 +85,20 @@ use App\Http\Controllers\Monitoring\UserMonitoringController;
 use App\Http\Controllers\Monitoring\VoidCancelCustomerReportController;
 use App\Http\Controllers\Monitoring\VoucherRejectReportController;
 use App\Http\Controllers\Monitoring\WarehouseInboundController;
-// Reports
 use App\Http\Controllers\Monitoring\WarehouseOutboundController;
 use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
+// Reports
 use App\Http\Controllers\NotificationStatusController;
+use App\Http\Controllers\OperationsHubController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\Reports\CrmController;
 use App\Http\Controllers\Reports\HistoryCustomerController;
-// Settings
 use App\Http\Controllers\Reports\OrderCabangController;
+// Settings
 use App\Http\Controllers\Reports\StoreReturnApprovalController;
 use App\Http\Controllers\Reports\SupplierProductController;
 use App\Http\Controllers\Reports\VoucherReportController;
+use App\Http\Controllers\ReportsHubController;
 // Management
 use App\Http\Controllers\Settings\AffiliatePointsInviteeController;
 use App\Http\Controllers\Settings\AffiliatePointsInviterController;
@@ -110,7 +113,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::get('/', function () {
     return auth()->check()
-        ? redirect()->route('dashboard-analytics')
+        ? redirect()->route('operations.index')
         : redirect()->route('login');
 })->name('dashboard');
 
@@ -127,7 +130,7 @@ Route::middleware('guest')->group(function () {
     Route::get('/auth/register-basic', [AuthController::class, 'showRegister'])->name('auth-register-basic');
     Route::post('/register', [AuthController::class, 'register'])->name('register.attempt');
 
-    Route::get('/auth/forgot-password-basic', fn () => view('content.authentications.auth-forgot-password-basic'))
+    Route::get('/auth/forgot-password-basic', [AuthController::class, 'showForgotPassword'])
         ->name('auth-forgot-password-basic');
 });
 
@@ -147,6 +150,9 @@ Route::middleware('auth')->group(function () {
     | DASHBOARD
     |--------------------------------------------------------------------------
     */
+    Route::get('/operations', OperationsHubController::class)->name('operations.index');
+    Route::get('/reports', ReportsHubController::class)->name('reports.index');
+
     Route::get('/dashboard', [Analytics::class, 'index'])->name('dashboard-analytics');
 
     Route::prefix('ai-analytics')->name('ai-analytics.')->group(function () {
@@ -321,6 +327,9 @@ Route::middleware('auth')->group(function () {
         Route::post('products-diskons', [ProductDiscountController::class, 'store'])->name('products-diskons.store');
         Route::put('products-diskons', [ProductDiscountController::class, 'update'])->name('products-diskons.update');
         Route::delete('products-diskons', [ProductDiscountController::class, 'destroy'])->name('products-diskons.destroy');
+
+        Route::get('promo-setup', [PromoSetupController::class, 'index'])->name('promo-setup.index');
+        Route::post('promo-setup', [PromoSetupController::class, 'store'])->name('promo-setup.store');
 
         Route::get('promos', [PromoController::class, 'index'])->name('promos.index');
         Route::post('promos', [PromoController::class, 'store'])->name('promos.store');

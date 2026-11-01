@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 use Throwable;
 
 class ProductController extends Controller
@@ -44,12 +45,12 @@ class ProductController extends Controller
         $categoryId = $request->get('category_id');
 
         $products = Product::with([
-                'category',
-                'brand',
-                'unit',
-                'images',
-                'specification',
-            ])
+            'category',
+            'brand',
+            'unit',
+            'images',
+            'specification',
+        ])
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($search) use ($q) {
                     $search
@@ -75,18 +76,36 @@ class ProductController extends Controller
         $specifications = ProductSpecification::orderBy('value')->get();
         $brands = Brand::orderBy('name')->get();
 
-        return view(
-            'content.master-data.products.index',
-            compact(
-                'products',
-                'q',
-                'categoryId',
-                'categories',
-                'units',
-                'specifications',
-                'brands'
-            )
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Products',
+            'description' => 'Kelola katalog produk.',
+            'searchPlaceholder' => 'Cari produk...',
+            'items' => $products,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'category.name', 'label' => 'Kategori'],
+                ['key' => 'brand.name', 'label' => 'Brand'],
+                ['key' => 'unit.name', 'label' => 'Unit'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Produk', 'required' => true],
+                ['key' => 'code', 'label' => 'Kode Produk', 'required' => true],
+                ['key' => 'category_id', 'label' => 'Kategori', 'type' => 'select', 'required' => true, 'options' => $categories->map(fn ($category) => ['value' => $category->id, 'label' => $category->name])->values()->all()],
+                ['key' => 'brand_id', 'label' => 'Brand', 'type' => 'select', 'options' => $brands->map(fn ($brand) => ['value' => $brand->id, 'label' => $brand->name])->values()->all()],
+                ['key' => 'unit_id', 'label' => 'Unit', 'type' => 'select', 'required' => true, 'options' => $units->map(fn ($unit) => ['value' => $unit->id, 'label' => $unit->name])->values()->all()],
+                ['key' => 'specification_id', 'label' => 'Spesifikasi', 'type' => 'select', 'options' => $specifications->map(fn ($spec) => ['value' => $spec->id, 'label' => $spec->value])->values()->all()],
+                ['key' => 'description', 'label' => 'Deskripsi', 'type' => 'textarea'],
+                ['key' => 'weight_g', 'label' => 'Berat (gram)', 'type' => 'number', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.products.index'),
+                'store' => route('master-data.products.store'),
+                'update' => route('master-data.products.update', ['product' => '__ID__']),
+                'destroy' => route('master-data.products.destroy', ['product' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -235,7 +254,7 @@ class ProductController extends Controller
 
                 if (
                     $selectedMainId &&
-                    !in_array((string) $selectedMainId, $deleteIds, true)
+                    ! in_array((string) $selectedMainId, $deleteIds, true)
                 ) {
                     ProductImage::query()
                         ->where('product_id', $product->id)
@@ -269,7 +288,7 @@ class ProductController extends Controller
                         'product_id' => $product->id,
                         'image_url' => $stored['url'],
                         'status_active' => 'active',
-                        'is_main' => !$hasMainImage,
+                        'is_main' => ! $hasMainImage,
                     ]);
                 }
 
@@ -282,7 +301,7 @@ class ProductController extends Controller
                     ->orderBy('created_at')
                     ->first();
 
-                if (!$mainImage) {
+                if (! $mainImage) {
                     $fallback = ProductImage::query()
                         ->where('product_id', $product->id)
                         ->orderBy('created_at')
@@ -396,7 +415,7 @@ class ProductController extends Controller
             'images' => [
                 'nullable',
                 'array',
-                'max:' . self::MAX_IMAGE_COUNT,
+                'max:'.self::MAX_IMAGE_COUNT,
             ],
             'images.*' => [
                 'required',
@@ -477,7 +496,7 @@ class ProductController extends Controller
             $filename
         );
 
-        if (!$path) {
+        if (! $path) {
             throw new \RuntimeException(
                 'Gagal menyimpan file gambar.'
             );
@@ -515,7 +534,7 @@ class ProductController extends Controller
             $value = str_replace(',', '', $value);
         }
 
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return null;
         }
 

@@ -10,8 +10,8 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class PromoController extends Controller
@@ -52,7 +52,7 @@ class PromoController extends Controller
         $allStoreIds = [];
 
         foreach ($promos as $promo) {
-            if (!empty($promo->all_store)) {
+            if (! empty($promo->all_store)) {
                 continue;
             }
 
@@ -74,10 +74,35 @@ class PromoController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view(
-            'content.master-data.promos.index',
-            compact('promos', 'q', 'stores', 'storeMap')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Promos',
+            'description' => 'Kelola promo dan cabang yang berlaku.',
+            'searchPlaceholder' => 'Cari promo...',
+            'items' => $promos,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'start_date', 'label' => 'Mulai'],
+                ['key' => 'end_date', 'label' => 'Selesai'],
+                ['key' => 'all_store', 'label' => 'Semua Store'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Promo', 'required' => true],
+                ['key' => 'code', 'label' => 'Kode Promo', 'required' => true],
+                ['key' => 'description', 'label' => 'Deskripsi', 'type' => 'textarea'],
+                ['key' => 'start_date', 'label' => 'Mulai', 'type' => 'date', 'required' => true],
+                ['key' => 'end_date', 'label' => 'Selesai', 'type' => 'date', 'required' => true],
+                ['key' => 'all_store', 'label' => 'Semua Store', 'type' => 'select', 'options' => [['value' => '1', 'label' => 'Ya'], ['value' => '0', 'label' => 'Tidak']]],
+                ['key' => 'store_id', 'label' => 'Stores', 'type' => 'multiselect', 'options' => $stores->map(fn ($store) => ['value' => $store->id, 'label' => $store->name])->values()->all()],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.promos.index'),
+                'store' => route('master-data.promos.store'),
+                'update' => route('master-data.promos.update', ['promo' => '__ID__']),
+                'destroy' => route('master-data.promos.destroy', ['promo' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -150,16 +175,11 @@ class PromoController extends Controller
                 'start_date.date' => 'Format start date tidak valid.',
                 'end_date.required' => 'End date wajib diisi.',
                 'end_date.date' => 'Format end date tidak valid.',
-                'end_date.after_or_equal' =>
-                    'End date tidak boleh sebelum start date.',
-                'description.string' =>
-                    'Deskripsi harus berupa teks.',
-                'store_id.array' =>
-                    'Pilihan toko harus berupa daftar.',
-                'store_id.*.uuid' =>
-                    'Format ID toko tidak valid.',
-                'store_id.*.exists' =>
-                    'Toko yang dipilih tidak ditemukan.',
+                'end_date.after_or_equal' => 'End date tidak boleh sebelum start date.',
+                'description.string' => 'Deskripsi harus berupa teks.',
+                'store_id.array' => 'Pilihan toko harus berupa daftar.',
+                'store_id.*.uuid' => 'Format ID toko tidak valid.',
+                'store_id.*.exists' => 'Toko yang dipilih tidak ditemukan.',
             ]);
 
             $allStore = $request->boolean('all_store');
@@ -210,8 +230,7 @@ class PromoController extends Controller
                          * Jika toko tidak dipilih, simpan array kosong agar
                          * kolom array/JSON PostgreSQL tidak gagal menerima null.
                          */
-                        'store_id' =>
-                            $allStore
+                        'store_id' => $allStore
                                 ? null
                                 : $storeIds,
                     ]);
@@ -228,8 +247,7 @@ class PromoController extends Controller
                 return back()
                     ->withInput($request->except(['_token']))
                     ->withErrors([
-                        'code' =>
-                            'Nama atau kode promo sudah digunakan.',
+                        'code' => 'Nama atau kode promo sudah digunakan.',
                     ]);
             }
 
@@ -238,8 +256,7 @@ class PromoController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Promo gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Promo gagal disimpan. Silakan coba kembali.',
                 ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -247,8 +264,7 @@ class PromoController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Promo gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Promo gagal disimpan. Silakan coba kembali.',
                 ]);
         }
     }
@@ -340,16 +356,11 @@ class PromoController extends Controller
                 'start_date.date' => 'Format start date tidak valid.',
                 'end_date.required' => 'End date wajib diisi.',
                 'end_date.date' => 'Format end date tidak valid.',
-                'end_date.after_or_equal' =>
-                    'End date tidak boleh sebelum start date.',
-                'description.string' =>
-                    'Deskripsi harus berupa teks.',
-                'store_id.array' =>
-                    'Pilihan toko harus berupa daftar.',
-                'store_id.*.uuid' =>
-                    'Format ID toko tidak valid.',
-                'store_id.*.exists' =>
-                    'Toko yang dipilih tidak ditemukan.',
+                'end_date.after_or_equal' => 'End date tidak boleh sebelum start date.',
+                'description.string' => 'Deskripsi harus berupa teks.',
+                'store_id.array' => 'Pilihan toko harus berupa daftar.',
+                'store_id.*.uuid' => 'Format ID toko tidak valid.',
+                'store_id.*.exists' => 'Toko yang dipilih tidak ditemukan.',
             ]);
 
             $allStore = $request->boolean('all_store');
@@ -416,8 +427,7 @@ class PromoController extends Controller
                          * Jika toko tidak dipilih, simpan array kosong agar
                          * kolom array/JSON PostgreSQL tidak gagal menerima null.
                          */
-                        'store_id' =>
-                            $allStore
+                        'store_id' => $allStore
                                 ? null
                                 : $storeIds,
                     ]);
@@ -434,8 +444,7 @@ class PromoController extends Controller
                 return back()
                     ->withInput($request->except(['_token']))
                     ->withErrors([
-                        'code' =>
-                            'Nama atau kode promo sudah digunakan.',
+                        'code' => 'Nama atau kode promo sudah digunakan.',
                     ]);
             }
 
@@ -444,8 +453,7 @@ class PromoController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Promo gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Promo gagal diperbarui. Silakan coba kembali.',
                 ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -453,8 +461,7 @@ class PromoController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Promo gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Promo gagal diperbarui. Silakan coba kembali.',
                 ]);
         }
     }
@@ -541,9 +548,9 @@ class PromoController extends Controller
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
             [
-                'promo:' .
-                $this->normalizeName($name) .
-                ':' .
+                'promo:'.
+                $this->normalizeName($name).
+                ':'.
                 $this->normalizeCode($code),
             ]
         );
@@ -586,7 +593,7 @@ class PromoController extends Controller
      */
     private function sanitizeStoreIds(mixed $storeIds): array
     {
-        if (!is_array($storeIds)) {
+        if (! is_array($storeIds)) {
             return [];
         }
 
@@ -594,12 +601,10 @@ class PromoController extends Controller
             array_unique(
                 array_filter(
                     array_map(
-                        static fn ($value) =>
-                            trim((string) $value),
+                        static fn ($value) => trim((string) $value),
                         $storeIds
                     ),
-                    static fn ($value) =>
-                        $value !== ''
+                    static fn ($value) => $value !== ''
                 )
             )
         );

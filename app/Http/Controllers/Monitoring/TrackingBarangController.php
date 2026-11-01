@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\TrackingBarangExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -55,7 +56,10 @@ class TrackingBarangController extends Controller
             perPage: $perPage
         );
 
-        return view('content.monitoring.tracking-barang.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Tracking Barang',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'products' => $products,
             'stores' => $stores,
@@ -67,6 +71,9 @@ class TrackingBarangController extends Controller
             'warehouseId' => $warehouseId,
             'trackingStatus' => $trackingStatus,
             'perPage' => $perPage,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 
@@ -999,12 +1006,18 @@ class TrackingBarangController extends Controller
                 ->groupBy('item_id');
         }
 
-        return view('content.monitoring.tracking-barang.detail', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Tracking Barang',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'product' => $product,
             'rows' => $rows,
             'timelines' => $timelines,
             'perPage' => $perPage,
             'itemId' => $itemId,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

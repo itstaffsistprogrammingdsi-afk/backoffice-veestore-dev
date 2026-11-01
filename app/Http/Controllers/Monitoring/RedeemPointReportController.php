@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\RedeemPointReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -133,7 +134,10 @@ class RedeemPointReportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'wa_number']);
 
-        return view('content.monitoring.redeem-point-report.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Redeem Point Report',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'detailMutations' => $detailMutations,
             'latestRows' => $latestRows,
@@ -147,6 +151,9 @@ class RedeemPointReportController extends Controller
             'from' => $filters['from'],
             'to' => $filters['to'],
             'perPage' => $filters['per_page'],
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

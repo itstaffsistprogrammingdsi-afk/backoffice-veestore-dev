@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 use Throwable;
 
 class CustomerController extends Controller
@@ -64,8 +65,7 @@ class CustomerController extends Controller
             ->getCollection()
             ->pluck('registration_source_id')
             ->filter(
-                static fn ($value) =>
-                    is_string($value)
+                static fn ($value) => is_string($value)
                     && preg_match(
                         '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
                         $value
@@ -79,8 +79,7 @@ class CustomerController extends Controller
             ->whereIn('id', $registrationSourceIds)
             ->get(['id', 'name', 'code'])
             ->keyBy(
-                static fn (Store $store) =>
-                    (string) $store->getKey()
+                static fn (Store $store) => (string) $store->getKey()
             );
 
         $stores = Store::query()
@@ -96,17 +95,36 @@ class CustomerController extends Controller
             'female' => 'Perempuan',
         ];
 
-        return view(
-            'content.master-data.customers.index',
-            compact(
-                'customers',
-                'q',
-                'stores',
-                'provinces',
-                'genders',
-                'registrationSourceMap'
-            )
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Customers',
+            'description' => 'Kelola data pelanggan.',
+            'searchPlaceholder' => 'Cari customer...',
+            'items' => $customers,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'wa_number', 'label' => 'WhatsApp'],
+                ['key' => 'gender', 'label' => 'Gender'],
+                ['key' => 'address', 'label' => 'Alamat'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Customer', 'required' => true],
+                ['key' => 'email', 'label' => 'Email'],
+                ['key' => 'wa_number', 'label' => 'Nomor WhatsApp', 'required' => true],
+                ['key' => 'gender', 'label' => 'Gender', 'type' => 'select', 'required' => true, 'options' => [['value' => 'male', 'label' => 'Laki-laki'], ['value' => 'female', 'label' => 'Perempuan']]],
+                ['key' => 'address', 'label' => 'Alamat', 'type' => 'textarea'],
+                ['key' => 'date_of_birth', 'label' => 'Tanggal Lahir', 'type' => 'date'],
+                ['key' => 'postal_code', 'label' => 'Kode Pos'],
+                ['key' => 'registration_source_id', 'label' => 'Store Registrasi', 'type' => 'select', 'required' => true, 'options' => $stores->map(fn ($store) => ['value' => $store->id, 'label' => $store->name])->values()->all()],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.customers.index'),
+                'store' => route('master-data.customers.store'),
+                'update' => route('master-data.customers.update', ['customer' => '__ID__']),
+                'destroy' => route('master-data.customers.destroy', ['customer' => '__ID__']),
+            ],
+        ]);
     }
 
     public function regencies(Request $request): JsonResponse
@@ -203,10 +221,8 @@ class CustomerController extends Controller
                 'postal_code' => $this->nullableTrim(
                     $data['postal_code'] ?? null
                 ),
-                'registration_channel' =>
-                    $registrationChannel,
-                'registration_source_id' =>
-                    $data['registration_source_id'],
+                'registration_channel' => $registrationChannel,
+                'registration_source_id' => $data['registration_source_id'],
                 'is_guest' => (bool) ($data['is_guest'] ?? false),
             ]);
 
@@ -219,8 +235,7 @@ class CustomerController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Customer gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Customer gagal disimpan. Silakan coba kembali.',
                 ]);
         }
     }
@@ -278,10 +293,8 @@ class CustomerController extends Controller
                 'postal_code' => $this->nullableTrim(
                     $data['postal_code'] ?? null
                 ),
-                'registration_channel' =>
-                    $registrationChannel,
-                'registration_source_id' =>
-                    $data['registration_source_id'],
+                'registration_channel' => $registrationChannel,
+                'registration_source_id' => $data['registration_source_id'],
                 'is_guest' => (bool) ($data['is_guest'] ?? false),
             ]);
 
@@ -294,8 +307,7 @@ class CustomerController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Customer gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Customer gagal diperbarui. Silakan coba kembali.',
                 ]);
         }
     }
@@ -303,8 +315,7 @@ class CustomerController extends Controller
     private function rules(
         ?Customer $customer = null,
         ?Request $request = null
-    ): array
-    {
+    ): array {
         return [
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string'],
@@ -392,7 +403,7 @@ class CustomerController extends Controller
                     $isGuest = $request?->boolean('is_guest')
                         || $this->isGuestName($name);
 
-                    if (!$isGuest) {
+                    if (! $isGuest) {
                         return;
                     }
 
@@ -401,20 +412,19 @@ class CustomerController extends Controller
                         ->where(function ($query) {
                             $query->where('is_guest', true)
                                 ->orWhereRaw(
-                                    "LOWER(TRIM(name)) = ?",
+                                    'LOWER(TRIM(name)) = ?',
                                     ['guest']
                                 );
                         })
                         ->when(
                             $customer !== null,
-                            fn ($query) =>
-                                $query->whereKeyNot($customer->getKey())
+                            fn ($query) => $query->whereKeyNot($customer->getKey())
                         )
                         ->exists();
 
                     if ($exists) {
                         $fail(
-                            'Data guest untuk cabang ini sudah tersedia. ' .
+                            'Data guest untuk cabang ini sudah tersedia. '.
                             'Setiap cabang hanya boleh memiliki 1 data guest.'
                         );
                     }
@@ -439,28 +449,20 @@ class CustomerController extends Controller
             'gender.required' => 'Gender wajib dipilih.',
             'gender.in' => 'Gender tidak valid.',
             'date_of_birth.date' => 'Tanggal lahir tidak valid.',
-            'date_of_birth.before_or_equal' =>
-                'Tanggal lahir tidak boleh melebihi hari ini.',
+            'date_of_birth.before_or_equal' => 'Tanggal lahir tidak boleh melebihi hari ini.',
             'province_code.required' => 'Provinsi wajib dipilih.',
             'province_code.exists' => 'Provinsi tidak valid.',
             'regency_code.required' => 'Kabupaten/Kota wajib dipilih.',
-            'regency_code.exists' =>
-                'Kabupaten/Kota tidak sesuai dengan provinsi.',
+            'regency_code.exists' => 'Kabupaten/Kota tidak sesuai dengan provinsi.',
             'district_code.required' => 'Kecamatan wajib dipilih.',
-            'district_code.exists' =>
-                'Kecamatan tidak sesuai dengan kabupaten/kota.',
+            'district_code.exists' => 'Kecamatan tidak sesuai dengan kabupaten/kota.',
             'village_code.required' => 'Kelurahan/Desa wajib dipilih.',
-            'village_code.exists' =>
-                'Kelurahan/Desa tidak sesuai dengan kecamatan.',
+            'village_code.exists' => 'Kelurahan/Desa tidak sesuai dengan kecamatan.',
             'postal_code.max' => 'Kode pos maksimal 50 karakter.',
-            'registration_source_id.required' =>
-                'Store sumber registrasi wajib dipilih.',
-            'registration_source_id.uuid' =>
-                'Format ID store tidak valid.',
-            'registration_source_id.exists' =>
-                'Store yang dipilih tidak ditemukan.',
-            'is_guest.boolean' =>
-                'Status guest tidak valid.',
+            'registration_source_id.required' => 'Store sumber registrasi wajib dipilih.',
+            'registration_source_id.uuid' => 'Format ID store tidak valid.',
+            'registration_source_id.exists' => 'Store yang dipilih tidak ditemukan.',
+            'is_guest.boolean' => 'Status guest tidak valid.',
         ];
     }
 
@@ -481,7 +483,6 @@ class CustomerController extends Controller
             'registration_source_id' => 'store',
         ];
     }
-
 
     private function normalizeCustomerName(mixed $name): string
     {
@@ -515,7 +516,7 @@ class CustomerController extends Controller
         }
 
         return $digits !== ''
-            ? '+62' . $digits
+            ? '+62'.$digits
             : '';
     }
 

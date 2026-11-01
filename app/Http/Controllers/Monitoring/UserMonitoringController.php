@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\UserMonitoringExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -124,7 +125,10 @@ class UserMonitoringController extends Controller
             ->orderBy('platform')
             ->pluck('platform');
 
-        return view('content.monitoring.user-monitoring.index', compact(
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'User Monitoring',
+            'description' => 'Laporan monitoring.',
+            'data' => compact(
             'rows',
             'q',
             'status',
@@ -140,7 +144,10 @@ class UserMonitoringController extends Controller
             'appTypes',
             'devices',
             'platforms'
-        ));
+        ),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function export(Request $request)

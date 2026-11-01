@@ -1,3 +1,4 @@
+import '../css/theme.css';
 import { createApp, h } from 'vue';
 import type { DefineComponent } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';

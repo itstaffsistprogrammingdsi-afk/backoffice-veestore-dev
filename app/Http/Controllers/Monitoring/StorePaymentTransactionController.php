@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\StorePaymentTransactionExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -128,7 +129,10 @@ class StorePaymentTransactionController extends Controller
             ->map(fn ($row) => (float) ($row->total_amount ?? 0))
             ->values();
 
-        return view('content.monitoring.store-payment-transactions.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Payment Transactions',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'stores' => $stores,
             'paymentMethods' => $paymentMethods,
@@ -156,6 +160,9 @@ class StorePaymentTransactionController extends Controller
             'perPage' => $perPage,
             'today' => $today,
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

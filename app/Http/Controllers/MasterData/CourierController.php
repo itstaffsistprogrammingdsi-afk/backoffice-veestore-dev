@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class CourierController extends Controller
@@ -54,10 +55,32 @@ class CourierController extends Controller
         $serviceTypes = ['regular', 'express', 'cargo'];
         $statuses = ['active', 'non_active'];
 
-        return view(
-            'content.master-data.couriers.index',
-            compact('couriers', 'q', 'serviceTypes', 'statuses')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Couriers',
+            'description' => 'Kelola kurir dan layanan pengiriman.',
+            'searchPlaceholder' => 'Cari courier...',
+            'items' => $couriers,
+            'columns' => [
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'phone', 'label' => 'Telepon'],
+                ['key' => 'service_type', 'label' => 'Layanan'],
+                ['key' => 'status', 'label' => 'Status'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Courier', 'required' => true],
+                ['key' => 'phone', 'label' => 'Telepon', 'required' => true],
+                ['key' => 'service_type', 'label' => 'Layanan', 'type' => 'select', 'options' => collect($serviceTypes)->map(fn ($type) => ['value' => $type, 'label' => $type])->values()->all()],
+                ['key' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => collect($statuses)->map(fn ($status) => ['value' => $status, 'label' => $status])->values()->all()],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.couriers.index'),
+                'store' => route('master-data.couriers.store'),
+                'update' => route('master-data.couriers.update', ['courier' => '__ID__']),
+                'destroy' => route('master-data.couriers.destroy', ['courier' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -108,11 +131,9 @@ class CourierController extends Controller
                     'code' => $this->generateCourierCode(),
                     'name' => $name,
                     'phone' => $phone,
-                    'contact_person' =>
-                        $data['contact_person'] ?? null,
+                    'contact_person' => $data['contact_person'] ?? null,
                     'email' => $data['email'] ?? null,
-                    'service_type' =>
-                        $data['service_type'] ?? null,
+                    'service_type' => $data['service_type'] ?? null,
                     'status' => $data['status'],
                 ]);
             });
@@ -127,8 +148,7 @@ class CourierController extends Controller
                 return back()
                     ->withInput($request->except(['_token']))
                     ->withErrors([
-                        'name' =>
-                            'Nama atau nomor telepon courier sudah digunakan.',
+                        'name' => 'Nama atau nomor telepon courier sudah digunakan.',
                     ]);
             }
 
@@ -137,8 +157,7 @@ class CourierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Courier gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Courier gagal disimpan. Silakan coba kembali.',
                 ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -146,8 +165,7 @@ class CourierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Courier gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Courier gagal disimpan. Silakan coba kembali.',
                 ]);
         }
     }
@@ -229,11 +247,9 @@ class CourierController extends Controller
                     $lockedCourier->update([
                         'name' => $name,
                         'phone' => $phone,
-                        'contact_person' =>
-                            $data['contact_person'] ?? null,
+                        'contact_person' => $data['contact_person'] ?? null,
                         'email' => $data['email'] ?? null,
-                        'service_type' =>
-                            $data['service_type'] ?? null,
+                        'service_type' => $data['service_type'] ?? null,
                         'status' => $data['status'],
                     ]);
                 }
@@ -249,8 +265,7 @@ class CourierController extends Controller
                 return back()
                     ->withInput($request->except(['_token']))
                     ->withErrors([
-                        'name' =>
-                            'Nama atau nomor telepon courier sudah digunakan.',
+                        'name' => 'Nama atau nomor telepon courier sudah digunakan.',
                     ]);
             }
 
@@ -259,8 +274,7 @@ class CourierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Courier gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Courier gagal diperbarui. Silakan coba kembali.',
                 ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -268,8 +282,7 @@ class CourierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Courier gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Courier gagal diperbarui. Silakan coba kembali.',
                 ]);
         }
     }
@@ -364,32 +377,19 @@ class CourierController extends Controller
     private function messages(): array
     {
         return [
-            'name.required' =>
-                'Nama courier wajib diisi.',
-            'name.string' =>
-                'Nama courier harus berupa teks.',
-            'name.max' =>
-                'Nama courier maksimal 150 karakter.',
-            'phone.required' =>
-                'Nomor telepon wajib diisi.',
-            'phone.string' =>
-                'Nomor telepon harus berupa teks.',
-            'phone.max' =>
-                'Nomor telepon maksimal 150 karakter.',
-            'contact_person.string' =>
-                'Contact person harus berupa teks.',
-            'contact_person.max' =>
-                'Contact person maksimal 100 karakter.',
-            'email.email' =>
-                'Format email tidak valid.',
-            'email.max' =>
-                'Email maksimal 150 karakter.',
-            'service_type.in' =>
-                'Service type tidak valid.',
-            'status.required' =>
-                'Status wajib dipilih.',
-            'status.in' =>
-                'Status tidak valid.',
+            'name.required' => 'Nama courier wajib diisi.',
+            'name.string' => 'Nama courier harus berupa teks.',
+            'name.max' => 'Nama courier maksimal 150 karakter.',
+            'phone.required' => 'Nomor telepon wajib diisi.',
+            'phone.string' => 'Nomor telepon harus berupa teks.',
+            'phone.max' => 'Nomor telepon maksimal 150 karakter.',
+            'contact_person.string' => 'Contact person harus berupa teks.',
+            'contact_person.max' => 'Contact person maksimal 100 karakter.',
+            'email.email' => 'Format email tidak valid.',
+            'email.max' => 'Email maksimal 150 karakter.',
+            'service_type.in' => 'Service type tidak valid.',
+            'status.required' => 'Status wajib dipilih.',
+            'status.in' => 'Status tidak valid.',
         ];
     }
 
@@ -462,7 +462,7 @@ class CourierController extends Controller
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
             [
-                'courier:name:' .
+                'courier:name:'.
                 $this->normalizeCourierName($name),
             ]
         );
@@ -470,7 +470,7 @@ class CourierController extends Controller
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
             [
-                'courier:phone:' .
+                'courier:phone:'.
                 $this->normalizeIndoPhone($phone),
             ]
         );
@@ -506,7 +506,7 @@ class CourierController extends Controller
         }
 
         return $digits !== ''
-            ? '+62' . $digits
+            ? '+62'.$digits
             : '';
     }
 
@@ -532,7 +532,7 @@ class CourierController extends Controller
 
         $nextNumber = (int) $maxNumber + 1;
 
-        return 'CR-' . str_pad(
+        return 'CR-'.str_pad(
             (string) $nextNumber,
             3,
             '0',

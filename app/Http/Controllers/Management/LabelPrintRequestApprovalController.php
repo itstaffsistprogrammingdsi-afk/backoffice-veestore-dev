@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Management;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class LabelPrintRequestApprovalController extends Controller
 {
@@ -70,15 +71,22 @@ class LabelPrintRequestApprovalController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('content.management.request-labels.index', compact(
-            'rows',
-            'stores',
-            'q',
-            'status',
-            'storeId',
-            'from',
-            'to'
-        ));
+        return Inertia::render('Management/LabelRequests', [
+            'rows' => $rows,
+            'stores' => $stores,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'store_id' => $storeId,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('management.request-labels.index'),
+                'approve' => route('management.request-labels.approve', ['id' => '__ID__']),
+                'reject' => route('management.request-labels.reject', ['id' => '__ID__']),
+            ],
+        ]);
     }
 
     public function approve(Request $request, string $id)

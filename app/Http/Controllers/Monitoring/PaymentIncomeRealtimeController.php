@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\PaymentIncomeRealtimeExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -68,7 +69,10 @@ class PaymentIncomeRealtimeController extends Controller
             ->map(fn ($row) => (int) ($row->total_transactions ?? 0))
             ->values();
 
-        return view('content.monitoring.payment-income-realtime.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Payment Income Realtime',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'methodSummaries' => $methodSummaries,
@@ -97,6 +101,9 @@ class PaymentIncomeRealtimeController extends Controller
             'autoRefresh' => $filters['auto_refresh'],
             'today' => now()->toDateString(),
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

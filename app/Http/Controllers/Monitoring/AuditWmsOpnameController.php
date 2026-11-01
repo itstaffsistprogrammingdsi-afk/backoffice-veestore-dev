@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\AuditWmsOpnameExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -34,13 +35,19 @@ class AuditWmsOpnameController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('content.monitoring.audit-wms-opnames.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Audit Wms Opnames',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'        => $rows,
             'warehouses'  => $warehouses,
             'warehouseId' => $warehouseId,
             'q'           => $q,
             'from'        => $from,
             'to'          => $to,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

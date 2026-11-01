@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use App\Models\StoreStockBarrier;
 use App\Models\Product;
@@ -37,11 +38,17 @@ class StoreStockBarrierController extends Controller
         $stores = Store::orderBy('name')->get(['id', 'name']);
         $products = Product::orderBy('name')->limit(200)->get(['id', 'code', 'name']);
 
-        return view('content.monitoring.store-stock-barriers.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Stock Barriers',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'barriers' => $barriers,
             'stores'   => $stores,
             'products' => $products,
             'filters'  => $filters,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

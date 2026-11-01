@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\MonitoringDataCustomerExport;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
@@ -374,7 +375,10 @@ class MonitoringDataCustomerController extends Controller
                 ->value('postal_code') ?? '';
         }
 
-        return view('content.monitoring.data-customer.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Data Customer',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'filters' => $filters,
 
@@ -433,6 +437,9 @@ class MonitoringDataCustomerController extends Controller
                 'ecommerce' => 'Ecommerce',
                 'backoffice' => 'Backoffice',
             ],
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

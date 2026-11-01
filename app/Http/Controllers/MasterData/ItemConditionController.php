@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use RuntimeException;
 use Throwable;
 
@@ -40,11 +41,11 @@ class ItemConditionController extends Controller
         $conditions = ItemCondition::query()
             ->when($q !== '', function ($query) use ($q) {
                 if (DB::connection()->getDriverName() === 'pgsql') {
-                    $query->where('name', 'ILIKE', '%' . $q . '%');
+                    $query->where('name', 'ILIKE', '%'.$q.'%');
                 } else {
                     $query->whereRaw(
                         'LOWER(TRIM(name)) LIKE ?',
-                        ['%' . mb_strtolower($q, 'UTF-8') . '%']
+                        ['%'.mb_strtolower($q, 'UTF-8').'%']
                     );
                 }
             })
@@ -54,10 +55,27 @@ class ItemConditionController extends Controller
 
         $statuses = $this->getAllowedStatuses();
 
-        return view(
-            'content.master-data.item-conditions.index',
-            compact('conditions', 'statuses', 'q')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Item Conditions',
+            'description' => 'Kelola kondisi item.',
+            'searchPlaceholder' => 'Cari kondisi...',
+            'items' => $conditions,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'status', 'label' => 'Status'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Kondisi', 'required' => true],
+                ['key' => 'status', 'label' => 'Status', 'type' => 'select', 'options' => collect($statuses)->map(fn ($status) => ['value' => $status, 'label' => $status])->values()->all()],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.item-conditions.index'),
+                'store' => route('master-data.item-conditions.store'),
+                'update' => route('master-data.item-conditions.update', ['item_condition' => '__ID__']),
+                'destroy' => route('master-data.item-conditions.destroy', ['item_condition' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -115,7 +133,7 @@ class ItemConditionController extends Controller
                             mixed $value,
                             Closure $fail
                         ) use ($allowedStatuses): void {
-                            if (!in_array((string) $value, $allowedStatuses, true)) {
+                            if (! in_array((string) $value, $allowedStatuses, true)) {
                                 $fail('Status tidak sesuai dengan pilihan yang tersedia.');
                             }
                         },
@@ -210,7 +228,7 @@ class ItemConditionController extends Controller
         $status = trim((string) $request->input('status', ''));
 
         if ($status === '') {
-            $status = !empty($item_condition->status)
+            $status = ! empty($item_condition->status)
                 ? (string) $item_condition->status
                 : $this->getDefaultStatus($allowedStatuses);
         }
@@ -253,7 +271,7 @@ class ItemConditionController extends Controller
                             mixed $value,
                             Closure $fail
                         ) use ($allowedStatuses): void {
-                            if (!in_array((string) $value, $allowedStatuses, true)) {
+                            if (! in_array((string) $value, $allowedStatuses, true)) {
                                 $fail('Status tidak sesuai dengan pilihan yang tersedia.');
                             }
                         },
@@ -452,7 +470,7 @@ class ItemConditionController extends Controller
 
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            ['item-condition:' . mb_strtolower($name, 'UTF-8')]
+            ['item-condition:'.mb_strtolower($name, 'UTF-8')]
         );
     }
 
@@ -513,7 +531,7 @@ class ItemConditionController extends Controller
             LIMIT 1
         ");
 
-        if (!empty($column?->column_default)) {
+        if (! empty($column?->column_default)) {
             if (
                 preg_match(
                     "/^'((?:[^']|'')*)'::/",

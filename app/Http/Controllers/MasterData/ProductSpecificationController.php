@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductSpecification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class ProductSpecificationController extends Controller
 {
@@ -22,13 +23,31 @@ class ProductSpecificationController extends Controller
         $q = trim((string) $request->get('q', ''));
 
         $specs = ProductSpecification::when($q, function ($query) use ($q) {
-                $query->where('value', 'ILIKE', "%{$q}%");
-            })
+            $query->where('value', 'ILIKE', "%{$q}%");
+        })
             ->orderBy('value', 'asc')
             ->paginate(10)
             ->withQueryString();
 
-        return view('content.master-data.product-specifications.index', compact('specs', 'q'));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Product Specifications',
+            'description' => 'Kelola spesifikasi produk.',
+            'searchPlaceholder' => 'Cari spesifikasi...',
+            'items' => $specs,
+            'columns' => [
+                ['key' => 'value', 'label' => 'Value'],
+            ],
+            'fields' => [
+                ['key' => 'value', 'label' => 'Spesifikasi', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.product-specifications.index'),
+                'store' => route('master-data.product-specifications.store'),
+                'update' => route('master-data.product-specifications.update', ['productSpecification' => '__ID__']),
+                'destroy' => route('master-data.product-specifications.destroy', ['productSpecification' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)

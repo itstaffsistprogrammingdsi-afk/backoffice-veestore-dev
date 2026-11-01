@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\PromoUsageExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -57,7 +58,10 @@ class PromoUsageController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        return view('content.monitoring.promo-usage.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Promo Usage',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
 
@@ -77,6 +81,9 @@ class PromoUsageController extends Controller
             'discounts' => $discounts,
             'vouchers' => $vouchers,
             'orderStatuses' => $orderStatuses,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

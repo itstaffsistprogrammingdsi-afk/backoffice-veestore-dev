@@ -333,6 +333,9 @@ Status per 2026-11-01:
 - Fase 3 berjalan sebagai pilot AI Analytics.
 - Fase 4 berjalan sebagai pilot agent `SalesAnalyst` dan halaman `/ai-assistant`.
 - Fase 5 selesai untuk lingkup awal: report export dan queue sudah diperbaiki, seluruh test suite lulus, controller dan view template dihapus, CI serta Larastan ditambahkan. Detail ada di `docs/phase-5-consolidation.md`.
+- Fase 6 berjalan: migrasi full Inertia. AI Analytics, AI Assistant, seluruh halaman Settings, Loyalty, Management, Report Export, Branch Operations, Ecommerce, Auth, Supplier Products, Voucher, CRM, History Customer, Order Cabang, Retur Cabang, dan seluruh halaman Master Data sudah memakai Inertia. Notifikasi tetap JSON karena dipakai navbar. Detail ada di `docs/phase-6-full-inertia.md`.
+- Step 1 pemisahan Operasional dan Laporan selesai: area hub `/operations` dan `/reports`, Navigation service, serta shell Inertia `AppLayout` dengan sidebar, area switch, responsive drawer, dan aksesibilitas keyboard. Detail ada di `docs/operations-reports-separation.md`.
+- Sistem tema light dan dark sudah aktif untuk shell Inertia, halaman auth, dan seluruh halaman Inertia yang sudah dimigrasikan. Detail ada di `docs/theme-system.md`.
 
 ## 11. Keputusan arsitektur
 

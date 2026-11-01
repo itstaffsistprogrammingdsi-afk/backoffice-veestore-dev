@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\StoreReturnRequestExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -46,7 +47,10 @@ class StoreReturnRequestController extends Controller
             'close' => 'Close',
         ];
 
-        return view('content.monitoring.store-return-requests.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Return Requests',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'q' => $filters['q'],
@@ -59,6 +63,9 @@ class StoreReturnRequestController extends Controller
             'statusList' => $statusList,
             'today' => $filters['today'],
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\ReferralScoreReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -181,7 +182,10 @@ class ReferralScoreReportController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        return view('content.monitoring.referral-score-report.index', compact(
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Referral Score Report',
+            'description' => 'Laporan monitoring.',
+            'data' => compact(
             'rows',
             'q',
             'status',
@@ -197,7 +201,10 @@ class ReferralScoreReportController extends Controller
             'trendRows',
             'topCodeRows',
             'latestReferralRows'
-        ));
+        ),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function export(Request $request)

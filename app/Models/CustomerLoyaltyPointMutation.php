@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class CustomerLoyaltyPointMutation extends Model
@@ -11,6 +12,7 @@ class CustomerLoyaltyPointMutation extends Model
 
     // UUID PK (samakan dengan skema Anda)
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = [
@@ -34,13 +36,13 @@ class CustomerLoyaltyPointMutation extends Model
         });
     }
 
-    public function loyaltyPoint()
+    public function loyaltyPoint(): BelongsTo
     {
         return $this->belongsTo(CustomerLoyaltyPoint::class, 'customer_loyalty_point_id');
     }
 
     // shortcut ke customer
-    public function customer()
+    public function customer(): BelongsTo
     {
         return $this->loyaltyPoint()->withDefault()->getRelated()->customer();
     }

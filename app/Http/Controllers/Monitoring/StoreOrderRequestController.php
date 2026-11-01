@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\StoreOrderRequestExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -56,7 +57,10 @@ class StoreOrderRequestController extends Controller
             ->paginate($filters['per_page'])
             ->withQueryString();
 
-        return view('content.monitoring.store-order-requests.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Order Requests',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'        => $rows,
             'summary'     => $summary,
             'stores'      => $stores,
@@ -71,6 +75,9 @@ class StoreOrderRequestController extends Controller
             'perPage'     => $filters['per_page'],
             'today'       => $filters['today'],
             'lastUpdate'  => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\Monitoring\ProductAgingExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -99,7 +100,10 @@ class ProductAgingMonitoringController extends Controller
             ->orderBy('stores.name')
             ->get();
 
-        return view('content.monitoring.product-aging.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Product Aging',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'              => $rows,
             'filters'           => $filters,
             'warehouses'        => $warehouses,
@@ -110,6 +114,9 @@ class ProductAgingMonitoringController extends Controller
             'topAgingStore'     => $topAgingStore,
             'topAgingWarehouse' => $topAgingWarehouse,
             'topAgingOverall'   => $topAgingOverall,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

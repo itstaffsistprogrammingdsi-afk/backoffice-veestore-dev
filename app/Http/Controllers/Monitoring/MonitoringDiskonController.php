@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\MonitoringDiskonExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -23,7 +24,10 @@ class MonitoringDiskonController extends Controller
             ->paginate($filters['per_page'])
             ->withQueryString();
 
-        return view('content.monitoring.diskon.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Diskon',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
 
@@ -40,6 +44,9 @@ class MonitoringDiskonController extends Controller
                 'percentage' => 'Percentage',
                 'fixed' => 'Fixed',
             ],
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

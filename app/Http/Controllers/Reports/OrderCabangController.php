@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Models\StoreOrder;
+use App\Services\StockReservationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use App\Models\StoreOrder;
-use App\Services\StockReservationService;
+use Inertia\Inertia;
 
 class OrderCabangController extends Controller
 {
@@ -21,7 +22,7 @@ class OrderCabangController extends Controller
         'rejected',
         'processing',
         'shipped',
-        
+
         'cancelled',
         'packing',
         'partial_approved',
@@ -39,7 +40,7 @@ class OrderCabangController extends Controller
 
         $statusLower = strtolower($status);
 
-        if ($status !== '' && !in_array($statusLower, self::VALID_STATUSES, true)) {
+        if ($status !== '' && ! in_array($statusLower, self::VALID_STATUSES, true)) {
             $status = 'requested';
             $statusLower = 'requested';
         }
@@ -48,14 +49,14 @@ class OrderCabangController extends Controller
 
         if ($hasCustomDate) {
             $from = $request->query('from') ?: now()->startOfMonth()->toDateString();
-            $to   = $request->query('to')   ?: now()->toDateString();
+            $to = $request->query('to') ?: now()->toDateString();
         } else {
             if ($statusLower === 'requested') {
                 $from = null;
-                $to   = null;
+                $to = null;
             } else {
                 $from = now()->startOfMonth()->toDateString();
-                $to   = now()->toDateString();
+                $to = now()->toDateString();
             }
         }
 
@@ -74,22 +75,33 @@ class OrderCabangController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $stores     = DB::table('stores')->orderBy('name')->get(['id', 'name']);
+        $stores = DB::table('stores')->orderBy('name')->get(['id', 'name']);
         // Samakan dengan Master Data Warehouses (model Warehouse pakai SoftDeletes):
         // hanya warehouse aktif (deleted_at NULL) yang boleh muncul di dropdown order.
         $warehouses = DB::table('warehouses')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name']);
-        $products   = DB::table('products')->orderBy('name')->limit(500)->get(['id', 'name', 'code']);
+        $products = DB::table('products')->orderBy('name')->limit(500)->get(['id', 'name', 'code']);
 
-        return view('content.reports.order-cabang.index', compact(
-            'orders',
-            'stores',
-            'warehouses',
-            'products',
-            'q',
-            'status',
-            'from',
-            'to'
-        ));
+        return Inertia::render('Reports/OrderCabang', [
+            'orders' => $orders,
+            'stores' => $stores,
+            'warehouses' => $warehouses,
+            'products' => $products,
+            'statuses' => self::VALID_STATUSES,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('reports.order-cabang.index'),
+                'show' => route('reports.order-cabang.show', ['order' => '__ID__']),
+                'approve' => route('reports.order-cabang.approve', ['order' => '__ID__']),
+                'reject' => route('reports.order-cabang.reject', ['order' => '__ID__']),
+                'receive' => route('reports.order-cabang.receive', ['order' => '__ID__']),
+                'request' => route('reports.order-cabang.request', ['order' => '__ID__']),
+            ],
+        ]);
     }
 
     public function show(StoreOrder $order)
@@ -122,7 +134,7 @@ class OrderCabangController extends Controller
 
         $productImages = collect();
 
-        if (!empty($productIds) && Schema::hasTable('product_images')) {
+        if (! empty($productIds) && Schema::hasTable('product_images')) {
             $productImages = DB::table('product_images')
                 ->select('product_id', 'image_url')
                 ->whereIn('product_id', $productIds)
@@ -133,42 +145,42 @@ class OrderCabangController extends Controller
         }
 
         return response()->json([
-            'id'           => $order->id,
+            'id' => $order->id,
             'order_number' => $order->order_number,
-            'status'       => $order->status,
-            'date'         => optional($order->date)->toDateString(),
-            'store_id'     => $order->store_id,
+            'status' => $order->status,
+            'date' => optional($order->date)->toDateString(),
+            'store_id' => $order->store_id,
             'warehouse_id' => $order->warehouse_id,
-            'store'        => $order->store ? [
-                'id'   => $order->store->id,
+            'store' => $order->store ? [
+                'id' => $order->store->id,
                 'name' => $order->store->name,
             ] : null,
-            'warehouse'    => $order->warehouse ? [
-                'id'   => $order->warehouse->id,
+            'warehouse' => $order->warehouse ? [
+                'id' => $order->warehouse->id,
                 'name' => $order->warehouse->name,
             ] : null,
-            'details'      => $order->details->map(function ($d) use ($productImages) {
+            'details' => $order->details->map(function ($d) use ($productImages) {
                 $imageUrl = optional($productImages->get($d->product_id))->image_url;
 
                 return [
-                    'id'                  => $d->id,
-                    'product_id'          => $d->product_id,
-                    'product_price_id'    => $d->product_price_id,
-                    'product_price'       => $d->product_price,
-                    'requested_qty'       => (int) $d->requested_qty,
-                    'approved_qty'        => (int) ($d->approved_qty ?? 0),
-                    'received_qty'        => (int) ($d->received_qty ?? 0),
-                    'note'                => $d->note,
-                    'warehouse_id'        => null,
+                    'id' => $d->id,
+                    'product_id' => $d->product_id,
+                    'product_price_id' => $d->product_price_id,
+                    'product_price' => $d->product_price,
+                    'requested_qty' => (int) $d->requested_qty,
+                    'approved_qty' => (int) ($d->approved_qty ?? 0),
+                    'received_qty' => (int) ($d->received_qty ?? 0),
+                    'note' => $d->note,
+                    'warehouse_id' => null,
                     'detail_warehouse_id' => null,
-                    'product'             => $d->relationLoaded('product') && $d->product
+                    'product' => $d->relationLoaded('product') && $d->product
                         ? [
-                            'id'        => $d->product->id,
-                            'name'      => $d->product->name,
+                            'id' => $d->product->id,
+                            'name' => $d->product->name,
                             'image_url' => $imageUrl,
                         ]
                         : null,
-                    'detail_warehouse'    => null,
+                    'detail_warehouse' => null,
                 ];
             })->values(),
         ]);
@@ -176,12 +188,12 @@ class OrderCabangController extends Controller
 
     public function requestSubmit(StoreOrder $order)
     {
-        if (!$order->isEditable()) {
+        if (! $order->isEditable()) {
             return back()->withErrors(['status' => 'Order tidak bisa di-request.']);
         }
 
         $order->update([
-            'status'       => 'requested',
+            'status' => 'requested',
             'requested_at' => now(),
         ]);
 
@@ -192,12 +204,12 @@ class OrderCabangController extends Controller
     {
         $warehouseId = (string) $request->query('warehouse_id', '');
 
-        if (!Str::isUuid($warehouseId)) {
+        if (! Str::isUuid($warehouseId)) {
             return response()->json([
-                'warehouse_id'   => null,
+                'warehouse_id' => null,
                 'warehouse_name' => null,
-                'stocks'         => [],
-                'stock_details'  => [],
+                'stocks' => [],
+                'stock_details' => [],
             ]);
         }
 
@@ -206,12 +218,12 @@ class OrderCabangController extends Controller
             ->whereNull('deleted_at')
             ->first(['id', 'name']);
 
-        if (!$warehouse) {
+        if (! $warehouse) {
             return response()->json([
-                'warehouse_id'   => null,
+                'warehouse_id' => null,
                 'warehouse_name' => null,
-                'stocks'         => [],
-                'stock_details'  => [],
+                'stocks' => [],
+                'stock_details' => [],
             ]);
         }
 
@@ -224,10 +236,10 @@ class OrderCabangController extends Controller
         $stockData = $this->getStockDataByProduct($warehouse->id, $uuidIds);
 
         return response()->json([
-            'warehouse_id'   => $warehouse->id,
+            'warehouse_id' => $warehouse->id,
             'warehouse_name' => $warehouse->name,
-            'stocks'         => $stockData['stocks'],
-            'stock_details'  => $stockData['details'],
+            'stocks' => $stockData['stocks'],
+            'stock_details' => $stockData['details'],
         ]);
     }
 
@@ -244,11 +256,11 @@ class OrderCabangController extends Controller
         }
 
         $rules = [
-            'approved_qty'        => ['array'],
+            'approved_qty' => ['array'],
             'detail_warehouse_id' => ['array'],
         ];
 
-        if (!$request->has('detail_warehouse_id')) {
+        if (! $request->has('detail_warehouse_id')) {
             $rules['warehouse_id'] = [
                 'required', 'uuid',
                 Rule::exists('warehouses', 'id')->whereNull('deleted_at'),
@@ -270,10 +282,10 @@ class OrderCabangController extends Controller
             ->all();
 
         $groupedByWarehouse = [];
-        $perDetailRequested  = [];
-        $perDetailApproved   = [];
-        $hasAnyApproved      = false;
-        $totalApproved       = 0;
+        $perDetailRequested = [];
+        $perDetailApproved = [];
+        $hasAnyApproved = false;
+        $totalApproved = 0;
 
         foreach ($order->details as $d) {
             $detailId = (string) $d->id;
@@ -286,14 +298,14 @@ class OrderCabangController extends Controller
             // Satu produk bisa di-split ke beberapa warehouse:
             // detail_warehouse_id[detailId][] & approved_qty[detailId][] adalah array baris.
             $lines = (array) ($detailWarehouseInput[$detailId] ?? []);
-            $qtys  = (array) ($approvedInput[$detailId] ?? []);
+            $qtys = (array) ($approvedInput[$detailId] ?? []);
 
             // Gabungkan qty per warehouse (baris ganda dengan warehouse sama dijumlahkan).
             $merged = [];
             $entryCount = max(count($lines), count($qtys));
 
             for ($k = 0; $k < $entryCount; $k++) {
-                $rawWh  = $lines[$k] ?? null;
+                $rawWh = $lines[$k] ?? null;
                 $rawQty = $qtys[$k] ?? null;
 
                 $qty = ($rawQty === null || $rawQty === '') ? 0 : (int) $rawQty;
@@ -304,7 +316,7 @@ class OrderCabangController extends Controller
 
                 $whId = (string) $rawWh;
 
-                if (!Str::isUuid($whId)) {
+                if (! Str::isUuid($whId)) {
                     if (Str::isUuid($globalWarehouseId)) {
                         $whId = $globalWarehouseId;
                     } elseif (Str::isUuid((string) $order->warehouse_id)) {
@@ -312,13 +324,13 @@ class OrderCabangController extends Controller
                     }
                 }
 
-                if (!Str::isUuid($whId)) {
+                if (! Str::isUuid($whId)) {
                     return back()->withErrors([
                         'status' => "Warehouse untuk produk '{$prodName}' wajib dipilih.",
                     ]);
                 }
 
-                if (!isset($activeWarehouseIds[$whId])) {
+                if (! isset($activeWarehouseIds[$whId])) {
                     return back()->withErrors([
                         'status' => "Warehouse untuk produk '{$prodName}' sudah tidak aktif / dihapus. Pilih warehouse lain yang ada di Master Data.",
                     ]);
@@ -346,19 +358,19 @@ class OrderCabangController extends Controller
                 $totalApproved += (int) $qty;
 
                 $groupedByWarehouse[$whId][] = [
-                    'detail_id'         => $d->id,
-                    'product_id'        => $d->product_id,
-                    'product_price_id'  => $d->product_price_id,
-                    'product_price'     => $d->product_price,
-                    'requested_qty'     => $requested,
-                    'approved_qty'      => (int) $qty,
-                    'received_qty'      => (int) ($d->received_qty ?? 0),
-                    'note'              => $d->note,
+                    'detail_id' => $d->id,
+                    'product_id' => $d->product_id,
+                    'product_price_id' => $d->product_price_id,
+                    'product_price' => $d->product_price,
+                    'requested_qty' => $requested,
+                    'approved_qty' => (int) $qty,
+                    'received_qty' => (int) ($d->received_qty ?? 0),
+                    'note' => $d->note,
                 ];
             }
         }
 
-        if (!$hasAnyApproved || $totalApproved <= 0) {
+        if (! $hasAnyApproved || $totalApproved <= 0) {
             return back()->withErrors([
                 'status' => 'Tidak ada kuantitas yang dapat disetujui. Isi approved qty minimal 1.',
             ]);
@@ -410,9 +422,9 @@ class OrderCabangController extends Controller
 
             $order->forceFill([
                 'warehouse_id' => $firstWarehouseId,
-                'status'       => $finalStatus,
-                'approved_at'  => now(),
-                'approved_by'  => Auth::id(),
+                'status' => $finalStatus,
+                'approved_at' => now(),
+                'approved_by' => Auth::id(),
             ])->save();
 
             foreach ($order->details as $detail) {
@@ -436,18 +448,18 @@ class OrderCabangController extends Controller
                 $newOrderId = (string) Str::uuid();
 
                 DB::table('store_orders')->insert([
-                    'id'              => $newOrderId,
-                    'order_number'    => $this->generateOrderNumber(),
-                    'store_id'        => $order->store_id,
-                    'warehouse_id'    => $warehouseId,
-                    'requested_at'    => $order->requested_at,
-                    'approved_at'     => now(),
-                    'approved_by'     => Auth::id(),
-                    'status'          => $finalStatus,
-                    'created_by'      => $order->created_by,
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                    'date'            => $order->date,
+                    'id' => $newOrderId,
+                    'order_number' => $this->generateOrderNumber(),
+                    'store_id' => $order->store_id,
+                    'warehouse_id' => $warehouseId,
+                    'requested_at' => $order->requested_at,
+                    'approved_at' => now(),
+                    'approved_by' => Auth::id(),
+                    'status' => $finalStatus,
+                    'created_by' => $order->created_by,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                    'date' => $order->date,
                     'shipping_number' => $order->shipping_number,
                 ]);
 
@@ -455,28 +467,28 @@ class OrderCabangController extends Controller
 
                 foreach ($items as $item) {
                     $detailRows[] = [
-                        'id'               => (string) Str::uuid(),
-                        'store_order_id'   => $newOrderId,
-                        'product_id'       => $item['product_id'],
+                        'id' => (string) Str::uuid(),
+                        'store_order_id' => $newOrderId,
+                        'product_id' => $item['product_id'],
                         'product_price_id' => $item['product_price_id'],
-                        'product_price'    => $item['product_price'],
-                        'requested_qty'    => (int) $item['approved_qty'],
-                        'approved_qty'     => (int) $item['approved_qty'],
-                        'note'             => $item['note'],
-                        'created_at'       => now(),
-                        'updated_at'       => now(),
-                        'received_qty'     => $item['received_qty'],
+                        'product_price' => $item['product_price'],
+                        'requested_qty' => (int) $item['approved_qty'],
+                        'approved_qty' => (int) $item['approved_qty'],
+                        'note' => $item['note'],
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                        'received_qty' => $item['received_qty'],
                     ];
 
                     $reservationRows[] = $this->buildReservationRow($newOrderId, $warehouseId, $item);
                 }
 
-                if (!empty($detailRows)) {
+                if (! empty($detailRows)) {
                     DB::table('store_order_details')->insert($detailRows);
                 }
             }
 
-            if (!empty($reservationRows) && Schema::hasTable('stock_reservations')) {
+            if (! empty($reservationRows) && Schema::hasTable('stock_reservations')) {
                 DB::table('stock_reservations')->insert($reservationRows);
             }
         });
@@ -486,13 +498,13 @@ class OrderCabangController extends Controller
 
     public function reject(StoreOrder $order)
     {
-        if (!in_array(strtolower($order->status), ['requested', 'draft', 'approved', 'partial_approved'], true)) {
+        if (! in_array(strtolower($order->status), ['requested', 'draft', 'approved', 'partial_approved'], true)) {
             return back()->withErrors(['status' => 'Order tidak bisa direject.']);
         }
 
         DB::transaction(function () use ($order) {
             $order->update([
-                'status'      => 'rejected',
+                'status' => 'rejected',
                 'approved_at' => null,
                 'approved_by' => null,
             ]);
@@ -609,7 +621,7 @@ class OrderCabangController extends Controller
 
         $whereStock = '';
 
-        if (!empty($uuidIds)) {
+        if (! empty($uuidIds)) {
             $stockPlaceholders = [];
 
             foreach ($uuidIds as $i => $uuid) {
@@ -618,7 +630,7 @@ class OrderCabangController extends Controller
                 $bindings[$stockKey] = $uuid;
             }
 
-            $whereStock = ' AND i.product_id IN (' . implode(',', $stockPlaceholders) . ') ';
+            $whereStock = ' AND i.product_id IN ('.implode(',', $stockPlaceholders).') ';
         }
 
         $sql = <<<SQL
@@ -691,41 +703,41 @@ SQL;
             $stocks[$productId] = $available;
 
             $details[$productId] = [
-                'qty_good'                  => (int) $row->qty_good,
-                'qty_good_after_repair'     => (int) $row->qty_good_after_repair,
-                'qty_bad'                   => (int) $row->qty_bad,
-                'qty_available_stock'       => (int) $row->qty_available_stock,
-                'qty_reserved'              => $reserved,
+                'qty_good' => (int) $row->qty_good,
+                'qty_good_after_repair' => (int) $row->qty_good_after_repair,
+                'qty_bad' => (int) $row->qty_bad,
+                'qty_available_stock' => (int) $row->qty_available_stock,
+                'qty_reserved' => $reserved,
                 'qty_available_after_order' => $available,
             ];
         }
 
         foreach ($uuidIds as $productId) {
-            if (!array_key_exists($productId, $stocks)) {
+            if (! array_key_exists($productId, $stocks)) {
                 $reserved = (int) ($reservedMap[$productId] ?? 0);
 
                 $stocks[$productId] = 0;
 
                 $details[$productId] = [
-                    'qty_good'                  => 0,
-                    'qty_good_after_repair'     => 0,
-                    'qty_bad'                   => 0,
-                    'qty_available_stock'       => 0,
-                    'qty_reserved'              => $reserved,
+                    'qty_good' => 0,
+                    'qty_good_after_repair' => 0,
+                    'qty_bad' => 0,
+                    'qty_available_stock' => 0,
+                    'qty_reserved' => $reserved,
                     'qty_available_after_order' => 0,
                 ];
             }
         }
 
         return [
-            'stocks'  => $stocks,
+            'stocks' => $stocks,
             'details' => $details,
         ];
     }
 
     private function getActiveReservationMap(string $warehouseId, array $productIds = []): array
     {
-        if (!Schema::hasTable('stock_reservations')) {
+        if (! Schema::hasTable('stock_reservations')) {
             return [];
         }
 
@@ -744,26 +756,26 @@ SQL;
     private function buildReservationRow(string $orderId, string $warehouseId, array $item): array
     {
         return [
-            'id'             => (string) Str::uuid(),
-            'product_id'     => $item['product_id'],
+            'id' => (string) Str::uuid(),
+            'product_id' => $item['product_id'],
             'reference_type' => 'store_order',
-            'reference_id'   => $orderId,
-            'handler_type'   => 'warehouse',
-            'handler_id'     => $warehouseId,
-            'quantity'       => (int) $item['approved_qty'],
-            'status'         => 'active',
-            'reserved_at'    => now(),
-            'expires_at'     => null,
-            'created_at'     => now(),
-            'updated_at'     => now(),
+            'reference_id' => $orderId,
+            'handler_type' => 'warehouse',
+            'handler_id' => $warehouseId,
+            'quantity' => (int) $item['approved_qty'],
+            'status' => 'active',
+            'reserved_at' => now(),
+            'expires_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
         ];
     }
 
     private function generateOrderNumber(): string
     {
-        $prefix = 'POS-' . now()->format('Ymd') . '-';
+        $prefix = 'POS-'.now()->format('Ymd').'-';
 
-        $latestOrder = StoreOrder::where('order_number', 'like', $prefix . '%')
+        $latestOrder = StoreOrder::where('order_number', 'like', $prefix.'%')
             ->orderByDesc('order_number')
             ->first();
 
@@ -778,6 +790,6 @@ SQL;
             }
         }
 
-        return $prefix . str_pad((string) $runningNumber, 3, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $runningNumber, 3, '0', STR_PAD_LEFT);
     }
 }

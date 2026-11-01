@@ -6,11 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class ProductPriceController extends Controller
 {
@@ -24,10 +25,10 @@ class ProductPriceController extends Controller
 
     public function index(Request $request)
     {
-        $q         = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
         $priceType = $request->get('price_type');
-        $from      = $request->get('from');
-        $to        = $request->get('to');
+        $from = $request->get('from');
+        $to = $request->get('to');
 
         $today = Carbon::today()->toDateString();
 
@@ -88,12 +89,12 @@ class ProductPriceController extends Controller
                 $basePriceValue = $basePrice ? (float) $basePrice->price : 0;
 
                 return (object) [
-                    'product_id'     => $first->product_id,
-                    'product_name'   => $first->product_name,
-                    'product_code'   => $first->product_code,
-                    'base_price'     => $basePriceValue,
+                    'product_id' => $first->product_id,
+                    'product_name' => $first->product_name,
+                    'product_code' => $first->product_code,
+                    'base_price' => $basePriceValue,
                     'prices_by_type' => $pricesByType,
-                    'active_count'   => $items->count(),
+                    'active_count' => $items->count(),
                 ];
             })
             ->values();
@@ -107,7 +108,7 @@ class ProductPriceController extends Controller
             $perPage,
             $page,
             [
-                'path'  => $request->url(),
+                'path' => $request->url(),
                 'query' => $request->query(),
             ]
         );
@@ -126,24 +127,32 @@ class ProductPriceController extends Controller
 
         $priceTypes = ProductPrice::enumValues() ?: $displayTypes;
 
-        return view('content.master-data.product-prices.index', compact(
-            'prices',
-            'products',
-            'priceTypes',
-            'displayTypes',
-            'allPriceDetails',
-            'q',
-            'priceType',
-            'from',
-            'to'
-        ));
+        return Inertia::render('MasterData/ProductPrices', [
+            'prices' => $prices,
+            'products' => $products,
+            'priceTypes' => $priceTypes,
+            'displayTypes' => $displayTypes,
+            'allPriceDetails' => $allPriceDetails,
+            'filters' => [
+                'q' => $q,
+                'price_type' => $priceType,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('master-data.product-prices.index'),
+                'store' => route('master-data.product-prices.store'),
+                'update' => route('master-data.product-prices.update', ['product_price' => '__ID__']),
+                'destroy' => route('master-data.product-prices.destroy', ['product_price' => '__ID__']),
+            ],
+        ]);
     }
 
     private function findPeriodConflict(array $data, ?string $ignoreId = null): ?ProductPrice
     {
         $newFrom = Carbon::parse($data['valid_from'])->toDateString();
 
-        $newTo = !empty($data['valid_to'])
+        $newTo = ! empty($data['valid_to'])
             ? Carbon::parse($data['valid_to'])->toDateString()
             : '9999-12-31';
 
@@ -164,16 +173,16 @@ class ProductPriceController extends Controller
     }
 
     private function conflictMessage(ProductPrice $conflict): string
-{
-    $product = $conflict->product
-        ? trim(($conflict->product->name ?? '-') . ' (' . ($conflict->product->code ?? '-') . ')')
-        : '-';
+    {
+        $product = $conflict->product
+            ? trim(($conflict->product->name ?? '-').' ('.($conflict->product->code ?? '-').')')
+            : '-';
 
-    $from = $this->formatDateId($conflict->valid_from);
-    $to = $this->formatDateId($conflict->valid_to);
+        $from = $this->formatDateId($conflict->valid_from);
+        $to = $this->formatDateId($conflict->valid_to);
 
-    return "Tidak bisa disimpan. Produk {$product} dengan tipe {$conflict->price_type} sudah memiliki periode {$from} sampai {$to}. Pilih tanggal di luar periode tersebut.";
-}
+        return "Tidak bisa disimpan. Produk {$product} dengan tipe {$conflict->price_type} sudah memiliki periode {$from} sampai {$to}. Pilih tanggal di luar periode tersebut.";
+    }
 
     public function checkDuplicate(Request $request)
     {
@@ -250,7 +259,7 @@ class ProductPriceController extends Controller
                 $data['valid_from']
             )->toDateString();
 
-            $newTo = !empty($data['valid_to'])
+            $newTo = ! empty($data['valid_to'])
                 ? Carbon::parse(
                     $data['valid_to']
                 )->toDateString()
@@ -261,7 +270,7 @@ class ProductPriceController extends Controller
             foreach (
                 ['base', 'store', 'ecommerce'] as $type
             ) {
-                if (!in_array($type, $priceTypes, true)) {
+                if (! in_array($type, $priceTypes, true)) {
                     continue;
                 }
 
@@ -387,15 +396,15 @@ class ProductPriceController extends Controller
     private function conflictPayload(ProductPrice $conflict): array
     {
         return [
-            'id'         => $conflict->id,
+            'id' => $conflict->id,
             'product_id' => $conflict->product_id,
-            'product'    => $conflict->product ? [
-                'id'   => $conflict->product->id,
+            'product' => $conflict->product ? [
+                'id' => $conflict->product->id,
                 'name' => $conflict->product->name,
                 'code' => $conflict->product->code,
             ] : null,
             'price_type' => $conflict->price_type,
-            'price'      => $conflict->price,
+            'price' => $conflict->price,
             'valid_from' => $conflict->valid_from
                 ? Carbon::parse($conflict->valid_from)->format('Y-m-d')
                 : null,
@@ -411,30 +420,30 @@ class ProductPriceController extends Controller
         $requiredTypes = ['base', 'store', 'ecommerce'];
 
         $data = $request->validate([
-            'product_id'        => ['required', 'uuid', 'exists:products,id'],
-            'valid_from'        => ['required', 'date', 'after_or_equal:today'],
-            'valid_to'          => ['nullable', 'date', 'after_or_equal:valid_from'],
-            'prices'            => ['required', 'array'],
-            'prices.base'       => ['required', 'numeric', 'min:0'],
-            'prices.store'      => ['required', 'numeric', 'min:0'],
-            'prices.ecommerce'  => ['required', 'numeric', 'min:0'],
+            'product_id' => ['required', 'uuid', 'exists:products,id'],
+            'valid_from' => ['required', 'date', 'after_or_equal:today'],
+            'valid_to' => ['nullable', 'date', 'after_or_equal:valid_from'],
+            'prices' => ['required', 'array'],
+            'prices.base' => ['required', 'numeric', 'min:0'],
+            'prices.store' => ['required', 'numeric', 'min:0'],
+            'prices.ecommerce' => ['required', 'numeric', 'min:0'],
         ], [
-            'prices.base.required'      => 'Harga Base wajib diisi.',
-            'prices.store.required'     => 'Harga Store wajib diisi.',
+            'prices.base.required' => 'Harga Base wajib diisi.',
+            'prices.store.required' => 'Harga Store wajib diisi.',
             'prices.ecommerce.required' => 'Harga Ecommerce wajib diisi.',
         ], [
-            'product_id'        => 'produk',
-            'valid_from'        => 'berlaku dari',
-            'valid_to'          => 'expired / berlaku sampai',
-            'prices.base'       => 'harga base',
-            'prices.store'      => 'harga store',
-            'prices.ecommerce'  => 'harga ecommerce',
+            'product_id' => 'produk',
+            'valid_from' => 'berlaku dari',
+            'valid_to' => 'expired / berlaku sampai',
+            'prices.base' => 'harga base',
+            'prices.store' => 'harga store',
+            'prices.ecommerce' => 'harga ecommerce',
         ]);
 
         $conflictMessages = [];
 
         foreach ($requiredTypes as $type) {
-            if (!in_array($type, $priceTypes, true)) {
+            if (! in_array($type, $priceTypes, true)) {
                 continue;
             }
 
@@ -442,7 +451,7 @@ class ProductPriceController extends Controller
                 'product_id' => $data['product_id'],
                 'price_type' => $type,
                 'valid_from' => $data['valid_from'],
-                'valid_to'   => $data['valid_to'] ?? null,
+                'valid_to' => $data['valid_to'] ?? null,
             ]);
 
             if ($conflict) {
@@ -456,16 +465,16 @@ class ProductPriceController extends Controller
 
         DB::transaction(function () use ($data, $requiredTypes, $priceTypes) {
             foreach ($requiredTypes as $type) {
-                if (!in_array($type, $priceTypes, true)) {
+                if (! in_array($type, $priceTypes, true)) {
                     continue;
                 }
 
                 ProductPrice::create([
                     'product_id' => $data['product_id'],
                     'price_type' => $type,
-                    'price'      => $data['prices'][$type],
+                    'price' => $data['prices'][$type],
                     'valid_from' => $data['valid_from'],
-                    'valid_to'   => $data['valid_to'] ?? null,
+                    'valid_to' => $data['valid_to'] ?? null,
                 ]);
             }
         });
@@ -531,12 +540,9 @@ class ProductPriceController extends Controller
                 'min:0',
             ],
         ], [
-            'prices.base.required' =>
-                'Harga Base wajib diisi.',
-            'prices.store.required' =>
-                'Harga Store wajib diisi.',
-            'prices.ecommerce.required' =>
-                'Harga Ecommerce wajib diisi.',
+            'prices.base.required' => 'Harga Base wajib diisi.',
+            'prices.store.required' => 'Harga Store wajib diisi.',
+            'prices.ecommerce.required' => 'Harga Ecommerce wajib diisi.',
         ], [
             'product_id' => 'produk',
             'valid_from' => 'berlaku dari',
@@ -558,7 +564,7 @@ class ProductPriceController extends Controller
             $data['valid_from']
         )->toDateString();
 
-        $newTo = !empty($data['valid_to'])
+        $newTo = ! empty($data['valid_to'])
             ? Carbon::parse(
                 $data['valid_to']
             )->toDateString()
@@ -567,7 +573,7 @@ class ProductPriceController extends Controller
         $conflictMessages = [];
 
         foreach ($requiredTypes as $type) {
-            if (!in_array($type, $priceTypes, true)) {
+            if (! in_array($type, $priceTypes, true)) {
                 continue;
             }
 
@@ -617,7 +623,7 @@ class ProductPriceController extends Controller
                 $currentRows
             ): void {
                 foreach ($requiredTypes as $type) {
-                    if (!in_array($type, $priceTypes, true)) {
+                    if (! in_array($type, $priceTypes, true)) {
                         continue;
                     }
 
@@ -629,8 +635,7 @@ class ProductPriceController extends Controller
                         'price_type' => $type,
                         'price' => $data['prices'][$type],
                         'valid_from' => $data['valid_from'],
-                        'valid_to' =>
-                            $data['valid_to'] ?? null,
+                        'valid_to' => $data['valid_to'] ?? null,
                     ];
 
                     if ($price) {
@@ -669,11 +674,11 @@ class ProductPriceController extends Controller
     }
 
     private function formatDateId($date): string
-{
-    if (!$date) {
-        return 'Tanpa batas';
-    }
+    {
+        if (! $date) {
+            return 'Tanpa batas';
+        }
 
-    return Carbon::parse($date)->format('d/m/Y');
-}
+        return Carbon::parse($date)->format('d/m/Y');
+    }
 }

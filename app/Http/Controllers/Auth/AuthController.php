@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Spatie\Permission\PermissionRegistrar;
 
 class AuthController extends Controller
@@ -20,27 +21,46 @@ class AuthController extends Controller
             return redirect()->route('dashboard-analytics');
         }
 
-        return view('content.authentications.auth-login-basic');
+        Inertia::setRootView('auth');
+
+        return Inertia::render('Auth/Login', [
+            'urls' => [
+                'login' => route('login.attempt'),
+                'register' => route('auth-register-basic'),
+                'forgot' => route('auth-forgot-password-basic'),
+            ],
+        ]);
+    }
+
+    public function showForgotPassword()
+    {
+        Inertia::setRootView('auth');
+
+        return Inertia::render('Auth/ForgotPassword', [
+            'urls' => [
+                'login' => route('auth-login-basic'),
+            ],
+        ]);
     }
 
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'login'    => ['required', 'string'],
+            'login' => ['required', 'string'],
             'password' => ['required', 'string'],
         ]);
 
         $loginInput = trim($credentials['login']);
-        $password   = $credentials['password'];
+        $password = $credentials['password'];
 
         $loginField = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
 
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = User::query()
             ->where($loginField, $loginInput)
             ->first();
 
-        if (!$user || !Hash::check($password, $user->password)) {
+        if (! $user || ! Hash::check($password, $user->password)) {
             $this->writeSessionLogSafe(
                 request: $request,
                 user: $user,
@@ -56,7 +76,7 @@ class AuthController extends Controller
                 ->withInput($request->only('login', 'remember'));
         }
 
-        if (!$user->backoffice_access) {
+        if (! $user->backoffice_access) {
             $this->writeSessionLogSafe(
                 request: $request,
                 user: $user,
@@ -72,7 +92,7 @@ class AuthController extends Controller
                 ->withInput($request->only('login', 'remember'));
         }
 
-        if (!Auth::attempt(
+        if (! Auth::attempt(
             [$loginField => $loginInput, 'password' => $password],
             $request->boolean('remember')
         )) {
@@ -95,7 +115,7 @@ class AuthController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        /** @var \App\Models\User $authed */
+        /** @var User $authed */
         $authed = Auth::user();
         $authed->loadMissing('roles.permissions');
 
@@ -108,8 +128,8 @@ class AuthController extends Controller
             ->all();
 
         session([
-            'user_role_name'   => $roleNames[0] ?? null,
-            'user_role_names'  => $roleNames,
+            'user_role_name' => $roleNames[0] ?? null,
+            'user_role_names' => $roleNames,
             'user_permissions' => $permissionNames,
         ]);
 
@@ -136,23 +156,30 @@ class AuthController extends Controller
             return redirect()->route('dashboard-analytics');
         }
 
-        return view('content.authentications.auth-register-basic');
+        Inertia::setRootView('auth');
+
+        return Inertia::render('Auth/Register', [
+            'urls' => [
+                'register' => route('register.attempt'),
+                'login' => route('auth-login-basic'),
+            ],
+        ]);
     }
 
     public function register(Request $request)
     {
         $data = $request->validate([
-            'name'     => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:100', 'unique:pgsql.users,username'],
-            'email'    => ['required', 'email', 'max:191', 'unique:pgsql.users,email'],
+            'email' => ['required', 'email', 'max:191', 'unique:pgsql.users,email'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
 
         $data += [
-            'ecommerce_access'  => false,
-            'wms_access'        => false,
+            'ecommerce_access' => false,
+            'wms_access' => false,
             'backoffice_access' => false,
-            'store_access'      => false,
+            'store_access' => false,
         ];
 
         User::create($data);
@@ -165,7 +192,7 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        /** @var \App\Models\User|null $user */
+        /** @var User|null $user */
         $user = Auth::user();
         $now = now();
 
@@ -194,13 +221,13 @@ class AuthController extends Controller
                     ->where('id', $currentSessionLogId)
                     ->update([
                         'last_activity_at' => $now,
-                        'expired_at'       => $now,
+                        'expired_at' => $now,
                     ]);
             } catch (\Throwable $e) {
                 Log::error('Gagal update session_logs login aktif saat logout', [
-                    'message'        => $e->getMessage(),
+                    'message' => $e->getMessage(),
                     'session_log_id' => $currentSessionLogId,
-                    'user_id'        => $user?->id,
+                    'user_id' => $user?->id,
                 ]);
             }
         }
@@ -244,11 +271,11 @@ class AuthController extends Controller
             );
         } catch (\Throwable $e) {
             Log::error('Gagal simpan session_logs', [
-                'message'  => $e->getMessage(),
-                'status'   => $status,
-                'type'     => $type,
-                'user_id'  => $user?->id,
-                'login'    => $loginInput,
+                'message' => $e->getMessage(),
+                'status' => $status,
+                'type' => $type,
+                'user_id' => $user?->id,
+                'login' => $loginInput,
             ]);
 
             return null;
@@ -269,14 +296,14 @@ class AuthController extends Controller
         $sessionLifetimeMinutes = (int) config('session.lifetime', 120);
         $sessionId = (string) $request->session()->getId();
         $id = (string) Str::uuid();
-        $sessionLogToken = $sessionId . ':' . $type . ':' . $id;
+        $sessionLogToken = $sessionId.':'.$type.':'.$id;
 
         $details = array_merge([
-            'username'    => $user?->username ?? $loginInput,
-            'email'       => $user?->email,
+            'username' => $user?->username ?? $loginInput,
+            'email' => $user?->email,
             'login_field' => $loginField,
-            'remember'    => $request->boolean('remember'),
-            'ip_info'     => [
+            'remember' => $request->boolean('remember'),
+            'ip_info' => [
                 'ip' => $request->ip(),
             ],
             'gps' => [
@@ -286,23 +313,23 @@ class AuthController extends Controller
         ], $extraDetails);
 
         DB::table('session_logs')->insert([
-            'id'               => $id,
-            'user_id'          => $user?->id,
-            'ip_address'       => substr((string) $request->ip(), 0, 100),
-            'session_token'    => $sessionLogToken,
-            'user_agent'       => (string) $request->userAgent(),
-            'device'           => $this->detectDevice($request->userAgent()),
-            'platform'         => $this->detectPlatform($request->userAgent()),
+            'id' => $id,
+            'user_id' => $user?->id,
+            'ip_address' => substr((string) $request->ip(), 0, 100),
+            'session_token' => $sessionLogToken,
+            'user_agent' => (string) $request->userAgent(),
+            'device' => $this->detectDevice($request->userAgent()),
+            'platform' => $this->detectPlatform($request->userAgent()),
             'last_activity_at' => $now,
-            'expired_at'       => $type === 'logout'
+            'expired_at' => $type === 'logout'
                 ? $now
                 : $now->copy()->addMinutes($sessionLifetimeMinutes),
-            'status'           => $status,
-            'type'             => $type,
-            'failure_reason'   => $failureReason,
-            'app_type'         => 'backoffice',
-            'details'          => json_encode($details, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            'logged_at'        => $now,
+            'status' => $status,
+            'type' => $type,
+            'failure_reason' => $failureReason,
+            'app_type' => 'backoffice',
+            'details' => json_encode($details, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'logged_at' => $now,
         ]);
 
         return $id;
@@ -332,15 +359,15 @@ class AuthController extends Controller
         $ua = strtolower($userAgent ?? '');
 
         return match (true) {
-            str_contains($ua, 'windows')   => 'Windows',
-            str_contains($ua, 'android')   => 'Android',
+            str_contains($ua, 'windows') => 'Windows',
+            str_contains($ua, 'android') => 'Android',
             str_contains($ua, 'iphone'),
             str_contains($ua, 'ipad'),
-            str_contains($ua, 'ios')       => 'iOS',
+            str_contains($ua, 'ios') => 'iOS',
             str_contains($ua, 'mac os'),
             str_contains($ua, 'macintosh') => 'macOS',
-            str_contains($ua, 'linux')     => 'Linux',
-            default                        => 'Unknown',
+            str_contains($ua, 'linux') => 'Linux',
+            default => 'Unknown',
         };
     }
 }

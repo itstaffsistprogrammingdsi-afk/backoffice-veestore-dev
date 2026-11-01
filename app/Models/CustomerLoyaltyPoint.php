@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class CustomerLoyaltyPoint extends Model
@@ -11,6 +12,7 @@ class CustomerLoyaltyPoint extends Model
 
     // UUID primary key (sesuaikan jika pk Anda integer)
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $fillable = ['customer_id', 'balance'];
@@ -30,7 +32,7 @@ class CustomerLoyaltyPoint extends Model
         });
     }
 
-    public function customer()
+    public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -53,14 +54,20 @@ class CustomerMembershipMonitoringController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        return view('content.monitoring.customer-membership.index', compact(
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Customer Membership',
+            'description' => 'Laporan monitoring.',
+            'data' => compact(
             'rows',
             'summary',
             'tierDistribution',
             'memberships',
             'statuses',
             'filters'
-        ));
+        ),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     private function customerMembershipQuery(array $filters)

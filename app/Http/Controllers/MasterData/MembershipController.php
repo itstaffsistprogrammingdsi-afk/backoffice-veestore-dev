@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Membership;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class MembershipController extends Controller
 {
-     public function __construct()
+    public function __construct()
     {
         // Sesuaikan dengan seeder permission
         $this->middleware('permission:view master-data-memberships')->only(['index']);
@@ -17,6 +18,7 @@ class MembershipController extends Controller
         $this->middleware('permission:update master-data-memberships')->only(['update']);
         $this->middleware('permission:delete master-data-memberships')->only(['destroy']);
     }
+
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
@@ -28,7 +30,25 @@ class MembershipController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('content.master-data.memberships.index', compact('memberships', 'q'));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Memberships',
+            'description' => 'Kelola tier membership pelanggan.',
+            'searchPlaceholder' => 'Cari membership...',
+            'items' => $memberships,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Membership', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.memberships.index'),
+                'store' => route('master-data.memberships.store'),
+                'update' => route('master-data.memberships.update', ['membership' => '__ID__']),
+                'destroy' => route('master-data.memberships.destroy', ['membership' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -51,7 +71,7 @@ class MembershipController extends Controller
                 'required',
                 'string',
                 'max:150',
-                Rule::unique('memberships', 'name')->ignore($membership->id, 'id')
+                Rule::unique('memberships', 'name')->ignore($membership->id, 'id'),
             ],
         ]);
 
@@ -65,6 +85,7 @@ class MembershipController extends Controller
     public function destroy(Membership $membership)
     {
         $membership->delete();
+
         return back()->with('success', 'Membership berhasil dihapus.');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\MutasiStockWmsExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -58,12 +59,18 @@ class MutasiStockWmsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        return view('content.monitoring.mutasi-stock-wms.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Mutasi Stock Wms',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'          => $rows,
             'rowItems'      => $rows->items(),
             'warehouses'    => $warehouses,
             'outboundTypes' => self::OUTBOUND_TYPES,
             'filters'       => $filters,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -41,7 +42,10 @@ class ExpiringStockMonitoringController extends Controller
 
         $user = Auth::user();
 
-        return view('content.monitoring.expiring-stock.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Expiring Stock',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'filters' => $filters,
             'rows' => $rows,
             'summary' => $summary,
@@ -55,6 +59,9 @@ class ExpiringStockMonitoringController extends Controller
                 ->get(),
             'storeChart' => $storeChart,
             'warehouseChart' => $warehouseChart,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

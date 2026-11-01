@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\MonitoringVoucherRequestExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -95,7 +96,10 @@ class MonitoringVoucherRequestController extends Controller
             'rejected' => 'Rejected',
         ]);
 
-        return view('content.monitoring.request-voucher.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Request Voucher',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'detailItems' => $detailItems,
             'summary' => $summary,
@@ -113,6 +117,9 @@ class MonitoringVoucherRequestController extends Controller
             'to' => $filters['to'],
             'perPage' => $filters['per_page'],
             'autoRefresh' => $filters['auto_refresh'],
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

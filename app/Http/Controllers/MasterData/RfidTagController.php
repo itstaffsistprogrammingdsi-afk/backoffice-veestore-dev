@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\RfidTag;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class RfidTagController extends Controller
 {
@@ -23,14 +24,34 @@ class RfidTagController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view('content.master-data.rfid-tags.index', compact('tags', 'q'));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'RFID Tags',
+            'description' => 'Kelola serial number dan UID RFID.',
+            'searchPlaceholder' => 'Cari serial atau UID...',
+            'items' => $tags,
+            'columns' => [
+                ['key' => 'serial_number', 'label' => 'Serial Number'],
+                ['key' => 'value', 'label' => 'Value (UID)'],
+            ],
+            'fields' => [
+                ['key' => 'serial_number', 'label' => 'Serial Number', 'required' => true],
+                ['key' => 'value', 'label' => 'Value (UID)', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.rfid-tags.index'),
+                'store' => route('master-data.rfid-tags.store'),
+                'update' => route('master-data.rfid-tags.update', ['rfid_tag' => '__ID__']),
+                'destroy' => route('master-data.rfid-tags.destroy', ['rfid_tag' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'serial_number' => ['required', 'string', 'max:150', 'unique:rfid_tags,serial_number'],
-            'value'         => ['required', 'string', 'max:191', 'unique:rfid_tags,value'],
+            'value' => ['required', 'string', 'max:191', 'unique:rfid_tags,value'],
         ]);
 
         RfidTag::create($data);
@@ -46,13 +67,13 @@ class RfidTagController extends Controller
                 'required',
                 'string',
                 'max:150',
-                Rule::unique('rfid_tags', 'serial_number')->ignore($rfid_tag->id, 'id')
+                Rule::unique('rfid_tags', 'serial_number')->ignore($rfid_tag->id, 'id'),
             ],
             'value' => [
                 'required',
                 'string',
                 'max:191',
-                Rule::unique('rfid_tags', 'value')->ignore($rfid_tag->id, 'id')
+                Rule::unique('rfid_tags', 'value')->ignore($rfid_tag->id, 'id'),
             ],
         ]);
 
@@ -65,6 +86,7 @@ class RfidTagController extends Controller
     public function destroy(RfidTag $rfid_tag)
     {
         $rfid_tag->delete();
+
         return back()->with('success', 'RFID Tag berhasil dihapus.');
     }
 }

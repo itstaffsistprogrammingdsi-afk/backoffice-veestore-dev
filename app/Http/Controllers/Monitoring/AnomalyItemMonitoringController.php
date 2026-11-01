@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,10 @@ class AnomalyItemMonitoringController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('content.monitoring.anomali-item.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Anomali Item',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'demographicSummary' => $demographicData['summary'],
@@ -56,6 +60,9 @@ class AnomalyItemMonitoringController extends Controller
             'minDamageCount' => $filters['min_damage_count'],
             'perPage' => $filters['per_page'],
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

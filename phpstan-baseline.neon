@@ -43,24 +43,6 @@ parameters:
 			path: app/Http/Controllers/Ecommerce/EcommerceOrderController.php
 
 		-
-			message: '#^Relation ''customer'' is not found in App\\Models\\CustomerLoyaltyPoint model\.$#'
-			identifier: larastan.relationExistence
-			count: 2
-			path: app/Http/Controllers/Loyalty/CustomerLoyaltyPointController.php
-
-		-
-			message: '#^Relation ''customer'' is not found in App\\Models\\CustomerLoyaltyPoint model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Http/Controllers/Loyalty/CustomerLoyaltyPointMutationController.php
-
-		-
-			message: '#^Relation ''loyaltyPoint'' is not found in App\\Models\\CustomerLoyaltyPointMutation model\.$#'
-			identifier: larastan.relationExistence
-			count: 2
-			path: app/Http/Controllers/Loyalty/CustomerLoyaltyPointMutationController.php
-
-		-
 			message: '#^Relation ''promo'' is not found in App\\Models\\Discount model\.$#'
 			identifier: larastan.relationExistence
 			count: 1

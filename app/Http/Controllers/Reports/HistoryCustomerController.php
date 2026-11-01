@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
+use App\Models\Store;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use App\Models\Store;
-use Carbon\Carbon;
+use Inertia\Inertia;
 
 class HistoryCustomerController extends Controller
 {
@@ -20,19 +21,19 @@ class HistoryCustomerController extends Controller
     public function index(Request $request)
     {
         // ========== Filters ==========
-        $from     = $request->input('from') ?: now()->startOfMonth()->toDateString();
-        $to       = $request->input('to')   ?: now()->toDateString();
-        $channel  = $request->input('channel', 'pos');   // 'pos' | 'ecom'
-        $storeId  = $request->input('store_id');         // uuid|null
-        $search   = $request->input('q');                // cari nama/wa/produk
-        $custId   = $request->input('customer_id');      // filter by customer
+        $from = $request->input('from') ?: now()->startOfMonth()->toDateString();
+        $to = $request->input('to') ?: now()->toDateString();
+        $channel = $request->input('channel', 'pos');   // 'pos' | 'ecom'
+        $storeId = $request->input('store_id');         // uuid|null
+        $search = $request->input('q');                // cari nama/wa/produk
+        $custId = $request->input('customer_id');      // filter by customer
 
         $fromTs = Carbon::parse($from)->startOfDay();
-        $toTs   = Carbon::parse($to)->endOfDay();
+        $toTs = Carbon::parse($to)->endOfDay();
 
         $stores = Store::orderBy('name')->get(['id', 'name']);
 
-        $rowsPos  = collect(); // list transaksi POS (per item, tanpa harga)
+        $rowsPos = collect(); // list transaksi POS (per item, tanpa harga)
         $rowsEcom = collect(); // list baris cart ECOM yang terbayar (produk & qty), tanpa harga
 
         // ========== STORE (POS) — HANYA VISIT YANG SUDAH ADA PEMBAYARAN ==========
@@ -70,7 +71,7 @@ class HistoryCustomerController extends Controller
                         $j->on('pr.id', '=', 'it.product_id')
                             ->orOn('pr.id', '=', 'pp.product_id');
                     })
-                    ->selectRaw("
+                    ->selectRaw('
                         v.id               AS visit_id,
                         v.check_in_at,
                         pv.paid_at,               -- waktu dibayar
@@ -81,12 +82,12 @@ class HistoryCustomerController extends Controller
                         c.wa_number,
                         pr.id              AS product_id,
                         pr.name            AS product_name
-                    ")
+                    ')
                     ->whereBetween('pv.paid_at', [$fromTs, $toTs])      // periode pakai paid_at
-                    ->when($storeId, fn($w) => $w->where('v.store_id', $storeId))
-                    ->when($custId,  fn($w) => $w->where('v.customer_id', $custId))
+                    ->when($storeId, fn ($w) => $w->where('v.store_id', $storeId))
+                    ->when($custId, fn ($w) => $w->where('v.customer_id', $custId))
                     ->when($search, function ($w) use ($search) {
-                        $like = '%' . $search . '%';
+                        $like = '%'.$search.'%';
                         $w->where(function ($w2) use ($like) {
                             $w2->where('c.name', 'ilike', $like)
                                 ->orWhere('c.wa_number', 'ilike', $like)
@@ -119,12 +120,12 @@ class HistoryCustomerController extends Controller
                         $w->whereNotNull('p.completed_at')
                             ->orWhereIn(DB::raw('lower(p.status::text)'), $paid);
                     })
-                    ->selectRaw("
+                    ->selectRaw('
                         ep.customer_id,
                         ep.ecommerce_order_id,
                         p.id as payment_id,
                         COALESCE(p.completed_at, p.created_at) as paid_at
-                    ");
+                    ');
 
                 // Gabungkan carts berdasarkan customer & periode (no harga)
                 // Catatan: karena carts tidak punya order_id, kita tautkan via customer_id
@@ -134,7 +135,7 @@ class HistoryCustomerController extends Controller
                     ->join('ecommerce_carts as ec', 'ec.customer_id', '=', 'pe.customer_id')
                     ->leftJoin('ecommerce_orders as o', 'o.id', '=', 'pe.ecommerce_order_id') // opsional
                     ->leftJoin('products as pr', 'pr.id', '=', 'ec.product_id')
-                    ->selectRaw("
+                    ->selectRaw('
                         ec.id                    as cart_id,
                         ec.created_at            as cart_at,
                         pe.paid_at               as paid_at,
@@ -147,12 +148,12 @@ class HistoryCustomerController extends Controller
                         pr.id                    as product_id,
                         pr.name                  as product_name,
                         COALESCE(ec.quantity,0)  as qty
-                    ")
+                    ')
                     // periode disaring oleh cart_at agar sesuai permintaan user
                     ->whereBetween('ec.created_at', [$fromTs, $toTs])
-                    ->when($custId, fn($w) => $w->where('pe.customer_id', $custId))
+                    ->when($custId, fn ($w) => $w->where('pe.customer_id', $custId))
                     ->when($search, function ($w) use ($search) {
-                        $like = '%' . $search . '%';
+                        $like = '%'.$search.'%';
                         $w->where(function ($w2) use ($like) {
                             $w2->where('c.name', 'ilike', $like)
                                 ->orWhere('c.wa_number', 'ilike', $like)
@@ -170,7 +171,7 @@ class HistoryCustomerController extends Controller
             }
         }
 
-        return view('content.reports.history-customer.index', compact(
+        return Inertia::render('Reports/HistoryCustomer', compact(
             'from',
             'to',
             'channel',
@@ -180,36 +181,45 @@ class HistoryCustomerController extends Controller
             'custId',
             'rowsPos',
             'rowsEcom'
-        ));
+        ) + [
+            'urls' => [
+                'index' => route('reports.history-customer.index'),
+                'ecom' => route('reports.history-customer.ecom.detail', ['customerId' => '__ID__']),
+            ],
+        ]);
     }
 
     // ---- Detail E-commerce (masih placeholder, bisa dikembangkan nanti) ----
     public function ecomDetail(Request $request, string $customerId)
     {
         $from = $request->input('from') ?: now()->startOfMonth()->toDateString();
-        $to   = $request->input('to')   ?: now()->toDateString();
+        $to = $request->input('to') ?: now()->toDateString();
         $fromTs = Carbon::parse($from)->startOfDay();
-        $toTs   = Carbon::parse($to)->endOfDay();
+        $toTs = Carbon::parse($to)->endOfDay();
 
         $orders = collect();
         if (Schema::hasTable('ecommerce_orders')) {
             $orders = DB::table('ecommerce_orders as o')
-                ->selectRaw("
+                ->selectRaw('
                     o.id as order_id,
                     COALESCE(o.created_at, o.updated_at) as order_date
-                ")
+                ')
                 ->where('o.customer_id', $customerId)
-                ->whereBetween(DB::raw("COALESCE(o.created_at, o.updated_at)"), [$fromTs, $toTs])
+                ->whereBetween(DB::raw('COALESCE(o.created_at, o.updated_at)'), [$fromTs, $toTs])
                 ->orderByDesc('order_date')
                 ->limit(500)
                 ->get();
         }
 
-        return view('content.reports.history-customer.ecom-detail', compact(
+        return Inertia::render('Reports/HistoryCustomerEcom', compact(
             'customerId',
             'from',
             'to',
             'orders'
-        ));
+        ) + [
+            'urls' => [
+                'index' => route('reports.history-customer.index'),
+            ],
+        ]);
     }
 }

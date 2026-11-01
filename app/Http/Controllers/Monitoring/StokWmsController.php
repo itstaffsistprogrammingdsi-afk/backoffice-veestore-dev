@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\StokWmsExport;
 use App\Http\Controllers\Controller;
 use App\Services\StockReservationService;
@@ -29,10 +30,16 @@ class StokWmsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        return view('content.monitoring.stok-wms.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Stok Wms',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'       => $rows,
             'warehouses' => $warehouses,
             'filters'    => $filters,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

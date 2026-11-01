@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\DeadstockExport;
 use App\Exports\SlowMovingExport;
 use App\Http\Controllers\Controller;
@@ -47,7 +48,10 @@ class SlowDeadstockController extends Controller
             $dead = $this->deadStock($warehouseId, $startDate);
         }
 
-        return view('content.monitoring.slow-deadstock.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Slow Deadstock',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'warehouses' => $warehouses,
             'filters'    => [
                 'warehouse_id' => $warehouseId,
@@ -56,6 +60,9 @@ class SlowDeadstockController extends Controller
             ],
             'slow'       => $slow,
             'dead'       => $dead,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

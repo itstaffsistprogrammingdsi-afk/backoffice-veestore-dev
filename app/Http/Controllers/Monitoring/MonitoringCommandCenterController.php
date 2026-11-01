@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Monitoring;
 
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 
 class MonitoringCommandCenterController extends Controller
 {
@@ -14,7 +16,9 @@ class MonitoringCommandCenterController extends Controller
     {
         $monitoringGroups = $this->monitoringGroups();
 
-        return view('content.monitoring.command-center.index', compact('monitoringGroups'));
+        return Inertia::render('Monitoring/Index', [
+            'monitoringGroups' => $monitoringGroups,
+        ]);
     }
 
     /**
@@ -25,7 +29,7 @@ class MonitoringCommandCenterController extends Controller
     {
         $menuFile = resource_path('menu/verticalMenu.json');
 
-        if (!File::exists($menuFile)) {
+        if (! File::exists($menuFile)) {
             return [];
         }
 
@@ -33,7 +37,7 @@ class MonitoringCommandCenterController extends Controller
         $monitoring = collect($menuPayload['menu'] ?? [])
             ->first(fn (array $item) => ($item['slug'] ?? null) === 'monitoring');
 
-        if (!is_array($monitoring)) {
+        if (! is_array($monitoring)) {
             return [];
         }
 
@@ -58,7 +62,7 @@ class MonitoringCommandCenterController extends Controller
         return collect($monitoring['submenu'] ?? [])
             ->map(function (array $group) use ($groupIcons, $groupDescriptions) {
                 $items = collect($group['submenu'] ?? [])
-                    ->filter(fn (array $item) => !empty($item['url']))
+                    ->filter(fn (array $item) => ! empty($item['url']))
                     ->map(fn (array $item) => [
                         'name' => $item['name'] ?? 'Menu monitoring',
                         'url' => $item['url'],
@@ -74,7 +78,7 @@ class MonitoringCommandCenterController extends Controller
                     'items' => $items,
                 ];
             })
-            ->filter(fn (array $group) => !empty($group['items']))
+            ->filter(fn (array $group) => ! empty($group['items']))
             ->values()
             ->all();
     }
@@ -105,7 +109,13 @@ class MonitoringCommandCenterController extends Controller
             'today' => $this->countWhere('warehouse_outbounds', 'created_at::date = CURRENT_DATE'),
         ];
 
-        return view('content.monitoring.operations.warehouse-outbound', compact('rows', 'summary'));
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Operations Warehouse Outbound',
+            'description' => 'Laporan monitoring.',
+            'data' => compact('rows', 'summary'),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function qualityControl(Request $request)
@@ -142,6 +152,7 @@ class MonitoringCommandCenterController extends Controller
         $rows = $warehouseRows->concat($storeRows)
             ->when($request->filled('q'), function ($items) use ($request) {
                 $needle = mb_strtolower($request->string('q')->toString());
+
                 return $items->filter(fn ($row) => str_contains(mb_strtolower(implode(' ', [
                     $row->product_name, $row->product_code, $row->location_name, $row->condition_name,
                 ])), $needle));
@@ -158,7 +169,13 @@ class MonitoringCommandCenterController extends Controller
                 + $this->countWhere('store_qc', 'COALESCE(performed_at, created_at)::date = CURRENT_DATE'),
         ];
 
-        return view('content.monitoring.operations.quality-control', compact('rows', 'summary'));
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Operations Quality Control',
+            'description' => 'Laporan monitoring.',
+            'data' => compact('rows', 'summary'),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function paymentReconciliation(Request $request)
@@ -198,7 +215,13 @@ class MonitoringCommandCenterController extends Controller
             'voided' => $this->countWhere('payments', "void_status IS NOT NULL AND void_status NOT IN ('none','')"),
         ];
 
-        return view('content.monitoring.operations.payment-reconciliation', compact('rows', 'summary'));
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Operations Payment Reconciliation',
+            'description' => 'Laporan monitoring.',
+            'data' => compact('rows', 'summary'),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function fulfillmentControl(Request $request)
@@ -219,7 +242,13 @@ class MonitoringCommandCenterController extends Controller
             'over_24h' => $this->countWhere('ecommerce_orders', "status::text IN ('pending','processing','paid') AND created_at < NOW() - INTERVAL '24 hours'"),
         ];
 
-        return view('content.monitoring.operations.fulfillment-control', compact('ecommerce', 'summary'));
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Operations Fulfillment Control',
+            'description' => 'Laporan monitoring.',
+            'data' => compact('ecommerce', 'summary'),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function auditCenter(Request $request)
@@ -227,7 +256,7 @@ class MonitoringCommandCenterController extends Controller
         $logs = Schema::hasTable('business_audit_logs')
             ? DB::table('business_audit_logs')
                 ->when($request->filled('q'), function ($query) use ($request) {
-                    $like = '%' . $request->string('q')->toString() . '%';
+                    $like = '%'.$request->string('q')->toString().'%';
                     $query->where(fn ($q) => $q->where('user_name', 'ILIKE', $like)
                         ->orWhere('module', 'ILIKE', $like)
                         ->orWhere('route_name', 'ILIKE', $like));
@@ -253,7 +282,13 @@ class MonitoringCommandCenterController extends Controller
             'failed_login' => $this->countWhere('session_logs', "status::text IN ('failed','rejected') AND logged_at >= NOW() - INTERVAL '24 hours'"),
         ];
 
-        return view('content.monitoring.audit-center.index', compact('logs', 'fraudAlerts', 'summary'));
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Audit Center',
+            'description' => 'Laporan monitoring.',
+            'data' => compact('logs', 'fraudAlerts', 'summary'),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function dataQuality()
@@ -269,7 +304,13 @@ class MonitoringCommandCenterController extends Controller
             $this->qualityCheck('Order tanpa penanggung jawab', 'ecommerce_orders', 'handled_by_store_id IS NULL AND handled_by_warehouse_id IS NULL', 'danger', route('monitoring.fulfillment-control.index')),
         ])->filter();
 
-        return view('content.monitoring.data-quality.index', compact('checks'));
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Data Quality',
+            'description' => 'Laporan monitoring.',
+            'data' => compact('checks'),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     private function systemHealth(): array
@@ -285,7 +326,7 @@ class MonitoringCommandCenterController extends Controller
             $last = Schema::hasTable($source['table'])
                 ? DB::table($source['table'])->max($source['column'])
                 : null;
-            $age = $last ? now()->diffInHours(\Carbon\Carbon::parse($last)) : null;
+            $age = $last ? now()->diffInHours(Carbon::parse($last)) : null;
 
             return $source + [
                 'last_activity' => $last,
@@ -314,11 +355,11 @@ class MonitoringCommandCenterController extends Controller
 
     private function applySearch($query, Request $request, array $columns): void
     {
-        if (!$request->filled('q')) {
+        if (! $request->filled('q')) {
             return;
         }
 
-        $like = '%' . $request->string('q')->toString() . '%';
+        $like = '%'.$request->string('q')->toString().'%';
         $query->where(function ($sub) use ($columns, $like) {
             foreach ($columns as $index => $column) {
                 $index === 0 ? $sub->where($column, 'ILIKE', $like) : $sub->orWhere($column, 'ILIKE', $like);
@@ -328,7 +369,7 @@ class MonitoringCommandCenterController extends Controller
 
     private function qualityCheck(string $title, string $table, string $condition, string $severity, string $url): ?array
     {
-        if (!Schema::hasTable($table)) {
+        if (! Schema::hasTable($table)) {
             return null;
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\StoreStockOpnameReportExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -28,7 +29,10 @@ class StoreStockOpnameReportController extends Controller
             $rows = $this->emptyPaginator($perPage, $request);
             $stores = $this->getStores();
 
-            return view('content.monitoring.store-stock-opnames.index', [
+            return Inertia::render('Monitoring/Report', [
+                'title' => 'Store Stock Opnames',
+                'description' => 'Laporan monitoring.',
+                'data' => [
                 'rows'         => $rows,
                 'stores'       => $stores,
                 'storeId'      => $storeId,
@@ -36,6 +40,9 @@ class StoreStockOpnameReportController extends Controller
                 'dateTo'       => $dateTo,
                 'search'       => $search,
                 'errorMessage' => 'Tabel atau foreign key stok opname belum berhasil dipetakan. Sesuaikan kandidat nama tabel/kolom di controller.',
+            ],
+                'filters' => request()->query(),
+                'urls' => ['index' => url()->current()],
             ]);
         }
 
@@ -298,7 +305,10 @@ class StoreStockOpnameReportController extends Controller
 
         $stores = $this->getStores();
 
-        return view('content.monitoring.store-stock-opnames.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Stock Opnames',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'         => $rows,
             'stores'       => $stores,
             'storeId'      => $storeId,
@@ -306,6 +316,9 @@ class StoreStockOpnameReportController extends Controller
             'dateTo'       => $dateTo,
             'search'       => $search,
             'errorMessage' => $errorMessage,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

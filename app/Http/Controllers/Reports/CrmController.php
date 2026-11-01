@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CrmController extends Controller
@@ -20,7 +21,14 @@ class CrmController extends Controller
     {
         $data = $this->buildDashboardData($request);
 
-        return view('content.reports.crm.index', $data);
+        return Inertia::render('Reports/Crm', $data + [
+            'urls' => [
+                'index' => route('reports.crm.index'),
+                'export' => route('reports.crm.export'),
+                'customerProfiles' => route('reports.crm.customer-profiles'),
+                'demographics' => route('reports.crm.demographics'),
+            ],
+        ]);
     }
 
     public function export(Request $request)
@@ -48,7 +56,7 @@ class CrmController extends Controller
 
         return Excel::download(
             new CrmDashboardExport($payload),
-            'crm-dashboard-' . now()->format('Ymd_His') . '.xlsx'
+            'crm-dashboard-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
@@ -89,7 +97,14 @@ class CrmController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('content.reports.crm.customer-profiles', compact('customers', 'q'));
+        return Inertia::render('Reports/CrmCustomers', [
+            'customers' => $customers,
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('reports.crm.customer-profiles'),
+                'profile' => route('reports.crm.customer-profile', ['customerId' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -119,7 +134,7 @@ class CrmController extends Controller
             '55_plus' => '55+ tahun',
             'unknown' => 'Usia belum diisi',
         ];
-        if (!array_key_exists($ageGroup, $ageGroups)) {
+        if (! array_key_exists($ageGroup, $ageGroups)) {
             $ageGroup = '';
         }
 
@@ -309,7 +324,7 @@ class CrmController extends Controller
             ? (int) round(($completeProfiles / $totalCustomers) * 100)
             : 0;
 
-        return view('content.reports.crm.demographics', compact(
+        return Inertia::render('Reports/CrmDemographics', compact(
             'q',
             'gender',
             'provinceCode',
@@ -339,7 +354,12 @@ class CrmController extends Controller
             'selectedDistrict',
             'selectedVillage',
             'registrationChannels'
-        ));
+        ) + [
+            'urls' => [
+                'index' => route('reports.crm.demographics'),
+                'export' => route('reports.crm.demographics.export'),
+            ],
+        ]);
     }
 
     /** Download seluruh baris demografi sesuai filter halaman. */
@@ -364,7 +384,7 @@ class CrmController extends Controller
 
         return Excel::download(
             new CrmDemographicsExport($customers),
-            'crm-demografi-customer-' . now()->format('Ymd_His') . '.xlsx'
+            'crm-demografi-customer-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
@@ -519,7 +539,7 @@ class CrmController extends Controller
                 ->get();
         }
 
-        return view('content.reports.crm.customer-profile', compact(
+        return Inertia::render('Reports/CrmCustomerProfile', compact(
             'customer',
             'channel',
             'transactions',
@@ -527,7 +547,12 @@ class CrmController extends Controller
             'totalVisits',
             'pointSummary',
             'pointMutations'
-        ));
+        ) + [
+            'urls' => [
+                'index' => route('reports.crm.customer-profiles'),
+                'export' => route('reports.crm.customer-profile.export', ['customerId' => $customer->id]),
+            ],
+        ]);
     }
 
     public function exportCustomerProfile(string $customerId)
@@ -626,7 +651,7 @@ class CrmController extends Controller
 
         return Excel::download(
             new CustomerProfileExport($payload),
-            'customer-profile-' . $customer->id . '-' . now()->format('Ymd_His') . '.xlsx'
+            'customer-profile-'.$customer->id.'-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
@@ -895,11 +920,11 @@ class CrmController extends Controller
         ?string $storeId = null
     ) {
         if (
-            !Schema::hasTable('store_customer_visits') ||
-            !Schema::hasTable('store_visit_payments') ||
-            !Schema::hasTable('payments') ||
-            !Schema::hasTable('customers') ||
-            !Schema::hasTable('stores')
+            ! Schema::hasTable('store_customer_visits') ||
+            ! Schema::hasTable('store_visit_payments') ||
+            ! Schema::hasTable('payments') ||
+            ! Schema::hasTable('customers') ||
+            ! Schema::hasTable('stores')
         ) {
             return $this->emptyTransactionQuery();
         }
@@ -951,9 +976,9 @@ class CrmController extends Controller
     private function ecommercePaidCustomerTransactions(Carbon $fromTs, Carbon $toTs)
     {
         if (
-            !Schema::hasTable('ecommerce_orders') ||
-            !Schema::hasTable('ecommerce_order_details') ||
-            !Schema::hasTable('customers')
+            ! Schema::hasTable('ecommerce_orders') ||
+            ! Schema::hasTable('ecommerce_order_details') ||
+            ! Schema::hasTable('customers')
         ) {
             return $this->emptyTransactionQuery();
         }
@@ -961,13 +986,13 @@ class CrmController extends Controller
         $success = $this->successStatuses();
 
         $orderTotals = DB::table('ecommerce_order_details as eod')
-            ->selectRaw("
+            ->selectRaw('
                 eod.ecommerce_order_id,
                 SUM(
                     COALESCE(eod.product_price, 0) *
                     COALESCE(eod.quantity, 0)
                 )::numeric as order_total
-            ")
+            ')
             ->groupBy('eod.ecommerce_order_id');
 
         $query = DB::table('ecommerce_orders as eo')
@@ -985,8 +1010,8 @@ class CrmController extends Controller
         }
 
         $orderCodeSql = Schema::hasColumn('ecommerce_orders', 'order_number')
-            ? "COALESCE(eo.order_number, eo.id::text)"
-            : "eo.id::text";
+            ? 'COALESCE(eo.order_number, eo.id::text)'
+            : 'eo.id::text';
 
         return $query->selectRaw("
             c.id as customer_id,
@@ -1092,9 +1117,9 @@ class CrmController extends Controller
         ?string $storeId = null
     ) {
         if (
-            !Schema::hasTable('store_customer_visits') ||
-            !Schema::hasTable('customers') ||
-            !Schema::hasTable('stores')
+            ! Schema::hasTable('store_customer_visits') ||
+            ! Schema::hasTable('customers') ||
+            ! Schema::hasTable('stores')
         ) {
             return collect();
         }
@@ -1135,7 +1160,7 @@ class CrmController extends Controller
         return DB::query()
             ->fromSub($this->paidCustomerTransactions($fromTs, $toTs, $channel, $storeId), 'x')
             ->whereIn('x.customer_id', $customerIds)
-            ->selectRaw("
+            ->selectRaw('
                 x.customer_id,
                 x.customer_name,
                 x.wa_number,
@@ -1148,7 +1173,7 @@ class CrmController extends Controller
                 x.visit_code,
                 x.transaction_at,
                 x.amount
-            ")
+            ')
             ->orderBy('x.customer_name')
             ->orderByDesc('x.transaction_at')
             ->get()
@@ -1168,9 +1193,9 @@ class CrmController extends Controller
         }
 
         if (
-            !Schema::hasTable('store_customer_visits') ||
-            !Schema::hasTable('customers') ||
-            !Schema::hasTable('stores')
+            ! Schema::hasTable('store_customer_visits') ||
+            ! Schema::hasTable('customers') ||
+            ! Schema::hasTable('stores')
         ) {
             return collect();
         }
@@ -1242,10 +1267,10 @@ class CrmController extends Controller
         ?string $storeId = null
     ) {
         if (
-            !Schema::hasTable('store_customer_visits') ||
-            !Schema::hasTable('store_visit_payments') ||
-            !Schema::hasTable('payments') ||
-            !Schema::hasTable('stores')
+            ! Schema::hasTable('store_customer_visits') ||
+            ! Schema::hasTable('store_visit_payments') ||
+            ! Schema::hasTable('payments') ||
+            ! Schema::hasTable('stores')
         ) {
             return $this->emptyBranchOmsetQuery();
         }
@@ -1288,8 +1313,8 @@ class CrmController extends Controller
         ?string $storeId = null
     ) {
         if (
-            !Schema::hasTable('ecommerce_orders') ||
-            !Schema::hasTable('ecommerce_order_details')
+            ! Schema::hasTable('ecommerce_orders') ||
+            ! Schema::hasTable('ecommerce_order_details')
         ) {
             return $this->emptyBranchOmsetQuery();
         }
@@ -1297,10 +1322,10 @@ class CrmController extends Controller
         $success = $this->successStatuses();
 
         $orderTotals = DB::table('ecommerce_order_details as eod')
-            ->selectRaw("
+            ->selectRaw('
                 eod.ecommerce_order_id,
                 SUM(COALESCE(eod.product_price, 0) * COALESCE(eod.quantity, 0))::numeric as order_total
-            ")
+            ')
             ->groupBy('eod.ecommerce_order_id');
 
         $hasStoreOutbound = Schema::hasTable('store_outbounds')
@@ -1393,11 +1418,11 @@ class CrmController extends Controller
     ) {
         $purchaseSummary = DB::query()
             ->fromSub($this->paidCustomerTransactions($fromTs, $toTs, $channel, $storeId), 'x')
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(DISTINCT x.customer_id) as total_buyers,
                 COUNT(DISTINCT x.transaction_id) as total_transactions,
                 COALESCE(SUM(x.amount), 0) as total_spending
-            ")
+            ')
             ->first();
 
         $visitSummary = (object) [
@@ -1413,10 +1438,10 @@ class CrmController extends Controller
                 ->join('customers as c', 'c.id', '=', 'v.customer_id')
                 ->whereBetween('v.check_in_at', [$fromTs, $toTs])
                 ->when($storeId, fn ($q) => $q->where('v.store_id', $storeId))
-                ->selectRaw("
+                ->selectRaw('
                     COUNT(DISTINCT c.id) as total_visitors,
                     COUNT(*) as total_visits
-                ")
+                ')
                 ->first();
         }
 

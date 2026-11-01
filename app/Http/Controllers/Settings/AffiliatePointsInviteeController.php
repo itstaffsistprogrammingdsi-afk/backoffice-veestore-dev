@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdateAffiliatePointsRequest;
 use App\Models\AppSetting;
-use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class AffiliatePointsInviteeController extends Controller
 {
@@ -12,22 +13,22 @@ class AffiliatePointsInviteeController extends Controller
 
     public function edit()
     {
-        $default = ['points' => 10]; // default_value: "10 LP"
-        $data = AppSetting::getValue(self::KEY, $default);
+        $data = AppSetting::getValue(self::KEY, ['points' => 10]);
 
-        return view('content.settings.app.affiliate-points-invitee', [
-            'value' => $data,
+        return Inertia::render('Settings/AffiliatePoints', [
+            'title' => 'Affiliate Points - Invitee',
+            'description' => 'Jumlah poin yang diterima invitee setelah referral berhasil.',
+            'fieldLabel' => 'Reward untuk Invitee (LP)',
+            'points' => (int) ($data['points'] ?? 10),
+            'updateUrl' => route('settings.app.affiliate-points.invitee.update'),
+            'resetUrl' => route('settings.app.affiliate-points.invitee.edit'),
         ]);
     }
 
-    public function update(Request $request)
+    public function update(UpdateAffiliatePointsRequest $request)
     {
-        $payload = $request->validate([
-            'points' => ['required', 'integer', 'min:0', 'max:1000000'],
-        ]);
-
         AppSetting::putValue(self::KEY, [
-            'points' => (int) $payload['points'],
+            'points' => (int) $request->validated('points'),
         ]);
 
         return redirect()

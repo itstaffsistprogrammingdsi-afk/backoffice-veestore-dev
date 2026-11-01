@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class EcommerceBannerController extends Controller
@@ -39,11 +40,11 @@ class EcommerceBannerController extends Controller
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($subQuery) use ($q) {
                     $subQuery
-                        ->where('name', 'ILIKE', '%' . $q . '%')
-                        ->orWhere('description', 'ILIKE', '%' . $q . '%')
-                        ->orWhere('placement', 'ILIKE', '%' . $q . '%')
-                        ->orWhere('alt_text', 'ILIKE', '%' . $q . '%')
-                        ->orWhere('cta_label', 'ILIKE', '%' . $q . '%');
+                        ->where('name', 'ILIKE', '%'.$q.'%')
+                        ->orWhere('description', 'ILIKE', '%'.$q.'%')
+                        ->orWhere('placement', 'ILIKE', '%'.$q.'%')
+                        ->orWhere('alt_text', 'ILIKE', '%'.$q.'%')
+                        ->orWhere('cta_label', 'ILIKE', '%'.$q.'%');
                 });
             })
             ->orderBy('display_order')
@@ -64,15 +65,40 @@ class EcommerceBannerController extends Controller
         $statuses = $this->labelsFromValues($statusValues);
         $sizes = $this->labelsFromValues($sizeValues);
 
-        return view(
-            'content.master-data.ecommerce-banners.index',
-            compact(
-                'banners',
-                'q',
-                'statuses',
-                'sizes'
-            )
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Ecommerce Banners',
+            'description' => 'Kelola banner ecommerce.',
+            'searchPlaceholder' => 'Cari banner...',
+            'items' => $banners,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'placement', 'label' => 'Placement'],
+                ['key' => 'status', 'label' => 'Status'],
+                ['key' => 'size', 'label' => 'Ukuran'],
+                ['key' => 'display_order', 'label' => 'Urutan'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Banner', 'required' => true],
+                ['key' => 'description', 'label' => 'Deskripsi', 'type' => 'textarea'],
+                ['key' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => collect($statuses)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values()->all()],
+                ['key' => 'size', 'label' => 'Ukuran', 'type' => 'select', 'required' => true, 'options' => collect($sizes)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values()->all()],
+                ['key' => 'placement', 'label' => 'Placement', 'required' => true],
+                ['key' => 'display_order', 'label' => 'Urutan', 'type' => 'number', 'required' => true],
+                ['key' => 'cta_label', 'label' => 'Label CTA'],
+                ['key' => 'target_url', 'label' => 'Target URL'],
+                ['key' => 'alt_text', 'label' => 'Alt Text'],
+                ['key' => 'starts_at', 'label' => 'Mulai', 'type' => 'date'],
+                ['key' => 'ends_at', 'label' => 'Selesai', 'type' => 'date'],
+                ['key' => 'image', 'label' => 'Gambar Banner', 'type' => 'file', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.ecommerce-banners.index'),
+                'store' => route('master-data.ecommerce-banners.store'),
+                'update' => route('master-data.ecommerce-banners.update', ['ecommerce_banner' => '__ID__']),
+                'destroy' => route('master-data.ecommerce-banners.destroy', ['ecommerce_banner' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -175,8 +201,7 @@ class EcommerceBannerController extends Controller
                 $ecommerce_banner->getKey()
             ),
             'current_image_url' => $ecommerce_banner->image_url,
-            'current_mobile_image_url' =>
-                $ecommerce_banner->mobile_image_url,
+            'current_mobile_image_url' => $ecommerce_banner->mobile_image_url,
         ]);
 
         try {
@@ -360,40 +385,23 @@ class EcommerceBannerController extends Controller
                 'status.in' => 'Status banner tidak valid.',
                 'size.required' => 'Ukuran banner wajib dipilih.',
                 'size.in' => 'Ukuran banner tidak valid.',
-                'placement.max' =>
-                    'Placement maksimal 100 karakter.',
-                'placement.required' =>
-                    'Placement wajib diisi.',
-                'display_order.required' =>
-                    'Urutan tampil wajib diisi.',
-                'display_order.integer' =>
-                    'Urutan tampil harus berupa angka.',
-                'display_order.min' =>
-                    'Urutan tampil minimal 0.',
-                'cta_label.max' =>
-                    'Label tombol maksimal 100 karakter.',
-                'target_reference_id.uuid' =>
-                    'Target reference ID harus berupa UUID.',
-                'target_url.url' =>
-                    'Target URL harus berupa URL yang valid.',
-                'alt_text.max' =>
-                    'Alt text maksimal 255 karakter.',
-                'ends_at.after' =>
-                    'Tanggal selesai harus lebih besar dari tanggal mulai.',
-                'image.required' =>
-                    'Gambar desktop banner wajib diunggah.',
-                'image.image' =>
-                    'File gambar desktop harus berupa gambar.',
-                'image.mimes' =>
-                    'Format gambar desktop harus JPG, JPEG, PNG, atau WEBP.',
-                'image.max' =>
-                    'Ukuran gambar desktop maksimal 3 MB.',
-                'mobile_image.image' =>
-                    'File gambar mobile harus berupa gambar.',
-                'mobile_image.mimes' =>
-                    'Format gambar mobile harus JPG, JPEG, PNG, atau WEBP.',
-                'mobile_image.max' =>
-                    'Ukuran gambar mobile maksimal 3 MB.',
+                'placement.max' => 'Placement maksimal 100 karakter.',
+                'placement.required' => 'Placement wajib diisi.',
+                'display_order.required' => 'Urutan tampil wajib diisi.',
+                'display_order.integer' => 'Urutan tampil harus berupa angka.',
+                'display_order.min' => 'Urutan tampil minimal 0.',
+                'cta_label.max' => 'Label tombol maksimal 100 karakter.',
+                'target_reference_id.uuid' => 'Target reference ID harus berupa UUID.',
+                'target_url.url' => 'Target URL harus berupa URL yang valid.',
+                'alt_text.max' => 'Alt text maksimal 255 karakter.',
+                'ends_at.after' => 'Tanggal selesai harus lebih besar dari tanggal mulai.',
+                'image.required' => 'Gambar desktop banner wajib diunggah.',
+                'image.image' => 'File gambar desktop harus berupa gambar.',
+                'image.mimes' => 'Format gambar desktop harus JPG, JPEG, PNG, atau WEBP.',
+                'image.max' => 'Ukuran gambar desktop maksimal 3 MB.',
+                'mobile_image.image' => 'File gambar mobile harus berupa gambar.',
+                'mobile_image.mimes' => 'Format gambar mobile harus JPG, JPEG, PNG, atau WEBP.',
+                'mobile_image.max' => 'Ukuran gambar mobile maksimal 3 MB.',
             ]
         );
 
@@ -403,7 +411,7 @@ class EcommerceBannerController extends Controller
             if (
                 $targetUrl !== null
                 && $targetUrl !== ''
-                && !filter_var($targetUrl, FILTER_VALIDATE_URL)
+                && ! filter_var($targetUrl, FILTER_VALIDATE_URL)
             ) {
                 $validator->errors()->add(
                     'target_url',
@@ -431,10 +439,9 @@ class EcommerceBannerController extends Controller
             ['none', 'url']
         );
 
-        if (!empty($targetUrl)) {
+        if (! empty($targetUrl)) {
             foreach (
-                ['url', 'link', 'external', 'external_url', 'web']
-                as $candidate
+                ['url', 'link', 'external', 'external_url', 'web'] as $candidate
             ) {
                 if (in_array($candidate, $allowed, true)) {
                     return $candidate;
@@ -443,8 +450,7 @@ class EcommerceBannerController extends Controller
         }
 
         foreach (
-            ['none', 'no_action', 'disabled']
-            as $candidate
+            ['none', 'no_action', 'disabled'] as $candidate
         ) {
             if (in_array($candidate, $allowed, true)) {
                 return $candidate;
@@ -488,22 +494,22 @@ class EcommerceBannerController extends Controller
         $fileName = implode('-', [
             $variant,
             (string) Str::uuid(),
-        ]) . '.' . $extension;
+        ]).'.'.$extension;
 
         $relativeDirectory = 'uploads/ecommerce-banners';
         $absoluteDirectory = public_path($relativeDirectory);
 
-        if (!is_dir($absoluteDirectory)) {
+        if (! is_dir($absoluteDirectory)) {
             mkdir($absoluteDirectory, 0755, true);
         }
 
         $file->move($absoluteDirectory, $fileName);
 
         return rtrim(request()->root(), '/')
-            . '/'
-            . $relativeDirectory
-            . '/'
-            . $fileName;
+            .'/'
+            .$relativeDirectory
+            .'/'
+            .$fileName;
     }
 
     private function deleteImageFromUrl(
@@ -516,7 +522,7 @@ class EcommerceBannerController extends Controller
         $urlPath = parse_url($imageUrl, PHP_URL_PATH);
 
         if (
-            !$urlPath ||
+            ! $urlPath ||
             strpos(
                 $urlPath,
                 '/uploads/ecommerce-banners/'
@@ -528,7 +534,7 @@ class EcommerceBannerController extends Controller
         $fileName = basename($urlPath);
 
         $absolutePath = public_path(
-            'uploads/ecommerce-banners/' . $fileName
+            'uploads/ecommerce-banners/'.$fileName
         );
 
         if (is_file($absolutePath)) {
@@ -548,7 +554,7 @@ class EcommerceBannerController extends Controller
             )
         ) {
             return 'Target banner tidak sesuai dengan aturan database. '
-                . 'Kosongkan Target URL jika banner tidak memiliki tautan.';
+                .'Kosongkan Target URL jika banner tidak memiliki tautan.';
         }
 
         if (
@@ -558,7 +564,7 @@ class EcommerceBannerController extends Controller
             )
         ) {
             return 'Jadwal banner tidak valid. '
-                . 'Tanggal selesai harus lebih besar dari tanggal mulai.';
+                .'Tanggal selesai harus lebih besar dari tanggal mulai.';
         }
 
         if ((string) $exception->getCode() === '22P02') {

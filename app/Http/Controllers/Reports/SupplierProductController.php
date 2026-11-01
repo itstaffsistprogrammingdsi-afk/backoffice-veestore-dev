@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Reports;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SupplierProductController extends Controller
@@ -113,17 +113,10 @@ class SupplierProductController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('content.reports.supplier_products', [
+        return Inertia::render('Reports/SupplierProducts', [
             'rows' => $rows,
             'suppliers' => $suppliers,
             'products' => $products,
-            'supplierId' => $filters['supplier_id'],
-            'productId' => $filters['product_id'],
-            'keyword' => $filters['keyword'],
-            'dateFrom' => $filters['date_from'],
-            'dateTo' => $filters['date_to'],
-            'hasStock' => $filters['has_stock'],
-            'perPage' => $filters['per_page'],
             'summary' => $summary,
             'supplierChartRows' => $supplierChartRows,
             'productChartRows' => $productChartRows,
@@ -134,13 +127,26 @@ class SupplierProductController extends Controller
             'topProduct' => $topProduct,
             'topCountry' => $topCountry,
             'suppliersForProduct' => $suppliersForProduct,
+            'filters' => [
+                'supplier_id' => $filters['supplier_id'],
+                'product_id' => $filters['product_id'],
+                'keyword' => $filters['keyword'],
+                'date_from' => $filters['date_from'],
+                'date_to' => $filters['date_to'],
+                'has_stock' => $filters['has_stock'],
+                'per_page' => $filters['per_page'],
+            ],
+            'urls' => [
+                'index' => route('reports.supplier-products.index'),
+                'export' => route('reports.supplier-products.export'),
+            ],
         ]);
     }
 
     public function export(Request $request): StreamedResponse
     {
         $filters = $this->validatedFilters($request);
-        $filename = 'supplier-products-' . now()->format('Ymd-His') . '.csv';
+        $filename = 'supplier-products-'.now()->format('Ymd-His').'.csv';
 
         return response()->streamDownload(function () use ($filters): void {
             $handle = fopen('php://output', 'wb');
@@ -199,19 +205,19 @@ class SupplierProductController extends Controller
         $dateTo = $request->string('date_to')->trim()->toString();
         $perPage = (int) $request->input('per_page', 25);
 
-        if ($supplierId !== '' && !Str::isUuid($supplierId)) {
+        if ($supplierId !== '' && ! Str::isUuid($supplierId)) {
             $supplierId = '';
         }
 
-        if ($productId !== '' && !Str::isUuid($productId)) {
+        if ($productId !== '' && ! Str::isUuid($productId)) {
             $productId = '';
         }
 
-        if (!$this->isValidDate($dateFrom)) {
+        if (! $this->isValidDate($dateFrom)) {
             $dateFrom = '';
         }
 
-        if (!$this->isValidDate($dateTo)) {
+        if (! $this->isValidDate($dateTo)) {
             $dateTo = '';
         }
 
@@ -219,7 +225,7 @@ class SupplierProductController extends Controller
             [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
         }
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 25;
         }
 

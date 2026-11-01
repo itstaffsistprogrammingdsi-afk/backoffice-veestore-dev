@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\OmsetKotorSalesExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -105,7 +106,10 @@ class OmsetKotorSalesController extends Controller
             ),
         };
 
-        return view('content.monitoring.omset-kotor.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Omset Kotor',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'products' => $products,
@@ -122,6 +126,9 @@ class OmsetKotorSalesController extends Controller
             'perPage' => $perPage,
             'today' => now()->toDateString(),
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 
@@ -194,7 +201,10 @@ class OmsetKotorSalesController extends Controller
             ")
             ->first();
 
-        return view('content.monitoring.omset-kotor.detail', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Omset Kotor',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'product' => $product,
             'rows' => $rows,
             'summary' => $summary,
@@ -208,6 +218,9 @@ class OmsetKotorSalesController extends Controller
             'promoOptions' => $this->promoOptions(),
             'today' => now()->toDateString(),
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

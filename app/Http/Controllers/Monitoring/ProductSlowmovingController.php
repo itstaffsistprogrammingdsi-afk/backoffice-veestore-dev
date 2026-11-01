@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -96,7 +97,10 @@ class ProductSlowmovingController extends Controller
         $chartProductsDead = $this->buildTopProductChart($dead);
         $chartStatus = $this->buildStatusChart($slow, $dead);
 
-        return view('content.monitoring.product-slowmoving.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Product Slowmoving',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'mode'              => $mode,
             'filters'           => $filters,
             'stores'            => $stores,
@@ -108,6 +112,9 @@ class ProductSlowmovingController extends Controller
             'chartProductsDead' => $chartProductsDead,
             'chartStatus'       => $chartStatus,
             'lastUpdate'        => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

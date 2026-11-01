@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -64,13 +65,19 @@ class EcommerceOrderFulfillmentController extends Controller
             ->filter()
             ->values();
 
-        return view('content.monitoring.ecommerce-order-fulfillment.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Ecommerce Order Fulfillment',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'          => $rows,
             'summary'       => $summary,
             'filters'       => $filters,
             'stores'        => $stores,
             'warehouses'    => $warehouses,
             'orderStatuses' => $orderStatuses,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

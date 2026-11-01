@@ -6,21 +6,25 @@ use App\Http\Controllers\Controller;
 use App\Models\Voucher;
 use App\Models\VoucherCode;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class VoucherController extends Controller
 {
     private const PIVOT_SCHEMA = 'public';
-    private const PIVOT_TABLE  = 'voucher_context'; // public.voucher_context
+
+    private const PIVOT_TABLE = 'voucher_context'; // public.voucher_context
+
     private const CONTEXTS = [
         'ecommerce_checkout',
         'ecommerce_shipping',
         'store_checkout',
         'store_customer_return',
     ];
+
     private const DISTRIBUTION_TYPES = ['public', 'unique_code'];
 
     public function __construct()
@@ -37,19 +41,65 @@ class VoucherController extends Controller
 
         $vouchers = Voucher::query()
             ->withCount(['voucherCodes', 'usages'])
-            ->when($q, fn($qq) => $qq->search($q))
+            ->when($q, fn ($qq) => $qq->search($q))
             ->orderByDesc('created_at')
             ->paginate(10);
 
-        $availableContexts  = $this->getAvailableContexts();
+        $availableContexts = $this->getAvailableContexts();
         $voucherContextsMap = $this->getVoucherContextsMap($vouchers->pluck('id')->all());
 
-        return view('content.master-data.vouchers.index', [
-            'vouchers'           => $vouchers,
-            'q'                  => $q,
-            'availableContexts'  => $availableContexts,
-            'voucherContextsMap' => $voucherContextsMap,
-            'distributionTypes'   => self::DISTRIBUTION_TYPES,
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Vouchers',
+            'description' => 'Kelola voucher dan konteks pemakaiannya.',
+            'searchPlaceholder' => 'Cari voucher...',
+            'items' => $vouchers,
+            'columns' => [
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'type', 'label' => 'Tipe'],
+                ['key' => 'value', 'label' => 'Nilai'],
+                ['key' => 'valid_from', 'label' => 'Mulai'],
+                ['key' => 'valid_until', 'label' => 'Selesai'],
+                ['key' => 'is_active', 'label' => 'Aktif'],
+            ],
+            'fields' => [
+                ['key' => 'code', 'label' => 'Kode Voucher', 'placeholder' => 'Kosongkan untuk generate otomatis'],
+                ['key' => 'name', 'label' => 'Nama Voucher', 'required' => true],
+                ['key' => 'description', 'label' => 'Deskripsi', 'type' => 'textarea'],
+                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'required' => true, 'options' => [['value' => 'fixed', 'label' => 'Fixed'], ['value' => 'percentage', 'label' => 'Percentage']]],
+                ['key' => 'value', 'label' => 'Nilai', 'type' => 'number', 'required' => true],
+                ['key' => 'max_discount', 'label' => 'Max Diskon', 'type' => 'number'],
+                ['key' => 'min_purchase', 'label' => 'Min Belanja', 'type' => 'number'],
+                ['key' => 'valid_from', 'label' => 'Mulai', 'type' => 'date'],
+                ['key' => 'valid_until', 'label' => 'Selesai', 'type' => 'date'],
+                ['key' => 'usage_limit', 'label' => 'Batas Pemakaian', 'type' => 'number'],
+                ['key' => 'distribution_type', 'label' => 'Distribusi', 'type' => 'select', 'required' => true, 'options' => collect(self::DISTRIBUTION_TYPES)->map(fn ($value) => ['value' => $value, 'label' => $value])->values()->all()],
+                ['key' => 'contexts', 'label' => 'Konteks', 'type' => 'multiselect', 'required' => true, 'options' => collect($availableContexts)->map(fn ($value) => ['value' => $value, 'label' => $value])->values()->all()],
+                ['key' => 'is_active', 'label' => 'Aktif', 'type' => 'select', 'options' => [['value' => '1', 'label' => 'Ya'], ['value' => '0', 'label' => 'Tidak']]],
+            ],
+            'filters' => ['q' => $q],
+            'rowActions' => [
+                [
+                    'label' => 'Lihat kode voucher',
+                    'icon' => 'mdi-qrcode',
+                    'url' => route('master-data.vouchers.codes', ['key' => '__ID__']),
+                    'visibleWhen' => ['key' => 'distribution_type', 'equals' => 'unique_code'],
+                ],
+                [
+                    'label' => 'Cetak voucher',
+                    'icon' => 'mdi-printer-outline',
+                    'url' => route('master-data.vouchers.print-codes', ['key' => '__ID__']),
+                    'method' => 'post',
+                    'prompt' => ['label' => 'Jumlah voucher yang dicetak (1-100)', 'key' => 'quantity', 'default' => 1, 'min' => 1, 'max' => 100],
+                    'visibleWhen' => ['key' => 'distribution_type', 'equals' => 'unique_code'],
+                ],
+            ],
+            'urls' => [
+                'index' => route('master-data.vouchers.index'),
+                'store' => route('master-data.vouchers.store'),
+                'update' => route('master-data.vouchers.update', ['key' => '__ID__']),
+                'destroy' => route('master-data.vouchers.destroy', ['key' => '__ID__']),
+            ],
         ]);
     }
 
@@ -62,9 +112,9 @@ class VoucherController extends Controller
 
         $data = $this->validated($request);
         // Kode voucher master selalu dibuat oleh backend, bukan dari input form.
-        $data['code']        = $this->generateVoucherCode();
-        $data['is_active']   = $request->boolean('is_active');
-        $data['valid_from']  = $this->parseDateTime($request->input('valid_from'));
+        $data['code'] = $this->generateVoucherCode();
+        $data['is_active'] = $request->boolean('is_active');
+        $data['valid_from'] = $this->parseDateTime($request->input('valid_from'));
         $data['valid_until'] = $this->parseDateTime($request->input('valid_until'));
 
         if (($data['type'] ?? null) === 'fixed') {
@@ -85,7 +135,7 @@ class VoucherController extends Controller
             } else {
                 // fallback: jika kolom vouchers.context itu ENUM, dia hanya bisa 1 value
                 // jadi ambil 1 context saja, dan kalau kosong -> NULL (bukan string kosong)
-                $data['context'] = !empty($selected) ? $selected[0] : null;
+                $data['context'] = ! empty($selected) ? $selected[0] : null;
             }
 
             /** @var Voucher $voucher */
@@ -129,7 +179,11 @@ class VoucherController extends Controller
         abort_if($codes->count() < (int) $payload['quantity'], 422,
             'Jumlah kode yang diminta melebihi kode voucher yang telah dibuat.');
 
-        return view('content.master-data.vouchers.print', compact('voucher', 'codes'));
+        return Inertia::render('MasterData/VoucherPrint', [
+            'voucher' => $voucher,
+            'codes' => $codes,
+            'urls' => ['index' => route('master-data.vouchers.index')],
+        ]);
     }
 
     public function voucherCodes(Request $request, string $key)
@@ -149,7 +203,15 @@ class VoucherController extends Controller
             ->whereHas('usages')
             ->count();
 
-        return view('content.master-data.vouchers.codes', compact('voucher', 'codes', 'usedCodesCount'));
+        return Inertia::render('MasterData/VoucherCodes', [
+            'voucher' => $voucher,
+            'codes' => $codes,
+            'usedCodesCount' => $usedCodesCount,
+            'urls' => [
+                'index' => route('master-data.vouchers.index'),
+                'status' => route('master-data.vouchers.codes.status', ['key' => '__ID__', 'voucherCodeId' => '__CODE_ID__']),
+            ],
+        ]);
     }
 
     public function updateVoucherCodeStatus(Request $request, string $key, string $voucherCodeId)
@@ -183,8 +245,8 @@ class VoucherController extends Controller
         $data = $this->validated($request, $voucher->id);
         // Kode bersifat immutable setelah voucher dibuat.
         unset($data['code']);
-        $data['is_active']   = $request->boolean('is_active');
-        $data['valid_from']  = $this->parseDateTime($request->input('valid_from'));
+        $data['is_active'] = $request->boolean('is_active');
+        $data['valid_from'] = $this->parseDateTime($request->input('valid_from'));
         $data['valid_until'] = $this->parseDateTime($request->input('valid_until'));
 
         if (($data['type'] ?? null) === 'fixed') {
@@ -199,7 +261,7 @@ class VoucherController extends Controller
             if ($this->hasPivotTable()) {
                 $data['context'] = null;
             } else {
-                $data['context'] = !empty($selected) ? $selected[0] : null;
+                $data['context'] = ! empty($selected) ? $selected[0] : null;
             }
 
             $voucher->update($data);
@@ -259,48 +321,50 @@ class VoucherController extends Controller
 
         return $request->validate([
             // Intentionally optional: it is ignored on update and generated server-side on create.
-            'code'         => ['nullable', 'string', 'max:100', Rule::unique('vouchers', 'code')->ignore($ignoreId)],
-            'name'         => ['required', 'string', 'max:150'],
-            'description'  => ['nullable', 'string'],
-            'type'         => ['required', $typeRule],
-            'value'        => ['required', 'numeric', 'min:0'],
+            'code' => ['nullable', 'string', 'max:100', Rule::unique('vouchers', 'code')->ignore($ignoreId)],
+            'name' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string'],
+            'type' => ['required', $typeRule],
+            'value' => ['required', 'numeric', 'min:0'],
             // Batas maksimal diskon bersifat opsional, termasuk untuk voucher percentage.
             'max_discount' => ['nullable', 'numeric', 'min:0'],
             'min_purchase' => ['nullable', 'numeric', 'min:0'],
-            'valid_from'   => ['nullable', 'date'],
-            'valid_until'  => ['nullable', 'date', 'after_or_equal:valid_from'],
-            'usage_limit'  => [Rule::requiredIf(fn () => $request->input('distribution_type') === 'unique_code'), 'nullable', 'integer', 'min:1'],
+            'valid_from' => ['nullable', 'date'],
+            'valid_until' => ['nullable', 'date', 'after_or_equal:valid_from'],
+            'usage_limit' => [Rule::requiredIf(fn () => $request->input('distribution_type') === 'unique_code'), 'nullable', 'integer', 'min:1'],
             'distribution_type' => ['required', Rule::in(self::DISTRIBUTION_TYPES)],
 
             // ✅ checkbox: kalau tidak dicentang, field tidak terkirim -> tetap aman karena boolean() akan false
-            'is_active'    => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
 
             // ✅ CONTEXT WAJIB
-            'contexts'     => ['required', 'array', 'min:1'],
-            'contexts.*'   => array_merge(
+            'contexts' => ['required', 'array', 'min:1'],
+            'contexts.*' => array_merge(
                 ['required', 'string', 'distinct'],
-                !empty($allowed) ? [Rule::in($allowed)] : []
+                ! empty($allowed) ? [Rule::in($allowed)] : []
             ),
         ], [], [
-            'code'         => 'Kode',
-            'name'         => 'Nama',
-            'type'         => 'Tipe',
-            'value'        => 'Nilai',
+            'code' => 'Kode',
+            'name' => 'Nama',
+            'type' => 'Tipe',
+            'value' => 'Nilai',
             'max_discount' => 'Maks. Diskon',
             'min_purchase' => 'Min. Belanja',
-            'valid_from'   => 'Berlaku dari',
-            'valid_until'  => 'Berlaku sampai',
-            'usage_limit'  => 'Batas Penggunaan',
-            'is_active'    => 'Status',
+            'valid_from' => 'Berlaku dari',
+            'valid_until' => 'Berlaku sampai',
+            'usage_limit' => 'Batas Penggunaan',
+            'is_active' => 'Status',
             'distribution_type' => 'Tipe Distribusi',
-            'contexts'     => 'Context',
-            'contexts.*'   => 'Context',
+            'contexts' => 'Context',
+            'contexts.*' => 'Context',
         ]);
     }
 
     protected function parseDateTime(?string $value): ?Carbon
     {
-        if (!$value) return null;
+        if (! $value) {
+            return null;
+        }
         try {
             return Carbon::parse($value);
         } catch (\Throwable) {
@@ -312,13 +376,15 @@ class VoucherController extends Controller
 
     protected function pivotFqn(): string
     {
-        return self::PIVOT_SCHEMA . '.' . self::PIVOT_TABLE;
+        return self::PIVOT_SCHEMA.'.'.self::PIVOT_TABLE;
     }
 
     protected function hasPivotTable(): bool
     {
         static $cached;
-        if (!is_null($cached)) return $cached;
+        if (! is_null($cached)) {
+            return $cached;
+        }
 
         $exists = DB::table('information_schema.tables')
             ->where('table_schema', self::PIVOT_SCHEMA)
@@ -347,9 +413,13 @@ class VoucherController extends Controller
 
         $out = [];
         foreach ($arr as $c) {
-            if (!is_string($c)) continue;
+            if (! is_string($c)) {
+                continue;
+            }
             $val = trim($c);
-            if ($val === '') continue;
+            if ($val === '') {
+                continue;
+            }
             $out[] = $val;
         }
 
@@ -361,11 +431,13 @@ class VoucherController extends Controller
         $allowed = $this->getAvailableContexts();
 
         // kalau master list kosong, tidak perlu cek allowed (anggap bebas)
-        if (empty($allowed)) return;
+        if (empty($allowed)) {
+            return;
+        }
 
         $diff = array_values(array_diff($selected, $allowed));
-        if (!empty($diff)) {
-            abort(422, "Context tidak dikenali: " . implode(', ', $diff));
+        if (! empty($diff)) {
+            abort(422, 'Context tidak dikenali: '.implode(', ', $diff));
         }
     }
 
@@ -373,12 +445,14 @@ class VoucherController extends Controller
     {
         DB::table($this->pivotFqn())->where('voucher_id', $voucherId)->delete();
 
-        if (empty($contexts)) return;
+        if (empty($contexts)) {
+            return;
+        }
 
         $now = now();
-        $rows = array_map(fn($c) => [
+        $rows = array_map(fn ($c) => [
             'voucher_id' => $voucherId,
-            'context'    => $c,
+            'context' => $c,
             'created_at' => $now,
             'updated_at' => $now,
         ], $contexts);
@@ -389,7 +463,9 @@ class VoucherController extends Controller
     protected function getVoucherContextsMap(array $voucherIds): array
     {
         $map = [];
-        if (empty($voucherIds)) return $map;
+        if (empty($voucherIds)) {
+            return $map;
+        }
 
         if ($this->hasPivotTable()) {
             $rows = DB::table($this->pivotFqn())
@@ -428,8 +504,8 @@ class VoucherController extends Controller
         $prefix = Str::substr($prefix ?: 'VOUCHER', 0, 12);
 
         for ($attempt = 0; $attempt < 20; $attempt++) {
-            $code = $prefix . '-' . Str::upper(Str::random(8));
-            if (!VoucherCode::where('code', $code)->exists()) {
+            $code = $prefix.'-'.Str::upper(Str::random(8));
+            if (! VoucherCode::where('code', $code)->exists()) {
                 return $code;
             }
         }
@@ -460,8 +536,8 @@ class VoucherController extends Controller
     protected function generateVoucherCode(): string
     {
         for ($attempt = 0; $attempt < 20; $attempt++) {
-            $code = 'VCR-' . now()->format('Ymd') . '-' . Str::upper(Str::random(6));
-            if (!Voucher::where('code', $code)->exists()) {
+            $code = 'VCR-'.now()->format('Ymd').'-'.Str::upper(Str::random(6));
+            if (! Voucher::where('code', $code)->exists()) {
                 return $code;
             }
         }

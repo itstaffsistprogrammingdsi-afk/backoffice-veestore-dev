@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\OmsetCabangExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -64,7 +65,10 @@ class OmsetCabangController extends Controller
             dateTo: $filters['date_to']
         );
 
-        return view('content.monitoring.omset-cabang.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Omset Cabang',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'stores' => $stores,
@@ -79,6 +83,9 @@ class OmsetCabangController extends Controller
             'perPage' => $filters['per_page'],
             'today' => $filters['today'],
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

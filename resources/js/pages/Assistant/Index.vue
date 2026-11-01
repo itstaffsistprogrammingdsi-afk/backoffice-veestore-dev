@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue';
+
+defineOptions({ layout: AppLayout });
+
 import { computed, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
@@ -207,11 +211,11 @@ watch(
 
 <style scoped>
 .assistant-page {
-    --assistant-ink: #17111f;
-    --assistant-muted: #6b6474;
-    --assistant-border: #ebe6ef;
-    --assistant-pink: #ec4899;
-    --assistant-purple: #7c3aed;
+    --assistant-ink: var(--app-ink);
+    --assistant-muted: var(--app-muted);
+    --assistant-border: var(--app-border);
+    --assistant-pink: #c366a8;
+    --assistant-purple: #0060af;
     color: var(--assistant-ink);
 }
 
@@ -244,7 +248,7 @@ watch(
 
 .assistant-hero p {
     margin: 0;
-    color: #d8d2de;
+    color: var(--app-hero-muted);
     max-width: 46rem;
 }
 

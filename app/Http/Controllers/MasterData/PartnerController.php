@@ -5,12 +5,13 @@ namespace App\Http\Controllers\MasterData;
 use App\Http\Controllers\Controller;
 use App\Models\Partner;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PartnerController extends Controller
 {
     public function index(Request $request)
     {
-        $q = trim((string)$request->get('q'));
+        $q = trim((string) $request->get('q'));
 
         $items = Partner::query()
             ->when($q !== '', function ($w) use ($q) {
@@ -21,7 +22,26 @@ class PartnerController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-return view('content.master-data.partners.index', compact('items', 'q'));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Partners',
+            'description' => 'Kelola data partner.',
+            'searchPlaceholder' => 'Cari partner...',
+            'items' => $items,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'created_at', 'label' => 'Dibuat'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Partner', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.partners.index'),
+                'store' => route('master-data.partners.store'),
+                'update' => route('master-data.partners.update', ['partner' => '__ID__']),
+                'destroy' => route('master-data.partners.destroy', ['partner' => '__ID__']),
+            ],
+        ]);
 
     }
 
@@ -41,7 +61,7 @@ return view('content.master-data.partners.index', compact('items', 'q'));
     public function update(Request $request, Partner $partner)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:partners,name,' . $partner->getKey()],
+            'name' => ['required', 'string', 'max:255', 'unique:partners,name,'.$partner->getKey()],
         ]);
 
         $partner->update($validated);

@@ -6,35 +6,45 @@ use App\Http\Controllers\Controller;
 use App\Models\Backoffice\Role;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class BackofficeRoleController extends Controller
 {
     public function index(Request $request)
     {
-        $q = trim((string)$request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
 
         $roles = Role::when($q !== '', function ($w) use ($q) {
-                $w->where('name', 'ILIKE', "%{$q}%")
-                  ->orWhere('guard_name', 'ILIKE', "%{$q}%");
-            })
+            $w->where('name', 'ILIKE', "%{$q}%")
+                ->orWhere('guard_name', 'ILIKE', "%{$q}%");
+        })
             ->orderBy('created_at', 'desc')
             ->paginate(12)
             ->withQueryString();
 
-        return view('content.management.backoffice-roles.index', compact('roles', 'q'));
+        return Inertia::render('Management/Roles', [
+            'roles' => $roles,
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('management.roles-backoffice.index'),
+                'store' => route('management.roles-backoffice.store'),
+                'update' => route('management.roles-backoffice.update', ['roles_backoffice' => '__ID__']),
+                'destroy' => route('management.roles-backoffice.destroy', ['roles_backoffice' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'name' => [
-                'required','string','max:190',
+                'required', 'string', 'max:190',
                 Rule::unique('immostore_backoffice.roles', 'name'),
             ],
         ]);
 
         Role::create([
-            'name'       => $data['name'],
+            'name' => $data['name'],
             'guard_name' => 'web',
         ]);
 
@@ -45,7 +55,7 @@ class BackofficeRoleController extends Controller
     {
         $data = $request->validate([
             'name' => [
-                'required','string','max:190',
+                'required', 'string', 'max:190',
                 Rule::unique('immostore_backoffice.roles', 'name')->ignore($role->getKey(), 'id'),
             ],
         ]);

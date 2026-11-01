@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class WarehouseController extends Controller
@@ -49,20 +50,20 @@ class WarehouseController extends Controller
                 $query->where(function ($subQuery) use ($q, $driver) {
                     if ($driver === 'pgsql') {
                         $subQuery
-                            ->where('name', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('code', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('address', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('postal_code', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('contact_name', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('contact_phone', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('contact_email', 'ILIKE', '%' . $q . '%');
+                            ->where('name', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('code', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('address', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('postal_code', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('contact_name', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('contact_phone', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('contact_email', 'ILIKE', '%'.$q.'%');
 
                         return;
                     }
 
                     $search =
-                        '%' .
-                        mb_strtolower($q, 'UTF-8') .
+                        '%'.
+                        mb_strtolower($q, 'UTF-8').
                         '%';
 
                     $subQuery
@@ -88,10 +89,37 @@ class WarehouseController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view(
-            'content.master-data.warehouses.index',
-            compact('warehouses', 'q')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Warehouses',
+            'description' => 'Kelola gudang, kontak, dan lokasi operasional.',
+            'searchPlaceholder' => 'Cari warehouse...',
+            'items' => $warehouses,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'contact_name', 'label' => 'Kontak'],
+                ['key' => 'contact_phone', 'label' => 'Telepon'],
+                ['key' => 'address', 'label' => 'Alamat'],
+                ['key' => 'postal_code', 'label' => 'Kode Pos'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Warehouse', 'required' => true],
+                ['key' => 'address', 'label' => 'Alamat', 'type' => 'textarea'],
+                ['key' => 'postal_code', 'label' => 'Kode Pos'],
+                ['key' => 'contact_name', 'label' => 'Nama Kontak', 'required' => true],
+                ['key' => 'contact_phone', 'label' => 'Telepon Kontak', 'required' => true],
+                ['key' => 'contact_email', 'label' => 'Email Kontak'],
+                ['key' => 'lat', 'label' => 'Latitude', 'type' => 'number'],
+                ['key' => 'lng', 'label' => 'Longitude', 'type' => 'number'],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.warehouses.index'),
+                'store' => route('master-data.warehouses.store'),
+                'update' => route('master-data.warehouses.update', ['warehouse' => '__ID__']),
+                'destroy' => route('master-data.warehouses.destroy', ['warehouse' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -172,17 +200,13 @@ class WarehouseController extends Controller
                     ],
                 ],
                 [
-                    'name.required' =>
-                        'Nama warehouse wajib diisi.',
+                    'name.required' => 'Nama warehouse wajib diisi.',
 
-                    'name.max' =>
-                        'Nama warehouse maksimal 255 karakter.',
+                    'name.max' => 'Nama warehouse maksimal 255 karakter.',
 
-                    'address.max' =>
-                        'Alamat warehouse terlalu panjang.',
+                    'address.max' => 'Alamat warehouse terlalu panjang.',
 
-                    'postal_code.max' =>
-                        'Kode pos maksimal 20 karakter.',
+                    'postal_code.max' => 'Kode pos maksimal 20 karakter.',
 
                     'contact_name.required' => 'Nama kontak wajib diisi.',
                     'contact_name.max' => 'Nama kontak maksimal 255 karakter.',
@@ -191,23 +215,17 @@ class WarehouseController extends Controller
                     'contact_email.email' => 'Email kontak tidak valid.',
                     'contact_email.max' => 'Email kontak maksimal 255 karakter.',
 
-                    'lat.numeric' =>
-                        'Latitude harus berupa angka.',
+                    'lat.numeric' => 'Latitude harus berupa angka.',
 
-                    'lat.between' =>
-                        'Latitude harus berada antara -90 sampai 90.',
+                    'lat.between' => 'Latitude harus berada antara -90 sampai 90.',
 
-                    'lat.required_with' =>
-                        'Latitude wajib diisi ketika longitude tersedia.',
+                    'lat.required_with' => 'Latitude wajib diisi ketika longitude tersedia.',
 
-                    'lng.numeric' =>
-                        'Longitude harus berupa angka.',
+                    'lng.numeric' => 'Longitude harus berupa angka.',
 
-                    'lng.between' =>
-                        'Longitude harus berada antara -180 sampai 180.',
+                    'lng.between' => 'Longitude harus berada antara -180 sampai 180.',
 
-                    'lng.required_with' =>
-                        'Longitude wajib diisi ketika latitude tersedia.',
+                    'lng.required_with' => 'Longitude wajib diisi ketika latitude tersedia.',
                 ]
             );
 
@@ -233,8 +251,7 @@ class WarehouseController extends Controller
                         )
                     ) {
                         throw ValidationException::withMessages([
-                            'address' =>
-                                'Alamat tersebut sudah digunakan oleh warehouse lain.',
+                            'address' => 'Alamat tersebut sudah digunakan oleh warehouse lain.',
                         ]);
                     }
                 }
@@ -262,8 +279,7 @@ class WarehouseController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Warehouse gagal disimpan. Silakan coba kembali.',
+                        'address' => 'Warehouse gagal disimpan. Silakan coba kembali.',
                     ],
                     'createWarehouse'
                 );
@@ -274,8 +290,7 @@ class WarehouseController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Warehouse gagal disimpan. Silakan coba kembali.',
+                        'address' => 'Warehouse gagal disimpan. Silakan coba kembali.',
                     ],
                     'createWarehouse'
                 );
@@ -364,17 +379,13 @@ class WarehouseController extends Controller
                     ],
                 ],
                 [
-                    'name.required' =>
-                        'Nama warehouse wajib diisi.',
+                    'name.required' => 'Nama warehouse wajib diisi.',
 
-                    'name.max' =>
-                        'Nama warehouse maksimal 255 karakter.',
+                    'name.max' => 'Nama warehouse maksimal 255 karakter.',
 
-                    'address.max' =>
-                        'Alamat warehouse terlalu panjang.',
+                    'address.max' => 'Alamat warehouse terlalu panjang.',
 
-                    'postal_code.max' =>
-                        'Kode pos maksimal 20 karakter.',
+                    'postal_code.max' => 'Kode pos maksimal 20 karakter.',
 
                     'contact_name.required' => 'Nama kontak wajib diisi.',
                     'contact_name.max' => 'Nama kontak maksimal 255 karakter.',
@@ -383,23 +394,17 @@ class WarehouseController extends Controller
                     'contact_email.email' => 'Email kontak tidak valid.',
                     'contact_email.max' => 'Email kontak maksimal 255 karakter.',
 
-                    'lat.numeric' =>
-                        'Latitude harus berupa angka.',
+                    'lat.numeric' => 'Latitude harus berupa angka.',
 
-                    'lat.between' =>
-                        'Latitude harus berada antara -90 sampai 90.',
+                    'lat.between' => 'Latitude harus berada antara -90 sampai 90.',
 
-                    'lat.required_with' =>
-                        'Latitude wajib diisi ketika longitude tersedia.',
+                    'lat.required_with' => 'Latitude wajib diisi ketika longitude tersedia.',
 
-                    'lng.numeric' =>
-                        'Longitude harus berupa angka.',
+                    'lng.numeric' => 'Longitude harus berupa angka.',
 
-                    'lng.between' =>
-                        'Longitude harus berada antara -180 sampai 180.',
+                    'lng.between' => 'Longitude harus berada antara -180 sampai 180.',
 
-                    'lng.required_with' =>
-                        'Longitude wajib diisi ketika latitude tersedia.',
+                    'lng.required_with' => 'Longitude wajib diisi ketika latitude tersedia.',
                 ]
             );
 
@@ -431,8 +436,7 @@ class WarehouseController extends Controller
                     )
                 ) {
                     throw ValidationException::withMessages([
-                        'address' =>
-                            'Alamat tersebut sudah digunakan oleh warehouse lain.',
+                        'address' => 'Alamat tersebut sudah digunakan oleh warehouse lain.',
                     ]);
                 }
 
@@ -462,8 +466,7 @@ class WarehouseController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Warehouse gagal diperbarui. Silakan coba kembali.',
+                        'address' => 'Warehouse gagal diperbarui. Silakan coba kembali.',
                     ],
                     'editWarehouse'
                 );
@@ -474,8 +477,7 @@ class WarehouseController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Warehouse gagal diperbarui. Silakan coba kembali.',
+                        'address' => 'Warehouse gagal diperbarui. Silakan coba kembali.',
                     ],
                     'editWarehouse'
                 );
@@ -545,8 +547,7 @@ class WarehouseController extends Controller
         return Warehouse::query()
             ->when(
                 $ignoreId !== null,
-                fn ($query) =>
-                    $query->whereKeyNot($ignoreId)
+                fn ($query) => $query->whereKeyNot($ignoreId)
             )
             ->whereNotNull('address')
             ->whereRaw(
@@ -589,7 +590,7 @@ class WarehouseController extends Controller
 
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            ['warehouse-address:' . $normalizedAddress]
+            ['warehouse-address:'.$normalizedAddress]
         );
     }
 
@@ -600,10 +601,8 @@ class WarehouseController extends Controller
     {
         $payload = [
             'name' => $data['name'],
-            'address' =>
-                $data['address'] ?: null,
-            'postal_code' =>
-                $data['postal_code'] ?: null,
+            'address' => $data['address'] ?: null,
+            'postal_code' => $data['postal_code'] ?: null,
             'contact_name' => $data['contact_name'] ?: null,
             'contact_phone' => $data['contact_phone'] ?: null,
             'contact_email' => $data['contact_email'] ?: null,

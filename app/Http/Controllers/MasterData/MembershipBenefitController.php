@@ -6,27 +6,28 @@ use App\Http\Controllers\Controller;
 use App\Models\Membership;
 use App\Models\MembershipBenefit;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class MembershipBenefitController extends Controller
 {
-     public function __construct()
+    public function __construct()
     {
         $this->middleware('permission:view master-data-membership-benefits')->only(['index']);
         $this->middleware('permission:create master-data-membership-benefits')->only(['store']);
         $this->middleware('permission:update master-data-membership-benefits')->only(['update']);
         $this->middleware('permission:delete master-data-membership-benefits')->only(['destroy']);
     }
+
     public function index(Request $request)
     {
-        $q            = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
         $membershipId = $request->get('membership_id');
 
         $benefits = MembershipBenefit::with('membership')
-            ->when($membershipId, fn($qr) => $qr->where('membership_id', $membershipId))
+            ->when($membershipId, fn ($qr) => $qr->where('membership_id', $membershipId))
             ->when($q, function ($qr) use ($q) {
                 $qr->where(function ($w) use ($q) {
-                    $w->where('name',  'ILIKE', "%{$q}%")
+                    $w->where('name', 'ILIKE', "%{$q}%")
                         ->orWhere('type', 'ILIKE', "%{$q}%")
                         ->orWhere('value', 'ILIKE', "%{$q}%");
                 });
@@ -37,21 +38,40 @@ class MembershipBenefitController extends Controller
 
         $memberships = Membership::orderBy('name')->get(['id', 'name']);
 
-        return view('content.master-data.membership-benefits.index', compact(
-            'benefits',
-            'q',
-            'memberships',
-            'membershipId'
-        ));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Membership Benefits',
+            'description' => 'Kelola benefit setiap tier membership.',
+            'searchPlaceholder' => 'Cari benefit...',
+            'items' => $benefits,
+            'columns' => [
+                ['key' => 'membership.name', 'label' => 'Membership'],
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'value', 'label' => 'Value'],
+                ['key' => 'type', 'label' => 'Tipe'],
+            ],
+            'fields' => [
+                ['key' => 'membership_id', 'label' => 'Membership', 'type' => 'select', 'required' => true, 'options' => $memberships->map(fn ($membership) => ['value' => $membership->id, 'label' => $membership->name])->values()->all()],
+                ['key' => 'name', 'label' => 'Nama Benefit', 'required' => true],
+                ['key' => 'value', 'label' => 'Value'],
+                ['key' => 'type', 'label' => 'Tipe'],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.membership-benefits.index'),
+                'store' => route('master-data.membership-benefits.store'),
+                'update' => route('master-data.membership-benefits.update', ['membership_benefit' => '__ID__']),
+                'destroy' => route('master-data.membership-benefits.destroy', ['membership_benefit' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'membership_id' => ['required', 'string', 'exists:memberships,id'],
-            'name'          => ['required', 'string', 'max:150'],
-            'value'         => ['nullable', 'string', 'max:191'],
-            'type'          => ['nullable', 'string', 'max:50'],
+            'name' => ['required', 'string', 'max:150'],
+            'value' => ['nullable', 'string', 'max:191'],
+            'type' => ['nullable', 'string', 'max:50'],
         ]);
 
         MembershipBenefit::create($data);
@@ -64,9 +84,9 @@ class MembershipBenefitController extends Controller
     {
         $data = $request->validate([
             'membership_id' => ['required', 'string', 'exists:memberships,id'],
-            'name'          => ['required', 'string', 'max:150'],
-            'value'         => ['nullable', 'string', 'max:191'],
-            'type'          => ['nullable', 'string', 'max:50'],
+            'name' => ['required', 'string', 'max:150'],
+            'value' => ['nullable', 'string', 'max:191'],
+            'type' => ['nullable', 'string', 'max:50'],
         ]);
 
         $membership_benefit->update($data);
@@ -78,6 +98,7 @@ class MembershipBenefitController extends Controller
     public function destroy(MembershipBenefit $membership_benefit)
     {
         $membership_benefit->delete();
+
         return back()->with('success', 'Benefit berhasil dihapus.');
     }
 }

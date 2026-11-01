@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 /**
  * Membuat satu alur input untuk Promo, aturan Diskon, dan produk sasaran.
@@ -34,13 +35,17 @@ class PromoSetupController extends Controller
 
     public function index()
     {
-        return view('content.master-data.promo-setup.index', [
+        return Inertia::render('MasterData/PromoSetup', [
             'stores' => Store::query()->orderBy('name')->get(['id', 'name', 'code']),
             'products' => Product::query()->orderBy('name')->limit(500)->get(['id', 'name', 'code']),
             'recentPromos' => Promo::query()
                 ->orderByDesc('start_date')
                 ->limit(10)
                 ->get(['id', 'name', 'code', 'start_date', 'end_date', 'all_store']),
+            'urls' => [
+                'index' => route('master-data.promo-setup.index'),
+                'store' => route('master-data.promo-setup.store'),
+            ],
         ]);
     }
 

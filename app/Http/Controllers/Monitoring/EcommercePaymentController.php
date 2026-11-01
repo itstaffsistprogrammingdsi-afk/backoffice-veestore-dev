@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\EcommercePaymentExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -88,7 +89,10 @@ class EcommercePaymentController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        return view('content.monitoring.ecommerce-payment.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Ecommerce Payment',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'               => $rows,
             'customerName'       => $customerName,
             'email'              => $email,
@@ -110,6 +114,9 @@ class EcommercePaymentController extends Controller
             'chartOmzetDaily'    => $chartOmzetDaily,
             'chartPaymentStatus' => $chartPaymentStatus,
             'chartPaymentMethod' => $chartPaymentMethod,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

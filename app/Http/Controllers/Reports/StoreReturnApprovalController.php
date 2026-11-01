@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class StoreReturnApprovalController extends Controller
 {
@@ -35,14 +36,14 @@ class StoreReturnApprovalController extends Controller
             : 'requested';
 
         $from = $request->query('from') ?: now()->startOfMonth()->toDateString();
-        $to   = $request->query('to')   ?: now()->toDateString();
+        $to = $request->query('to') ?: now()->toDateString();
 
         // Ada/tidaknya kolom warehouse_id pada store_returns
         $hasWarehouseId = Schema::hasColumn('store_returns', 'warehouse_id');
 
         $query = DB::table('store_returns as r')
             ->leftJoin('stores as s', 's.id', '=', 'r.store_id')
-            ->when($hasWarehouseId, fn($q2) => $q2->leftJoin('warehouses as w', 'w.id', '=', 'r.warehouse_id'))
+            ->when($hasWarehouseId, fn ($q2) => $q2->leftJoin('warehouses as w', 'w.id', '=', 'r.warehouse_id'))
             ->leftJoin('users as ua', 'ua.id', '=', 'r.approved_by')
             ->select([
                 DB::raw('r.id'),
@@ -90,19 +91,28 @@ class StoreReturnApprovalController extends Controller
         $query->whereBetween(DB::raw('r.created_at::date'), [$from, $to])
             ->orderByDesc('r.created_at');
 
-        $returns    = $query->paginate(10)->withQueryString();
-        $stores     = DB::table('stores')->orderBy('name')->get(['id', 'name']);
+        $returns = $query->paginate(10)->withQueryString();
+        $stores = DB::table('stores')->orderBy('name')->get(['id', 'name']);
         $warehouses = DB::table('warehouses')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name']);
 
-        return view('content.reports.retur-cabang.index', compact(
-            'returns',
-            'stores',
-            'warehouses',
-            'q',
-            'status',
-            'from',
-            'to'
-        ));
+        return Inertia::render('Reports/Returns', [
+            'returns' => $returns,
+            'stores' => $stores,
+            'warehouses' => $warehouses,
+            'statuses' => $this->allowedStatuses,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('reports.retur-cabang.index'),
+                'show' => route('reports.retur-cabang.show', ['return' => '__ID__']),
+                'approve' => route('reports.retur-cabang.approve', ['return' => '__ID__']),
+                'reject' => route('reports.retur-cabang.reject', ['return' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -116,7 +126,7 @@ class StoreReturnApprovalController extends Controller
         $headerQuery = DB::table('store_returns as r')
             ->leftJoin('stores as s', 's.id', '=', 'r.store_id')
             ->leftJoin('users as ua', 'ua.id', '=', 'r.approved_by')
-            ->when($hasWarehouseId, fn($q) => $q->leftJoin('warehouses as w', 'w.id', '=', 'r.warehouse_id'))
+            ->when($hasWarehouseId, fn ($q) => $q->leftJoin('warehouses as w', 'w.id', '=', 'r.warehouse_id'))
             ->where('r.id', $returnId)
             ->select([
                 DB::raw('r.id'),
@@ -171,7 +181,7 @@ class StoreReturnApprovalController extends Controller
         }
 
         return response()->json([
-            'header'  => $header,
+            'header' => $header,
             'details' => $details,
         ]);
     }
@@ -186,12 +196,12 @@ class StoreReturnApprovalController extends Controller
     public function approve(Request $request, string $returnId)
     {
         $row = DB::table('store_returns')->where('id', $returnId)->first();
-        if (!$row) {
+        if (! $row) {
             return back()->withErrors(['retur' => 'Data retur tidak ditemukan.']);
         }
 
         $nowStatus = strtolower((string) $row->status);
-        if (!in_array($nowStatus, ['pending_approval', 'requested'], true)) {
+        if (! in_array($nowStatus, ['pending_approval', 'requested'], true)) {
             return back()->withErrors(['status' => 'Retur bukan status pending_approval/requested.']);
         }
 
@@ -210,7 +220,7 @@ class StoreReturnApprovalController extends Controller
             // OPSIONAL: setujui N item per product_id bila dikirim dari modal
             foreach ($approvedMap as $productId => $qty) {
                 $productId = (string) $productId;
-                $qty       = (int) $qty;
+                $qty = (int) $qty;
 
                 if ($qty <= 0 || $productId === '') {
                     continue;
@@ -229,11 +239,11 @@ class StoreReturnApprovalController extends Controller
                     ->pluck('d.id')
                     ->all();
 
-                if (!empty($detailIds)) {
+                if (! empty($detailIds)) {
                     DB::table('store_return_details')
                         ->whereIn('id', $detailIds)
                         ->update([
-                            'status'     => 'approved',
+                            'status' => 'approved',
                             'updated_at' => now(),
                         ]);
                 }
@@ -243,11 +253,11 @@ class StoreReturnApprovalController extends Controller
             DB::table('store_returns')
                 ->where('id', $returnId)
                 ->update([
-                    'status'       => 'approved',
+                    'status' => 'approved',
                     'warehouse_id' => $data['warehouse_id'], // SIMPAN WAREHOUSE KE HEADER
-                    'approved_at'  => now(),
-                    'approved_by'  => Auth::id(),
-                    'updated_at'   => now(),
+                    'approved_at' => now(),
+                    'approved_by' => Auth::id(),
+                    'updated_at' => now(),
                 ]);
         });
 
@@ -257,12 +267,12 @@ class StoreReturnApprovalController extends Controller
     public function reject(string $returnId)
     {
         $row = DB::table('store_returns')->where('id', $returnId)->first();
-        if (!$row) {
+        if (! $row) {
             return back()->withErrors(['retur' => 'Data retur tidak ditemukan.']);
         }
 
         $nowStatus = strtolower((string) $row->status);
-        if (!in_array($nowStatus, ['pending_approval', 'requested', 'draft'], true)) {
+        if (! in_array($nowStatus, ['pending_approval', 'requested', 'draft'], true)) {
             return back()->withErrors(['status' => 'Retur tidak bisa direject pada status saat ini.']);
         }
 
@@ -270,7 +280,7 @@ class StoreReturnApprovalController extends Controller
             DB::table('store_returns')
                 ->where('id', $returnId)
                 ->update([
-                    'status'      => 'rejected',
+                    'status' => 'rejected',
                     'approved_at' => null,
                     'approved_by' => null,
                     'rejected_at' => now(),

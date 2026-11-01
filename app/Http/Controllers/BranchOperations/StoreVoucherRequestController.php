@@ -5,6 +5,7 @@ namespace App\Http\Controllers\BranchOperations;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class StoreVoucherRequestController extends Controller
 {
@@ -129,7 +130,7 @@ class StoreVoucherRequestController extends Controller
 
         $detailItems = collect();
 
-        if (!empty($requestIds)) {
+        if (! empty($requestIds)) {
             $detailItems = DB::table('store_voucher_request_details as svrd')
                 ->leftJoin('products as p', 'p.id', '=', 'svrd.product_id')
                 ->leftJoin('items as i', 'i.id', '=', 'svrd.item_id')
@@ -156,17 +157,24 @@ class StoreVoucherRequestController extends Controller
 
         $statuses = collect(['pending', 'approved', 'rejected']);
 
-        return view('content.branch-operations.request-voucher.index', compact(
-            'rows',
-            'detailItems',
-            'q',
-            'status',
-            'storeId',
-            'from',
-            'to',
-            'stores',
-            'statuses'
-        ));
+        return Inertia::render('BranchOperations/VoucherRequests', [
+            'rows' => $rows,
+            'detailItems' => $detailItems,
+            'stores' => $stores,
+            'statuses' => $statuses,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'store_id' => $storeId,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('branch-operations.request-voucher.index'),
+                'approve' => route('branch-operations.request-voucher.approve', ['id' => '__ID__']),
+                'reject' => route('branch-operations.request-voucher.reject', ['id' => '__ID__']),
+            ],
+        ]);
     }
 
     public function approve(Request $request, string $id)
@@ -175,7 +183,7 @@ class StoreVoucherRequestController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (!$requestRow) {
+        if (! $requestRow) {
             return redirect()
                 ->route('branch-operations.request-voucher.index')
                 ->with('error', 'Data request voucher tidak ditemukan.');
@@ -207,7 +215,7 @@ class StoreVoucherRequestController extends Controller
             ->where('id', $id)
             ->first();
 
-        if (!$requestRow) {
+        if (! $requestRow) {
             return redirect()
                 ->route('branch-operations.request-voucher.index')
                 ->with('error', 'Data request voucher tidak ditemukan.');

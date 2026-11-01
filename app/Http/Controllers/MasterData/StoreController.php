@@ -12,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class StoreController extends Controller
@@ -47,21 +48,21 @@ class StoreController extends Controller
                 $query->where(function ($subQuery) use ($q, $driver) {
                     if ($driver === 'pgsql') {
                         $subQuery
-                            ->where('name', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('code', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('address', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('postal_code', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('phone', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('contact_name', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('contact_phone', 'ILIKE', '%' . $q . '%')
-                            ->orWhere('contact_email', 'ILIKE', '%' . $q . '%');
+                            ->where('name', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('code', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('address', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('postal_code', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('phone', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('contact_name', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('contact_phone', 'ILIKE', '%'.$q.'%')
+                            ->orWhere('contact_email', 'ILIKE', '%'.$q.'%');
 
                         return;
                     }
 
                     $search =
-                        '%' .
-                        mb_strtolower($q, 'UTF-8') .
+                        '%'.
+                        mb_strtolower($q, 'UTF-8').
                         '%';
 
                     $subQuery
@@ -87,10 +88,39 @@ class StoreController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view(
-            'content.master-data.stores.index',
-            compact('stores', 'q')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Stores',
+            'description' => 'Kelola toko, kontak, dan lokasi.',
+            'searchPlaceholder' => 'Cari store...',
+            'items' => $stores,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'phone', 'label' => 'Telepon'],
+                ['key' => 'contact_name', 'label' => 'Kontak'],
+                ['key' => 'address', 'label' => 'Alamat'],
+                ['key' => 'postal_code', 'label' => 'Kode Pos'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Store', 'required' => true],
+                ['key' => 'address', 'label' => 'Alamat', 'type' => 'textarea', 'required' => true],
+                ['key' => 'postal_code', 'label' => 'Kode Pos'],
+                ['key' => 'phone', 'label' => 'Telepon'],
+                ['key' => 'contact_name', 'label' => 'Nama Kontak', 'required' => true],
+                ['key' => 'contact_phone', 'label' => 'Telepon Kontak', 'required' => true],
+                ['key' => 'contact_email', 'label' => 'Email Kontak'],
+                ['key' => 'image', 'label' => 'Gambar Store', 'type' => 'file'],
+                ['key' => 'lat', 'label' => 'Latitude', 'type' => 'number'],
+                ['key' => 'lng', 'label' => 'Longitude', 'type' => 'number'],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.stores.index'),
+                'store' => route('master-data.stores.store'),
+                'update' => route('master-data.stores.update', ['store' => '__ID__']),
+                'destroy' => route('master-data.stores.destroy', ['store' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -183,23 +213,17 @@ class StoreController extends Controller
                     ],
                 ],
                 [
-                    'name.required' =>
-                        'Nama store wajib diisi.',
+                    'name.required' => 'Nama store wajib diisi.',
 
-                    'name.max' =>
-                        'Nama store maksimal 150 karakter.',
+                    'name.max' => 'Nama store maksimal 150 karakter.',
 
-                    'address.required' =>
-                        'Alamat store wajib diisi.',
+                    'address.required' => 'Alamat store wajib diisi.',
 
-                    'address.max' =>
-                        'Alamat store terlalu panjang.',
+                    'address.max' => 'Alamat store terlalu panjang.',
 
-                    'postal_code.max' =>
-                        'Kode pos maksimal 20 karakter.',
+                    'postal_code.max' => 'Kode pos maksimal 20 karakter.',
 
-                    'phone.max' =>
-                        'Nomor telepon maksimal 255 karakter.',
+                    'phone.max' => 'Nomor telepon maksimal 255 karakter.',
 
                     'contact_name.required' => 'Nama kontak wajib diisi.',
                     'contact_name.max' => 'Nama kontak maksimal 255 karakter.',
@@ -208,32 +232,23 @@ class StoreController extends Controller
                     'contact_email.email' => 'Email kontak tidak valid.',
                     'contact_email.max' => 'Email kontak maksimal 255 karakter.',
 
-                    'image.image' =>
-                        'File harus berupa gambar.',
+                    'image.image' => 'File harus berupa gambar.',
 
-                    'image.mimes' =>
-                        'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
+                    'image.mimes' => 'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
 
-                    'image.max' =>
-                        'Ukuran gambar maksimal 2 MB.',
+                    'image.max' => 'Ukuran gambar maksimal 2 MB.',
 
-                    'lat.numeric' =>
-                        'Latitude harus berupa angka.',
+                    'lat.numeric' => 'Latitude harus berupa angka.',
 
-                    'lat.between' =>
-                        'Latitude harus berada antara -90 sampai 90.',
+                    'lat.between' => 'Latitude harus berada antara -90 sampai 90.',
 
-                    'lat.required_with' =>
-                        'Latitude wajib diisi ketika longitude tersedia.',
+                    'lat.required_with' => 'Latitude wajib diisi ketika longitude tersedia.',
 
-                    'lng.numeric' =>
-                        'Longitude harus berupa angka.',
+                    'lng.numeric' => 'Longitude harus berupa angka.',
 
-                    'lng.between' =>
-                        'Longitude harus berada antara -180 sampai 180.',
+                    'lng.between' => 'Longitude harus berada antara -180 sampai 180.',
 
-                    'lng.required_with' =>
-                        'Longitude wajib diisi ketika latitude tersedia.',
+                    'lng.required_with' => 'Longitude wajib diisi ketika latitude tersedia.',
                 ]
             );
 
@@ -259,8 +274,7 @@ class StoreController extends Controller
                     )
                 ) {
                     throw ValidationException::withMessages([
-                        'address' =>
-                            'Alamat tersebut sudah digunakan oleh store lain.',
+                        'address' => 'Alamat tersebut sudah digunakan oleh store lain.',
                     ]);
                 }
 
@@ -294,8 +308,7 @@ class StoreController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Store gagal disimpan. Silakan coba kembali.',
+                        'address' => 'Store gagal disimpan. Silakan coba kembali.',
                     ],
                     'createStore'
                 );
@@ -306,8 +319,7 @@ class StoreController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Store gagal disimpan. Silakan coba kembali.',
+                        'address' => 'Store gagal disimpan. Silakan coba kembali.',
                     ],
                     'createStore'
                 );
@@ -408,23 +420,17 @@ class StoreController extends Controller
                     ],
                 ],
                 [
-                    'name.required' =>
-                        'Nama store wajib diisi.',
+                    'name.required' => 'Nama store wajib diisi.',
 
-                    'name.max' =>
-                        'Nama store maksimal 150 karakter.',
+                    'name.max' => 'Nama store maksimal 150 karakter.',
 
-                    'address.required' =>
-                        'Alamat store wajib diisi.',
+                    'address.required' => 'Alamat store wajib diisi.',
 
-                    'address.max' =>
-                        'Alamat store terlalu panjang.',
+                    'address.max' => 'Alamat store terlalu panjang.',
 
-                    'postal_code.max' =>
-                        'Kode pos maksimal 20 karakter.',
+                    'postal_code.max' => 'Kode pos maksimal 20 karakter.',
 
-                    'phone.max' =>
-                        'Nomor telepon maksimal 255 karakter.',
+                    'phone.max' => 'Nomor telepon maksimal 255 karakter.',
 
                     'contact_name.required' => 'Nama kontak wajib diisi.',
                     'contact_name.max' => 'Nama kontak maksimal 255 karakter.',
@@ -433,32 +439,23 @@ class StoreController extends Controller
                     'contact_email.email' => 'Email kontak tidak valid.',
                     'contact_email.max' => 'Email kontak maksimal 255 karakter.',
 
-                    'image.image' =>
-                        'File harus berupa gambar.',
+                    'image.image' => 'File harus berupa gambar.',
 
-                    'image.mimes' =>
-                        'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
+                    'image.mimes' => 'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
 
-                    'image.max' =>
-                        'Ukuran gambar maksimal 2 MB.',
+                    'image.max' => 'Ukuran gambar maksimal 2 MB.',
 
-                    'lat.numeric' =>
-                        'Latitude harus berupa angka.',
+                    'lat.numeric' => 'Latitude harus berupa angka.',
 
-                    'lat.between' =>
-                        'Latitude harus berada antara -90 sampai 90.',
+                    'lat.between' => 'Latitude harus berada antara -90 sampai 90.',
 
-                    'lat.required_with' =>
-                        'Latitude wajib diisi ketika longitude tersedia.',
+                    'lat.required_with' => 'Latitude wajib diisi ketika longitude tersedia.',
 
-                    'lng.numeric' =>
-                        'Longitude harus berupa angka.',
+                    'lng.numeric' => 'Longitude harus berupa angka.',
 
-                    'lng.between' =>
-                        'Longitude harus berada antara -180 sampai 180.',
+                    'lng.between' => 'Longitude harus berada antara -180 sampai 180.',
 
-                    'lng.required_with' =>
-                        'Longitude wajib diisi ketika latitude tersedia.',
+                    'lng.required_with' => 'Longitude wajib diisi ketika latitude tersedia.',
                 ]
             );
 
@@ -483,8 +480,7 @@ class StoreController extends Controller
                     )
                 ) {
                     throw ValidationException::withMessages([
-                        'address' =>
-                            'Alamat tersebut sudah digunakan oleh store lain.',
+                        'address' => 'Alamat tersebut sudah digunakan oleh store lain.',
                     ]);
                 }
 
@@ -504,6 +500,7 @@ class StoreController extends Controller
                     $lockedStore->update($payload);
 
                     $this->deleteImageFromUrl($oldImageUrl);
+
                     return;
                 }
 
@@ -529,8 +526,7 @@ class StoreController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Store gagal diperbarui. Silakan coba kembali.',
+                        'address' => 'Store gagal diperbarui. Silakan coba kembali.',
                     ],
                     'editStore'
                 );
@@ -541,8 +537,7 @@ class StoreController extends Controller
                 ->withInput()
                 ->withErrors(
                     [
-                        'address' =>
-                            'Store gagal diperbarui. Silakan coba kembali.',
+                        'address' => 'Store gagal diperbarui. Silakan coba kembali.',
                     ],
                     'editStore'
                 );
@@ -613,8 +608,7 @@ class StoreController extends Controller
         return Store::query()
             ->when(
                 $ignoreId !== null,
-                fn ($query) =>
-                    $query->whereKeyNot($ignoreId)
+                fn ($query) => $query->whereKeyNot($ignoreId)
             )
             ->whereRaw(
                 "LOWER(
@@ -656,7 +650,7 @@ class StoreController extends Controller
 
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            ['store-address:' . $normalizedAddress]
+            ['store-address:'.$normalizedAddress]
         );
     }
 
@@ -668,10 +662,8 @@ class StoreController extends Controller
         $payload = [
             'name' => $data['name'],
             'address' => $data['address'],
-            'postal_code' =>
-                $data['postal_code'] ?: null,
-            'phone' =>
-                $data['phone'] ?: null,
+            'postal_code' => $data['postal_code'] ?: null,
+            'phone' => $data['phone'] ?: null,
             'contact_name' => $data['contact_name'] ?: null,
             'contact_phone' => $data['contact_phone'] ?: null,
             'contact_email' => $data['contact_email'] ?: null,
@@ -710,21 +702,21 @@ class StoreController extends Controller
                 ?: 'jpg'
         );
 
-        $fileName = (string) Str::uuid() . '.' . $extension;
+        $fileName = (string) Str::uuid().'.'.$extension;
         $relativeDirectory = 'uploads/stores';
         $absoluteDirectory = public_path($relativeDirectory);
 
-        if (!is_dir($absoluteDirectory)) {
+        if (! is_dir($absoluteDirectory)) {
             mkdir($absoluteDirectory, 0755, true);
         }
 
         $file->move($absoluteDirectory, $fileName);
 
         return rtrim(request()->root(), '/')
-            . '/'
-            . $relativeDirectory
-            . '/'
-            . $fileName;
+            .'/'
+            .$relativeDirectory
+            .'/'
+            .$fileName;
     }
 
     private function deleteImageFromUrl(
@@ -736,13 +728,13 @@ class StoreController extends Controller
 
         $urlPath = parse_url($imageUrl, PHP_URL_PATH);
 
-        if (!$urlPath || strpos($urlPath, '/uploads/stores/') === false) {
+        if (! $urlPath || strpos($urlPath, '/uploads/stores/') === false) {
             return;
         }
 
         $fileName = basename($urlPath);
         $absolutePath = public_path(
-            'uploads/stores/' . $fileName
+            'uploads/stores/'.$fileName
         );
 
         if (is_file($absolutePath)) {

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\BranchOperations;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class StoreLabelPrintRequestController extends Controller
 {
@@ -83,7 +84,7 @@ class StoreLabelPrintRequestController extends Controller
         $requestIds = $rows->getCollection()->pluck('id')->all();
 
         $detailItems = collect();
-        if (!empty($requestIds)) {
+        if (! empty($requestIds)) {
             $detailItems = DB::table('store_label_print_request_items as slpri')
                 ->join('items as i', 'i.id', '=', 'slpri.item_id')
                 ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
@@ -128,20 +129,27 @@ class StoreLabelPrintRequestController extends Controller
 
         $canDecide = $this->canDecideLabelRequest();
 
-        return view('content.branch-operations.request-print-barcode.index', compact(
-            'rows',
-            'detailItems',
-            'q',
-            'status',
-            'storeId',
-            'requestedBy',
-            'from',
-            'to',
-            'stores',
-            'users',
-            'statuses',
-            'canDecide'
-        ));
+        return Inertia::render('BranchOperations/LabelPrintRequests', [
+            'rows' => $rows,
+            'detailItems' => $detailItems,
+            'stores' => $stores,
+            'users' => $users,
+            'statuses' => $statuses,
+            'canDecide' => $canDecide,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'store_id' => $storeId,
+                'requested_by' => $requestedBy,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('branch-operations.request-label.index'),
+                'approve' => route('management.request-labels.approve', ['id' => '__ID__']),
+                'reject' => route('management.request-labels.reject', ['id' => '__ID__']),
+            ],
+        ]);
     }
 
     private function canDecideLabelRequest(): bool
@@ -162,5 +170,4 @@ class StoreLabelPrintRequestController extends Controller
             ->map(fn ($role) => strtolower(preg_replace('/[^a-z0-9]/', '', $role)))
             ->contains(fn ($role) => in_array($role, $managementRoles, true));
     }
-
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
@@ -93,7 +94,10 @@ class SupplierInsightController extends Controller
             ? round(((int) ($summary->damaged_items ?? 0) / (int) $summary->total_items) * 100, 2)
             : 0;
 
-        return view('content.monitoring.supplier-insight.index', compact(
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Supplier Insight',
+            'description' => 'Laporan monitoring.',
+            'data' => compact(
             'supplierRows',
             'summary',
             'productRisks',
@@ -102,7 +106,10 @@ class SupplierInsightController extends Controller
             'filters',
             'topRisk',
             'damageRate'
-        ));
+        ),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     private function itemTraceQuery(array $filters): Builder

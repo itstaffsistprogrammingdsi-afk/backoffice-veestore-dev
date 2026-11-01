@@ -1,0 +1,563 @@
+:root {
+    --app-bg: #f6f6f6;
+    --app-surface: #ffffff;
+    --app-surface-2: #fafafa;
+    --app-surface-3: #f1f1f1;
+    --app-ink: #2f2f2f;
+    --app-muted: #6f6f6f;
+    --app-border: #d9d9d9;
+    --app-accent: #c366a8;
+    --app-accent-strong: #9d3f86;
+    --app-accent-strong-hover: #87356f;
+    --app-on-accent: #ffffff;
+    --app-accent-ink: #9d3f86;
+    --app-accent-soft: #fdf0f9;
+    --app-hero-bg: #003a70;
+    --app-hero-text: #ffffff;
+    --app-hero-muted: #d7e6f5;
+    --app-sidebar-bg: #ffffff;
+    --app-sidebar-soft: #faf5fa;
+    --app-sidebar-ink: #2f2f2f;
+    --app-sidebar-muted: #6f6f6f;
+    --app-sidebar-border: #e6e6e6;
+    --app-sidebar-active-bg: #fdf0f9;
+    --app-sidebar-active-ink: #9d3f86;
+    --app-success-bg: #dcfce7;
+    --app-success-ink: #166534;
+    --app-danger-bg: #fee2e2;
+    --app-danger-ink: #991b1b;
+    --app-warning-bg: #fef3c7;
+    --app-warning-ink: #92400e;
+    --app-info-bg: #e0f2fe;
+    --app-info-ink: #075985;
+    --app-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05);
+}
+
+html[data-theme="dark"] {
+    --app-bg: #0d1b2a;
+    --app-surface: #12263a;
+    --app-surface-2: #17304a;
+    --app-surface-3: #1d3a56;
+    --app-ink: #f5f8fb;
+    --app-muted: #a9b8c8;
+    --app-border: #28445f;
+    --app-accent: #ff99d6;
+    --app-accent-strong: #ff99d6;
+    --app-accent-strong-hover: #ffb3e2;
+    --app-on-accent: #17111f;
+    --app-accent-ink: #ff99d6;
+    --app-accent-soft: #2b1c2a;
+    --app-hero-bg: #003a70;
+    --app-hero-text: #ffffff;
+    --app-hero-muted: #bcd3e8;
+    --app-sidebar-bg: #0a1930;
+    --app-sidebar-soft: #12263a;
+    --app-sidebar-ink: #eaf2fb;
+    --app-sidebar-muted: #a9b8c8;
+    --app-sidebar-border: #1f3450;
+    --app-sidebar-active-bg: #1d3a56;
+    --app-sidebar-active-ink: #ff99d6;
+    --app-success-bg: #14301f;
+    --app-success-ink: #86efac;
+    --app-danger-bg: #3a1519;
+    --app-danger-ink: #fca5a5;
+    --app-warning-bg: #3a2a10;
+    --app-warning-ink: #fde68a;
+    --app-info-bg: #102b3a;
+    --app-info-ink: #7dd3fc;
+    --app-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.32);
+}
+
+html,
+body,
+#app {
+    min-height: 100%;
+}
+
+body {
+    background: var(--app-bg);
+    color: var(--app-ink);
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--app-ink) !important;
+}
+
+.ai-hero h1,
+.ai-hero h2,
+.assistant-hero h1,
+.assistant-hero h2,
+.settings-header h1,
+.settings-header h2,
+.loyalty-header h1,
+.loyalty-header h2,
+.management-header h1,
+.management-header h2,
+.report-header h1,
+.report-header h2,
+.branch-header h1,
+.branch-header h2,
+.ecommerce-header h1,
+.ecommerce-header h2,
+.crud-header h1,
+.crud-header h2,
+.monitor-header h1,
+.monitor-header h2,
+.dash-header h1,
+.dash-header h2,
+.voucher-header h1,
+.voucher-header h2,
+.hub-hero h1,
+.hub-hero h2 {
+    color: var(--app-hero-text) !important;
+}
+
+.card {
+    --bs-card-bg: var(--app-surface);
+    --bs-card-border-color: var(--app-border);
+    --bs-card-color: var(--app-ink);
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+.card-header,
+.card-footer {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--app-ink);
+    --bs-table-border-color: var(--app-border);
+    --bs-table-hover-bg: var(--app-surface-2);
+    --bs-table-hover-color: var(--app-ink);
+    color: var(--app-ink);
+}
+
+.table > :not(caption) > * > * {
+    border-color: var(--app-border);
+}
+
+.table-light {
+    --bs-table-bg: var(--app-surface-2);
+    --bs-table-color: var(--app-ink);
+}
+
+.form-control,
+.form-select,
+.input-group-text {
+    background-color: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+.form-control::placeholder {
+    color: var(--app-muted);
+}
+
+.form-control:focus,
+.form-select:focus {
+    background-color: var(--app-surface);
+    border-color: var(--app-accent);
+    color: var(--app-ink);
+    box-shadow: 0 0 0 0.18rem rgba(195, 102, 168, 0.22);
+}
+
+.form-check-input {
+    background-color: var(--app-surface);
+    border-color: var(--app-border);
+}
+
+.form-check-input:checked {
+    background-color: var(--app-accent);
+    border-color: var(--app-accent);
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--app-accent-strong);
+    --bs-btn-border-color: var(--app-accent-strong);
+    --bs-btn-color: var(--app-on-accent);
+    --bs-btn-hover-bg: var(--app-accent-strong-hover);
+    --bs-btn-hover-border-color: var(--app-accent-strong-hover);
+    --bs-btn-hover-color: var(--app-on-accent);
+    --bs-btn-active-bg: var(--app-accent-strong-hover);
+    --bs-btn-active-border-color: var(--app-accent-strong-hover);
+    --bs-btn-active-color: var(--app-on-accent);
+    --bs-btn-disabled-bg: var(--app-accent-strong);
+    --bs-btn-disabled-border-color: var(--app-accent-strong);
+    --bs-btn-disabled-color: var(--app-on-accent);
+    background-color: var(--app-accent-strong) !important;
+    border-color: var(--app-accent-strong) !important;
+    color: var(--app-on-accent) !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.btn-primary:disabled {
+    background-color: var(--app-accent-strong-hover) !important;
+    border-color: var(--app-accent-strong-hover) !important;
+    color: var(--app-on-accent) !important;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--app-accent-strong);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-hover-bg: var(--app-accent-soft);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-accent-strong);
+    --bs-btn-active-bg: var(--app-accent-soft);
+    --bs-btn-active-border-color: var(--app-accent);
+    --bs-btn-active-color: var(--app-accent-strong);
+    color: var(--app-accent-strong) !important;
+    border-color: var(--app-accent) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    background-color: var(--app-accent-soft) !important;
+    border-color: var(--app-accent) !important;
+    color: var(--app-accent-strong) !important;
+}
+
+.btn-light {
+    --bs-btn-bg: var(--app-surface);
+    --bs-btn-border-color: var(--app-border);
+    --bs-btn-color: var(--app-ink);
+}
+
+.text-muted,
+small.text-muted {
+    color: var(--app-muted) !important;
+}
+
+hr {
+    border-color: var(--app-border);
+    opacity: 1;
+}
+
+.dropdown-menu {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    box-shadow: var(--app-shadow);
+}
+
+.dropdown-item {
+    color: var(--app-ink);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background: var(--app-surface-2);
+    color: var(--app-ink);
+}
+
+.alert-success {
+    background: var(--app-success-bg);
+    border-color: transparent;
+    color: var(--app-success-ink);
+}
+
+.alert-danger {
+    background: var(--app-danger-bg);
+    border-color: transparent;
+    color: var(--app-danger-ink);
+}
+
+.alert-warning {
+    background: var(--app-warning-bg);
+    border-color: transparent;
+    color: var(--app-warning-ink);
+}
+
+.alert-info {
+    background: var(--app-info-bg);
+    border-color: transparent;
+    color: var(--app-info-ink);
+}
+
+html[data-theme="dark"] .table-hover > tbody > tr:hover > * {
+    --bs-table-accent-bg: rgba(244, 114, 182, 0.08);
+}
+
+html[data-theme="dark"] .bg-light {
+    background: var(--app-surface-2) !important;
+}
+
+html[data-theme="dark"] .bg-white {
+    background: var(--app-surface) !important;
+}
+
+html[data-theme="dark"] .border,
+html[data-theme="dark"] .border-top,
+html[data-theme="dark"] .border-bottom,
+html[data-theme="dark"] .border-start,
+html[data-theme="dark"] .border-end {
+    border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .list-group-item {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+html[data-theme="dark"] .modal-content {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+html[data-theme="dark"] .modal-header,
+html[data-theme="dark"] .modal-footer {
+    border-color: var(--app-border);
+}
+
+html[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(1);
+}
+
+/* Page shell overrides for Inertia pages that still declare local colors. */
+html[data-theme="dark"] .ai-page,
+html[data-theme="dark"] .assistant-page,
+html[data-theme="dark"] .settings-page,
+html[data-theme="dark"] .loyalty-page,
+html[data-theme="dark"] .management-page,
+html[data-theme="dark"] .report-page,
+html[data-theme="dark"] .branch-page,
+html[data-theme="dark"] .ecommerce-page,
+html[data-theme="dark"] .crud-page,
+html[data-theme="dark"] .hub-page,
+html[data-theme="dark"] .auth-shell {
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .ai-card,
+html[data-theme="dark"] .assistant-card,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .loyalty-card,
+html[data-theme="dark"] .management-card,
+html[data-theme="dark"] .report-card,
+html[data-theme="dark"] .branch-card,
+html[data-theme="dark"] .ecommerce-card,
+html[data-theme="dark"] .crud-card,
+html[data-theme="dark"] .hub-card,
+html[data-theme="dark"] .hub-stat,
+html[data-theme="dark"] .auth-card {
+    background: var(--app-surface) !important;
+    border-color: var(--app-border) !important;
+    box-shadow: var(--app-shadow) !important;
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .ai-card th,
+html[data-theme="dark"] .assistant-card th,
+html[data-theme="dark"] .settings-card th,
+html[data-theme="dark"] .loyalty-card th,
+html[data-theme="dark"] .management-card th,
+html[data-theme="dark"] .report-card th,
+html[data-theme="dark"] .branch-card th,
+html[data-theme="dark"] .ecommerce-card th,
+html[data-theme="dark"] .crud-card th {
+    color: var(--app-muted) !important;
+}
+
+.ai-hero,
+.assistant-hero,
+.settings-header,
+.loyalty-header,
+.management-header,
+.report-header,
+.branch-header,
+.ecommerce-header,
+.crud-header,
+.monitor-header,
+.dash-header,
+.voucher-header,
+.hub-hero {
+    background: var(--app-hero-bg) !important;
+    color: var(--app-hero-text) !important;
+}
+
+.ai-hero p,
+.assistant-hero p,
+.settings-header p,
+.loyalty-header p,
+.management-header p,
+.report-header p,
+.branch-header p,
+.ecommerce-header p,
+.crud-header p,
+.monitor-header p,
+.dash-header p,
+.voucher-header p,
+.hub-hero p {
+    color: var(--app-hero-muted) !important;
+}
+
+html[data-theme="dark"] .ai-hero,
+html[data-theme="dark"] .assistant-hero,
+html[data-theme="dark"] .settings-header,
+html[data-theme="dark"] .loyalty-header,
+html[data-theme="dark"] .management-header,
+html[data-theme="dark"] .report-header,
+html[data-theme="dark"] .branch-header,
+html[data-theme="dark"] .ecommerce-header,
+html[data-theme="dark"] .crud-header,
+html[data-theme="dark"] .monitor-header,
+html[data-theme="dark"] .dash-header,
+html[data-theme="dark"] .voucher-header,
+html[data-theme="dark"] .hub-hero {
+    background: var(--app-hero-bg) !important;
+    color: var(--app-hero-text) !important;
+}
+
+html[data-theme="dark"] .ai-hero p,
+html[data-theme="dark"] .assistant-hero p,
+html[data-theme="dark"] .settings-header p,
+html[data-theme="dark"] .loyalty-header p,
+html[data-theme="dark"] .management-header p,
+html[data-theme="dark"] .report-header p,
+html[data-theme="dark"] .branch-header p,
+html[data-theme="dark"] .ecommerce-header p,
+html[data-theme="dark"] .crud-header p,
+html[data-theme="dark"] .monitor-header p,
+html[data-theme="dark"] .dash-header p,
+html[data-theme="dark"] .voucher-header p,
+html[data-theme="dark"] .hub-hero p {
+    color: var(--app-hero-muted) !important;
+}
+
+html[data-theme="dark"] .ai-empty,
+html[data-theme="dark"] .assistant-empty,
+html[data-theme="dark"] .loyalty-empty,
+html[data-theme="dark"] .management-empty,
+html[data-theme="dark"] .report-empty,
+html[data-theme="dark"] .branch-empty,
+html[data-theme="dark"] .ecommerce-empty,
+html[data-theme="dark"] .crud-empty {
+    color: var(--app-muted) !important;
+    border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .ai-chart,
+html[data-theme="dark"] .ai-model,
+html[data-theme="dark"] .assistant-model,
+html[data-theme="dark"] .settings-summary,
+html[data-theme="dark"] .assistant-answer {
+    background: var(--app-surface-2) !important;
+    border-color: var(--app-border) !important;
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .assistant-answer-header {
+    background: var(--app-surface-3) !important;
+    color: var(--app-accent-ink) !important;
+}
+
+html[data-theme="dark"] .assistant-answer-body {
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .ai-detail,
+html[data-theme="dark"] .report-detail,
+html[data-theme="dark"] .branch-detail,
+html[data-theme="dark"] .ecommerce-detail,
+html[data-theme="dark"] .crud-edit {
+    background: var(--app-surface-2) !important;
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .ai-label,
+html[data-theme="dark"] .assistant-label,
+html[data-theme="dark"] .settings-label,
+html[data-theme="dark"] .loyalty-label,
+html[data-theme="dark"] .management-label,
+html[data-theme="dark"] .report-label,
+html[data-theme="dark"] .branch-label,
+html[data-theme="dark"] .ecommerce-label,
+html[data-theme="dark"] .crud-label,
+html[data-theme="dark"] .hub-stat span {
+    color: var(--app-muted) !important;
+}
+
+html[data-theme="dark"] .ai-value,
+html[data-theme="dark"] .assistant-value,
+html[data-theme="dark"] .settings-value,
+html[data-theme="dark"] .loyalty-value,
+html[data-theme="dark"] .management-value,
+html[data-theme="dark"] .report-value,
+html[data-theme="dark"] .branch-value,
+html[data-theme="dark"] .ecommerce-value,
+html[data-theme="dark"] .crud-value,
+html[data-theme="dark"] .hub-stat strong {
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .hub-card-icon,
+html[data-theme="dark"] .auth-mark {
+    background: var(--app-accent-soft) !important;
+    color: var(--app-accent-ink) !important;
+}
+
+html[data-theme="dark"] .auth-card h1,
+html[data-theme="dark"] .auth-brand strong {
+    color: var(--app-ink) !important;
+}
+
+html[data-theme="dark"] .auth-brand span,
+html[data-theme="dark"] .auth-description,
+html[data-theme="dark"] .auth-footer,
+html[data-theme="dark"] .auth-login-link {
+    color: var(--app-muted) !important;
+}
+
+html[data-theme="dark"] .auth-field input {
+    background: var(--app-surface);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+html[data-theme="dark"] .auth-button {
+    background: var(--app-accent);
+    color: #17111f;
+}
+
+html[data-theme="dark"] .auth-info {
+    background: var(--app-surface-2);
+    border-color: var(--app-border);
+    color: var(--app-ink);
+}
+
+/* Theme toggle */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--app-border);
+    border-radius: 0.6rem;
+    background: var(--app-surface);
+    color: var(--app-ink);
+    font-size: 1.15rem;
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.theme-toggle:hover,
+.theme-toggle:focus-visible {
+    border-color: var(--app-accent);
+    background: var(--app-surface-2);
+}

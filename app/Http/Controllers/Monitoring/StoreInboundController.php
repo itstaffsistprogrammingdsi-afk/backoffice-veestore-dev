@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -50,7 +51,10 @@ class StoreInboundController extends Controller
             ->unique()
             ->values();
 
-        return view('content.monitoring.store-inbound.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Inbound',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'rowItems' => $rows->items(),
             'summary' => $summary,
@@ -59,6 +63,9 @@ class StoreInboundController extends Controller
             'qcStatuses' => $qcStatuses,
             'qcStatusLabels' => self::QC_STATUS_LABELS,
             'filters' => $filters,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\WarehouseInboundExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -91,7 +92,10 @@ class WarehouseInboundController extends Controller
             ->unique()
             ->values();
 
-        return view('content.monitoring.warehouse-inbound.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Warehouse Inbound',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'rowItems' => $rows->items(),
             'summary' => $summary,
@@ -100,6 +104,9 @@ class WarehouseInboundController extends Controller
             'inboundTypes' => $inboundTypes,
             'inboundTypeLabels' => self::INBOUND_TYPE_LABELS,
             'filters' => $filters,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

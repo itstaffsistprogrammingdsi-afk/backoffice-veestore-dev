@@ -5,10 +5,11 @@ namespace App\Http\Controllers\MasterData;
 use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class ProductCategoryController extends Controller
@@ -26,12 +27,31 @@ class ProductCategoryController extends Controller
         $q = $this->normalizeName($request->get('q'));
 
         $categories = ProductCategory::query()
-            ->when($q !== '', fn ($query) => $query->where('name', 'ILIKE', '%' . $q . '%'))
+            ->when($q !== '', fn ($query) => $query->where('name', 'ILIKE', '%'.$q.'%'))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
 
-        return view('content.master-data.product-categories.index', compact('categories', 'q'));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Product Categories',
+            'description' => 'Kelola kategori produk dan gambar kategori.',
+            'searchPlaceholder' => 'Cari kategori...',
+            'items' => $categories,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Kategori', 'required' => true],
+                ['key' => 'image', 'label' => 'Gambar', 'type' => 'file'],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.product-categories.index'),
+                'store' => route('master-data.product-categories.store'),
+                'update' => route('master-data.product-categories.update', ['product_category' => '__ID__']),
+                'destroy' => route('master-data.product-categories.destroy', ['product_category' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -174,12 +194,12 @@ class ProductCategoryController extends Controller
                 ?: 'jpg'
         );
 
-        $fileName = (string) Str::uuid() . '.' . $extension;
+        $fileName = (string) Str::uuid().'.'.$extension;
 
         $relativeDirectory = 'uploads/product-categories';
         $absoluteDirectory = public_path($relativeDirectory);
 
-        if (!is_dir($absoluteDirectory)) {
+        if (! is_dir($absoluteDirectory)) {
             mkdir($absoluteDirectory, 0755, true);
         }
 
@@ -194,10 +214,10 @@ class ProductCategoryController extends Controller
          * http://localhost/nama-project/public/uploads/product-categories/uuid.png
          */
         return rtrim(request()->root(), '/')
-            . '/'
-            . $relativeDirectory
-            . '/'
-            . $fileName;
+            .'/'
+            .$relativeDirectory
+            .'/'
+            .$fileName;
     }
 
     private function deleteImageFromUrl(?string $imageUrl): void
@@ -208,7 +228,7 @@ class ProductCategoryController extends Controller
 
         $urlPath = parse_url($imageUrl, PHP_URL_PATH);
 
-        if (!$urlPath) {
+        if (! $urlPath) {
             return;
         }
 
@@ -221,7 +241,7 @@ class ProductCategoryController extends Controller
 
         $fileName = basename($urlPath);
         $absolutePath = public_path(
-            'uploads/product-categories/' . $fileName
+            'uploads/product-categories/'.$fileName
         );
 
         if (is_file($absolutePath)) {

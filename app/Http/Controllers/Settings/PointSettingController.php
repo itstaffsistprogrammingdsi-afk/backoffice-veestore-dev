@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Settings\UpdatePointSettingRequest;
 use App\Services\Settings;
-use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class PointSettingController extends Controller
 {
@@ -68,26 +69,16 @@ class PointSettingController extends Controller
         $data['out']['idr_per_base'] = max((float) ($data['out']['idr_per_base'] ?? 1000), 1);
         $data['out']['idr_per_point'] = $data['out']['idr_per_base'] / $data['out']['points_base'];
 
-        return view('content.settings.points', compact('data'));
+        return Inertia::render('Settings/Points', [
+            'data' => $data,
+            'updateUrl' => route('settings.points.update'),
+            'resetUrl' => route('settings.points.edit'),
+        ]);
     }
 
-    public function update(Request $request)
+    public function update(UpdatePointSettingRequest $request)
     {
-        $validated = $request->validate([
-            /*
-             * Point In:
-             * X Rupiah = Y point
-             */
-            'in_idr_base' => ['required', 'integer', 'min:1'],
-            'in_points_per_base' => ['required', 'numeric', 'gt:0'],
-
-            /*
-             * Point Out:
-             * X point = Y Rupiah
-             */
-            'out_points_base' => ['required', 'numeric', 'gt:0'],
-            'out_idr_per_base' => ['required', 'numeric', 'min:1'],
-        ]);
+        $validated = $request->validated();
 
         $inIdrBase = (int) $validated['in_idr_base'];
         $inPointsPerBase = (float) $validated['in_points_per_base'];

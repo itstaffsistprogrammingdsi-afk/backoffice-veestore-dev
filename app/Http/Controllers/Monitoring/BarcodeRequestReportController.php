@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\BarcodeRequestReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -46,7 +47,10 @@ class BarcodeRequestReportController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        return view('content.monitoring.barcode-request-report.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Barcode Request Report',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'frequentRequesters' => $frequentRequesters,
@@ -65,6 +69,9 @@ class BarcodeRequestReportController extends Controller
             'stores' => $stores,
             'users' => $users,
             'statuses' => $statuses,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

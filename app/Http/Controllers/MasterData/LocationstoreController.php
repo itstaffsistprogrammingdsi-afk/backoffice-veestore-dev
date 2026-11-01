@@ -4,21 +4,22 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
-use App\Models\Warehouse;
 use App\Models\Store;
+use App\Models\Warehouse;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
-use Illuminate\Database\QueryException;
-use Illuminate\Validation\ValidationException;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class LocationstoreController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view master-data-locations-store')->only(['index','treeData','qr']);
+        $this->middleware('permission:view master-data-locations-store')->only(['index', 'treeData', 'qr']);
         $this->middleware('permission:create master-data-locations-store')->only(['store']);
         $this->middleware('permission:update master-data-locations-store')->only(['update']);
         $this->middleware('permission:delete master-data-locations-store')->only(['destroy']);
@@ -26,221 +27,244 @@ class LocationstoreController extends Controller
 
     public function index(Request $request)
     {
-        $q    = trim((string) $request->get('q', ''));
+        $q = trim((string) $request->get('q', ''));
         $type = $request->get('type');
 
-        $rawParents = Location::select('id','name','type','location_parent_id')
+        $locations = Location::query()
+            ->with('parent:id,name')
+            ->where('type', '!=', 'warehouse')
+            ->when($q !== '', fn ($query) => $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'ILIKE', "%{$q}%")->orWhere('code', 'ILIKE', "%{$q}%");
+            }))
+            ->when($type, fn ($query) => $query->where('type', $type))
+            ->orderBy('name')
+            ->paginate(10)
+            ->withQueryString();
+
+        $types = ['store', 'room', 'store_display', 'rack', 'staging', 'layer'];
+        $stores = Store::select('id', 'name')->orderBy('name')->get();
+        $warehouses = Warehouse::select('id', 'name')->orderBy('name')->get();
+        $parentOptions = Location::select('id', 'name')->orderBy('name')->get();
+
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Location Store',
+            'description' => 'Kelola lokasi toko.',
+            'searchPlaceholder' => 'Cari lokasi...',
+            'items' => $locations,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'code', 'label' => 'Kode'],
+                ['key' => 'type', 'label' => 'Tipe'],
+                ['key' => 'parent.name', 'label' => 'Parent'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Lokasi', 'required' => true],
+                ['key' => 'code', 'label' => 'Kode', 'required' => true],
+                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'required' => true, 'options' => collect($types)->map(fn ($type) => ['value' => $type, 'label' => $type])->values()->all()],
+                ['key' => 'location_parent_id', 'label' => 'Parent', 'type' => 'select', 'options' => $parentOptions->map(fn ($location) => ['value' => $location->id, 'label' => $location->name])->values()->all()],
+                ['key' => 'store_id', 'label' => 'Store', 'type' => 'select', 'options' => $stores->map(fn ($store) => ['value' => $store->id, 'label' => $store->name])->values()->all()],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.locations-store.index'),
+                'store' => route('master-data.locations-store.store'),
+                'update' => route('master-data.locations-store.update', ['location' => '__ID__']),
+                'destroy' => route('master-data.locations-store.destroy', ['location' => '__ID__']),
+            ],
+        ]);
+    }
+
+    public function treeData(Request $request)
+    {
+        $q = trim((string) $request->get('q', ''));
+        $type = $request->get('type');
+
+        $all = Location::select('id', 'name', 'code', 'type', 'location_parent_id')
             ->orderByRaw($this->orderByTypeCase())
             ->orderBy('name')
             ->get();
 
-        $byId = $rawParents->map(fn($x) => [
+        $byId = $all->map(fn ($x) => [
             'id' => $x->id,
             'name' => $x->name,
+            'code' => $x->code,
             'type' => $x->type,
             'location_parent_id' => $x->location_parent_id,
         ])->keyBy('id')->toArray();
 
-        $withOwner = $rawParents->map(function ($x) use ($byId) {
-            $owner = $this->findOwnerRootFromMap($byId, $x->id);
-            $x->owner_root_id   = $owner['id']   ?? null;
-            $x->owner_root_type = $owner['type'] ?? null;
-            return $x;
-        });
+        $childrenMap = $all->groupBy('location_parent_id');
 
-        // Hanya hirarki STORE
-        $allParents = $withOwner->filter(function ($x) {
-            if ($x->type === 'warehouse') return false;
-            if (($x->owner_root_type ?? null) === 'warehouse') return false;
-            return true;
-        })->values();
+        /*
+         * Ambil nama Store dari pivot store_locations.
+         * Karena child location juga di-attach ke store_locations lewat attachPivotToTopOwner(),
+         * maka store_name bisa langsung diambil dari location_id masing-masing.
+         */
+        $storeLocationMap = DB::table('store_locations as sl')
+            ->join('stores as s', 's.id', '=', 'sl.store_id')
+            ->select(
+                'sl.location_id',
+                'sl.store_id',
+                's.name as store_name'
+            )
+            ->get()
+            ->keyBy('location_id');
 
-        $types = ['store','room','store_display','rack','staging','layer'];
+        $ownerOf = function (?string $id) use ($byId) {
+            while ($id && isset($byId[$id])) {
+                $n = $byId[$id];
+                if (in_array($n['type'], ['warehouse', 'store'], true)) {
+                    return $n;
+                }
+                $id = $n['location_parent_id'];
+            }
 
-        $warehouses = Warehouse::select('id','name')->orderBy('name')->get(); // disembunyikan di blade
-        $stores     = Store::select('id','name')->orderBy('name')->get();
+            return null;
+        };
 
-        return view(
-            'content.master-data.locations store.index',
-            compact('q','types','type','allParents','warehouses','stores')
-        );
-    }
-
-    public function treeData(Request $request)
-{
-    $q    = trim((string) $request->get('q', ''));
-    $type = $request->get('type');
-
-    $all = Location::select('id','name','code','type','location_parent_id')
-        ->orderByRaw($this->orderByTypeCase())
-        ->orderBy('name')
-        ->get();
-
-    $byId = $all->map(fn($x) => [
-        'id' => $x->id,
-        'name' => $x->name,
-        'code' => $x->code,
-        'type' => $x->type,
-        'location_parent_id' => $x->location_parent_id,
-    ])->keyBy('id')->toArray();
-
-    $childrenMap = $all->groupBy('location_parent_id');
-
-    /*
-     * Ambil nama Store dari pivot store_locations.
-     * Karena child location juga di-attach ke store_locations lewat attachPivotToTopOwner(),
-     * maka store_name bisa langsung diambil dari location_id masing-masing.
-     */
-    $storeLocationMap = DB::table('store_locations as sl')
-        ->join('stores as s', 's.id', '=', 'sl.store_id')
-        ->select(
-            'sl.location_id',
-            'sl.store_id',
-            's.name as store_name'
-        )
-        ->get()
-        ->keyBy('location_id');
-
-    $ownerOf = function (?string $id) use ($byId) {
-        while ($id && isset($byId[$id])) {
-            $n = $byId[$id];
-            if (in_array($n['type'], ['warehouse','store'], true)) return $n;
-            $id = $n['location_parent_id'];
-        }
-        return null;
-    };
-
-    $storeMetaOf = function (?string $locationId) use ($storeLocationMap, $ownerOf) {
-        if (!$locationId) {
-            return [
-                'store_id' => null,
-                'store_name' => null,
-            ];
-        }
-
-        $direct = $storeLocationMap->get($locationId);
-        if ($direct) {
-            return [
-                'store_id' => $direct->store_id,
-                'store_name' => $direct->store_name,
-            ];
-        }
-
-        $owner = $ownerOf($locationId);
-        if ($owner && ($owner['type'] ?? null) === 'store') {
-            $ownerStore = $storeLocationMap->get($owner['id']);
-
-            if ($ownerStore) {
+        $storeMetaOf = function (?string $locationId) use ($storeLocationMap, $ownerOf) {
+            if (! $locationId) {
                 return [
-                    'store_id' => $ownerStore->store_id,
-                    'store_name' => $ownerStore->store_name,
+                    'store_id' => null,
+                    'store_name' => null,
+                ];
+            }
+
+            $direct = $storeLocationMap->get($locationId);
+            if ($direct) {
+                return [
+                    'store_id' => $direct->store_id,
+                    'store_name' => $direct->store_name,
+                ];
+            }
+
+            $owner = $ownerOf($locationId);
+            if ($owner && ($owner['type'] ?? null) === 'store') {
+                $ownerStore = $storeLocationMap->get($owner['id']);
+
+                if ($ownerStore) {
+                    return [
+                        'store_id' => $ownerStore->store_id,
+                        'store_name' => $ownerStore->store_name,
+                    ];
+                }
+
+                return [
+                    'store_id' => null,
+                    'store_name' => $owner['name'] ?? null,
                 ];
             }
 
             return [
                 'store_id' => null,
-                'store_name' => $owner['name'] ?? null,
+                'store_name' => null,
             ];
-        }
+        };
 
-        return [
-            'store_id' => null,
-            'store_name' => null,
-        ];
-    };
+        $matchedIds = $all->filter(function ($loc) use ($q, $type, $ownerOf, $storeMetaOf) {
+            $ok = true;
 
-    $matchedIds = $all->filter(function ($loc) use ($q, $type, $ownerOf, $storeMetaOf) {
-        $ok = true;
+            if ($q !== '') {
+                $qLower = mb_strtolower($q);
+                $storeMeta = $storeMetaOf($loc->id);
+                $storeName = $storeMeta['store_name'] ?? '';
 
-        if ($q !== '') {
-            $qLower = mb_strtolower($q);
-            $storeMeta = $storeMetaOf($loc->id);
-            $storeName = $storeMeta['store_name'] ?? '';
-
-            $ok = (mb_stripos(mb_strtolower($loc->name), $qLower) !== false)
-               || (mb_stripos(mb_strtolower($loc->code), $qLower) !== false)
-               || (mb_stripos(mb_strtolower($storeName), $qLower) !== false);
-        }
-
-        if ($ok && $type) {
-            $ok = $loc->type === $type;
-        }
-
-        if (!$ok) return false;
-
-        if ($loc->type === 'store') return true;
-
-        $owner = $ownerOf($loc->id);
-        return $owner && ($owner['type'] === 'store');
-    })->pluck('id')->flip();
-
-    $shouldInclude = function ($id) use (&$shouldInclude, $matchedIds, $childrenMap, $ownerOf) {
-        $owner = $ownerOf($id);
-        if (!$owner || $owner['type'] !== 'store') return false;
-
-        if (isset($matchedIds[$id])) return true;
-
-        foreach ($childrenMap->get($id, []) as $child) {
-            if ($shouldInclude($child->id)) return true;
-        }
-
-        return false;
-    };
-
-    $buildTree = function ($parentId) use (&$buildTree, $childrenMap, $shouldInclude, $ownerOf, $storeMetaOf) {
-        $nodes = [];
-
-        foreach ($childrenMap->get($parentId, []) as $loc) {
-            if (!$shouldInclude($loc->id)) continue;
-
-            $owner = $ownerOf($loc->id);
-            $storeMeta = $storeMetaOf($loc->id);
-
-            $node = [
-                'id'                 => $loc->id,
-                'name'               => $loc->name,
-                'code'               => $loc->code,
-                'type'               => $loc->type,
-                'location_parent_id' => $loc->location_parent_id,
-                'owner_root_id'      => $owner['id']   ?? null,
-                'owner_root_type'    => $owner['type'] ?? null,
-
-                // Tambahan untuk kolom Store di halaman index
-                'store_id'           => $storeMeta['store_id'] ?? null,
-                'store_name'         => $storeMeta['store_name'] ?? null,
-            ];
-
-            $children = $buildTree($loc->id);
-            if (!empty($children)) {
-                $node['_children'] = $children;
+                $ok = (mb_stripos(mb_strtolower($loc->name), $qLower) !== false)
+                   || (mb_stripos(mb_strtolower($loc->code), $qLower) !== false)
+                   || (mb_stripos(mb_strtolower($storeName), $qLower) !== false);
             }
 
-            $nodes[] = $node;
-        }
+            if ($ok && $type) {
+                $ok = $loc->type === $type;
+            }
 
-        return $nodes;
-    };
+            if (! $ok) {
+                return false;
+            }
 
-    return response()->json($buildTree(null));
-}
+            if ($loc->type === 'store') {
+                return true;
+            }
+
+            $owner = $ownerOf($loc->id);
+
+            return $owner && ($owner['type'] === 'store');
+        })->pluck('id')->flip();
+
+        $shouldInclude = function ($id) use (&$shouldInclude, $matchedIds, $childrenMap, $ownerOf) {
+            $owner = $ownerOf($id);
+            if (! $owner || $owner['type'] !== 'store') {
+                return false;
+            }
+
+            if (isset($matchedIds[$id])) {
+                return true;
+            }
+
+            foreach ($childrenMap->get($id, []) as $child) {
+                if ($shouldInclude($child->id)) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        $buildTree = function ($parentId) use (&$buildTree, $childrenMap, $shouldInclude, $ownerOf, $storeMetaOf) {
+            $nodes = [];
+
+            foreach ($childrenMap->get($parentId, []) as $loc) {
+                if (! $shouldInclude($loc->id)) {
+                    continue;
+                }
+
+                $owner = $ownerOf($loc->id);
+                $storeMeta = $storeMetaOf($loc->id);
+
+                $node = [
+                    'id' => $loc->id,
+                    'name' => $loc->name,
+                    'code' => $loc->code,
+                    'type' => $loc->type,
+                    'location_parent_id' => $loc->location_parent_id,
+                    'owner_root_id' => $owner['id'] ?? null,
+                    'owner_root_type' => $owner['type'] ?? null,
+
+                    // Tambahan untuk kolom Store di halaman index
+                    'store_id' => $storeMeta['store_id'] ?? null,
+                    'store_name' => $storeMeta['store_name'] ?? null,
+                ];
+
+                $children = $buildTree($loc->id);
+                if (! empty($children)) {
+                    $node['_children'] = $children;
+                }
+
+                $nodes[] = $node;
+            }
+
+            return $nodes;
+        };
+
+        return response()->json($buildTree(null));
+    }
 
     public function store(Request $request)
     {
         $formFrom = $request->input('_form', 'create');
 
         $data = $request->validate([
-            'name'               => 'required|string|max:255',
-            'code'               => 'required|string|max:100',
-            'type'               => 'required|in:store,room,store_display,rack,staging,layer',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:100',
+            'type' => 'required|in:store,room,store_display,rack,staging,layer',
             'location_parent_id' => 'nullable|uuid|exists:locations,id',
-            'warehouse_id'       => ['nullable','uuid','exists:warehouses,id'],
-            'store_id'           => [
+            'warehouse_id' => ['nullable', 'uuid', 'exists:warehouses,id'],
+            'store_id' => [
                 'nullable',
                 'uuid',
                 'exists:stores,id',
-                Rule::requiredIf(fn() => $request->type === 'store'),
+                Rule::requiredIf(fn () => $request->type === 'store'),
             ],
-            '_form'              => 'nullable|in:create,quick_add',
+            '_form' => 'nullable|in:create,quick_add',
         ]);
 
         $this->enforceParentRules($data['type'], $data['location_parent_id'] ?? null);
@@ -253,7 +277,7 @@ class LocationstoreController extends Controller
                     $data['store_id'] ?? null
                 );
 
-                if (!$storeId) {
+                if (! $storeId) {
                     throw ValidationException::withMessages([
                         'store_id' => 'Store tujuan tidak dapat ditemukan.',
                     ]);
@@ -272,16 +296,16 @@ class LocationstoreController extends Controller
                 $this->enforceScopedUnique($scope, $data['type'], 'code', $data['code']);
 
                 $location = Location::create([
-                    'name'               => $data['name'],
-                    'code'               => $data['code'],
-                    'type'               => $data['type'],
+                    'name' => $data['name'],
+                    'code' => $data['code'],
+                    'type' => $data['type'],
                     'location_parent_id' => $data['location_parent_id'] ?? null,
                 ]);
 
                 if ($data['type'] === 'store') {
                     DB::table('store_locations')->insert([
                         'location_id' => $location->id,
-                        'store_id'    => $data['store_id'],
+                        'store_id' => $data['store_id'],
                     ]);
                 }
 
@@ -307,19 +331,19 @@ class LocationstoreController extends Controller
     public function update(Request $request, Location $location)
     {
         $data = $request->validate([
-            'name'               => 'required|string|max:255',
-            'code'               => 'required|string|max:100',
-            'type'               => 'required|in:store,room,store_display,rack,staging,layer',
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:100',
+            'type' => 'required|in:store,room,store_display,rack,staging,layer',
             'location_parent_id' => 'nullable|uuid|exists:locations,id|not_in:'.$location->id,
-            'warehouse_id'       => ['nullable','uuid','exists:warehouses,id'],
-            'store_id'           => [
+            'warehouse_id' => ['nullable', 'uuid', 'exists:warehouses,id'],
+            'store_id' => [
                 'nullable',
                 'uuid',
                 'exists:stores,id',
-                Rule::requiredIf(fn() => $request->type === 'store'),
+                Rule::requiredIf(fn () => $request->type === 'store'),
             ],
-            '_form'              => 'nullable|in:edit',
-            'id'                 => ['nullable','uuid', Rule::in([$location->id])],
+            '_form' => 'nullable|in:edit',
+            'id' => ['nullable', 'uuid', Rule::in([$location->id])],
         ]);
 
         $this->enforceParentRules($data['type'], $data['location_parent_id'] ?? null);
@@ -332,7 +356,7 @@ class LocationstoreController extends Controller
                     $data['store_id'] ?? null
                 );
 
-                if (!$storeId) {
+                if (! $storeId) {
                     throw ValidationException::withMessages([
                         'store_id' => 'Store tujuan tidak dapat ditemukan.',
                     ]);
@@ -356,9 +380,9 @@ class LocationstoreController extends Controller
                     ->firstOrFail();
 
                 $lockedLocation->update([
-                    'name'               => $data['name'],
-                    'code'               => $data['code'],
-                    'type'               => $data['type'],
+                    'name' => $data['name'],
+                    'code' => $data['code'],
+                    'type' => $data['type'],
                     'location_parent_id' => $data['location_parent_id'] ?? null,
                 ]);
 
@@ -409,7 +433,7 @@ class LocationstoreController extends Controller
 
     public function qr(Location $location)
     {
-        if (in_array($location->type, ['warehouse','store'], true)) {
+        if (in_array($location->type, ['warehouse', 'store'], true)) {
             abort(404, 'QR tidak tersedia untuk tipe store/warehouse.');
         }
 
@@ -417,13 +441,13 @@ class LocationstoreController extends Controller
             ->where('location_id', $location->id)
             ->value('value');
 
-        if (!$value) {
+        if (! $value) {
             $value = (string) Str::uuid();
             DB::table('location_rfid_tags')->insert([
-                'value'       => $value,
+                'value' => $value,
                 'location_id' => $location->id,
-                'created_at'  => now(),
-                'updated_at'  => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         } else {
             DB::table('location_rfid_tags')
@@ -432,6 +456,7 @@ class LocationstoreController extends Controller
         }
 
         $svg = QrCode::format('svg')->size(260)->margin(1)->generate($value);
+
         return response($svg, 200, ['Content-Type' => 'image/svg+xml']);
     }
 
@@ -470,35 +495,58 @@ class LocationstoreController extends Controller
         $type = strtolower($type);
 
         if ($type === 'store') {
-            if (!empty($parentId)) abort(422, 'Parent harus kosong untuk tipe Store.');
+            if (! empty($parentId)) {
+                abort(422, 'Parent harus kosong untuk tipe Store.');
+            }
+
             return;
         }
 
         if ($type === 'room') {
-            if (empty($parentId)) abort(422, 'Parent STORE wajib diisi untuk tipe Room.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || $p->type !== 'store') abort(422, 'Parent untuk Room harus STORE.');
+            if (empty($parentId)) {
+                abort(422, 'Parent STORE wajib diisi untuk tipe Room.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || $p->type !== 'store') {
+                abort(422, 'Parent untuk Room harus STORE.');
+            }
+
             return;
         }
 
         if ($type === 'store_display') {
-            if (empty($parentId)) abort(422, 'Parent STORE wajib diisi untuk tipe Store Display.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || $p->type !== 'store') abort(422, 'Parent untuk Store Display harus STORE.');
+            if (empty($parentId)) {
+                abort(422, 'Parent STORE wajib diisi untuk tipe Store Display.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || $p->type !== 'store') {
+                abort(422, 'Parent untuk Store Display harus STORE.');
+            }
+
             return;
         }
 
         if ($type === 'rack' || $type === 'staging') {
-            if (empty($parentId)) abort(422, 'Parent ROOM/STORE DISPLAY wajib diisi.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || !in_array($p->type, ['room','store_display'], true)) abort(422, 'Parent harus ROOM atau STORE DISPLAY.');
+            if (empty($parentId)) {
+                abort(422, 'Parent ROOM/STORE DISPLAY wajib diisi.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || ! in_array($p->type, ['room', 'store_display'], true)) {
+                abort(422, 'Parent harus ROOM atau STORE DISPLAY.');
+            }
+
             return;
         }
 
         if ($type === 'layer') {
-            if (empty($parentId)) abort(422, 'Parent RACK/STAGING wajib diisi.');
-            $p = Location::select('id','type')->find($parentId);
-            if (!$p || !in_array($p->type, ['rack','staging'], true)) abort(422, 'Parent untuk Layer harus RACK atau STAGING.');
+            if (empty($parentId)) {
+                abort(422, 'Parent RACK/STAGING wajib diisi.');
+            }
+            $p = Location::select('id', 'type')->find($parentId);
+            if (! $p || ! in_array($p->type, ['rack', 'staging'], true)) {
+                abort(422, 'Parent untuk Layer harus RACK atau STAGING.');
+            }
+
             return;
         }
     }
@@ -509,7 +557,7 @@ class LocationstoreController extends Controller
     {
         $owner = $this->findAncestorByTypes($parentId, ['store']);
 
-        if (!$owner) {
+        if (! $owner) {
             return null;
         }
 
@@ -538,7 +586,7 @@ class LocationstoreController extends Controller
         $type = strtolower($type);
 
         if (in_array($type, ['rack', 'staging', 'layer'], true)) {
-            if (!$parentId) {
+            if (! $parentId) {
                 throw ValidationException::withMessages([
                     'location_parent_id' => 'Parent lokasi wajib diisi.',
                 ]);
@@ -557,7 +605,7 @@ class LocationstoreController extends Controller
         string $value,
         ?string $ignoreId = null
     ): void {
-        if (!in_array($field, ['name', 'code'], true)) {
+        if (! in_array($field, ['name', 'code'], true)) {
             throw new \InvalidArgumentException('Field unik tidak didukung.');
         }
 
@@ -584,7 +632,7 @@ class LocationstoreController extends Controller
             $query->where('l.id', '!=', $ignoreId);
         }
 
-        if (!$query->exists()) {
+        if (! $query->exists()) {
             return;
         }
 
@@ -635,13 +683,13 @@ class LocationstoreController extends Controller
     private function locationTypeLabel(string $type): string
     {
         return match (strtolower($type)) {
-            'store'         => 'Store',
-            'room'          => 'Room',
+            'store' => 'Store',
+            'room' => 'Room',
             'store_display' => 'Store Display',
-            'rack'          => 'Rack',
-            'staging'       => 'Staging',
-            'layer'         => 'Layer',
-            default         => ucfirst($type),
+            'rack' => 'Rack',
+            'staging' => 'Staging',
+            'layer' => 'Layer',
+            default => ucfirst($type),
         };
     }
 
@@ -662,36 +710,46 @@ class LocationstoreController extends Controller
     {
         while ($id && isset($byId[$id])) {
             $n = $byId[$id];
-            if (in_array($n['type'], ['warehouse','store'], true)) {
+            if (in_array($n['type'], ['warehouse', 'store'], true)) {
                 return $n;
             }
             $id = $n['location_parent_id'];
         }
+
         return null;
     }
 
     private function findAncestorByTypes(?string $parentId, array $types): ?Location
     {
-        if (!$parentId) return null;
+        if (! $parentId) {
+            return null;
+        }
         $wanted = array_map('strtolower', $types);
 
         while ($parentId) {
-            $p = Location::select('id','type','location_parent_id')->find($parentId);
-            if (!$p) return null;
-            if (in_array(strtolower($p->type), $wanted, true)) return $p;
+            $p = Location::select('id', 'type', 'location_parent_id')->find($parentId);
+            if (! $p) {
+                return null;
+            }
+            if (in_array(strtolower($p->type), $wanted, true)) {
+                return $p;
+            }
             $parentId = $p->location_parent_id;
         }
+
         return null;
     }
 
     private function attachPivotToTopOwner(Location $loc): void
     {
-        if (!in_array($loc->type, ['room','store_display','rack','staging','layer'], true)) {
+        if (! in_array($loc->type, ['room', 'store_display', 'rack', 'staging', 'layer'], true)) {
             return;
         }
 
-        $owner = $this->findAncestorByTypes($loc->location_parent_id, ['warehouse','store']);
-        if (!$owner) return;
+        $owner = $this->findAncestorByTypes($loc->location_parent_id, ['warehouse', 'store']);
+        if (! $owner) {
+            return;
+        }
 
         DB::table('warehouse_locations')->where('location_id', $loc->id)->delete();
         DB::table('store_locations')->where('location_id', $loc->id)->delete();
@@ -700,7 +758,7 @@ class LocationstoreController extends Controller
             $wid = DB::table('warehouse_locations')->where('location_id', $owner->id)->value('warehouse_id');
             if ($wid) {
                 DB::table('warehouse_locations')->insert([
-                    'location_id'  => $loc->id,
+                    'location_id' => $loc->id,
                     'warehouse_id' => $wid,
                 ]);
             }
@@ -709,7 +767,7 @@ class LocationstoreController extends Controller
             if ($sid) {
                 DB::table('store_locations')->insert([
                     'location_id' => $loc->id,
-                    'store_id'    => $sid,
+                    'store_id' => $sid,
                 ]);
             }
         }
@@ -717,16 +775,16 @@ class LocationstoreController extends Controller
 
     private function syncRfidTag(Location $loc): void
     {
-        $needsTag = in_array($loc->type, ['staging','layer'], true);
+        $needsTag = in_array($loc->type, ['staging', 'layer'], true);
 
         if ($needsTag) {
             $exists = DB::table('location_rfid_tags')->where('location_id', $loc->id)->exists();
-            if (!$exists) {
+            if (! $exists) {
                 DB::table('location_rfid_tags')->insert([
-                    'value'       => DB::raw('gen_random_uuid()'),
+                    'value' => DB::raw('gen_random_uuid()'),
                     'location_id' => $loc->id,
-                    'created_at'  => now(),
-                    'updated_at'  => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             } else {
                 DB::table('location_rfid_tags')
@@ -739,152 +797,152 @@ class LocationstoreController extends Controller
     }
 
     private function getDescendantLocationIds(string $rootId): array
-{
-    $ids = [];
-    $parents = [$rootId];
+    {
+        $ids = [];
+        $parents = [$rootId];
 
-    while (!empty($parents)) {
-        $children = Location::query()
-            ->whereIn('location_parent_id', $parents)
-            ->pluck('id')
-            ->all();
+        while (! empty($parents)) {
+            $children = Location::query()
+                ->whereIn('location_parent_id', $parents)
+                ->pluck('id')
+                ->all();
 
-        if (empty($children)) {
-            break;
+            if (empty($children)) {
+                break;
+            }
+
+            foreach ($children as $childId) {
+                $ids[] = $childId;
+            }
+
+            $parents = $children;
         }
 
-        foreach ($children as $childId) {
-            $ids[] = $childId;
-        }
-
-        $parents = $children;
+        return array_values(array_unique($ids));
     }
 
-    return array_values(array_unique($ids));
-}
+    private function syncStorePivotToSubtree(Location $root, string $storeId): void
+    {
+        $locationIds = array_merge(
+            [$root->id],
+            $this->getDescendantLocationIds($root->id)
+        );
 
-private function syncStorePivotToSubtree(Location $root, string $storeId): void
-{
-    $locationIds = array_merge(
-        [$root->id],
-        $this->getDescendantLocationIds($root->id)
-    );
-
-    if (empty($locationIds)) {
-        return;
-    }
-
-    DB::table('warehouse_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
-
-    DB::table('store_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
-
-    $rows = [];
-
-    foreach ($locationIds as $locationId) {
-        $rows[] = [
-            'location_id' => $locationId,
-            'store_id'    => $storeId,
-        ];
-    }
-
-    foreach (array_chunk($rows, 500) as $chunk) {
-        DB::table('store_locations')->insert($chunk);
-    }
-}
-
-private function syncCurrentOwnerPivotToSubtree(Location $root): void
-{
-    $locationIds = array_merge(
-        [$root->id],
-        $this->getDescendantLocationIds($root->id)
-    );
-
-    if (empty($locationIds)) {
-        return;
-    }
-
-    $owner = $root->type === 'store'
-        ? $root
-        : $this->findAncestorByTypes($root->location_parent_id, ['warehouse', 'store']);
-
-    if (!$owner) {
-        return;
-    }
-
-    DB::table('warehouse_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
-
-    DB::table('store_locations')
-        ->whereIn('location_id', $locationIds)
-        ->delete();
-
-    if ($owner->type === 'store') {
-        $storeId = DB::table('store_locations')
-            ->where('location_id', $owner->id)
-            ->value('store_id');
-
-        if (!$storeId) {
+        if (empty($locationIds)) {
             return;
         }
+
+        DB::table('warehouse_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
+
+        DB::table('store_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
 
         $rows = [];
 
         foreach ($locationIds as $locationId) {
             $rows[] = [
                 'location_id' => $locationId,
-                'store_id'    => $storeId,
+                'store_id' => $storeId,
             ];
         }
 
         foreach (array_chunk($rows, 500) as $chunk) {
             DB::table('store_locations')->insert($chunk);
         }
-
-        return;
     }
 
-    if ($owner->type === 'warehouse') {
-        $warehouseId = DB::table('warehouse_locations')
-            ->where('location_id', $owner->id)
-            ->value('warehouse_id');
+    private function syncCurrentOwnerPivotToSubtree(Location $root): void
+    {
+        $locationIds = array_merge(
+            [$root->id],
+            $this->getDescendantLocationIds($root->id)
+        );
 
-        if (!$warehouseId) {
+        if (empty($locationIds)) {
             return;
         }
 
-        $rows = [];
+        $owner = $root->type === 'store'
+            ? $root
+            : $this->findAncestorByTypes($root->location_parent_id, ['warehouse', 'store']);
 
-        foreach ($locationIds as $locationId) {
-            $rows[] = [
-                'location_id'  => $locationId,
-                'warehouse_id' => $warehouseId,
-            ];
+        if (! $owner) {
+            return;
         }
 
-        foreach (array_chunk($rows, 500) as $chunk) {
-            DB::table('warehouse_locations')->insert($chunk);
+        DB::table('warehouse_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
+
+        DB::table('store_locations')
+            ->whereIn('location_id', $locationIds)
+            ->delete();
+
+        if ($owner->type === 'store') {
+            $storeId = DB::table('store_locations')
+                ->where('location_id', $owner->id)
+                ->value('store_id');
+
+            if (! $storeId) {
+                return;
+            }
+
+            $rows = [];
+
+            foreach ($locationIds as $locationId) {
+                $rows[] = [
+                    'location_id' => $locationId,
+                    'store_id' => $storeId,
+                ];
+            }
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                DB::table('store_locations')->insert($chunk);
+            }
+
+            return;
+        }
+
+        if ($owner->type === 'warehouse') {
+            $warehouseId = DB::table('warehouse_locations')
+                ->where('location_id', $owner->id)
+                ->value('warehouse_id');
+
+            if (! $warehouseId) {
+                return;
+            }
+
+            $rows = [];
+
+            foreach ($locationIds as $locationId) {
+                $rows[] = [
+                    'location_id' => $locationId,
+                    'warehouse_id' => $warehouseId,
+                ];
+            }
+
+            foreach (array_chunk($rows, 500) as $chunk) {
+                DB::table('warehouse_locations')->insert($chunk);
+            }
         }
     }
-}
 
-private function syncRfidTagToSubtree(Location $root): void
-{
-    $locationIds = array_merge(
-        [$root->id],
-        $this->getDescendantLocationIds($root->id)
-    );
+    private function syncRfidTagToSubtree(Location $root): void
+    {
+        $locationIds = array_merge(
+            [$root->id],
+            $this->getDescendantLocationIds($root->id)
+        );
 
-    $locations = Location::query()
-        ->whereIn('id', $locationIds)
-        ->get();
+        $locations = Location::query()
+            ->whereIn('id', $locationIds)
+            ->get();
 
-    foreach ($locations as $loc) {
-        $this->syncRfidTag($loc);
+        foreach ($locations as $loc) {
+            $this->syncRfidTag($loc);
+        }
     }
-}
 }

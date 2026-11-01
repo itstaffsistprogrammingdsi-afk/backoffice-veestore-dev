@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\VoidCancelCustomerReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -300,7 +301,10 @@ class VoidCancelCustomerReportController extends Controller
             return (float) ($row->total_voided_amount ?? 0);
         })->values();
 
-        return view('content.monitoring.void-cancel-customer.index', compact(
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Void Cancel Customer',
+            'description' => 'Laporan monitoring.',
+            'data' => compact(
             'rows',
             'detailItems',
             'q',
@@ -330,7 +334,10 @@ class VoidCancelCustomerReportController extends Controller
             'voidCashierLabels',
             'voidCashierCounts',
             'voidCashierAmounts'
-        ));
+        ),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     private function buildBaseQuery(

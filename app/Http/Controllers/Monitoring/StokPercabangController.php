@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\StokPercabangExport;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
@@ -30,10 +31,16 @@ class StokPercabangController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        return view('content.monitoring.stok-percabang.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Stok Percabang',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'    => $rows,
             'stores'  => $stores,
             'filters' => $filters,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

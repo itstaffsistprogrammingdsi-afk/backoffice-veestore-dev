@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\EmployeeShiftAttendanceExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -368,7 +369,10 @@ class EmployeeShiftAttendanceController extends Controller
             ->map(fn ($row) => (int) ($row->total_overtime ?? 0))
             ->values();
 
-        return view('content.monitoring.employee-shift-attendance.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Employee Shift Attendance',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'summary' => $summary,
             'stores' => $stores,
@@ -402,6 +406,9 @@ class EmployeeShiftAttendanceController extends Controller
             'employeeLabels' => $employeeLabels,
             'employeeLates' => $employeeLates,
             'employeeOvertimes' => $employeeOvertimes,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 
 class Analytics extends Controller
 {
@@ -18,7 +19,7 @@ class Analytics extends Controller
         $filters = $this->filters($request);
 
         $fromTs = Carbon::parse($filters['from'])->startOfDay()->toDateTimeString();
-        $toTs   = Carbon::parse($filters['to'])->endOfDay()->toDateTimeString();
+        $toTs = Carbon::parse($filters['to'])->endOfDay()->toDateTimeString();
 
         $paidStatuses = [
             'paid',
@@ -35,14 +36,6 @@ class Analytics extends Controller
         $stores = $this->activeStores();
         $warehouses = $this->activeWarehouses();
 
-        $storesCount = $stores->count();
-        $warehousesCount = $warehouses->count();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Sales / Order Analytics
-        |--------------------------------------------------------------------------
-        */
         $ordersAll = $this->ordersUnionQuery($fromTs, $toTs, $filters);
 
         $salesSummary = (clone $ordersAll)
@@ -61,21 +54,7 @@ class Analytics extends Controller
         $orderCount = (int) ($salesSummary->order_count ?? 0);
         $gmv = (float) ($salesSummary->gmv ?? 0);
         $aov = $orderCount > 0 ? round($gmv / $orderCount, 2) : 0;
-
-        $ordersDaily = (clone $ordersAll)
-            ->whereIn('x.status', $paidStatuses)
-            ->selectRaw("
-                x.d AS day,
-                COUNT(*)::int AS orders,
-                COALESCE(SUM(x.grand_total), 0)::numeric AS gmv,
-                COUNT(*) FILTER (WHERE x.channel = 'store')::int AS store_orders,
-                COUNT(*) FILTER (WHERE x.channel = 'ecommerce')::int AS ecommerce_orders,
-                COALESCE(SUM(x.grand_total) FILTER (WHERE x.channel = 'store'), 0)::numeric AS store_gmv,
-                COALESCE(SUM(x.grand_total) FILTER (WHERE x.channel = 'ecommerce'), 0)::numeric AS ecommerce_gmv
-            ")
-            ->groupBy('x.d')
-            ->orderBy('x.d')
-            ->get();
+        $buyers = (int) ($salesSummary->buyers ?? 0);
 
         $channelSalesRows = (clone $ordersAll)
             ->whereIn('x.status', $paidStatuses)
@@ -93,7 +72,7 @@ class Analytics extends Controller
             ->get();
 
         $gmvPerStore = $this->gmvPerStore($ordersAll, $paidStatuses);
-        $branchRevenueAchievement = $this->branchRevenueAchievement($ordersAll, $paidStatuses, $filters);
+
         $orderStatusRows = (clone $ordersAll)
             ->selectRaw("
                 x.channel,
@@ -105,283 +84,64 @@ class Analytics extends Controller
             ->orderByDesc('total')
             ->get();
 
-        $periodDays = Carbon::parse($filters['from'])->diffInDays(Carbon::parse($filters['to'])) + 1;
-        $previousTo = Carbon::parse($filters['from'])->subDay()->endOfDay();
-        $previousFrom = $previousTo->copy()->subDays($periodDays - 1)->startOfDay();
-        $previousOrders = $this->ordersUnionQuery(
-            $previousFrom->toDateTimeString(),
-            $previousTo->toDateTimeString(),
-            $filters
-        );
-        $previousSales = (clone $previousOrders)
-            ->whereIn('x.status', $paidStatuses)
-            ->selectRaw('COUNT(*)::int AS order_count, COALESCE(SUM(x.grand_total), 0)::numeric AS gmv')
-            ->first();
-        $periodComparison = [
-            'previous_from' => $previousFrom->toDateString(),
-            'previous_to' => $previousTo->toDateString(),
-            'gmv_previous' => (float) ($previousSales->gmv ?? 0),
-            'orders_previous' => (int) ($previousSales->order_count ?? 0),
-            'gmv_growth' => $this->growthRate($gmv, (float) ($previousSales->gmv ?? 0)),
-            'orders_growth' => $this->growthRate($orderCount, (int) ($previousSales->order_count ?? 0)),
-        ];
-
-        /*
-        |--------------------------------------------------------------------------
-        | Customer / Member Analytics
-        |--------------------------------------------------------------------------
-        */
-        $customerQuery = $this->customerBaseQuery($filters, $fromTs, $toTs);
-
         $memberSummary = DB::query()
-            ->fromSub($customerQuery, 'c')
+            ->fromSub($this->customerBaseQuery($filters, $fromTs, $toTs), 'c')
             ->selectRaw("
                 COUNT(*)::int AS total_member,
                 COUNT(*) FILTER (WHERE c.registration_channel = 'store')::int AS total_store,
-                COUNT(*) FILTER (WHERE c.registration_channel = 'ecommerce')::int AS total_ecommerce,
-                COUNT(*) FILTER (WHERE c.gender = 'male')::int AS total_male,
-                COUNT(*) FILTER (WHERE c.gender = 'female')::int AS total_female,
-                COUNT(*) FILTER (WHERE c.gender IS NULL OR c.gender::text = '')::int AS total_unknown_gender,
-                COUNT(*) FILTER (
-                    WHERE c.date_of_birth IS NOT NULL
-                      AND EXTRACT(MONTH FROM c.date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE)
-                      AND EXTRACT(DAY FROM c.date_of_birth) = EXTRACT(DAY FROM CURRENT_DATE)
-                )::int AS birthday_today
+                COUNT(*) FILTER (WHERE c.registration_channel = 'ecommerce')::int AS total_ecommerce
             ")
             ->first();
 
-        $customerGenderRows = DB::query()
-            ->fromSub(clone $customerQuery, 'c')
-            ->selectRaw("
-                CASE
-                    WHEN c.gender::text = 'male' THEN 'Laki-laki'
-                    WHEN c.gender::text = 'female' THEN 'Perempuan'
-                    ELSE 'Belum diketahui'
-                END AS label,
-                COUNT(*)::int AS total
-            ")
-            ->groupBy('label')
-            ->orderByDesc('total')
-            ->get();
-
-        $customerAgeRows = DB::query()
-            ->fromSub(clone $customerQuery, 'c')
-            ->selectRaw("
-                CASE
-                    WHEN c.date_of_birth IS NULL THEN 'Belum diketahui'
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) < 18 THEN '< 18 tahun'
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 18 AND 24 THEN '18-24 tahun'
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 25 AND 34 THEN '25-34 tahun'
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 35 AND 44 THEN '35-44 tahun'
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 45 AND 54 THEN '45-54 tahun'
-                    ELSE '55+ tahun'
-                END AS label,
-                COUNT(*)::int AS total,
-                CASE
-                    WHEN c.date_of_birth IS NULL THEN 7
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) < 18 THEN 1
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 18 AND 24 THEN 2
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 25 AND 34 THEN 3
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 35 AND 44 THEN 4
-                    WHEN EXTRACT(YEAR FROM AGE(CURRENT_DATE, c.date_of_birth)) BETWEEN 45 AND 54 THEN 5
-                    ELSE 6
-                END AS sort_order
-            ")
-            ->groupBy('label', 'sort_order')
-            ->orderBy('sort_order')
-            ->get();
-
-        $customerChannelRows = DB::query()
-            ->fromSub(clone $customerQuery, 'c')
-            ->selectRaw("
-                CASE
-                    WHEN c.registration_channel::text = 'store' THEN 'Store'
-                    WHEN c.registration_channel::text = 'ecommerce' THEN 'E-commerce'
-                    ELSE 'Channel lain'
-                END AS label,
-                COUNT(*)::int AS total
-            ")
-            ->groupBy('label')
-            ->orderByDesc('total')
-            ->get();
-
-        $todayCustomerQuery = $this->customerBaseQuery(
-            array_merge($filters, [
-                'from' => now()->toDateString(),
-                'to' => now()->toDateString(),
-            ]),
-            now()->startOfDay()->toDateTimeString(),
-            now()->endOfDay()->toDateTimeString()
-        );
-
-        $newMemberTodaySummary = DB::query()
-            ->fromSub(clone $todayCustomerQuery, 'c')
-            ->selectRaw("
-                COUNT(*)::int AS total_today,
-                COUNT(*) FILTER (WHERE c.registration_channel = 'store')::int AS store_today,
-                COUNT(*) FILTER (WHERE c.registration_channel = 'ecommerce')::int AS ecommerce_today
-            ")
-            ->first();
-
-        $newMemberTodayByStore = DB::query()
-            ->fromSub(clone $todayCustomerQuery, 'c')
-            ->selectRaw("
-                c.registration_store_id,
-                COALESCE(c.registration_store_name, 'Store Tidak Diketahui') AS store_name,
-                COUNT(*)::int AS total_member
-            ")
-            ->where('c.registration_channel', 'store')
-            ->groupBy('c.registration_store_id', 'c.registration_store_name')
-            ->orderByDesc('total_member')
-            ->orderBy('store_name')
-            ->get();
-
-        $newMemberTodayStoreRows = DB::query()
-            ->fromSub(clone $todayCustomerQuery, 'c')
-            ->selectRaw("
-                c.id,
-                c.name,
-                c.email,
-                c.wa_number,
-                c.gender,
-                c.created_at,
-                c.registration_store_id,
-                COALESCE(c.registration_store_name, 'Store Tidak Diketahui') AS store_name,
-                c.province_name,
-                c.regency_name
-            ")
-            ->where('c.registration_channel', 'store')
-            ->orderByDesc('c.created_at')
-            ->limit(300)
-            ->get();
-
-        $newMemberTodayEcommerceRows = DB::query()
-            ->fromSub(clone $todayCustomerQuery, 'c')
-            ->selectRaw("
-                c.id,
-                c.name,
-                c.email,
-                c.wa_number,
-                c.gender,
-                c.created_at,
-                c.province_name,
-                c.regency_name
-            ")
-            ->where('c.registration_channel', 'ecommerce')
-            ->orderByDesc('c.created_at')
-            ->limit(100)
-            ->get();
-
-        $memberDailyRows = DB::query()
-            ->fromSub(clone $customerQuery, 'c')
-            ->selectRaw("
-                DATE(c.created_at) AS tanggal,
-                TO_CHAR(DATE(c.created_at), 'DD Mon') AS label,
-                COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE c.registration_channel = 'store')::int AS store_total,
-                COUNT(*) FILTER (WHERE c.registration_channel = 'ecommerce')::int AS ecommerce_total
-            ")
-            ->groupByRaw('DATE(c.created_at)')
-            ->orderBy('tanggal')
-            ->get();
-
-        $topBirthdayRows = DB::query()
-            ->fromSub(clone $customerQuery, 'c')
-            ->selectRaw("
-                c.id,
-                c.name,
-                c.wa_number,
-                c.email,
-                c.date_of_birth,
-                c.registration_channel,
-                COALESCE(c.registration_store_name, 'Ecommerce') AS source_name,
-                c.province_name,
-                c.regency_name
-            ")
-            ->whereNotNull('c.date_of_birth')
-            ->whereRaw('EXTRACT(MONTH FROM c.date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE)')
-            ->orderByRaw('EXTRACT(DAY FROM c.date_of_birth)')
-            ->limit(20)
-            ->get();
-
-        // Peta menggunakan seluruh basis customer agar dashboard default "hari ini"
-        // tetap menunjukkan konsentrasi pasar, sementara filter channel/store tetap berlaku.
-        $customerGeographyQuery = $this->customerBaseQuery(
-            $filters,
-            '1900-01-01 00:00:00',
-            now()->endOfDay()->toDateTimeString(),
-            true
-        );
-        $customerGeography = $this->customerGeographySummary($customerGeographyQuery);
-        $storeMap = $this->storeMapSummary($fromTs, $toTs);
-        $warehouseMap = $this->warehouseMapSummary($fromTs, $toTs);
-
-        /*
-        |--------------------------------------------------------------------------
-        | WMS / Stock / Operational Monitoring
-        |--------------------------------------------------------------------------
-        */
+        $visitSummary = $this->visitSummary($fromTs, $toTs, $filters);
         $wms = $this->wmsSummary($fromTs, $toTs, $filters);
-        $stockOpname = $this->stockOpnameSummary($fromTs, $toTs, $filters);
         $lowStockWarehouse = $this->lowStockWarehouse($filters);
         $lowStockStore = $this->lowStockStore($filters);
 
-        $visitSummary = $this->visitSummary($fromTs, $toTs, $filters);
-        $visitsByStore = $this->visitsByStore($fromTs, $toTs, $filters);
-        $warehouseOps = $this->warehouseOperationalSummary($fromTs, $toTs, $filters);
-        $storeOps = $this->storeOperationalSummary($fromTs, $toTs, $filters, $visitSummary);
-        $ecommerceOps = $this->ecommerceOperationalSummary($fromTs, $toTs);
-        $actionItems = $this->buildActionItems(
-            $warehouseOps,
-            $storeOps,
-            $ecommerceOps,
-            $stockOpname,
-            $lowStockWarehouse->count(),
-            $lowStockStore->count()
-        );
+        $actionItems = [];
 
-        /*
-        |--------------------------------------------------------------------------
-        | Kesimpulan Kantor Pusat
-        |--------------------------------------------------------------------------
-        */
-        $insights = $this->buildInsights([
-            'gmv' => $gmv,
-            'order_count' => $orderCount,
-            'aov' => $aov,
-            'buyers' => (int) ($salesSummary->buyers ?? 0),
-            'store_gmv' => (float) ($salesSummary->store_gmv ?? 0),
-            'ecommerce_gmv' => (float) ($salesSummary->ecommerce_gmv ?? 0),
-            'new_member_today' => (int) ($newMemberTodaySummary->total_today ?? 0),
-            'new_member_store_today' => (int) ($newMemberTodaySummary->store_today ?? 0),
-            'new_member_ecommerce_today' => (int) ($newMemberTodaySummary->ecommerce_today ?? 0),
-            'wms_inbound' => (int) ($wms['inbound'] ?? 0),
-            'wms_outbound' => (int) ($wms['outbound'] ?? 0),
-            'low_stock_warehouse' => $lowStockWarehouse->count(),
-            'low_stock_store' => $lowStockStore->count(),
-            'opname_issue' => (int) ($stockOpname['warehouse_issue'] ?? 0) + (int) ($stockOpname['store_issue'] ?? 0),
-            'best_store' => $gmvPerStore->first(),
-            'gmv_growth' => $periodComparison['gmv_growth'],
-            'orders_growth' => $periodComparison['orders_growth'],
-            'warehouse_backlog' => $warehouseOps['backlog'],
-            'store_pending' => $storeOps['pending_orders'],
-            'ecommerce_pending' => $ecommerceOps['pending_orders'],
-            'ecommerce_cancelled' => $ecommerceOps['cancelled_orders'],
-            'store_total' => $storeMap['total'],
-            'store_unmapped' => $storeMap['unmapped'],
-            'inactive_stores' => $storeMap['points']
-                ->filter(fn ($row) => (int) $row->visit_count === 0 && (int) $row->item_count === 0)
-                ->count(),
-            'warehouse_total' => $warehouseMap['total'],
-            'warehouse_unmapped' => $warehouseMap['unmapped'],
-            'warehouse_stock_total' => (int) $warehouseMap['points']->sum('item_count'),
-            'warehouse_top_stock' => (int) ($warehouseMap['points']->max('item_count') ?? 0),
-            'customer_location_coverage' => (float) $customerGeography['coverage_rate'],
-        ]);
+        if ($lowStockStore->isNotEmpty()) {
+            $actionItems[] = [
+                'type' => 'warning',
+                'title' => 'Stok cabang rendah',
+                'message' => number_format($lowStockStore->count(), 0, ',', '.').' item store berada pada kondisi stok rendah.',
+            ];
+        }
 
-        return view('content.dashboard.dashboards-analytics', [
+        if ($lowStockWarehouse->isNotEmpty()) {
+            $actionItems[] = [
+                'type' => 'warning',
+                'title' => 'Stok gudang rendah',
+                'message' => number_format($lowStockWarehouse->count(), 0, ',', '.').' item warehouse berada pada kondisi stok rendah.',
+            ];
+        }
+
+        $insights = [];
+
+        if ($gmv > 0) {
+            $insights[] = [
+                'title' => 'Performa penjualan',
+                'message' => 'Periode ini menghasilkan GMV Rp'.number_format($gmv, 0, ',', '.').' dari '.number_format($orderCount, 0, ',', '.').' order dengan AOV Rp'.number_format($aov, 0, ',', '.').'.',
+            ];
+        }
+
+        if ($gmvPerStore->isNotEmpty()) {
+            $best = $gmvPerStore->first();
+            $insights[] = [
+                'title' => 'Store terbaik',
+                'message' => ($best->store_name ?? 'Store Tidak Diketahui').' memimpin dengan GMV Rp'.number_format((float) $best->gmv, 0, ',', '.').'.',
+            ];
+        }
+
+        if ((int) ($memberSummary->total_member ?? 0) > 0) {
+            $insights[] = [
+                'title' => 'Basis member',
+                'message' => number_format((int) $memberSummary->total_member, 0, ',', '.').' member terdaftar pada periode filter aktif.',
+            ];
+        }
+
+        return Inertia::render('Dashboard/Index', [
             'roleName' => $roleName,
-
             'filters' => $filters,
             'from' => $filters['from'],
             'to' => $filters['to'],
@@ -389,51 +149,24 @@ class Analytics extends Controller
             'warehouseId' => $filters['warehouse_id'],
             'channel' => $filters['channel'],
             'autoRefresh' => $filters['auto_refresh'],
-
             'stores' => $stores,
             'warehouses' => $warehouses,
-            'storesCount' => $storesCount,
-            'warehousesCount' => $warehousesCount,
-
             'salesSummary' => $salesSummary,
             'orderCount' => $orderCount,
             'gmv' => $gmv,
             'aov' => $aov,
-            'buyers' => (int) ($salesSummary->buyers ?? 0),
-            'ordersDaily' => $ordersDaily,
+            'buyers' => $buyers,
             'channelSalesRows' => $channelSalesRows,
             'gmvPerStore' => $gmvPerStore,
-            'branchRevenueAchievement' => $branchRevenueAchievement,
             'orderStatusRows' => $orderStatusRows,
-            'periodComparison' => $periodComparison,
-
             'memberSummary' => $memberSummary,
-            'customerGenderRows' => $customerGenderRows,
-            'customerAgeRows' => $customerAgeRows,
-            'customerChannelRows' => $customerChannelRows,
-            'newMemberTodaySummary' => $newMemberTodaySummary,
-            'newMemberTodayByStore' => $newMemberTodayByStore,
-            'newMemberTodayStoreRows' => $newMemberTodayStoreRows,
-            'newMemberTodayEcommerceRows' => $newMemberTodayEcommerceRows,
-            'memberDailyRows' => $memberDailyRows,
-            'topBirthdayRows' => $topBirthdayRows,
-            'customerGeography' => $customerGeography,
-            'storeMap' => $storeMap,
-            'warehouseMap' => $warehouseMap,
-
             'wms' => $wms,
-            'stockOpname' => $stockOpname,
             'lowStockWarehouse' => $lowStockWarehouse,
             'lowStockStore' => $lowStockStore,
-
             'visitSummary' => $visitSummary,
-            'visitsByStore' => $visitsByStore,
-            'warehouseOps' => $warehouseOps,
-            'storeOps' => $storeOps,
-            'ecommerceOps' => $ecommerceOps,
             'actionItems' => $actionItems,
-
             'insights' => $insights,
+            'urls' => ['index' => route('dashboard-analytics')],
         ]);
     }
 
@@ -441,7 +174,7 @@ class Analytics extends Controller
     {
         $roleName = null;
 
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return null;
         }
 
@@ -454,14 +187,14 @@ class Analytics extends Controller
         try {
             $tableNames = config('permission.table_names');
 
-            if (!$tableNames || !isset($tableNames['model_has_roles'], $tableNames['roles'])) {
+            if (! $tableNames || ! isset($tableNames['model_has_roles'], $tableNames['roles'])) {
                 return null;
             }
 
             $roleName = DB::connection(config('permission.connection', 'immostore_backoffice'))
-                ->table($tableNames['model_has_roles'] . ' as mr')
-                ->join($tableNames['roles'] . ' as r', 'r.id', '=', 'mr.role_id')
-                ->where('mr.model_type', \App\Models\User::class)
+                ->table($tableNames['model_has_roles'].' as mr')
+                ->join($tableNames['roles'].' as r', 'r.id', '=', 'mr.role_id')
+                ->where('mr.model_type', User::class)
                 ->where('mr.model_id', Auth::id())
                 ->orderBy('r.created_at')
                 ->value('r.name');
@@ -496,7 +229,7 @@ class Analytics extends Controller
         }
 
         $channel = $request->input('channel');
-        if (!in_array($channel, ['all', 'store', 'ecommerce'], true)) {
+        if (! in_array($channel, ['all', 'store', 'ecommerce'], true)) {
             $channel = 'all';
         }
 
@@ -512,35 +245,60 @@ class Analytics extends Controller
 
     private function activeStores()
     {
-        if (!Schema::hasTable('stores')) {
+        if (! $this->hasTable('stores')) {
             return collect();
         }
 
         return DB::table('stores')
             ->select('id', 'name')
-            ->when(Schema::hasColumn('stores', 'code'), fn ($q) => $q->addSelect('code'))
-            ->when(Schema::hasColumn('stores', 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
+            ->when($this->hasColumn('stores', 'code'), fn ($q) => $q->addSelect('code'))
+            ->when($this->hasColumn('stores', 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
             ->orderBy('name')
             ->get();
     }
 
     private function activeWarehouses()
     {
-        if (!Schema::hasTable('warehouses')) {
+        if (! $this->hasTable('warehouses')) {
             return collect();
         }
 
         return DB::table('warehouses')
             ->select('id', 'name')
-            ->when(Schema::hasColumn('warehouses', 'code'), fn ($q) => $q->addSelect('code'))
-            ->when(Schema::hasColumn('warehouses', 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
+            ->when($this->hasColumn('warehouses', 'code'), fn ($q) => $q->addSelect('code'))
+            ->when($this->hasColumn('warehouses', 'deleted_at'), fn ($q) => $q->whereNull('deleted_at'))
             ->orderBy('name')
             ->get();
     }
 
+    private static ?array $tables = null;
+
+    private static ?array $columns = null;
+
+    private function hasTable(string $table): bool
+    {
+        if (self::$tables === null) {
+            self::$tables = [];
+
+            foreach (DB::select("select table_name from information_schema.tables where table_schema = current_schema() and table_type = 'BASE TABLE'") as $row) {
+                self::$tables[$row->table_name] = true;
+            }
+        }
+
+        return isset(self::$tables[$table]);
+    }
+
     private function hasColumn(string $table, string $column): bool
     {
-        return Schema::hasTable($table) && Schema::hasColumn($table, $column);
+        if (self::$columns === null) {
+            self::$columns = [];
+
+            foreach (DB::select('select table_name, column_name from information_schema.columns where table_schema = current_schema()') as $row) {
+                self::$columns[$row->table_name][$row->column_name] = true;
+            }
+        }
+
+        return isset(self::$columns[$table][$column]);
     }
 
     private function amountExpr(string $table, string $alias): string
@@ -564,16 +322,16 @@ class Analytics extends Controller
             }
         }
 
-        if (!$cols) {
+        if (! $cols) {
             return '0::numeric';
         }
 
-        return 'COALESCE(' . implode(', ', $cols) . ', 0)::numeric';
+        return 'COALESCE('.implode(', ', $cols).', 0)::numeric';
     }
 
     private function emptyOrdersQuery()
     {
-        return DB::query()->fromRaw("
+        return DB::query()->fromRaw('
             (
                 SELECT
                     NULL::text AS id,
@@ -586,14 +344,14 @@ class Analytics extends Controller
                     CURRENT_DATE AS d
                 WHERE false
             ) AS empty_orders
-        ");
+        ');
     }
 
     private function ordersUnionQuery(string $fromTs, string $toTs, array $filters)
     {
         $queries = [];
 
-        if (Schema::hasTable('store_orders') && in_array($filters['channel'], ['all', 'store'], true)) {
+        if ($this->hasTable('store_orders') && in_array($filters['channel'], ['all', 'store'], true)) {
             $amount = $this->amountExpr('store_orders', 'o');
 
             $customerExpr = 'NULL::text';
@@ -618,7 +376,7 @@ class Analytics extends Controller
                 ->when($filters['store_id'], fn ($q) => $q->where('o.store_id', $filters['store_id']));
         }
 
-        if (Schema::hasTable('ecommerce_orders') && in_array($filters['channel'], ['all', 'ecommerce'], true)) {
+        if ($this->hasTable('ecommerce_orders') && in_array($filters['channel'], ['all', 'ecommerce'], true)) {
             $amount = $this->amountExpr('ecommerce_orders', 'o');
 
             $customerExpr = 'NULL::text';
@@ -642,7 +400,7 @@ class Analytics extends Controller
                 ->whereBetween('o.created_at', [$fromTs, $toTs]);
         }
 
-        if (!$queries) {
+        if (! $queries) {
             return DB::query()->fromSub($this->emptyOrdersQuery(), 'x');
         }
 
@@ -657,7 +415,7 @@ class Analytics extends Controller
 
     private function gmvPerStore($ordersAll, array $paidStatuses)
     {
-        if (!Schema::hasTable('stores')) {
+        if (! $this->hasTable('stores')) {
             return collect();
         }
 
@@ -681,7 +439,7 @@ class Analytics extends Controller
 
     private function branchRevenueAchievement($ordersAll, array $paidStatuses, array $filters)
     {
-        if (!Schema::hasTable('stores')) {
+        if (! $this->hasTable('stores')) {
             return collect();
         }
 
@@ -701,15 +459,15 @@ class Analytics extends Controller
 
         $rows = DB::table('stores as s')
             ->leftJoinSub($revenueByStore, 'sales', DB::raw('sales.store_id'), '=', DB::raw('s.id::text'))
-            ->when(Schema::hasColumn('stores', 'deleted_at'), fn ($q) => $q->whereNull('s.deleted_at'))
+            ->when($this->hasColumn('stores', 'deleted_at'), fn ($q) => $q->whereNull('s.deleted_at'))
             ->when($filters['store_id'], fn ($q) => $q->where('s.id', $filters['store_id']))
-            ->selectRaw("
+            ->selectRaw('
                 s.id::text AS store_id,
                 s.name AS store_name,
                 COALESCE(sales.orders, 0)::int AS orders,
                 COALESCE(sales.buyers, 0)::int AS buyers,
                 COALESCE(sales.revenue, 0)::numeric AS revenue
-            ")
+            ')
             ->orderByDesc('revenue')
             ->orderBy('s.name')
             ->get();
@@ -736,7 +494,7 @@ class Analytics extends Controller
 
     private function emptyCustomerQuery()
     {
-        return DB::query()->fromRaw("
+        return DB::query()->fromRaw('
             (
                 SELECT
                     NULL::text AS id,
@@ -761,7 +519,7 @@ class Analytics extends Controller
                     NULL::timestamp AS created_at
                 WHERE false
             ) AS empty_customers
-        ");
+        ');
     }
 
     private function customerBaseQuery(
@@ -769,9 +527,8 @@ class Analytics extends Controller
         string $fromTs,
         string $toTs,
         bool $includeOtherChannels = false
-    )
-    {
-        if (!Schema::hasTable('customers')) {
+    ) {
+        if (! $this->hasTable('customers')) {
             return $this->emptyCustomerQuery();
         }
 
@@ -783,7 +540,7 @@ class Analytics extends Controller
             ->leftJoin('regencies as r', 'r.code', '=', 'c.regency_code')
             ->leftJoin('districts as d', 'd.code', '=', 'c.district_code')
             ->leftJoin('villages as v', 'v.code', '=', 'c.village_code')
-            ->selectRaw("
+            ->selectRaw('
                 c.id::text AS id,
                 c.name,
                 c.email,
@@ -804,10 +561,10 @@ class Analytics extends Controller
                 v.latitude AS village_latitude,
                 v.longitude AS village_longitude,
                 c.created_at
-            ")
+            ')
             ->whereBetween('c.created_at', [$fromTs, $toTs])
-            ->when(Schema::hasColumn('customers', 'deleted_at'), fn ($q) => $q->whereNull('c.deleted_at'))
-            ->when(!$includeOtherChannels, fn ($q) => $q->whereIn('c.registration_channel', ['store', 'ecommerce']))
+            ->when($this->hasColumn('customers', 'deleted_at'), fn ($q) => $q->whereNull('c.deleted_at'))
+            ->when(! $includeOtherChannels, fn ($q) => $q->whereIn('c.registration_channel', ['store', 'ecommerce']))
             ->when($filters['channel'] !== 'all', fn ($q) => $q->where('c.registration_channel', $filters['channel']))
             ->when($filters['store_id'], function ($q) use ($filters) {
                 $q->where('c.registration_channel', 'store')
@@ -849,6 +606,7 @@ class Analytics extends Controller
                 $centroid = $provinceCentroids[(string) $row->province_code] ?? null;
                 $row->latitude = $centroid[0] ?? null;
                 $row->longitude = $centroid[1] ?? null;
+
                 return $row;
             });
 
@@ -898,8 +656,8 @@ class Analytics extends Controller
         $exactLocations = collect();
         if (
             $customerRows->isNotEmpty()
-            && Schema::hasTable('ecommerce_shipping_addresses')
-            && Schema::hasColumn('ecommerce_shipping_addresses', 'geom')
+            && $this->hasTable('ecommerce_shipping_addresses')
+            && $this->hasColumn('ecommerce_shipping_addresses', 'geom')
         ) {
             $exactLocations = DB::table('ecommerce_shipping_addresses')
                 ->whereIn('customer_id', $customerRows->pluck('id')->all())
@@ -984,11 +742,11 @@ class Analytics extends Controller
         if ($topProvince) {
             $share = $total > 0 ? round(((int) $topProvince->total / $total) * 100, 1) : 0;
             $insights[] = "Provinsi {$topProvince->province_name} menjadi kantong customer terbesar dengan "
-                . number_format((int) $topProvince->total, 0, ',', '.') . " customer ({$share}% dari basis data terfilter).";
+                .number_format((int) $topProvince->total, 0, ',', '.')." customer ({$share}% dari basis data terfilter).";
         }
         if ($topRegency) {
             $insights[] = "{$topRegency->regency_name}, {$topRegency->province_name} adalah kabupaten/kota teratas dengan "
-                . number_format((int) $topRegency->total, 0, ',', '.') . ' customer.';
+                .number_format((int) $topRegency->total, 0, ',', '.').' customer.';
         }
         if ($total > 0 && $topThree > 0) {
             $concentration = round(($topThree / $total) * 100, 1);
@@ -996,7 +754,7 @@ class Analytics extends Controller
         }
         if ($total > $located) {
             $missingRate = round((($total - $located) / $total) * 100, 1);
-            $insights[] = number_format($total - $located, 0, ',', '.') . " customer ({$missingRate}%) belum memiliki data provinsi yang lengkap.";
+            $insights[] = number_format($total - $located, 0, ',', '.')." customer ({$missingRate}%) belum memiliki data provinsi yang lengkap.";
         }
 
         return [
@@ -1016,7 +774,7 @@ class Analytics extends Controller
 
     private function storeMapSummary(string $fromTs, string $toTs): array
     {
-        if (!Schema::hasTable('stores')) {
+        if (! $this->hasTable('stores')) {
             return [
                 'total' => 0,
                 'mapped' => 0,
@@ -1027,7 +785,7 @@ class Analytics extends Controller
 
         $points = DB::table('stores as s')
             ->whereNull('s.deleted_at')
-            ->selectRaw("
+            ->selectRaw('
                 s.id::text AS id,
                 s.name,
                 s.code,
@@ -1054,7 +812,7 @@ class Analytics extends Controller
                     WHERE scv.store_id = s.id
                       AND scv.created_at BETWEEN ? AND ?
                 ) AS visit_count
-            ", [$fromTs, $toTs])
+            ', [$fromTs, $toTs])
             ->orderBy('s.name')
             ->get();
 
@@ -1072,7 +830,7 @@ class Analytics extends Controller
 
     private function warehouseMapSummary(string $fromTs, string $toTs): array
     {
-        if (!Schema::hasTable('warehouses')) {
+        if (! $this->hasTable('warehouses')) {
             return [
                 'total' => 0,
                 'mapped' => 0,
@@ -1083,7 +841,7 @@ class Analytics extends Controller
 
         $points = DB::table('warehouses as w')
             ->whereNull('w.deleted_at')
-            ->selectRaw("
+            ->selectRaw('
                 w.id::text AS id,
                 w.name,
                 w.code,
@@ -1108,7 +866,7 @@ class Analytics extends Controller
                     WHERE wo.warehouse_id = w.id
                       AND wo.created_at BETWEEN ? AND ?
                 ) AS outbound_count
-            ", [$fromTs, $toTs, $fromTs, $toTs])
+            ', [$fromTs, $toTs, $fromTs, $toTs])
             ->orderBy('w.name')
             ->get();
 
@@ -1126,13 +884,13 @@ class Analytics extends Controller
 
     private function countTableRows(string $table, ?string $dateColumn, string $fromTs, string $toTs, ?callable $extra = null): int
     {
-        if (!Schema::hasTable($table)) {
+        if (! $this->hasTable($table)) {
             return 0;
         }
 
         $query = DB::table($table);
 
-        if ($dateColumn && Schema::hasColumn($table, $dateColumn)) {
+        if ($dateColumn && $this->hasColumn($table, $dateColumn)) {
             $query->whereBetween($dateColumn, [$fromTs, $toTs]);
         }
 
@@ -1159,14 +917,14 @@ class Analytics extends Controller
         string $toTs,
         ?callable $scope = null
     ): int {
-        if (!Schema::hasTable($table) || !Schema::hasColumn($table, 'status')) {
+        if (! $this->hasTable($table) || ! $this->hasColumn($table, 'status')) {
             return 0;
         }
 
         $query = DB::table($table)
             ->whereIn(DB::raw('LOWER((status)::text)'), $statuses);
 
-        if (Schema::hasColumn($table, 'created_at')) {
+        if ($this->hasColumn($table, 'created_at')) {
             $query->whereBetween('created_at', [$fromTs, $toTs]);
         }
 
@@ -1181,7 +939,7 @@ class Analytics extends Controller
     {
         $warehouseScope = function (string $table) use ($filters) {
             return function ($query) use ($filters, $table) {
-                if ($filters['warehouse_id'] && Schema::hasColumn($table, 'warehouse_id')) {
+                if ($filters['warehouse_id'] && $this->hasColumn($table, 'warehouse_id')) {
                     $query->where('warehouse_id', $filters['warehouse_id']);
                 }
             };
@@ -1224,7 +982,7 @@ class Analytics extends Controller
             $warehouseScope('warehouse_staging_outbounds')
         );
         $qcIssues = 0;
-        if (Schema::hasTable('warehouse_qc')) {
+        if ($this->hasTable('warehouse_qc')) {
             $qcIssues = $this->statusCount(
                 'warehouse_qc',
                 ['bad', 'rejected', 'reject', 'failed', 'damaged'],
@@ -1253,13 +1011,13 @@ class Analytics extends Controller
         array $visitSummary
     ): array {
         $storeScope = function ($query) use ($filters) {
-            if ($filters['store_id'] && Schema::hasColumn('cashier_sessions', 'store_id')) {
+            if ($filters['store_id'] && $this->hasColumn('cashier_sessions', 'store_id')) {
                 $query->where('store_id', $filters['store_id']);
             }
         };
 
         $orders = $this->countTableRows('store_orders', 'created_at', $fromTs, $toTs, function ($query) use ($filters) {
-            if ($filters['store_id'] && Schema::hasColumn('store_orders', 'store_id')) {
+            if ($filters['store_id'] && $this->hasColumn('store_orders', 'store_id')) {
                 $query->where('store_id', $filters['store_id']);
             }
         });
@@ -1269,13 +1027,13 @@ class Analytics extends Controller
             $fromTs,
             $toTs,
             function ($query) use ($filters) {
-                if ($filters['store_id'] && Schema::hasColumn('store_orders', 'store_id')) {
+                if ($filters['store_id'] && $this->hasColumn('store_orders', 'store_id')) {
                     $query->where('store_id', $filters['store_id']);
                 }
             }
         );
         $returns = $this->countTableRows('store_returns', 'created_at', $fromTs, $toTs, function ($query) use ($filters) {
-            if ($filters['store_id'] && Schema::hasColumn('store_returns', 'store_id')) {
+            if ($filters['store_id'] && $this->hasColumn('store_returns', 'store_id')) {
                 $query->where('store_id', $filters['store_id']);
             }
         });
@@ -1292,7 +1050,7 @@ class Analytics extends Controller
             $fromTs,
             $toTs,
             function ($query) use ($filters) {
-                if ($filters['store_id'] && Schema::hasColumn('store_visit_payments', 'store_id')) {
+                if ($filters['store_id'] && $this->hasColumn('store_visit_payments', 'store_id')) {
                     $query->where('store_id', $filters['store_id']);
                 }
             }
@@ -1414,10 +1172,10 @@ class Analytics extends Controller
         $warehouseStockQty = 0;
         $storeStockQty = 0;
 
-        if (Schema::hasTable('items')) {
+        if ($this->hasTable('items')) {
             $sku = (int) DB::table('items')->distinct('product_id')->count('product_id');
 
-            if (Schema::hasColumn('items', 'status')) {
+            if ($this->hasColumn('items', 'status')) {
                 $warehouseStockQty = (int) DB::table('items')
                     ->whereIn(DB::raw('LOWER((status)::text)'), ['warehouse_stock'])
                     ->count();
@@ -1430,10 +1188,10 @@ class Analytics extends Controller
             } else {
                 $onHand = (int) DB::table('items')->count();
             }
-        } elseif (Schema::hasTable('inventory_stocks')) {
-            $qtyCol = Schema::hasColumn('inventory_stocks', 'qty_on_hand')
+        } elseif ($this->hasTable('inventory_stocks')) {
+            $qtyCol = $this->hasColumn('inventory_stocks', 'qty_on_hand')
                 ? 'qty_on_hand'
-                : (Schema::hasColumn('inventory_stocks', 'qty') ? 'qty' : null);
+                : ($this->hasColumn('inventory_stocks', 'qty') ? 'qty' : null);
 
             if ($qtyCol) {
                 $sku = (int) DB::table('inventory_stocks')->distinct('product_id')->count('product_id');
@@ -1444,26 +1202,26 @@ class Analytics extends Controller
         $inbound = 0;
         $outbound = 0;
 
-        if (Schema::hasTable('warehouse_inbounds')) {
+        if ($this->hasTable('warehouse_inbounds')) {
             $inbound += $this->countTableRows('warehouse_inbounds', 'created_at', $fromTs, $toTs);
-        } elseif (Schema::hasTable('warehouse_receipts')) {
+        } elseif ($this->hasTable('warehouse_receipts')) {
             $inbound += $this->countTableRows('warehouse_receipts', 'created_at', $fromTs, $toTs);
         }
 
-        if (Schema::hasTable('warehouse_outbounds')) {
+        if ($this->hasTable('warehouse_outbounds')) {
             $outbound += $this->countTableRows('warehouse_outbounds', 'created_at', $fromTs, $toTs);
-        } elseif (Schema::hasTable('warehouse_shipments')) {
+        } elseif ($this->hasTable('warehouse_shipments')) {
             $outbound += $this->countTableRows('warehouse_shipments', 'created_at', $fromTs, $toTs);
         }
 
-        if (Schema::hasTable('inventory_movements')) {
-            $typeCol = Schema::hasColumn('inventory_movements', 'type')
+        if ($this->hasTable('inventory_movements')) {
+            $typeCol = $this->hasColumn('inventory_movements', 'type')
                 ? 'type'
-                : (Schema::hasColumn('inventory_movements', 'movement_type') ? 'movement_type' : null);
+                : ($this->hasColumn('inventory_movements', 'movement_type') ? 'movement_type' : null);
 
-            $createdCol = Schema::hasColumn('inventory_movements', 'created_at')
+            $createdCol = $this->hasColumn('inventory_movements', 'created_at')
                 ? 'created_at'
-                : (Schema::hasColumn('inventory_movements', 'moved_at') ? 'moved_at' : null);
+                : ($this->hasColumn('inventory_movements', 'moved_at') ? 'moved_at' : null);
 
             if ($typeCol && $createdCol) {
                 $inbound += (int) DB::table('inventory_movements')
@@ -1480,7 +1238,7 @@ class Analytics extends Controller
 
         $byWarehouse = collect();
 
-        if (Schema::hasTable('items') && Schema::hasTable('warehouse_items') && Schema::hasTable('warehouses')) {
+        if ($this->hasTable('items') && $this->hasTable('warehouse_items') && $this->hasTable('warehouses')) {
             $byWarehouse = DB::table('items as i')
                 ->join('warehouse_items as wi', 'wi.item_id', '=', 'i.id')
                 ->leftJoin('warehouses as w', 'w.id', '=', 'wi.warehouse_id')
@@ -1511,19 +1269,19 @@ class Analytics extends Controller
     private function stockOpnameSummary(string $fromTs, string $toTs, array $filters): array
     {
         $warehouseTotal = $this->countTableRows('warehouse_stock_opnames', 'created_at', $fromTs, $toTs, function ($q) use ($filters) {
-            if ($filters['warehouse_id'] && Schema::hasColumn('warehouse_stock_opnames', 'warehouse_id')) {
+            if ($filters['warehouse_id'] && $this->hasColumn('warehouse_stock_opnames', 'warehouse_id')) {
                 $q->where('warehouse_id', $filters['warehouse_id']);
             }
         });
 
         $storeTotal = $this->countTableRows('store_stock_opnames', 'created_at', $fromTs, $toTs, function ($q) use ($filters) {
-            if ($filters['store_id'] && Schema::hasColumn('store_stock_opnames', 'store_id')) {
+            if ($filters['store_id'] && $this->hasColumn('store_stock_opnames', 'store_id')) {
                 $q->where('store_id', $filters['store_id']);
             }
         });
 
         $warehouseIssue = 0;
-        if (Schema::hasTable('warehouse_stock_opname_details')) {
+        if ($this->hasTable('warehouse_stock_opname_details')) {
             $warehouseIssue = (int) DB::table('warehouse_stock_opname_details as d')
                 ->join('warehouse_stock_opnames as o', 'o.id', '=', 'd.warehouse_stock_opname_id')
                 ->whereBetween('o.created_at', [$fromTs, $toTs])
@@ -1533,7 +1291,7 @@ class Analytics extends Controller
         }
 
         $storeIssue = 0;
-        if (Schema::hasTable('store_stock_opname_details')) {
+        if ($this->hasTable('store_stock_opname_details')) {
             $storeIssue = (int) DB::table('store_stock_opname_details as d')
                 ->join('store_stock_opnames as o', 'o.id', '=', 'd.store_stock_opname_id')
                 ->whereBetween('o.created_at', [$fromTs, $toTs])
@@ -1552,7 +1310,7 @@ class Analytics extends Controller
 
     private function lowStockWarehouse(array $filters)
     {
-        if (!Schema::hasTable('items') || !Schema::hasTable('warehouse_items') || !Schema::hasTable('warehouses')) {
+        if (! $this->hasTable('items') || ! $this->hasTable('warehouse_items') || ! $this->hasTable('warehouses')) {
             return collect();
         }
 
@@ -1562,7 +1320,7 @@ class Analytics extends Controller
             ->selectRaw('wi.warehouse_id, i.product_id, COUNT(*)::int AS qty')
             ->groupBy('wi.warehouse_id', 'i.product_id');
 
-        if (Schema::hasTable('warehouse_stock_barriers') && DB::table('warehouse_stock_barriers')->exists()) {
+        if ($this->hasTable('warehouse_stock_barriers') && DB::table('warehouse_stock_barriers')->exists()) {
             return DB::table('warehouse_stock_barriers as b')
                 ->leftJoinSub($stockQuery, 'stock', function ($join) {
                     $join->on('stock.product_id', '=', 'b.product_id')
@@ -1609,13 +1367,13 @@ class Analytics extends Controller
 
     private function lowStockStore(array $filters)
     {
-        if (!Schema::hasTable('items') || !Schema::hasTable('store_items') || !Schema::hasTable('stores')) {
+        if (! $this->hasTable('items') || ! $this->hasTable('store_items') || ! $this->hasTable('stores')) {
             return collect();
         }
 
         $barrierTable = null;
         foreach (['store_stock_barriers', 'branch_stock_barriers', 'store_barrier_stocks'] as $candidate) {
-            if (Schema::hasTable($candidate)) {
+            if ($this->hasTable($candidate)) {
                 $barrierTable = $candidate;
                 break;
             }
@@ -1633,7 +1391,7 @@ class Analytics extends Controller
             ->groupBy('si.store_id', 'i.product_id');
 
         if ($barrierTable && DB::table($barrierTable)->exists()) {
-            return DB::table($barrierTable . ' as b')
+            return DB::table($barrierTable.' as b')
                 ->leftJoinSub($stockQuery, 'stock', function ($join) {
                     $join->on('stock.product_id', '=', 'b.product_id')
                         ->on('stock.store_id', '=', 'b.store_id');
@@ -1682,7 +1440,7 @@ class Analytics extends Controller
         $total = 0;
         $uniqueCustomer = 0;
 
-        if (Schema::hasTable('store_customer_visits')) {
+        if ($this->hasTable('store_customer_visits')) {
             $query = DB::table('store_customer_visits')
                 ->whereBetween('check_in_at', [$fromTs, $toTs])
                 ->when($filters['store_id'], fn ($q) => $q->where('store_id', $filters['store_id']));
@@ -1699,7 +1457,7 @@ class Analytics extends Controller
 
     private function visitsByStore(string $fromTs, string $toTs, array $filters)
     {
-        if (!Schema::hasTable('store_customer_visits') || !Schema::hasTable('stores')) {
+        if (! $this->hasTable('store_customer_visits') || ! $this->hasTable('stores')) {
             return collect();
         }
 
@@ -1726,13 +1484,13 @@ class Analytics extends Controller
         if ($data['order_count'] > 0) {
             $growthMessage = $data['gmv_growth'] === null
                 ? ' Periode sebelumnya belum memiliki GMV sebagai pembanding.'
-                : ' Pertumbuhan GMV ' . ($data['gmv_growth'] >= 0 ? 'naik ' : 'turun ')
-                    . number_format(abs($data['gmv_growth']), 1, ',', '.') . '% dibanding periode sebelumnya.';
+                : ' Pertumbuhan GMV '.($data['gmv_growth'] >= 0 ? 'naik ' : 'turun ')
+                    .number_format(abs($data['gmv_growth']), 1, ',', '.').'% dibanding periode sebelumnya.';
 
             $insights[] = [
                 'type' => 'success',
                 'title' => 'Penjualan periode ini',
-                'message' => 'Periode ini menghasilkan ' . number_format($data['order_count'], 0, ',', '.') . ' order dengan GMV Rp' . number_format($data['gmv'], 0, ',', '.') . '. AOV berada di Rp' . number_format($data['aov'], 0, ',', '.') . '.' . $growthMessage,
+                'message' => 'Periode ini menghasilkan '.number_format($data['order_count'], 0, ',', '.').' order dengan GMV Rp'.number_format($data['gmv'], 0, ',', '.').'. AOV berada di Rp'.number_format($data['aov'], 0, ',', '.').'.'.$growthMessage,
                 'action' => $data['gmv_growth'] !== null && $data['gmv_growth'] < 0
                     ? 'Tinjau channel dan cabang yang mengalami penurunan, lalu bandingkan produk terlarisnya.'
                     : 'Pertahankan produk dan channel yang memberi kontribusi terbesar.',
@@ -1750,7 +1508,7 @@ class Analytics extends Controller
             $insights[] = [
                 'type' => 'info',
                 'title' => 'Cabang terbaik',
-                'message' => 'Cabang dengan GMV tertinggi adalah ' . ($data['best_store']->store_name ?? 'Store Tidak Diketahui') . ' dengan GMV Rp' . number_format((float) $data['best_store']->gmv, 0, ',', '.') . '.',
+                'message' => 'Cabang dengan GMV tertinggi adalah '.($data['best_store']->store_name ?? 'Store Tidak Diketahui').' dengan GMV Rp'.number_format((float) $data['best_store']->gmv, 0, ',', '.').'.',
                 'action' => 'Gunakan pola penjualan cabang ini sebagai acuan untuk cabang lain.',
             ];
         }
@@ -1758,7 +1516,7 @@ class Analytics extends Controller
         $insights[] = [
             'type' => 'primary',
             'title' => 'Member baru hari ini',
-            'message' => 'Hari ini ada ' . number_format($data['new_member_today'], 0, ',', '.') . ' member baru. Store: ' . number_format($data['new_member_store_today'], 0, ',', '.') . ', Ecommerce: ' . number_format($data['new_member_ecommerce_today'], 0, ',', '.') . '.',
+            'message' => 'Hari ini ada '.number_format($data['new_member_today'], 0, ',', '.').' member baru. Store: '.number_format($data['new_member_store_today'], 0, ',', '.').', Ecommerce: '.number_format($data['new_member_ecommerce_today'], 0, ',', '.').'.',
             'action' => 'Pastikan data kontak dan wilayah member lengkap agar dapat digunakan untuk campaign.',
         ];
 
@@ -1766,7 +1524,7 @@ class Analytics extends Controller
             $insights[] = [
                 'type' => 'danger',
                 'title' => 'Perhatian stok',
-                'message' => 'Terdapat ' . number_format($data['low_stock_warehouse'], 0, ',', '.') . ' item warehouse dan ' . number_format($data['low_stock_store'], 0, ',', '.') . ' item store yang berada pada kondisi stok rendah / paling rendah.',
+                'message' => 'Terdapat '.number_format($data['low_stock_warehouse'], 0, ',', '.').' item warehouse dan '.number_format($data['low_stock_store'], 0, ',', '.').' item store yang berada pada kondisi stok rendah / paling rendah.',
                 'action' => 'Prioritaskan replenishment untuk barang dengan penjualan tertinggi dan stok di bawah batas.',
             ];
         }
@@ -1775,7 +1533,7 @@ class Analytics extends Controller
             $insights[] = [
                 'type' => 'warning',
                 'title' => 'Selisih stock opname',
-                'message' => 'Ditemukan ' . number_format($data['opname_issue'], 0, ',', '.') . ' detail stock opname dengan status missing/extra/mismatch pada periode ini.',
+                'message' => 'Ditemukan '.number_format($data['opname_issue'], 0, ',', '.').' detail stock opname dengan status missing/extra/mismatch pada periode ini.',
                 'action' => 'Cocokkan RFID dan histori perpindahan item sebelum melakukan penyesuaian stok.',
             ];
         } else {
@@ -1791,7 +1549,7 @@ class Analytics extends Controller
             $insights[] = [
                 'type' => 'warning',
                 'title' => 'Beban operasional warehouse',
-                'message' => number_format($data['warehouse_backlog'], 0, ',', '.') . ' proses inbound, outbound, atau staging masih berada dalam antrean.',
+                'message' => number_format($data['warehouse_backlog'], 0, ',', '.').' proses inbound, outbound, atau staging masih berada dalam antrean.',
                 'action' => 'Selesaikan antrean paling lama dan order dengan jadwal kirim terdekat terlebih dahulu.',
             ];
         }
@@ -1800,8 +1558,8 @@ class Analytics extends Controller
             $insights[] = [
                 'type' => $data['ecommerce_cancelled'] > 0 ? 'danger' : 'warning',
                 'title' => 'Perhatian e-commerce',
-                'message' => number_format($data['ecommerce_pending'], 0, ',', '.') . ' order menunggu pembayaran dan '
-                    . number_format($data['ecommerce_cancelled'], 0, ',', '.') . ' order batal/gagal pada periode ini.',
+                'message' => number_format($data['ecommerce_pending'], 0, ',', '.').' order menunggu pembayaran dan '
+                    .number_format($data['ecommerce_cancelled'], 0, ',', '.').' order batal/gagal pada periode ini.',
                 'action' => 'Tindak lanjuti pembayaran pending dan periksa penyebab pembatalan yang berulang.',
             ];
         }
@@ -1816,8 +1574,8 @@ class Analytics extends Controller
             'type' => $unmappedLocations > 0 ? 'warning' : 'success',
             'title' => 'Cakupan lokasi operasional',
             'message' => number_format($totalLocations - $unmappedLocations, 0, ',', '.')
-                . ' dari ' . number_format($totalLocations, 0, ',', '.')
-                . " lokasi Store/Warehouse sudah terpetakan ({$locationCoverage}%).",
+                .' dari '.number_format($totalLocations, 0, ',', '.')
+                ." lokasi Store/Warehouse sudah terpetakan ({$locationCoverage}%).",
             'impact' => $unmappedLocations > 0
                 ? 'Lokasi tanpa koordinat tidak terlihat pada peta dan menyulitkan analisis jangkauan operasional.'
                 : 'Seluruh lokasi dapat dibandingkan secara geografis pada dashboard.',
@@ -1831,7 +1589,7 @@ class Analytics extends Controller
                 'type' => 'warning',
                 'title' => 'Store tanpa aktivitas terdeteksi',
                 'message' => number_format($data['inactive_stores'], 0, ',', '.')
-                    . ' store tidak memiliki stok item maupun kunjungan pada periode aktif.',
+                    .' store tidak memiliki stok item maupun kunjungan pada periode aktif.',
                 'impact' => 'Cabang tersebut berpotensi belum beroperasi, belum sinkron, atau tidak mencatat aktivitas dengan benar.',
                 'action' => 'Periksa status operasional cabang, sinkronisasi POS, dan ketersediaan stoknya.',
             ];
@@ -1861,7 +1619,7 @@ class Analytics extends Controller
                 'type' => 'warning',
                 'title' => 'Alamat customer belum lengkap',
                 'message' => 'Cakupan customer yang memiliki data provinsi baru '
-                    . number_format($data['customer_location_coverage'], 1, ',', '.') . '%.',
+                    .number_format($data['customer_location_coverage'], 1, ',', '.').'%.',
                 'impact' => 'Analisis wilayah customer dan penargetan campaign belum mewakili seluruh basis customer.',
                 'action' => 'Wajibkan Provinsi sampai Kelurahan pada proses tambah dan edit customer, lalu lengkapi data lama.',
             ];

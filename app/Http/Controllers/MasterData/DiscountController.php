@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class DiscountController extends Controller
 {
@@ -48,8 +49,7 @@ class DiscountController extends Controller
             )
             ->when(
                 $active !== '',
-                fn ($query) =>
-                    $query->where('is_active', (bool) ((int) $active))
+                fn ($query) => $query->where('is_active', (bool) ((int) $active))
             )
             ->orderByDesc('created_at')
             ->paginate(10)
@@ -59,13 +59,39 @@ class DiscountController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'code']);
 
-        return view('content.master-data.discounts.index', [
-            'discounts' => $discounts,
-            'promos' => $promos,
-            'q' => $q,
-            'promoId' => $promoId,
-            'type' => $type,
-            'active' => $active,
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Discounts',
+            'description' => 'Kelola diskon dan aturan dasarnya.',
+            'searchPlaceholder' => 'Cari diskon...',
+            'items' => $discounts,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'promo.name', 'label' => 'Promo'],
+                ['key' => 'type', 'label' => 'Tipe'],
+                ['key' => 'value', 'label' => 'Value'],
+                ['key' => 'valid_from', 'label' => 'Mulai'],
+                ['key' => 'valid_until', 'label' => 'Selesai'],
+                ['key' => 'is_active', 'label' => 'Aktif'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Diskon', 'required' => true],
+                ['key' => 'promo_id', 'label' => 'Promo', 'type' => 'select', 'options' => $promos->map(fn ($promo) => ['value' => $promo->id, 'label' => $promo->name])->values()->all()],
+                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'required' => true, 'options' => [['value' => 'fixed', 'label' => 'Fixed'], ['value' => 'percentage', 'label' => 'Percentage']]],
+                ['key' => 'value', 'label' => 'Value', 'type' => 'number', 'required' => true],
+                ['key' => 'max_discount', 'label' => 'Max Discount', 'type' => 'number'],
+                ['key' => 'min_purchase', 'label' => 'Min Purchase', 'type' => 'number'],
+                ['key' => 'valid_from', 'label' => 'Valid From', 'type' => 'date'],
+                ['key' => 'valid_until', 'label' => 'Valid Until', 'type' => 'date'],
+                ['key' => 'usage_limit', 'label' => 'Usage Limit', 'type' => 'number'],
+                ['key' => 'is_active', 'label' => 'Aktif', 'type' => 'select', 'options' => [['value' => '1', 'label' => 'Ya'], ['value' => '0', 'label' => 'Tidak']]],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.diskons.index'),
+                'store' => route('master-data.diskons.store'),
+                'update' => route('master-data.diskons.update', ['discount' => '__ID__']),
+                'destroy' => route('master-data.diskons.destroy', ['discount' => '__ID__']),
+            ],
         ]);
     }
 
@@ -233,8 +259,7 @@ class DiscountController extends Controller
             'value.numeric' => 'Nilai diskon harus berupa angka.',
             'value.min' => 'Nilai diskon tidak boleh negatif.',
             'value.max' => 'Diskon persentase maksimal 100%.',
-            'valid_until.after_or_equal' =>
-                'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            'valid_until.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
         ];
     }
 
@@ -266,7 +291,7 @@ class DiscountController extends Controller
         $data['min_purchase'] = $data['min_purchase'] ?? 0;
 
         foreach (['valid_from', 'valid_until'] as $field) {
-            if (!empty($data[$field])) {
+            if (! empty($data[$field])) {
                 $data[$field] = Carbon::parse($data[$field]);
             }
         }

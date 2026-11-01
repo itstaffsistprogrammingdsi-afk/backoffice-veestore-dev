@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class SupplierController extends Controller
@@ -56,10 +57,31 @@ class SupplierController extends Controller
             ->orderBy('country_name')
             ->get();
 
-        return view(
-            'content.master-data.suppliers.index',
-            compact('suppliers', 'countries', 'q')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Suppliers',
+            'description' => 'Kelola data supplier dan kontak.',
+            'searchPlaceholder' => 'Cari supplier...',
+            'items' => $suppliers,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'country', 'label' => 'Negara'],
+                ['key' => 'phone', 'label' => 'Telepon'],
+                ['key' => 'address', 'label' => 'Alamat'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Supplier', 'required' => true],
+                ['key' => 'address', 'label' => 'Alamat', 'type' => 'textarea'],
+                ['key' => 'country', 'label' => 'Negara', 'type' => 'select', 'required' => true, 'options' => $countries->map(fn ($country) => ['value' => $country->country_name, 'label' => $country->country_name])->values()->all()],
+                ['key' => 'phone', 'label' => 'Telepon'],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.suppliers.index'),
+                'store' => route('master-data.suppliers.store'),
+                'update' => route('master-data.suppliers.update', ['supplier' => '__ID__']),
+                'destroy' => route('master-data.suppliers.destroy', ['supplier' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -187,8 +209,7 @@ class SupplierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Supplier gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Supplier gagal disimpan. Silakan coba kembali.',
                 ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -196,8 +217,7 @@ class SupplierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Supplier gagal disimpan. Silakan coba kembali.',
+                    'name' => 'Supplier gagal disimpan. Silakan coba kembali.',
                 ]);
         }
     }
@@ -355,8 +375,7 @@ class SupplierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Supplier gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Supplier gagal diperbarui. Silakan coba kembali.',
                 ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -364,8 +383,7 @@ class SupplierController extends Controller
             return back()
                 ->withInput($request->except(['_token']))
                 ->withErrors([
-                    'name' =>
-                        'Supplier gagal diperbarui. Silakan coba kembali.',
+                    'name' => 'Supplier gagal diperbarui. Silakan coba kembali.',
                 ]);
         }
     }
@@ -457,8 +475,8 @@ class SupplierController extends Controller
                 "REGEXP_REPLACE(phone, '[^0-9]', '', 'g') IN (?, ?, ?)",
                 [
                     $normalizedPhone,
-                    '0' . $normalizedPhone,
-                    '62' . $normalizedPhone,
+                    '0'.$normalizedPhone,
+                    '62'.$normalizedPhone,
                 ]
             )
             ->exists();
@@ -478,7 +496,7 @@ class SupplierController extends Controller
 
         DB::select(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            ['supplier:' . $field . ':' . $value]
+            ['supplier:'.$field.':'.$value]
         );
     }
 

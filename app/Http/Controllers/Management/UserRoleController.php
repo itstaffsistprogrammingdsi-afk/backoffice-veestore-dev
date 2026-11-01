@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Management;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;                // users (pgsql dev_immostore)
-use App\Models\Backoffice\Role;     // roles (immostore_backoffice, id = uuid)
+use App\Models\Backoffice\Role;                // users (pgsql dev_immostore)
+use App\Models\User;     // roles (immostore_backoffice, id = uuid)
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class UserRoleController extends Controller
 {
@@ -18,8 +19,8 @@ class UserRoleController extends Controller
             ->when($q !== '', function ($w) use ($q) {
                 $w->where(function ($qq) use ($q) {
                     $qq->where('name', 'ILIKE', "%{$q}%")
-                       ->orWhere('email', 'ILIKE', "%{$q}%")
-                       ->orWhere('username', 'ILIKE', "%{$q}%");
+                        ->orWhere('email', 'ILIKE', "%{$q}%")
+                        ->orWhere('username', 'ILIKE', "%{$q}%");
                 });
             })
             ->orderBy('name')
@@ -32,7 +33,7 @@ class UserRoleController extends Controller
         $pivotRows = DB::connection('immostore_backoffice')
             ->table(config('permission.table_names.model_has_roles'))
             ->where('model_type', User::class)
-            ->select('model_id','role_id')
+            ->select('model_id', 'role_id')
             ->get()
             ->groupBy('model_id');
 
@@ -44,11 +45,15 @@ class UserRoleController extends Controller
             }
         }
 
-        return view('content.management.user-roles.index', [
-            'users'       => $users,
-            'roles'       => $roles,
-            'userRoleId'  => $userRoleId, // <— per user: single role id (or null)
-            'q'           => $q,
+        return Inertia::render('Management/UserRoles', [
+            'users' => $users,
+            'roles' => $roles,
+            'userRoleId' => $userRoleId,
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('management.user-roles.index'),
+                'sync' => route('management.user-roles.sync', ['user' => '__ID__']),
+            ],
         ]);
     }
 
@@ -57,7 +62,7 @@ class UserRoleController extends Controller
         $user = User::query()->findOrFail($userId);
 
         // role_id boleh null (untuk menghapus role)
-        $roleId = $request->input('role_id');
+        $roleId = $request->input('role_id') ?: null;
 
         if ($roleId !== null && ! Role::query()->where('id', $roleId)->exists()) {
             return back()->withErrors(['role_id' => 'Role tidak ditemukan.']);
@@ -76,9 +81,9 @@ class UserRoleController extends Controller
             // Jika pilih role (bukan clear), insert satu baris
             if ($roleId) {
                 DB::connection('immostore_backoffice')->table($table)->insert([
-                    'role_id'    => $roleId,
+                    'role_id' => $roleId,
                     'model_type' => User::class,
-                    'model_id'   => $user->getKey(),
+                    'model_id' => $user->getKey(),
                 ]);
             }
         });

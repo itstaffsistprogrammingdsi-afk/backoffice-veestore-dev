@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\CustomerLoyaltyPointsReportExport;
 use App\Http\Controllers\Controller;
 use App\Services\Settings;
@@ -273,7 +274,10 @@ class CustomerLoyaltyPointsReportController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('content.monitoring.customer-loyalty-points-report.index', compact(
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Customer Loyalty Points Report',
+            'description' => 'Laporan monitoring.',
+            'data' => compact(
             'rows',
             'detailRows',
             'q',
@@ -292,7 +296,10 @@ class CustomerLoyaltyPointsReportController extends Controller
             'mutationTypeChartRows',
             'mutationTrendRows',
             'stores'
-        ));
+        ),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
     }
 
     public function export(Request $request)

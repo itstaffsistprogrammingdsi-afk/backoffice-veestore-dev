@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class EcommerceOrderController extends Controller
 {
@@ -104,20 +105,26 @@ class EcommerceOrderController extends Controller
             'cancelled',
         ]);
 
-        return view('content.ecommerce.orders.index', [
+        return Inertia::render('Ecommerce/Orders', [
             'orders' => $orders,
             'stores' => $stores,
             'warehouses' => $warehouses,
             'statuses' => $statuses,
-            'q' => $q,
-            'status' => $status,
-            'handlerType' => $handlerType,
-            'storeId' => $storeId,
-            'warehouseId' => $warehouseId,
-            'stockIssue' => $stockIssue,
             'stockIssueOrderIds' => $stockIssueOrderIds,
-            'from' => $from,
-            'to' => $to,
+            'filters' => [
+                'q' => $q,
+                'status' => $status,
+                'handler_type' => $handlerType,
+                'store_id' => $storeId,
+                'warehouse_id' => $warehouseId,
+                'stock_issue' => $stockIssue,
+                'from' => $from,
+                'to' => $to,
+            ],
+            'urls' => [
+                'index' => route('ecommerce.orders.index'),
+                'update' => route('ecommerce.orders.update', ['id' => '__ID__']),
+            ],
         ]);
     }
 

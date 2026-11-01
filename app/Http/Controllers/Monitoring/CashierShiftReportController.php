@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Exports\CashierShiftReportDetailExport;
 use App\Exports\CashierShiftReportExport;
 use App\Http\Controllers\Controller;
@@ -198,7 +199,10 @@ class CashierShiftReportController extends Controller
                 's.name as store_name',
             ]);
 
-        return view('content.monitoring.cashier-shift-report.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Cashier Shift Report',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows' => $rows,
             'filters' => $filters,
             'stores' => $stores,
@@ -215,6 +219,9 @@ class CashierShiftReportController extends Controller
             'shifts' => $shifts,
 
             'autoRefresh' => $filters['auto_refresh'],
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 
@@ -251,9 +258,15 @@ class CashierShiftReportController extends Controller
 
         $transactions = $this->getSessionTransactions($cashierSession);
 
-        return view('content.monitoring.cashier-shift-report.detail', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Cashier Shift Report',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'session' => $session,
             'transactions' => $transactions,
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 

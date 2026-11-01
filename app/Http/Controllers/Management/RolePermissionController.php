@@ -3,11 +3,12 @@
 namespace App\Http\Controllers\Management;
 
 use App\Http\Controllers\Controller;
-use App\Models\Backoffice\Role;
 use App\Models\Backoffice\Permission;
+use App\Models\Backoffice\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionController extends Controller
@@ -45,11 +46,21 @@ class RolePermissionController extends Controller
             $rolePermissions[$r->id] = $r->permissions->pluck('name')->all();
         }
 
-        return view('content.management.role-permissions.index', [
-            'roles'           => $roles,
-            'permissions'     => $permissions,
-            'permissionGroups' => $permissionGroups,
+        return Inertia::render('Management/RolePermissions', [
+            'roles' => $roles->map(fn ($role) => [
+                'id' => $role->id,
+                'name' => $role->name,
+            ])->values(),
+            'permissionGroups' => $permissionGroups->map(
+                fn ($group) => $group->map(fn ($permission) => [
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'display_action' => $permission->display_action,
+                    'display_resource' => $permission->display_resource,
+                ])->values()
+            ),
             'rolePermissions' => $rolePermissions,
+            'updateUrl' => route('management.role-permissions.update'),
         ]);
     }
 
@@ -65,7 +76,7 @@ class RolePermissionController extends Controller
             $roles = Role::on('immostore_backoffice')->get()->keyBy('id');
 
             foreach ($roles as $roleId => $role) {
-                $names = array_values(array_unique((array)($matrix[$roleId] ?? [])));
+                $names = array_values(array_unique((array) ($matrix[$roleId] ?? [])));
 
                 // Ambil Permission model berdasarkan name pada koneksi yang sama
                 $permModels = Permission::on('immostore_backoffice')

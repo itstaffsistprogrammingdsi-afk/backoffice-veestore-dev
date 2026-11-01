@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue';
+import { useTheme } from '@/composables/useTheme';
+
+defineOptions({ layout: AppLayout });
+
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import Chart from 'chart.js/auto';
@@ -76,6 +81,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { isDark } = useTheme();
 
 const form = reactive({
     store_id: props.filters.store_id ?? '',
@@ -201,8 +207,8 @@ const renderChart = () => {
                 {
                     label: 'Prediksi Unit',
                     data: props.forecastDaily.map((row) => Number(row.predicted_qty ?? 0)),
-                    borderColor: '#7c3aed',
-                    backgroundColor: 'rgba(124, 58, 237, 0.12)',
+                    borderColor: '#0060af',
+                    backgroundColor: 'rgba(0, 96, 175, 0.12)',
                     fill: true,
                     tension: 0.35,
                     yAxisID: 'y',
@@ -210,7 +216,7 @@ const renderChart = () => {
                 {
                     label: 'Prediksi Omzet',
                     data: props.forecastDaily.map((row) => Number(row.predicted_revenue ?? 0)),
-                    borderColor: '#ec4899',
+                    borderColor: '#c366a8',
                     tension: 0.35,
                     yAxisID: 'y1',
                 },
@@ -222,11 +228,28 @@ const renderChart = () => {
             plugins: {
                 legend: {
                     position: 'bottom',
+                    labels: {
+                        color: isDark.value ? '#e5dfe9' : '#4b4453',
+                    },
                 },
             },
             scales: {
+                x: {
+                    ticks: {
+                        color: isDark.value ? '#b9afc3' : '#6b6474',
+                    },
+                    grid: {
+                        color: isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(23,17,31,0.06)',
+                    },
+                },
                 y: {
                     beginAtZero: true,
+                    ticks: {
+                        color: isDark.value ? '#b9afc3' : '#6b6474',
+                    },
+                    grid: {
+                        color: isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(23,17,31,0.06)',
+                    },
                 },
                 y1: {
                     beginAtZero: true,
@@ -235,6 +258,7 @@ const renderChart = () => {
                         drawOnChartArea: false,
                     },
                     ticks: {
+                        color: isDark.value ? '#b9afc3' : '#6b6474',
                         callback: (value) => formatCurrency(Number(value)),
                     },
                 },
@@ -246,6 +270,7 @@ const renderChart = () => {
 onMounted(renderChart);
 
 watch(() => props.forecastDaily, () => nextTick(renderChart), { deep: true });
+watch(isDark, () => nextTick(renderChart));
 
 onBeforeUnmount(() => {
     chart?.destroy();
@@ -482,11 +507,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ai-page {
-    --ai-ink: #17111f;
-    --ai-muted: #6b6474;
-    --ai-border: #ebe6ef;
-    --ai-pink: #ec4899;
-    --ai-purple: #7c3aed;
+    --ai-ink: var(--app-ink);
+    --ai-muted: var(--app-muted);
+    --ai-border: var(--app-border);
+    --ai-pink: #c366a8;
+    --ai-purple: #0060af;
     color: var(--ai-ink);
 }
 
@@ -519,7 +544,7 @@ onBeforeUnmount(() => {
 
 .ai-hero p {
     margin: 0;
-    color: #d8d2de;
+    color: var(--app-hero-muted);
     max-width: 42rem;
 }
 

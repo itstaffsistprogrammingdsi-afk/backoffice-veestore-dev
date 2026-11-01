@@ -12,6 +12,7 @@ use App\Http\Requests\MasterData\StoreBrandRequest;
 use App\Http\Requests\MasterData\UpdateBrandRequest;
 use App\Models\Brand;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Throwable;
 
 class BrandController extends Controller
@@ -23,7 +24,26 @@ class BrandController extends Controller
         $q = $query->normalizeSearch($request->get('q'));
         $brands = $query->paginate($q);
 
-        return view('content.master-data.brands.index', compact('brands', 'q'));
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Brands',
+            'description' => 'Kelola brand produk dan logo.',
+            'searchPlaceholder' => 'Cari brand...',
+            'items' => $brands,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Brand', 'required' => true],
+                ['key' => 'logo', 'label' => 'Logo', 'type' => 'file'],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.brands.index'),
+                'store' => route('master-data.brands.store'),
+                'update' => route('master-data.brands.update', ['brand' => '__ID__']),
+                'destroy' => route('master-data.brands.destroy', ['brand' => '__ID__']),
+            ],
+        ]);
     }
 
     public function store(StoreBrandRequest $request, CreateBrand $action)

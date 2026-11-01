@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 use Throwable;
 
 class UnitController extends Controller
@@ -47,14 +48,14 @@ class UnitController extends Controller
                     $query->where(
                         'name',
                         'ILIKE',
-                        '%' . $q . '%'
+                        '%'.$q.'%'
                     );
                 } else {
                     $query->whereRaw(
                         'LOWER(TRIM(name)) LIKE ?',
                         [
-                            '%' .
-                            mb_strtolower($q, 'UTF-8') .
+                            '%'.
+                            mb_strtolower($q, 'UTF-8').
                             '%',
                         ]
                     );
@@ -64,10 +65,25 @@ class UnitController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        return view(
-            'content.master-data.units.index',
-            compact('units', 'q')
-        );
+        return Inertia::render('MasterData/SimpleCrud', [
+            'title' => 'Units',
+            'description' => 'Kelola satuan produk.',
+            'searchPlaceholder' => 'Cari unit...',
+            'items' => $units,
+            'columns' => [
+                ['key' => 'name', 'label' => 'Nama'],
+            ],
+            'fields' => [
+                ['key' => 'name', 'label' => 'Nama Unit', 'required' => true],
+            ],
+            'filters' => ['q' => $q],
+            'urls' => [
+                'index' => route('master-data.units.index'),
+                'store' => route('master-data.units.store'),
+                'update' => route('master-data.units.update', ['unit' => '__ID__']),
+                'destroy' => route('master-data.units.destroy', ['unit' => '__ID__']),
+            ],
+        ]);
     }
 
     /**
@@ -110,14 +126,11 @@ class UnitController extends Controller
                     ],
                 ],
                 [
-                    'name.required' =>
-                        'Nama unit wajib diisi.',
+                    'name.required' => 'Nama unit wajib diisi.',
 
-                    'name.string' =>
-                        'Nama unit harus berupa teks.',
+                    'name.string' => 'Nama unit harus berupa teks.',
 
-                    'name.max' =>
-                        'Nama unit maksimal 50 karakter.',
+                    'name.max' => 'Nama unit maksimal 50 karakter.',
                 ]
             );
 
@@ -175,8 +188,7 @@ class UnitController extends Controller
                 ])
                 ->withErrors(
                     [
-                        'name' =>
-                            'Unit gagal disimpan. Silakan coba kembali.',
+                        'name' => 'Unit gagal disimpan. Silakan coba kembali.',
                     ],
                     'createUnit'
                 );
@@ -190,8 +202,7 @@ class UnitController extends Controller
                 ])
                 ->withErrors(
                     [
-                        'name' =>
-                            'Unit gagal disimpan. Silakan coba kembali.',
+                        'name' => 'Unit gagal disimpan. Silakan coba kembali.',
                     ],
                     'createUnit'
                 );
@@ -242,14 +253,11 @@ class UnitController extends Controller
                     ],
                 ],
                 [
-                    'name.required' =>
-                        'Nama unit wajib diisi.',
+                    'name.required' => 'Nama unit wajib diisi.',
 
-                    'name.string' =>
-                        'Nama unit harus berupa teks.',
+                    'name.string' => 'Nama unit harus berupa teks.',
 
-                    'name.max' =>
-                        'Nama unit maksimal 50 karakter.',
+                    'name.max' => 'Nama unit maksimal 50 karakter.',
                 ]
             );
 
@@ -273,8 +281,7 @@ class UnitController extends Controller
                         )
                     ) {
                         throw ValidationException::withMessages([
-                            'name' =>
-                                'Nama unit sudah digunakan.',
+                            'name' => 'Nama unit sudah digunakan.',
                         ]);
                     }
 
@@ -330,8 +337,7 @@ class UnitController extends Controller
                 ])
                 ->withErrors(
                     [
-                        'name' =>
-                            'Unit gagal diperbarui. Silakan coba kembali.',
+                        'name' => 'Unit gagal diperbarui. Silakan coba kembali.',
                     ],
                     'editUnit'
                 );
@@ -350,8 +356,7 @@ class UnitController extends Controller
                 ])
                 ->withErrors(
                     [
-                        'name' =>
-                            'Unit gagal diperbarui. Silakan coba kembali.',
+                        'name' => 'Unit gagal diperbarui. Silakan coba kembali.',
                     ],
                     'editUnit'
                 );
@@ -397,8 +402,7 @@ class UnitController extends Controller
 
                 if ($isUsed) {
                     throw ValidationException::withMessages([
-                        'delete' =>
-                            'Unit masih digunakan oleh produk dan tidak dapat dihapus.',
+                        'delete' => 'Unit masih digunakan oleh produk dan tidak dapat dihapus.',
                     ]);
                 }
 
@@ -471,7 +475,7 @@ class UnitController extends Controller
         if ($driver === 'pgsql') {
             DB::select(
                 'SELECT pg_advisory_xact_lock(hashtext(?))',
-                ['unit:' . $normalizedName]
+                ['unit:'.$normalizedName]
             );
         }
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -77,7 +78,10 @@ class PhysicalStockAccumulationController extends Controller
 
         $locations = $this->locationOptions($mode);
 
-        return view('content.monitoring.physical-stocks.index', [
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Physical Stocks',
+            'description' => 'Laporan monitoring.',
+            'data' => [
             'rows'            => $rows,
             'filters'         => $filters,
             'summary'         => $summary,
@@ -86,6 +90,9 @@ class PhysicalStockAccumulationController extends Controller
             'chartByProduct'  => $chartByProduct,
             'mode'            => $mode,
             'lastUpdate'      => now()->format('d-m-Y H:i:s'),
+        ],
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current()],
         ]);
     }
 
