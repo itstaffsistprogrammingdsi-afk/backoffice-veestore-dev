@@ -216,7 +216,7 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
 <style scoped>
 .price-page { --price-ink: var(--app-ink); --price-border: var(--app-border); --price-muted: var(--app-muted); color: var(--price-ink); }
 .price-header { padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-hero-bg); color: var(--app-hero-text); }
-.price-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: #f9a8d4; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.price-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .price-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; color: var(--app-hero-text); }
 .price-header p { margin: 0; color: var(--app-hero-muted); }
 .price-card { border: 1px solid var(--price-border); border-radius: 0.9rem; box-shadow: var(--app-shadow); background: var(--app-surface); }

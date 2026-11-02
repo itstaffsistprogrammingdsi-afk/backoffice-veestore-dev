@@ -111,7 +111,7 @@ const isActive = (code: VoucherCode) => Boolean(code.is_active);
 <style scoped>
 .voucher-page { color: var(--app-ink); }
 .voucher-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-hero-bg); color: var(--app-hero-text); }
-.voucher-eyebrow { display: inline-block; margin-bottom: .5rem; color: #f9a8d4; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.voucher-eyebrow { display: inline-block; margin-bottom: .5rem; color: var(--app-hero-eyebrow); font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .voucher-header h1 { margin: 0 0 .35rem; font-size: 1.5rem; }
 .voucher-header p { margin: 0; color: var(--app-hero-muted); }
 .voucher-card { border: 1px solid var(--app-border); border-radius: .9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }

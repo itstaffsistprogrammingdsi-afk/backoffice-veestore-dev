@@ -281,7 +281,7 @@ const formatDate = (value: string | null) => {
 <style scoped>
 .branch-page { --branch-ink: var(--app-ink); --branch-border: var(--app-border); --branch-muted: var(--app-muted); color: var(--branch-ink); }
 .branch-header { padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--branch-ink); color: #fff; }
-.branch-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: #f9a8d4; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.branch-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .branch-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
 .branch-header p { margin: 0; color: var(--app-hero-muted); }
 .branch-card { border: 1px solid var(--branch-border); border-radius: 0.9rem; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }

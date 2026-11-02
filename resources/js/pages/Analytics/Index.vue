@@ -207,8 +207,8 @@ const renderChart = () => {
                 {
                     label: 'Prediksi Unit',
                     data: props.forecastDaily.map((row) => Number(row.predicted_qty ?? 0)),
-                    borderColor: '#0060af',
-                    backgroundColor: 'rgba(0, 96, 175, 0.12)',
+                    borderColor: '#3b4cf0',
+                    backgroundColor: 'rgba(59, 76, 240, 0.12)',
                     fill: true,
                     tension: 0.35,
                     yAxisID: 'y',
@@ -216,7 +216,7 @@ const renderChart = () => {
                 {
                     label: 'Prediksi Omzet',
                     data: props.forecastDaily.map((row) => Number(row.predicted_revenue ?? 0)),
-                    borderColor: '#c366a8',
+                    borderColor: '#6f7dff',
                     tension: 0.35,
                     yAxisID: 'y1',
                 },
@@ -229,26 +229,26 @@ const renderChart = () => {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        color: isDark.value ? '#e5dfe9' : '#4b4453',
+                        color: isDark.value ? '#dbe5ed' : '#42515e',
                     },
                 },
             },
             scales: {
                 x: {
                     ticks: {
-                        color: isDark.value ? '#b9afc3' : '#6b6474',
+                        color: isDark.value ? '#a9b8c8' : '#65727e',
                     },
                     grid: {
-                        color: isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(23,17,31,0.06)',
+                        color: isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(28,42,107,0.08)',
                     },
                 },
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        color: isDark.value ? '#b9afc3' : '#6b6474',
+                        color: isDark.value ? '#a9b8c8' : '#65727e',
                     },
                     grid: {
-                        color: isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(23,17,31,0.06)',
+                        color: isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(28,42,107,0.08)',
                     },
                 },
                 y1: {
@@ -258,7 +258,7 @@ const renderChart = () => {
                         drawOnChartArea: false,
                     },
                     ticks: {
-                        color: isDark.value ? '#b9afc3' : '#6b6474',
+                        color: isDark.value ? '#a9b8c8' : '#65727e',
                         callback: (value) => formatCurrency(Number(value)),
                     },
                 },
@@ -510,8 +510,8 @@ onBeforeUnmount(() => {
     --ai-ink: var(--app-ink);
     --ai-muted: var(--app-muted);
     --ai-border: var(--app-border);
-    --ai-pink: #c366a8;
-    --ai-purple: #0060af;
+    --ai-accent: #3b4cf0;
+    --ai-accent-soft: #eef1ff;
     color: var(--ai-ink);
 }
 
@@ -530,7 +530,7 @@ onBeforeUnmount(() => {
 .ai-eyebrow {
     display: inline-block;
     margin-bottom: 0.5rem;
-    color: #f9a8d4;
+    color: var(--app-hero-eyebrow);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -609,8 +609,8 @@ onBeforeUnmount(() => {
 }
 
 .status-badge {
-    background: #f1eafe;
-    color: #5b21b6;
+    background: #eef1ff;
+    color: #2f3dd1;
     text-transform: capitalize;
 }
 

@@ -42,6 +42,8 @@ class StoreController extends Controller
         );
 
         $stores = Store::query()
+            ->select('stores.*')
+            ->selectRaw('ST_Y(geom) AS lat, ST_X(geom) AS lng')
             ->when($q !== '', function ($query) use ($q) {
                 $driver = DB::connection()->getDriverName();
 
@@ -110,8 +112,9 @@ class StoreController extends Controller
                 ['key' => 'contact_phone', 'label' => 'Telepon Kontak', 'required' => true],
                 ['key' => 'contact_email', 'label' => 'Email Kontak'],
                 ['key' => 'image', 'label' => 'Gambar Store', 'type' => 'file'],
-                ['key' => 'lat', 'label' => 'Latitude', 'type' => 'number'],
-                ['key' => 'lng', 'label' => 'Longitude', 'type' => 'number'],
+                ['key' => 'location', 'label' => 'Lokasi Store', 'type' => 'map', 'latitudeKey' => 'lat', 'longitudeKey' => 'lng'],
+                ['key' => 'lat', 'label' => 'Latitude', 'type' => 'number', 'placeholder' => 'Terisi otomatis dari peta'],
+                ['key' => 'lng', 'label' => 'Longitude', 'type' => 'number', 'placeholder' => 'Terisi otomatis dari peta'],
             ],
             'filters' => ['q' => $q],
             'urls' => [

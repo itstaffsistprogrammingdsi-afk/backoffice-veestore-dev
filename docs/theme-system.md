@@ -28,43 +28,44 @@ Cara kerja:
 
 ## 3. Token warna
 
-Palet diambil dari brand Veestore Official (`https://veestoreofficial.com/home`):
+Palet memakai biru royal yang lebih vivid sebagai aksen utama, dengan tint biru muda untuk state aktif. Tidak ada aksen pink atau ungu.
 
-- Pink: `#c366a8`
-- Pink soft: `#ff99d6`
-- Blue: `#0060af`
-- Blue deep: `#003a70`
-- Mint: `#6ec5a1`
-- Yellow: `#fcbd00`
-- Orange: `#f15a22`
+- Hero navy blue: `#1c2a6b`
+- Blue accent: `#3b4cf0`
+- Blue strong: `#2f3dd1`
+- Blue soft: `#eef1ff`
+- Eyebrow: `#b7c3ff`
 
 | Token | Light | Dark |
 |---|---|---|
-| `--app-bg` | `#f6f6f6` | `#0d1b2a` |
-| `--app-surface` | `#ffffff` | `#12263a` |
-| `--app-surface-2` | `#fafafa` | `#17304a` |
-| `--app-ink` | `#2f2f2f` | `#f5f8fb` |
-| `--app-muted` | `#6f6f6f` | `#a9b8c8` |
-| `--app-border` | `#d9d9d9` | `#28445f` |
-| `--app-accent` | `#c366a8` | `#ff99d6` |
-| `--app-accent-strong` | `#9d3f86` | `#ff99d6` |
-| `--app-hero-bg` | `#003a70` | `#003a70` |
-| `--app-sidebar-bg` | `#ffffff` | `#0a1930` |
-| `--app-sidebar-ink` | `#2f2f2f` | `#eaf2fb` |
+| `--app-bg` | `#f7f8fc` | `#0d1322` |
+| `--app-surface` | `#ffffff` | `#151c30` |
+| `--app-surface-2` | `#f8f9ff` | `#1b2340` |
+| `--app-ink` | `#171b26` | `#f5f7ff` |
+| `--app-muted` | `#6b7280` | `#aab1c8` |
+| `--app-border` | `#e5e7f0` | `#2a3455` |
+| `--app-accent` | `#3b4cf0` | `#8fa2ff` |
+| `--app-accent-strong` | `#2f3dd1` | `#8fa2ff` |
+| `--app-hero-bg` | `#1c2a6b` | `#1a255c` |
+| `--app-hero-eyebrow` | `#b7c3ff` | `#b7c3ff` |
+| `--app-sidebar-bg` | `#ffffff` | `#0b1120` |
+| `--app-sidebar-ink` | `#171b26` | `#eef1ff` |
 
 ## 4. Sidebar
 
 Sidebar mengikuti dua mode:
 
-- Light mode: permukaan putih, border abu muda, item aktif memakai pink soft dan teks pink gelap.
-- Dark mode: permukaan biru malam, teks terang, item aktif memakai biru medium dan aksen pink soft.
+- Light mode: permukaan putih, border abu kebiruan, item aktif memakai biru soft dan teks biru gelap.
+- Dark mode: permukaan biru malam, teks terang, item aktif memakai biru medium dan aksen biru terang.
 
 Kontras teks sidebar sudah dicek:
 
-- Teks utama light mode di atas putih: 13.39:1.
-- Teks muted light mode di atas putih: 5.02:1.
-- Teks muted dark mode di atas biru malam: 8.69:1.
-- Item aktif dark mode: 6.02:1.
+- Teks utama light mode di atas putih: 17.2:1.
+- Teks muted light mode di atas putih: 4.83:1.
+- Teks muted light mode di atas background: 4.56:1.
+- Item aktif light mode: 6.89:1.
+- Teks muted dark mode di atas permukaan gelap: 7.92:1.
+- Item aktif dark mode: 6.26:1.
 
 ## 5. Cakupan
 
@@ -79,11 +80,10 @@ Sudah mendukung light dan dark:
 - Branch Operations.
 - Ecommerce.
 - Seluruh Reports.
-- Enam halaman Master Data sederhana.
-
-Belum mendukung dark mode:
-
-- Halaman Blade lama yang belum dimigrasikan: sebagian Master Data, Monitoring, dan Dashboard.
+- Seluruh Master Data, termasuk Voucher Codes dan Voucher Print.
+- Seluruh Monitoring.
+- Dashboard.
+- AI Analytics dan AI Assistant.
 
 ## 6. Aksesibilitas
 
@@ -99,10 +99,11 @@ Screenshot headless Chrome sudah dicek untuk:
 
 - `/login` light dan dark.
 - `/operations` light dan dark.
-- `/reports/crm` light dan dark.
-- `/master-data/partners` dark.
+- `/reports` light dan dark.
+- `/monitoring/stok-wms` light dan dark.
+- `/dashboard` light dan dark.
 
-Hasil: sidebar light memakai permukaan putih dan teks gelap, sidebar dark memakai biru malam dan teks terang, hero memakai brand blue deep, tombol primary memakai brand pink, dan heading pada hero tetap putih.
+Hasil: sidebar light memakai permukaan putih dan teks gelap, sidebar dark memakai biru malam dan teks terang, hero memakai navy blue, tombol primary memakai biru royal, dan heading pada hero tetap putih.
 
 ## 8. Validasi teknis
 
@@ -110,7 +111,7 @@ Hasil: sidebar light memakai permukaan putih dan teks gelap, sidebar dark memaka
 |---|---|
 | `npm run typecheck` | Lulus |
 | `npm run build:vite` | Berhasil |
-| Full test suite | 34 lulus, 495 assertion |
+| Full test suite | 50 lulus, 892 assertion |
 | `composer lint` | Lulus |
 | `composer analyse` | 0 error |
 | `route:cache` | Berhasil |
@@ -118,7 +119,6 @@ Hasil: sidebar light memakai permukaan putih dan teks gelap, sidebar dark memaka
 
 ## 9. Langkah berikutnya
 
-1. Migrasikan halaman Blade yang tersisa agar dark mode berlaku menyeluruh.
-2. Tambahkan test visual atau screenshot untuk kedua tema.
-3. Evaluasi kontras token dengan alat contrast checker.
-4. Tambahkan preferensi tema per user jika dibutuhkan.
+1. Tambahkan test visual otomatis untuk kedua tema bila pipeline screenshot tersedia.
+2. Evaluasi kontras token setiap kali palet berubah.
+3. Tambahkan preferensi tema per user jika dibutuhkan.

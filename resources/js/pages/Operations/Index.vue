@@ -17,6 +17,8 @@ interface Props {
         stores: string;
         ecommerce: string;
         stock: string;
+        inbound: string;
+        outbound: string;
     };
 }
 
@@ -27,7 +29,7 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
 const modules = [
     {
         title: 'Warehouse',
-        description: 'Master gudang, lokasi, inbound, outbound, QC, dan stok WMS.',
+        description: 'Warehouse master, layout, stock, inbound, outbound, dan QC operasional.',
         icon: 'mdi-warehouse',
         url: 'warehouses',
         action: 'Kelola Gudang',
@@ -62,11 +64,19 @@ const modules = [
                 </p>
             </div>
             <div class="hub-hero-actions">
-                <Link :href="props.urls.stock" class="hub-button hub-button-light">
-                    <i class="mdi mdi-package-variant-closed me-1"></i>
-                    Stok WMS
+                <Link :href="props.urls.stock" class="hub-button hub-button-accent">
+                    <i class="mdi mdi-clipboard-list-outline me-1"></i>
+                    Stock Operations
                 </Link>
-                <Link :href="props.urls.ecommerce" class="hub-button hub-button-accent">
+                <Link :href="props.urls.inbound" class="hub-button hub-button-light">
+                    <i class="mdi mdi-tray-arrow-down me-1"></i>
+                    Inbound
+                </Link>
+                <Link :href="props.urls.outbound" class="hub-button hub-button-light">
+                    <i class="mdi mdi-tray-arrow-up me-1"></i>
+                    Outbound
+                </Link>
+                <Link :href="props.urls.ecommerce" class="hub-button hub-button-light">
                     <i class="mdi mdi-cart-arrow-right me-1"></i>
                     Order Ecommerce
                 </Link>
@@ -109,7 +119,7 @@ const modules = [
 <style scoped>
 .hub-page { color: var(--app-ink); }
 .hub-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; padding: 2rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-ink); color: #fff; }
-.hub-eyebrow { display: inline-block; margin-bottom: 0.6rem; color: #f9a8d4; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.hub-eyebrow { display: inline-block; margin-bottom: 0.6rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .hub-hero h2 { margin: 0 0 0.4rem; font-size: 1.7rem; max-width: 36rem; }
 .hub-hero p { margin: 0; color: var(--app-hero-muted); max-width: 40rem; }
 .hub-hero-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }

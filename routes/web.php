@@ -89,6 +89,13 @@ use App\Http\Controllers\Monitoring\WarehouseOutboundController;
 use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
 // Reports
 use App\Http\Controllers\NotificationStatusController;
+use App\Http\Controllers\Operations\CustomerVisitOperationsController;
+use App\Http\Controllers\Operations\InboundController;
+use App\Http\Controllers\Operations\OperationalStockController;
+use App\Http\Controllers\Operations\OutboundController;
+use App\Http\Controllers\Operations\StoreInboundOperationsController;
+use App\Http\Controllers\Operations\StoreOutboundOperationsController;
+use App\Http\Controllers\Operations\StoreStockOperationsController;
 use App\Http\Controllers\OperationsHubController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\Reports\CrmController;
@@ -151,6 +158,13 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/operations', OperationsHubController::class)->name('operations.index');
+    Route::get('/operations/stock', OperationalStockController::class)->name('operations.stock.index');
+    Route::get('/operations/inbound', InboundController::class)->name('operations.inbound.index');
+    Route::get('/operations/outbound', OutboundController::class)->name('operations.outbound.index');
+    Route::get('/operations/customers', CustomerVisitOperationsController::class)->name('operations.customers.index');
+    Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
+    Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
+    Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
     Route::get('/reports', ReportsHubController::class)->name('reports.index');
 
     Route::get('/dashboard', [Analytics::class, 'index'])->name('dashboard-analytics');
@@ -255,6 +269,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [LocationwarehouseController::class, 'index'])->name('index');
             Route::get('/tree', [LocationwarehouseController::class, 'treeData'])->name('tree');
             Route::post('/', [LocationwarehouseController::class, 'store'])->name('store');
+            Route::post('/generate', [LocationwarehouseController::class, 'generate'])->name('generate');
+            Route::post('/quick-add', [LocationwarehouseController::class, 'quickAdd'])->name('quick-add');
             Route::put('/{location}', [LocationwarehouseController::class, 'update'])->name('update');
             Route::delete('/{location}', [LocationwarehouseController::class, 'destroy'])->name('destroy');
             Route::get('/{location}/qr', [LocationwarehouseController::class, 'qr'])->name('qr');
@@ -264,6 +280,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [LocationstoreController::class, 'index'])->name('index');
             Route::get('/tree', [LocationstoreController::class, 'treeData'])->name('tree');
             Route::post('/', [LocationstoreController::class, 'store'])->name('store');
+            Route::post('/generate', [LocationstoreController::class, 'generate'])->name('generate');
+            Route::post('/quick-add', [LocationstoreController::class, 'quickAdd'])->name('quick-add');
             Route::put('/{location}', [LocationstoreController::class, 'update'])->name('update');
             Route::delete('/{location}', [LocationstoreController::class, 'destroy'])->name('destroy');
             Route::get('/{location}/qr', [LocationstoreController::class, 'qr'])->name('qr');

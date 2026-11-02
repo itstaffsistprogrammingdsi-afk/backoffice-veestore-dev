@@ -165,7 +165,7 @@ const formatDate = (value: string | null) => {
 .loyalty-eyebrow {
     display: inline-block;
     margin-bottom: 0.5rem;
-    color: #f9a8d4;
+    color: var(--app-hero-eyebrow);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -196,8 +196,8 @@ const formatDate = (value: string | null) => {
 }
 
 .loyalty-badge {
-    background: #f3e8ff;
-    color: #6b21a8;
+    background: #eef1ff;
+    color: #2f3dd1;
 }
 
 .loyalty-empty {

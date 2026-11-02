@@ -101,7 +101,7 @@ Tidak ada halaman bisnis yang masih memakai Blade. Yang tersisa hanya:
 
 | Pemeriksaan | Hasil |
 |---|---|
-| Full test suite | 35 lulus, 682 assertion |
+| Full test suite | 50 lulus, 892 assertion |
 | `composer lint` | Lulus |
 | `composer analyse` | 0 error |
 | `npm run typecheck` | Lulus |

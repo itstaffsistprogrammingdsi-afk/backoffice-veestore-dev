@@ -227,7 +227,7 @@ const formatNumber = (value: number, digits = 0) =>
 .settings-eyebrow {
     display: inline-block;
     margin-bottom: 0.5rem;
-    color: #f9a8d4;
+    color: var(--app-hero-eyebrow);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Domain\LocationLayout\Actions\AddLayoutNode;
+use App\Domain\WarehouseLocations\Actions\GenerateWarehouseLocations;
+use App\Domain\WarehouseLocations\Queries\WarehouseLocationGroups;
 use App\Http\Controllers\Controller;
 use App\Models\Location;
-use App\Models\Store;
 use App\Models\Warehouse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -19,54 +22,49 @@ class LocationwarehouseController extends Controller
     public function __construct()
     {
         $this->middleware('permission:view master-data-locations-warehouse')->only(['index', 'treeData', 'qr']);
-        $this->middleware('permission:create master-data-locations-warehouse')->only(['store']);
+        $this->middleware('permission:create master-data-locations-warehouse')->only(['store', 'generate', 'quickAdd']);
         $this->middleware('permission:update master-data-locations-warehouse')->only(['update']);
         $this->middleware('permission:delete master-data-locations-warehouse')->only(['destroy']);
     }
 
-    public function index(Request $request)
+    public function index(Request $request, WarehouseLocationGroups $groups)
     {
-        $q = trim((string) $request->get('q', ''));
-        $type = $request->get('type');
+        $q = trim((string) $request->query('q', ''));
+        $warehouseId = $request->query('warehouse_id');
+        $warehouseId = is_string($warehouseId) && $warehouseId !== '' ? $warehouseId : null;
+        $type = $request->query('type');
+        $type = is_string($type) && in_array($type, ['room', 'store_display', 'staging', 'rack', 'layer'], true)
+            ? $type
+            : null;
 
-        $locations = Location::query()
-            ->with('parent:id,name')
-            ->where('type', '!=', 'store')
-            ->when($q !== '', fn ($query) => $query->where(function ($sub) use ($q) {
-                $sub->where('name', 'ILIKE', "%{$q}%")->orWhere('code', 'ILIKE', "%{$q}%");
-            }))
-            ->when($type, fn ($query) => $query->where('type', $type))
+        $warehouses = Warehouse::query()
             ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
+            ->get(['id', 'name', 'code', 'address']);
 
-        $types = ['warehouse', 'room', 'store_display', 'rack', 'staging', 'layer'];
-        $stores = Store::select('id', 'name')->orderBy('name')->get();
-        $warehouses = Warehouse::select('id', 'name')->orderBy('name')->get();
-        $parentOptions = Location::select('id', 'name')->orderBy('name')->get();
-
-        return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Location Warehouse',
-            'description' => 'Kelola lokasi gudang.',
-            'searchPlaceholder' => 'Cari lokasi...',
-            'items' => $locations,
-            'columns' => [
-                ['key' => 'name', 'label' => 'Nama'],
-                ['key' => 'code', 'label' => 'Kode'],
-                ['key' => 'type', 'label' => 'Tipe'],
-                ['key' => 'parent.name', 'label' => 'Parent'],
+        return Inertia::render('MasterData/WarehouseLocations', [
+            'groups' => $groups->build($q, $warehouseId, $type),
+            'warehouses' => $warehouses->map(fn (Warehouse $warehouse) => [
+                'id' => $warehouse->id,
+                'name' => $warehouse->name,
+                'code' => $warehouse->code,
+                'address' => $warehouse->address,
+            ])->values()->all(),
+            'filters' => [
+                'q' => $q,
+                'warehouse_id' => $warehouseId,
+                'type' => $type,
             ],
-            'fields' => [
-                ['key' => 'name', 'label' => 'Nama Lokasi', 'required' => true],
-                ['key' => 'code', 'label' => 'Kode', 'required' => true],
-                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'required' => true, 'options' => collect($types)->map(fn ($type) => ['value' => $type, 'label' => $type])->values()->all()],
-                ['key' => 'location_parent_id', 'label' => 'Parent', 'type' => 'select', 'options' => $parentOptions->map(fn ($location) => ['value' => $location->id, 'label' => $location->name])->values()->all()],
-                ['key' => 'warehouse_id', 'label' => 'Warehouse', 'type' => 'select', 'options' => $warehouses->map(fn ($warehouse) => ['value' => $warehouse->id, 'label' => $warehouse->name])->values()->all()],
+            'typeOptions' => [
+                ['value' => 'room', 'label' => 'Room'],
+                ['value' => 'store_display', 'label' => 'Store Display'],
+                ['value' => 'staging', 'label' => 'Staging'],
+                ['value' => 'rack', 'label' => 'Rack'],
+                ['value' => 'layer', 'label' => 'Layer'],
             ],
-            'filters' => ['q' => $q],
             'urls' => [
                 'index' => route('master-data.locations-warehouse.index'),
-                'store' => route('master-data.locations-warehouse.store'),
+                'generate' => route('master-data.locations-warehouse.generate'),
+                'quickAdd' => route('master-data.locations-warehouse.quick-add'),
                 'update' => route('master-data.locations-warehouse.update', ['location' => '__ID__']),
                 'destroy' => route('master-data.locations-warehouse.destroy', ['location' => '__ID__']),
             ],
@@ -340,6 +338,97 @@ class LocationwarehouseController extends Controller
             ->withInput(['_form' => $formFrom]);
     }
 
+    public function generate(Request $request, GenerateWarehouseLocations $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'warehouse_id' => ['required', 'uuid', 'exists:warehouses,id'],
+            'rooms' => ['required', 'integer', 'min:1', 'max:20'],
+            'staging' => ['required', 'integer', 'min:0', 'max:20'],
+            'racks' => ['required', 'integer', 'min:0', 'max:50'],
+            'layers' => ['required', 'integer', 'min:0', 'max:20'],
+        ], [
+            'name.required' => 'Nama lokasi wajib diisi.',
+            'warehouse_id.required' => 'Warehouse wajib dipilih.',
+            'rooms.min' => 'Jumlah room minimal 1.',
+            'rooms.max' => 'Jumlah room maksimal 20.',
+            'staging.max' => 'Jumlah staging maksimal 20.',
+            'racks.max' => 'Jumlah rack maksimal 50.',
+            'layers.max' => 'Jumlah layer maksimal 20.',
+        ]);
+
+        $rooms = (int) $data['rooms'];
+        $staging = (int) $data['staging'];
+        $racks = (int) $data['racks'];
+        $layers = (int) $data['layers'];
+
+        if ($layers > 0 && $staging === 0 && $racks === 0) {
+            throw ValidationException::withMessages([
+                'layers' => 'Isi minimal satu staging atau rack jika ingin membuat layer.',
+            ]);
+        }
+
+        $perRoom = 1 + $staging + $racks + (($staging + $racks) * $layers);
+
+        if (($rooms * $perRoom) > 500) {
+            throw ValidationException::withMessages([
+                'rooms' => 'Total lokasi yang dibuat melebihi batas 500 node. Kurangi jumlah room, staging, rack, atau layer.',
+            ]);
+        }
+
+        $warehouse = Warehouse::query()->findOrFail($data['warehouse_id']);
+        $result = $action->handle(
+            $warehouse,
+            trim($data['name']),
+            $rooms,
+            $staging,
+            $racks,
+            $layers
+        );
+
+        $created = $result['created'];
+
+        return $this->redirectIndex()->with(
+            'success',
+            sprintf(
+                'Lokasi "%s" berhasil dibuat: %d room, %d staging, %d rack, %d layer. Kode dan QR dibuat otomatis.',
+                trim($data['name']),
+                $created['rooms'],
+                $created['staging'],
+                $created['racks'],
+                $created['layers']
+            )
+        );
+    }
+
+    public function quickAdd(Request $request, AddLayoutNode $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'warehouse_id' => ['required', 'uuid', 'exists:warehouses,id'],
+            'type' => ['required', 'in:room,store_display,staging,rack,layer'],
+            'parent_id' => ['nullable', 'uuid', 'exists:locations,id'],
+            'name' => ['required', 'string', 'max:255'],
+        ], [
+            'name.required' => 'Nama lokasi wajib diisi.',
+        ]);
+
+        $warehouse = Warehouse::query()->findOrFail($data['warehouse_id']);
+        $location = $action->handle(
+            'warehouse',
+            $warehouse->id,
+            $warehouse->name,
+            (string) $warehouse->code,
+            $data['type'],
+            $data['parent_id'] ?? null,
+            $data['name']
+        );
+
+        return $this->redirectIndex()->with(
+            'success',
+            $this->locationTypeLabel($location->type)." \"{$location->name}\" ({$location->code}) berhasil ditambahkan."
+        );
+    }
+
     public function update(Request $request, Location $location)
     {
         $data = $request->validate([
@@ -436,13 +525,16 @@ class LocationwarehouseController extends Controller
     public function destroy(Location $location)
     {
         DB::transaction(function () use ($location) {
-            DB::table('warehouse_locations')->where('location_id', $location->id)->delete();
-            DB::table('store_locations')->where('location_id', $location->id)->delete();
-            DB::table('location_rfid_tags')->where('location_id', $location->id)->delete();
-            $location->delete();
+            $locationIds = $this->getSelfAndDescendantLocationIds($location->id);
+
+            DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
+            DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
+            DB::table('location_rfid_tags')->whereIn('location_id', $locationIds)->delete();
+
+            Location::query()->whereIn('id', $locationIds)->delete();
         });
 
-        return back()->with('success', 'Location berhasil dihapus.');
+        return back()->with('success', 'Location beserta turunannya berhasil dihapus.');
     }
 
     public function qr(Location $location)

@@ -93,7 +93,7 @@ const modules = [
 <style scoped>
 .hub-page { color: var(--app-ink); }
 .hub-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; padding: 2rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-ink); color: #fff; }
-.hub-eyebrow { display: inline-block; margin-bottom: 0.6rem; color: #f9a8d4; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.hub-eyebrow { display: inline-block; margin-bottom: 0.6rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .hub-hero h2 { margin: 0 0 0.4rem; font-size: 1.7rem; max-width: 36rem; }
 .hub-hero p { margin: 0; color: var(--app-hero-muted); max-width: 40rem; }
 .hub-primary { display: inline-flex; align-items: center; padding: 0.7rem 1rem; border-radius: 0.6rem; background: var(--app-accent-strong); color: var(--app-on-accent); font-weight: 700; text-decoration: none; white-space: nowrap; }

@@ -3,19 +3,23 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+
+const LocationPicker = defineAsyncComponent(() => import('../../components/LocationPicker.vue'));
 
 interface Option { value: string; label: string }
 
 interface Field {
     key: string;
     label: string;
-    type?: 'text' | 'number' | 'textarea' | 'select' | 'date' | 'file' | 'multiselect';
+    type?: 'text' | 'number' | 'textarea' | 'select' | 'date' | 'file' | 'multiselect' | 'map';
     required?: boolean;
     options?: Option[];
     placeholder?: string;
+    latitudeKey?: string;
+    longitudeKey?: string;
 }
 
 interface Column {
@@ -68,7 +72,11 @@ const search = reactive({ q: props.filters.q ?? '' });
 const showCreate = ref(false);
 const editingId = ref<string | null>(null);
 
-const emptyPayload = () => Object.fromEntries(props.fields.map((field) => [field.key, field.type === 'multiselect' ? [] : '']));
+const emptyPayload = () => Object.fromEntries(
+    props.fields
+        .filter((field) => field.type !== 'map')
+        .map((field) => [field.key, field.type === 'multiselect' ? [] : '']),
+);
 
 const createForm = useForm<Record<string, any>>(emptyPayload());
 const editForm = useForm<Record<string, any>>(emptyPayload());
@@ -91,6 +99,15 @@ const onFileChange = (key: string, event: Event) => {
 
     createForm[key] = file;
     editForm[key] = file;
+};
+
+const setCoordinates = (isEdit: boolean, field: Field, value: { latitude: number; longitude: number } | null) => {
+    const form = formFor(isEdit);
+    const latitudeKey = field.latitudeKey ?? 'lat';
+    const longitudeKey = field.longitudeKey ?? 'lng';
+
+    form[latitudeKey] = value?.latitude ?? '';
+    form[longitudeKey] = value?.longitude ?? '';
 };
 
 const rowActionVisible = (action: RowAction, row: Record<string, any>) =>
@@ -198,6 +215,8 @@ const startEdit = (row: Record<string, any>) => {
     editForm.clearErrors();
 
     for (const field of props.fields) {
+        if (field.type === 'map') continue;
+
         editForm[field.key] = field.type === 'multiselect'
             ? (Array.isArray(row[field.key]) ? [...row[field.key]] : [])
             : (row[field.key] ?? '');
@@ -294,9 +313,15 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
             </div>
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
-                    <div v-for="field in fields" :key="field.key" class="col-md-4">
+                    <div v-for="field in fields" :key="field.key" :class="field.type === 'map' ? 'col-12' : 'col-md-4'">
                         <label class="form-label">{{ field.label }}</label>
-                        <select v-if="field.type === 'multiselect'" v-model="createForm[field.key]" class="form-select form-select-sm" multiple>
+                        <LocationPicker
+                            v-if="field.type === 'map'"
+                            :latitude="createForm[field.latitudeKey ?? 'lat']"
+                            :longitude="createForm[field.longitudeKey ?? 'lng']"
+                            @update:coordinates="setCoordinates(false, field, $event)"
+                        />
+                        <select v-else-if="field.type === 'multiselect'" v-model="createForm[field.key]" class="form-select form-select-sm" multiple>
                             <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                         <select v-else-if="field.type === 'select'" v-model="createForm[field.key]" class="form-select form-select-sm" :required="field.required">
@@ -305,7 +330,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                         </select>
                         <textarea v-else-if="field.type === 'textarea'" v-model="createForm[field.key]" class="form-control form-control-sm" :required="field.required" rows="2"></textarea>
                         <input v-else-if="field.type === 'file'" class="form-control form-control-sm" type="file" :required="field.required" @change="onFileChange(field.key, $event)" />
-                        <input v-else v-model="createForm[field.key]" class="form-control form-control-sm" :type="field.type ?? 'text'" :required="field.required" :placeholder="field.placeholder" />
+                        <input v-else v-model="createForm[field.key]" class="form-control form-control-sm" :type="field.type ?? 'text'" :step="field.type === 'number' ? 'any' : undefined" :required="field.required" :placeholder="field.placeholder" />
                         <div v-if="createForm.errors[field.key]" class="text-danger small mt-1">{{ createForm.errors[field.key] }}</div>
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2">
@@ -352,9 +377,15 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             <tr v-if="editingId === String(row.id)">
                                 <td :colspan="columns.length + 1" class="crud-edit">
                                     <form class="row g-2 align-items-end" @submit.prevent="submitEdit">
-                                        <div v-for="field in fields" :key="field.key" class="col-md-4">
+                                        <div v-for="field in fields" :key="field.key" :class="field.type === 'map' ? 'col-12' : 'col-md-4'">
                                             <label class="form-label">{{ field.label }}</label>
-                                            <select v-if="field.type === 'multiselect'" v-model="editForm[field.key]" class="form-select form-select-sm" multiple>
+                                            <LocationPicker
+                                                v-if="field.type === 'map'"
+                                                :latitude="editForm[field.latitudeKey ?? 'lat']"
+                                                :longitude="editForm[field.longitudeKey ?? 'lng']"
+                                                @update:coordinates="setCoordinates(true, field, $event)"
+                                            />
+                                            <select v-else-if="field.type === 'multiselect'" v-model="editForm[field.key]" class="form-select form-select-sm" multiple>
                                                 <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                                             </select>
                                             <select v-else-if="field.type === 'select'" v-model="editForm[field.key]" class="form-select form-select-sm" :required="field.required">
@@ -363,7 +394,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                             </select>
                                             <textarea v-else-if="field.type === 'textarea'" v-model="editForm[field.key]" class="form-control form-control-sm" :required="field.required" rows="2"></textarea>
                                             <input v-else-if="field.type === 'file'" class="form-control form-control-sm" type="file" @change="onFileChange(field.key, $event)" />
-                                            <input v-else v-model="editForm[field.key]" class="form-control form-control-sm" :type="field.type ?? 'text'" :required="field.required" />
+                                            <input v-else v-model="editForm[field.key]" class="form-control form-control-sm" :type="field.type ?? 'text'" :step="field.type === 'number' ? 'any' : undefined" :required="field.required" />
                                             <div v-if="editForm.errors[field.key]" class="text-danger small mt-1">{{ editForm.errors[field.key] }}</div>
                                         </div>
                                     </form>
@@ -387,7 +418,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
 <style scoped>
 .crud-page { --crud-ink: var(--app-ink); --crud-border: var(--app-border); --crud-muted: var(--app-muted); color: var(--crud-ink); }
 .crud-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--crud-ink); color: #fff; }
-.crud-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: #f9a8d4; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.crud-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .crud-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
 .crud-header p { margin: 0; color: var(--app-hero-muted); }
 .crud-card { border: 1px solid var(--crud-border); border-radius: 0.9rem; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }

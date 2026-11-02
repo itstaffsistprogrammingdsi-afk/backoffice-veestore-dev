@@ -20,7 +20,9 @@ class OperationsHubController extends Controller
                 'warehouses' => route('master-data.warehouses.index'),
                 'stores' => route('master-data.stores.index'),
                 'ecommerce' => route('ecommerce.orders.index'),
-                'stock' => route('monitoring.stok-wms'),
+                'stock' => route('operations.stock.index'),
+                'inbound' => route('operations.inbound.index'),
+                'outbound' => route('operations.outbound.index'),
             ],
         ]);
     }

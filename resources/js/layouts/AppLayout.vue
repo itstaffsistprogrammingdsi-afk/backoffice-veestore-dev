@@ -43,7 +43,6 @@ const { isDark, toggleTheme } = useTheme();
 
 const navigation = computed<Navigation>(() => (page.props.navigation ?? { areas: [] }) as Navigation);
 const user = computed(() => (page.props.auth as { user?: { name?: string; email?: string } } | undefined)?.user);
-const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
 const currentPath = computed(() => page.url.split('?')[0]);
 const isReportsArea = computed(() => {
@@ -260,8 +259,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
             </header>
 
             <main id="main-content" class="app-content">
-                <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-                <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
                 <slot />
             </main>
         </div>

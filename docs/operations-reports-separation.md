@@ -1,6 +1,6 @@
 # Pemisahan Operasional dan Laporan
 
-Status: step 1 selesai
+Status: implemented
 Tanggal: 2026-11-01
 Branch: `main`
 
@@ -87,28 +87,29 @@ Sudah Inertia dan memakai shell baru:
 - Ecommerce.
 - Auth.
 - Seluruh Reports.
-- Enam halaman Master Data sederhana: partners, memberships, payment-methods, product-specifications, rfid-tags, membership-benefits.
-
-Masih Blade dan memakai layout lama:
-
-
-- Monitoring.
+- Seluruh Master Data.
+- Seluruh Monitoring.
 - Dashboard.
+- Operasional gudang: Stock Operations, Inbound Operations, Outbound Operations, Warehouse Layout, dan Store Layout.
+- Operasional toko: Store Stock Operations, Store Inbound Operations, Store Outbound Operations, dan Customers & Visits.
+
+Pemisahan operasional dan reporting:
+
+- Area Operasional memakai halaman kerja: stok tersedia per gudang, antrean inbound, dan antrean outbound.
+- Area Laporan dan Command Center tetap memakai halaman monitoring lengkap: Stok WMS, Warehouse Inbound, Warehouse Outbound, export, dan analitik.
+- Menu `Stok WMS`, `Inbound Gudang`, dan `Outbound Gudang` tidak lagi ditampilkan di sidebar Operasional agar tidak duplikat.
 
 ## 5. Langkah berikutnya
 
-1. Pindahkan definisi route ke `routes/operations.php` dan `routes/reports.php`, lalu load dari `routes/web.php`.
-2. Migrasikan Master Data yang tersisa ke Inertia dan shell baru.
-3. Migrasikan Monitoring dan Dashboard.
-4. Pisahkan read model laporan dari query operasional.
-5. Tambahkan test navigasi, permission sidebar, dan responsive shell.
-6. Setelah semua halaman Inertia, hapus layout Blade lama dan aset Materio yang tidak dipakai.
+1. Tambahkan aksi tulis operasional bila alur QC/release disetujui.
+2. Tambahkan test navigasi dan permission sidebar.
+3. Evaluasi performa query operasional saat volume dokumen meningkat.
 
 ## 6. Validasi
 
 | Pemeriksaan | Hasil |
 |---|---|
-| Full test suite | 34 lulus, 495 assertion |
+| Full test suite | 50 lulus, 892 assertion |
 | `composer lint` | Lulus |
 | `composer analyse` | 0 error |
 | `npm run typecheck` | Lulus |

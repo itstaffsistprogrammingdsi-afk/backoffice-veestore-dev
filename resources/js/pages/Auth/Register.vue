@@ -87,7 +87,7 @@ const submit = () => {
 .auth-field input {
     width: 100%;
     padding: 0.65rem 0.75rem;
-    border: 1px solid #ddd6e2;
+    border: 1px solid var(--app-border);
     border-radius: 0.55rem;
     background: var(--app-surface);
     font: inherit;

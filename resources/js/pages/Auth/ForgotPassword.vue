@@ -26,10 +26,10 @@ const props = defineProps<Props>();
 <style scoped>
 .auth-info {
     padding: 0.9rem 1rem;
-    border: 1px dashed #ddd6e2;
+    border: 1px dashed #d4dce3;
     border-radius: 0.65rem;
     background: var(--app-surface-2);
-    color: #4b4453;
+    color: #42515e;
     font-size: 0.9rem;
     line-height: 1.5;
 }

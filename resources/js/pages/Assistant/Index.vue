@@ -214,8 +214,8 @@ watch(
     --assistant-ink: var(--app-ink);
     --assistant-muted: var(--app-muted);
     --assistant-border: var(--app-border);
-    --assistant-pink: #c366a8;
-    --assistant-purple: #0060af;
+    --assistant-accent: #3b4cf0;
+    --assistant-accent-soft: #eef1ff;
     color: var(--assistant-ink);
 }
 
@@ -234,7 +234,7 @@ watch(
 .assistant-eyebrow {
     display: inline-block;
     margin-bottom: 0.5rem;
-    color: #f9a8d4;
+    color: var(--app-hero-eyebrow);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -282,16 +282,16 @@ watch(
 }
 
 .assistant-answer {
-    border: 1px solid #e9d5ff;
+    border: 1px solid #dbe0ff;
     border-radius: 0.75rem;
-    background: #faf5ff;
+    background: #f8f9ff;
     overflow: hidden;
 }
 
 .assistant-answer-header {
     padding: 0.7rem 1rem;
-    background: #f3e8ff;
-    color: #6b21a8;
+    background: #eef1ff;
+    color: #2f3dd1;
     font-weight: 700;
 }
 

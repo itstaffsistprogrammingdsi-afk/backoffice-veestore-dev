@@ -343,7 +343,7 @@ const statusClass = (status: string) => {
 <style scoped>
 .ecommerce-page { --ecommerce-ink: var(--app-ink); --ecommerce-border: var(--app-border); --ecommerce-muted: var(--app-muted); color: var(--ecommerce-ink); }
 .ecommerce-header { padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--ecommerce-ink); color: #fff; }
-.ecommerce-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: #f9a8d4; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.ecommerce-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .ecommerce-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
 .ecommerce-header p { margin: 0; color: var(--app-hero-muted); }
 .ecommerce-card { border: 1px solid var(--ecommerce-border); border-radius: 0.9rem; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }

@@ -55,10 +55,10 @@ class Navigation
                 'icon' => 'mdi-warehouse',
                 'items' => self::items($user, [
                     ['Warehouses', 'master-data.warehouses.index', 'mdi-warehouse', 'view master-data-warehouses'],
-                    ['Lokasi Gudang', 'master-data.locations-warehouse.index', 'mdi-map-marker-path', 'view master-data-locations-warehouse'],
-                    ['Stok WMS', 'monitoring.stok-wms', 'mdi-package-variant-closed', null],
-                    ['Inbound Gudang', 'monitoring.warehouse-inbound', 'mdi-tray-arrow-down', null],
-                    ['Outbound Gudang', 'monitoring.warehouse-outbound', 'mdi-tray-arrow-up', null],
+                    ['Warehouse Layout', 'master-data.locations-warehouse.index', 'mdi-map-marker-path', 'view master-data-locations-warehouse'],
+                    ['Stock Operations', 'operations.stock.index', 'mdi-clipboard-list-outline', null],
+                    ['Inbound Operations', 'operations.inbound.index', 'mdi-tray-arrow-down', null],
+                    ['Outbound Operations', 'operations.outbound.index', 'mdi-tray-arrow-up', null],
                 ]),
             ],
             [
@@ -66,11 +66,13 @@ class Navigation
                 'icon' => 'mdi-store',
                 'items' => self::items($user, [
                     ['Stores', 'master-data.stores.index', 'mdi-store', 'view master-data-stores'],
-                    ['Lokasi Toko', 'master-data.locations-store.index', 'mdi-map-marker-radius', 'view master-data-locations-store'],
-                    ['Customers', 'master-data.customers.index', 'mdi-account-group-outline', 'view master-customer'],
-                    ['Kunjungan', 'loyalty.customer-visits.index', 'mdi-account-clock-outline', 'view loyalty-customer-visits'],
-                    ['Request Label', 'branch-operations.request-label.index', 'mdi-tag-multiple-outline', null],
-                    ['Request Voucher', 'branch-operations.request-voucher.index', 'mdi-ticket-confirmation-outline', null],
+                    ['Store Layout', 'master-data.locations-store.index', 'mdi-map-marker-radius', 'view master-data-locations-store'],
+                    ['Store Stock Operations', 'operations.store-stock.index', 'mdi-clipboard-list-outline', null],
+                    ['Store Inbound Operations', 'operations.store-inbound.index', 'mdi-tray-arrow-down', null],
+                    ['Store Outbound Operations', 'operations.store-outbound.index', 'mdi-tray-arrow-up', null],
+                    ['Customers & Visits', 'operations.customers.index', 'mdi-account-group-outline', null],
+                    ['Label Requests', 'branch-operations.request-label.index', 'mdi-tag-multiple-outline', null],
+                    ['Voucher Requests', 'branch-operations.request-voucher.index', 'mdi-ticket-confirmation-outline', null],
                 ]),
             ],
             [

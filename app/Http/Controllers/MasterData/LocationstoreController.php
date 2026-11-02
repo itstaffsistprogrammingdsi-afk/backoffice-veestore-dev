@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\MasterData;
 
+use App\Domain\LocationLayout\Actions\AddLayoutNode;
+use App\Domain\StoreLocations\Actions\GenerateStoreLocations;
+use App\Domain\StoreLocations\Queries\StoreLocationGroups;
 use App\Http\Controllers\Controller;
 use App\Models\Location;
 use App\Models\Store;
-use App\Models\Warehouse;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,54 +23,50 @@ class LocationstoreController extends Controller
     public function __construct()
     {
         $this->middleware('permission:view master-data-locations-store')->only(['index', 'treeData', 'qr']);
-        $this->middleware('permission:create master-data-locations-store')->only(['store']);
+        $this->middleware('permission:create master-data-locations-store')->only(['store', 'generate', 'quickAdd']);
         $this->middleware('permission:update master-data-locations-store')->only(['update']);
         $this->middleware('permission:delete master-data-locations-store')->only(['destroy']);
     }
 
-    public function index(Request $request)
+    public function index(Request $request, StoreLocationGroups $groups)
     {
-        $q = trim((string) $request->get('q', ''));
-        $type = $request->get('type');
+        $q = trim((string) $request->query('q', ''));
+        $storeId = $request->query('store_id');
+        $storeId = is_string($storeId) && $storeId !== '' ? $storeId : null;
+        $type = $request->query('type');
+        $type = is_string($type) && in_array($type, ['room', 'store_display', 'staging', 'rack', 'layer'], true)
+            ? $type
+            : null;
 
-        $locations = Location::query()
-            ->with('parent:id,name')
-            ->where('type', '!=', 'warehouse')
-            ->when($q !== '', fn ($query) => $query->where(function ($sub) use ($q) {
-                $sub->where('name', 'ILIKE', "%{$q}%")->orWhere('code', 'ILIKE', "%{$q}%");
-            }))
-            ->when($type, fn ($query) => $query->where('type', $type))
+        $stores = Store::query()
+            ->whereNull('deleted_at')
             ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
+            ->get(['id', 'name', 'code', 'address']);
 
-        $types = ['store', 'room', 'store_display', 'rack', 'staging', 'layer'];
-        $stores = Store::select('id', 'name')->orderBy('name')->get();
-        $warehouses = Warehouse::select('id', 'name')->orderBy('name')->get();
-        $parentOptions = Location::select('id', 'name')->orderBy('name')->get();
-
-        return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Location Store',
-            'description' => 'Kelola lokasi toko.',
-            'searchPlaceholder' => 'Cari lokasi...',
-            'items' => $locations,
-            'columns' => [
-                ['key' => 'name', 'label' => 'Nama'],
-                ['key' => 'code', 'label' => 'Kode'],
-                ['key' => 'type', 'label' => 'Tipe'],
-                ['key' => 'parent.name', 'label' => 'Parent'],
+        return Inertia::render('MasterData/StoreLocations', [
+            'groups' => $groups->build($q, $storeId, $type),
+            'stores' => $stores->map(fn (Store $store) => [
+                'id' => $store->id,
+                'name' => $store->name,
+                'code' => $store->code,
+                'address' => $store->address,
+            ])->values()->all(),
+            'filters' => [
+                'q' => $q,
+                'store_id' => $storeId,
+                'type' => $type,
             ],
-            'fields' => [
-                ['key' => 'name', 'label' => 'Nama Lokasi', 'required' => true],
-                ['key' => 'code', 'label' => 'Kode', 'required' => true],
-                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'required' => true, 'options' => collect($types)->map(fn ($type) => ['value' => $type, 'label' => $type])->values()->all()],
-                ['key' => 'location_parent_id', 'label' => 'Parent', 'type' => 'select', 'options' => $parentOptions->map(fn ($location) => ['value' => $location->id, 'label' => $location->name])->values()->all()],
-                ['key' => 'store_id', 'label' => 'Store', 'type' => 'select', 'options' => $stores->map(fn ($store) => ['value' => $store->id, 'label' => $store->name])->values()->all()],
+            'typeOptions' => [
+                ['value' => 'room', 'label' => 'Room'],
+                ['value' => 'store_display', 'label' => 'Store Display'],
+                ['value' => 'staging', 'label' => 'Staging'],
+                ['value' => 'rack', 'label' => 'Rack'],
+                ['value' => 'layer', 'label' => 'Layer'],
             ],
-            'filters' => ['q' => $q],
             'urls' => [
                 'index' => route('master-data.locations-store.index'),
-                'store' => route('master-data.locations-store.store'),
+                'generate' => route('master-data.locations-store.generate'),
+                'quickAdd' => route('master-data.locations-store.quick-add'),
                 'update' => route('master-data.locations-store.update', ['location' => '__ID__']),
                 'destroy' => route('master-data.locations-store.destroy', ['location' => '__ID__']),
             ],
@@ -328,6 +327,97 @@ class LocationstoreController extends Controller
             ->withInput(['_form' => $formFrom]);
     }
 
+    public function generate(Request $request, GenerateStoreLocations $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'store_id' => ['required', 'uuid', 'exists:stores,id'],
+            'rooms' => ['required', 'integer', 'min:1', 'max:20'],
+            'staging' => ['required', 'integer', 'min:0', 'max:20'],
+            'racks' => ['required', 'integer', 'min:0', 'max:50'],
+            'layers' => ['required', 'integer', 'min:0', 'max:20'],
+        ], [
+            'name.required' => 'Nama lokasi wajib diisi.',
+            'store_id.required' => 'Store wajib dipilih.',
+            'rooms.min' => 'Jumlah room minimal 1.',
+            'rooms.max' => 'Jumlah room maksimal 20.',
+            'staging.max' => 'Jumlah staging maksimal 20.',
+            'racks.max' => 'Jumlah rack maksimal 50.',
+            'layers.max' => 'Jumlah layer maksimal 20.',
+        ]);
+
+        $rooms = (int) $data['rooms'];
+        $staging = (int) $data['staging'];
+        $racks = (int) $data['racks'];
+        $layers = (int) $data['layers'];
+
+        if ($layers > 0 && $staging === 0 && $racks === 0) {
+            throw ValidationException::withMessages([
+                'layers' => 'Isi minimal satu staging atau rack jika ingin membuat layer.',
+            ]);
+        }
+
+        $perRoom = 1 + $staging + $racks + (($staging + $racks) * $layers);
+
+        if (($rooms * $perRoom) > 500) {
+            throw ValidationException::withMessages([
+                'rooms' => 'Total lokasi yang dibuat melebihi batas 500 node. Kurangi jumlah room, staging, rack, atau layer.',
+            ]);
+        }
+
+        $store = Store::query()->findOrFail($data['store_id']);
+        $result = $action->handle(
+            $store,
+            trim($data['name']),
+            $rooms,
+            $staging,
+            $racks,
+            $layers
+        );
+
+        $created = $result['created'];
+
+        return $this->redirectIndex()->with(
+            'success',
+            sprintf(
+                'Lokasi "%s" berhasil dibuat: %d room, %d staging, %d rack, %d layer. Kode dan QR dibuat otomatis.',
+                trim($data['name']),
+                $created['rooms'],
+                $created['staging'],
+                $created['racks'],
+                $created['layers']
+            )
+        );
+    }
+
+    public function quickAdd(Request $request, AddLayoutNode $action): RedirectResponse
+    {
+        $data = $request->validate([
+            'store_id' => ['required', 'uuid', 'exists:stores,id'],
+            'type' => ['required', 'in:room,store_display,staging,rack,layer'],
+            'parent_id' => ['nullable', 'uuid', 'exists:locations,id'],
+            'name' => ['required', 'string', 'max:255'],
+        ], [
+            'name.required' => 'Nama lokasi wajib diisi.',
+        ]);
+
+        $store = Store::query()->findOrFail($data['store_id']);
+        $location = $action->handle(
+            'store',
+            $store->id,
+            $store->name,
+            (string) $store->code,
+            $data['type'],
+            $data['parent_id'] ?? null,
+            $data['name']
+        );
+
+        return $this->redirectIndex()->with(
+            'success',
+            $this->locationTypeLabel($location->type)." \"{$location->name}\" ({$location->code}) berhasil ditambahkan."
+        );
+    }
+
     public function update(Request $request, Location $location)
     {
         $data = $request->validate([
@@ -419,15 +509,21 @@ class LocationstoreController extends Controller
         $locationName = $location->name;
 
         DB::transaction(function () use ($location) {
-            DB::table('warehouse_locations')->where('location_id', $location->id)->delete();
-            DB::table('store_locations')->where('location_id', $location->id)->delete();
-            DB::table('location_rfid_tags')->where('location_id', $location->id)->delete();
-            $location->delete();
+            $locationIds = array_merge(
+                [$location->id],
+                $this->getDescendantLocationIds($location->id)
+            );
+
+            DB::table('warehouse_locations')->whereIn('location_id', $locationIds)->delete();
+            DB::table('store_locations')->whereIn('location_id', $locationIds)->delete();
+            DB::table('location_rfid_tags')->whereIn('location_id', $locationIds)->delete();
+
+            Location::query()->whereIn('id', $locationIds)->delete();
         });
 
         return back()->with(
             'success',
-            "{$typeLabel} \"{$locationName}\" berhasil dihapus."
+            "{$typeLabel} \"{$locationName}\" beserta turunannya berhasil dihapus."
         );
     }
 
