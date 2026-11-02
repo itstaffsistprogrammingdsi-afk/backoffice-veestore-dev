@@ -1,4 +1,5 @@
 :root {
+    color-scheme: light;
     --app-bg: #f7f8fc;
     --app-surface: #ffffff;
     --app-surface-2: #f8f9ff;
@@ -35,6 +36,7 @@
 }
 
 html[data-theme="dark"] {
+    color-scheme: dark;
     --app-bg: #0d1322;
     --app-surface: #151c30;
     --app-surface-2: #1b2340;
@@ -120,7 +122,21 @@ h6 {
 .stock-hero h1,
 .stock-hero h2,
 .hub-hero h1,
-.hub-hero h2 {
+.hub-hero h2,
+.customer-header h1,
+.customer-header h2,
+.inbound-header h1,
+.inbound-header h2,
+.outbound-header h1,
+.outbound-header h2,
+.monitoring-header h1,
+.monitoring-header h2,
+.pd-header h1,
+.pd-header h2,
+.price-header h1,
+.price-header h2,
+.promo-header h1,
+.promo-header h2 {
     color: var(--app-hero-text) !important;
 }
 
@@ -339,6 +355,115 @@ html[data-theme="dark"] .btn-close {
     filter: invert(1) grayscale(1);
 }
 
+html[data-theme="dark"] .btn-outline-secondary {
+    --bs-btn-color: var(--app-ink);
+    --bs-btn-border-color: var(--app-border);
+    --bs-btn-hover-bg: var(--app-surface-2);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-ink);
+    --bs-btn-active-bg: var(--app-surface-3);
+    --bs-btn-active-border-color: var(--app-accent);
+    --bs-btn-active-color: var(--app-ink);
+    --bs-btn-disabled-color: var(--app-muted);
+    --bs-btn-disabled-border-color: var(--app-border);
+    color: var(--app-ink) !important;
+    border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .form-select {
+    --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23aab1c8' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+html[data-theme="dark"] .btn-outline-danger,
+html[data-theme="dark"] .btn-outline-success,
+html[data-theme="dark"] .btn-outline-warning,
+html[data-theme="dark"] .btn-outline-info {
+    --bs-btn-color: var(--app-ink);
+    --bs-btn-border-color: var(--app-border);
+    --bs-btn-hover-bg: var(--app-surface-2);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-ink);
+    --bs-btn-active-bg: var(--app-surface-3);
+    --bs-btn-active-border-color: var(--app-accent);
+    --bs-btn-active-color: var(--app-ink);
+    --bs-btn-disabled-color: var(--app-muted);
+    --bs-btn-disabled-border-color: var(--app-border);
+    color: var(--app-ink) !important;
+    border-color: var(--app-border) !important;
+}
+
+html[data-theme="dark"] .btn-outline-danger {
+    --bs-btn-color: var(--app-danger-ink);
+    --bs-btn-border-color: var(--app-danger-ink);
+    --bs-btn-hover-bg: var(--app-danger-bg);
+    --bs-btn-hover-border-color: var(--app-danger-ink);
+    --bs-btn-hover-color: var(--app-danger-ink);
+    --bs-btn-active-bg: var(--app-danger-bg);
+    --bs-btn-active-border-color: var(--app-danger-ink);
+    --bs-btn-active-color: var(--app-danger-ink);
+    color: var(--app-danger-ink) !important;
+    border-color: var(--app-danger-ink) !important;
+}
+
+html[data-theme="dark"] .btn-outline-success {
+    --bs-btn-color: var(--app-success-ink);
+    --bs-btn-border-color: var(--app-success-ink);
+    --bs-btn-hover-bg: var(--app-success-bg);
+    --bs-btn-hover-border-color: var(--app-success-ink);
+    --bs-btn-hover-color: var(--app-success-ink);
+    --bs-btn-active-bg: var(--app-success-bg);
+    --bs-btn-active-border-color: var(--app-success-ink);
+    --bs-btn-active-color: var(--app-success-ink);
+    color: var(--app-success-ink) !important;
+    border-color: var(--app-success-ink) !important;
+}
+
+html[data-theme="dark"] .btn-outline-warning {
+    --bs-btn-color: var(--app-warning-ink);
+    --bs-btn-border-color: var(--app-warning-ink);
+    --bs-btn-hover-bg: var(--app-warning-bg);
+    --bs-btn-hover-border-color: var(--app-warning-ink);
+    --bs-btn-hover-color: var(--app-warning-ink);
+    --bs-btn-active-bg: var(--app-warning-bg);
+    --bs-btn-active-border-color: var(--app-warning-ink);
+    --bs-btn-active-color: var(--app-warning-ink);
+    color: var(--app-warning-ink) !important;
+    border-color: var(--app-warning-ink) !important;
+}
+
+html[data-theme="dark"] .btn-outline-info {
+    --bs-btn-color: var(--app-info-ink);
+    --bs-btn-border-color: var(--app-info-ink);
+    --bs-btn-hover-bg: var(--app-info-bg);
+    --bs-btn-hover-border-color: var(--app-info-ink);
+    --bs-btn-hover-color: var(--app-info-ink);
+    --bs-btn-active-bg: var(--app-info-bg);
+    --bs-btn-active-border-color: var(--app-info-ink);
+    --bs-btn-active-color: var(--app-info-ink);
+    color: var(--app-info-ink) !important;
+    border-color: var(--app-info-ink) !important;
+}
+
+html[data-theme="dark"] .text-danger {
+    color: var(--app-danger-ink) !important;
+}
+
+html[data-theme="dark"] .text-success {
+    color: var(--app-success-ink) !important;
+}
+
+html[data-theme="dark"] .text-warning {
+    color: var(--app-warning-ink) !important;
+}
+
+html[data-theme="dark"] .text-info {
+    color: var(--app-info-ink) !important;
+}
+
+html[data-theme="dark"] .text-secondary {
+    color: var(--app-muted) !important;
+}
+
 /* Page shell overrides for Inertia pages that still declare local colors. */
 html[data-theme="dark"] .ai-page,
 html[data-theme="dark"] .assistant-page,
@@ -398,7 +523,14 @@ html[data-theme="dark"] .crud-card th {
 .voucher-header,
 .location-header,
 .stock-hero,
-.hub-hero {
+.hub-hero,
+.customer-header,
+.inbound-header,
+.outbound-header,
+.monitoring-header,
+.pd-header,
+.price-header,
+.promo-header {
     background: var(--app-hero-bg) !important;
     color: var(--app-hero-text) !important;
 }
@@ -417,7 +549,14 @@ html[data-theme="dark"] .crud-card th {
 .voucher-header p,
 .location-header p,
 .stock-hero p,
-.hub-hero p {
+.hub-hero p,
+.customer-header p,
+.inbound-header p,
+.outbound-header p,
+.monitoring-header p,
+.pd-header p,
+.price-header p,
+.promo-header p {
     color: var(--app-hero-muted) !important;
 }
 
@@ -435,7 +574,14 @@ html[data-theme="dark"] .dash-header,
 html[data-theme="dark"] .voucher-header,
 html[data-theme="dark"] .location-header,
 html[data-theme="dark"] .stock-hero,
-html[data-theme="dark"] .hub-hero {
+html[data-theme="dark"] .hub-hero,
+html[data-theme="dark"] .customer-header,
+html[data-theme="dark"] .inbound-header,
+html[data-theme="dark"] .outbound-header,
+html[data-theme="dark"] .monitoring-header,
+html[data-theme="dark"] .pd-header,
+html[data-theme="dark"] .price-header,
+html[data-theme="dark"] .promo-header {
     background: var(--app-hero-bg) !important;
     color: var(--app-hero-text) !important;
 }
@@ -454,7 +600,14 @@ html[data-theme="dark"] .dash-header p,
 html[data-theme="dark"] .voucher-header p,
 html[data-theme="dark"] .location-header p,
 html[data-theme="dark"] .stock-hero p,
-html[data-theme="dark"] .hub-hero p {
+html[data-theme="dark"] .hub-hero p,
+html[data-theme="dark"] .customer-header p,
+html[data-theme="dark"] .inbound-header p,
+html[data-theme="dark"] .outbound-header p,
+html[data-theme="dark"] .monitoring-header p,
+html[data-theme="dark"] .pd-header p,
+html[data-theme="dark"] .price-header p,
+html[data-theme="dark"] .promo-header p {
     color: var(--app-hero-muted) !important;
 }
 
@@ -557,6 +710,144 @@ html[data-theme="dark"] .auth-info {
     background: var(--app-surface-2);
     border-color: var(--app-border);
     color: var(--app-ink);
+}
+
+/* Materio label badges used by the Inertia pages */
+.bg-label-primary {
+    background: var(--app-accent-soft) !important;
+    color: var(--app-accent-ink) !important;
+}
+
+.bg-label-secondary {
+    background: var(--app-surface-3) !important;
+    color: var(--app-ink) !important;
+}
+
+.bg-label-success {
+    background: var(--app-success-bg) !important;
+    color: var(--app-success-ink) !important;
+}
+
+.bg-label-warning {
+    background: var(--app-warning-bg) !important;
+    color: var(--app-warning-ink) !important;
+}
+
+.bg-label-danger {
+    background: var(--app-danger-bg) !important;
+    color: var(--app-danger-ink) !important;
+}
+
+.bg-label-info {
+    background: var(--app-info-bg) !important;
+    color: var(--app-info-ink) !important;
+}
+
+/* Responsive foundation */
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+img,
+svg,
+video {
+    max-width: 100%;
+}
+
+img {
+    height: auto;
+}
+
+.card {
+    min-width: 0;
+}
+
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+html.inertia-sidebar-open,
+html.inertia-sidebar-open body {
+    overflow: hidden;
+}
+
+@media (pointer: coarse) {
+    .btn,
+    .app-item,
+    .app-area,
+    .app-group-toggle,
+    .app-user-button,
+    .theme-toggle,
+    .app-menu-button,
+    .app-close {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .form-control-sm,
+    .form-select-sm {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .ai-hero,
+    .assistant-hero,
+    .settings-header,
+    .loyalty-header,
+    .management-header,
+    .report-header,
+    .branch-header,
+    .ecommerce-header,
+    .crud-header,
+    .monitor-header,
+    .dash-header,
+    .voucher-header,
+    .location-header,
+    .stock-hero,
+    .hub-hero,
+    .customer-header,
+    .inbound-header,
+    .outbound-header,
+    .monitoring-header,
+    .pd-header,
+    .price-header,
+    .promo-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.75rem !important;
+        padding: 1.1rem !important;
+    }
+
+    .ai-hero h1,
+    .assistant-hero h1,
+    .settings-header h1,
+    .loyalty-header h1,
+    .management-header h1,
+    .report-header h1,
+    .branch-header h1,
+    .ecommerce-header h1,
+    .crud-header h1,
+    .monitor-header h1,
+    .dash-header h1,
+    .voucher-header h1,
+    .location-header h1,
+    .stock-hero h1,
+    .hub-hero h1,
+    .customer-header h1,
+    .inbound-header h1,
+    .outbound-header h1,
+    .monitoring-header h1,
+    .pd-header h1,
+    .price-header h1,
+    .promo-header h1 {
+        font-size: clamp(1.2rem, 5vw, 1.5rem) !important;
+    }
 }
 
 /* Theme toggle */

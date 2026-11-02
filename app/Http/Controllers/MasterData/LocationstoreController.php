@@ -24,7 +24,7 @@ class LocationstoreController extends Controller
     {
         $this->middleware('permission:view master-data-locations-store')->only(['index', 'treeData', 'qr']);
         $this->middleware('permission:create master-data-locations-store')->only(['store', 'generate', 'quickAdd']);
-        $this->middleware('permission:update master-data-locations-store')->only(['update']);
+        $this->middleware('permission:update master-data-locations-store')->only(['update', 'updateStoreName']);
         $this->middleware('permission:delete master-data-locations-store')->only(['destroy']);
     }
 
@@ -45,6 +45,7 @@ class LocationstoreController extends Controller
 
         return Inertia::render('MasterData/StoreLocations', [
             'groups' => $groups->build($q, $storeId, $type),
+            'canUpdate' => $request->user()?->can('update master-data-locations-store') ?? false,
             'stores' => $stores->map(fn (Store $store) => [
                 'id' => $store->id,
                 'name' => $store->name,
@@ -67,6 +68,7 @@ class LocationstoreController extends Controller
                 'index' => route('master-data.locations-store.index'),
                 'generate' => route('master-data.locations-store.generate'),
                 'quickAdd' => route('master-data.locations-store.quick-add'),
+                'updateName' => route('master-data.locations-store.update-name', ['store' => '__ID__']),
                 'update' => route('master-data.locations-store.update', ['location' => '__ID__']),
                 'destroy' => route('master-data.locations-store.destroy', ['location' => '__ID__']),
             ],
@@ -245,6 +247,17 @@ class LocationstoreController extends Controller
         };
 
         return response()->json($buildTree(null));
+    }
+
+    public function updateStoreName(Request $request, Store $store): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+        ]);
+
+        $store->update(['name' => trim($data['name'])]);
+
+        return $this->redirectIndex()->with('success', 'Nama store berhasil diperbarui.');
     }
 
     public function store(Request $request)

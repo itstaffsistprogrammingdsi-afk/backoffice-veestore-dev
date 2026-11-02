@@ -147,7 +147,9 @@ class AuthController extends Controller
             $request->session()->put('current_session_log_id', $sessionLogId);
         }
 
-        return redirect()->intended(route('dashboard-analytics'));
+        return Inertia::location(
+            redirect()->intended(route('dashboard-analytics'))->getTargetUrl()
+        );
     }
 
     public function showRegister()
@@ -184,10 +186,9 @@ class AuthController extends Controller
 
         User::create($data);
 
-        return redirect()
-            ->route('auth-login-basic')
-            ->with('success', 'Registrasi berhasil. Silakan login.')
-            ->withInput(['login' => $data['email']]);
+        $request->session()->flash('success', 'Registrasi berhasil. Silakan login.');
+
+        return Inertia::location(route('auth-login-basic'));
     }
 
     public function logout(Request $request)
@@ -245,7 +246,7 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('auth-login-basic');
+        return Inertia::location(route('auth-login-basic'));
     }
 
     protected function writeSessionLogSafe(

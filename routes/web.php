@@ -271,6 +271,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [LocationwarehouseController::class, 'store'])->name('store');
             Route::post('/generate', [LocationwarehouseController::class, 'generate'])->name('generate');
             Route::post('/quick-add', [LocationwarehouseController::class, 'quickAdd'])->name('quick-add');
+            Route::put('/warehouse/{warehouse}/name', [LocationwarehouseController::class, 'updateWarehouseName'])->name('update-name');
             Route::put('/{location}', [LocationwarehouseController::class, 'update'])->name('update');
             Route::delete('/{location}', [LocationwarehouseController::class, 'destroy'])->name('destroy');
             Route::get('/{location}/qr', [LocationwarehouseController::class, 'qr'])->name('qr');
@@ -282,6 +283,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [LocationstoreController::class, 'store'])->name('store');
             Route::post('/generate', [LocationstoreController::class, 'generate'])->name('generate');
             Route::post('/quick-add', [LocationstoreController::class, 'quickAdd'])->name('quick-add');
+            Route::put('/store/{store}/name', [LocationstoreController::class, 'updateStoreName'])->name('update-name');
             Route::put('/{location}', [LocationstoreController::class, 'update'])->name('update');
             Route::delete('/{location}', [LocationstoreController::class, 'destroy'])->name('destroy');
             Route::get('/{location}/qr', [LocationstoreController::class, 'qr'])->name('qr');

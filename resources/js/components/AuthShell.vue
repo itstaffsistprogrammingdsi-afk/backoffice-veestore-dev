@@ -51,7 +51,7 @@ defineProps<{
     padding: 2rem 1rem;
     background: var(--app-bg);
     color: var(--app-ink);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .auth-panel {

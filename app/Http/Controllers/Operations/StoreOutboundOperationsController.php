@@ -19,15 +19,21 @@ class StoreOutboundOperationsController extends Controller
         $channel = in_array($channel, ['store', 'ecommerce'], true) ? $channel : null;
         $status = trim((string) $request->query('status', ''));
         $status = in_array($status, ['missing_shipping', 'completed'], true) ? $status : null;
+        $from = trim((string) $request->query('from', ''));
+        $from = $from !== '' ? $from : null;
+        $to = trim((string) $request->query('to', ''));
+        $to = $to !== '' ? $to : null;
 
         return Inertia::render('Operations/StoreOutbound', [
-            ...$query->build($q, $storeId, $channel, $status),
+            ...$query->build($q, $storeId, $channel, $status, $from, $to),
             'stores' => DB::table('stores')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name', 'code']),
             'filters' => [
                 'q' => $q,
                 'store_id' => $storeId,
                 'channel' => $channel,
                 'status' => $status,
+                'from' => $from,
+                'to' => $to,
             ],
             'urls' => [
                 'index' => route('operations.store-outbound.index'),

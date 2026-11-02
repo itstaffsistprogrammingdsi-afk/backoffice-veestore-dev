@@ -96,6 +96,8 @@ interface Props {
         warehouse_id: string | null;
         status: string | null;
         channel: string | null;
+        from: string | null;
+        to: string | null;
     };
     urls: {
         index: string;
@@ -112,6 +114,8 @@ const filters = reactive({
     warehouse_id: props.filters.warehouse_id ?? '',
     status: props.filters.status ?? '',
     channel: props.filters.channel ?? '',
+    from: props.filters.from ?? '',
+    to: props.filters.to ?? '',
 });
 
 const expanded = ref<Record<string, boolean>>({});
@@ -149,6 +153,8 @@ const applyFilters = () => {
         warehouse_id: filters.warehouse_id || undefined,
         status: filters.status || undefined,
         channel: filters.channel || undefined,
+        from: filters.from || undefined,
+        to: filters.to || undefined,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -161,6 +167,8 @@ const resetFilters = () => {
     filters.warehouse_id = '';
     filters.status = '';
     filters.channel = '';
+    filters.from = '';
+    filters.to = '';
     applyFilters();
 };
 
@@ -280,30 +288,38 @@ onBeforeUnmount(() => {
         <div class="card outbound-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-lg-4">
+                    <div class="col-12 col-lg-6">
                         <label class="form-label">Cari order atau SKU</label>
                         <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, warehouse, atau SKU..." />
                     </div>
-                    <div class="col-md-4 col-lg-2">
+                    <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label">Warehouse</label>
                         <select v-model="filters.warehouse_id" class="form-select form-select-sm">
                             <option value="">Semua warehouse</option>
                             <option v-for="warehouse in props.warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
                         </select>
                     </div>
-                    <div class="col-md-4 col-lg-2">
+                    <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label">Channel</label>
                         <select v-model="filters.channel" class="form-select form-select-sm">
                             <option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
-                    <div class="col-md-4 col-lg-2">
+                    <div class="col-12 col-md-4 col-lg-2">
                         <label class="form-label">Status</label>
                         <select v-model="filters.status" class="form-select form-select-sm">
                             <option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
-                    <div class="col-md-12 col-lg-2 d-flex gap-2">
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <label class="form-label">Dari Tanggal</label>
+                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                    </div>
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <label class="form-label">Sampai Tanggal</label>
+                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                    </div>
+                    <div class="col-12 col-md-4 col-lg-6 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button>
                     </div>
@@ -469,7 +485,7 @@ onBeforeUnmount(() => {
                 <div class="sku-docs-header">
                     <div>
                         <h5 id="sku-docs-title" class="mb-0">Referensi SKU Keluar</h5>
-                        <small>{{ skuDocsModal.sku.product_name }} · {{ skuDocsModal.sku.product_code }}</small>
+                        <small>{{ skuDocsModal.sku.product_name }} &middot; {{ skuDocsModal.sku.product_code }}</small>
                     </div>
                     <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button>
                 </div>

@@ -222,6 +222,8 @@ const cellValue = (row: Record<string, any>, key: string) => {
 .monitor-header p { margin: 0; color: var(--app-hero-muted); }
 .monitor-card { border: 1px solid var(--app-border); border-radius: 0.9rem; box-shadow: var(--app-shadow); background: var(--app-surface); }
 .monitor-card th { color: var(--app-muted); font-size: 0.72rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.monitor-card td { white-space: nowrap; }
+.monitor-card td:first-child { white-space: normal; }
 .monitor-label { color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .monitor-value { margin-top: 0.25rem; font-size: 1.2rem; font-weight: 800; }
 .monitor-empty { padding: 2.5rem 1rem; color: var(--app-muted); text-align: center; }

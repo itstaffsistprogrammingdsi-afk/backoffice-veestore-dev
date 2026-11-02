@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 
@@ -64,6 +64,8 @@ const activeArea = computed(() => navigation.value.areas.find((area) => area.key
 const openGroups = ref<Record<string, boolean>>({});
 const mobileOpen = ref(false);
 const userMenuOpen = ref(false);
+const userMenuRef = ref<HTMLElement | null>(null);
+const isNavigating = ref(false);
 
 const pathOf = (url: string | null) => {
     if (!url) return '';
@@ -93,7 +95,20 @@ const activeItem = computed(() => {
     return null;
 });
 
-const pageTitle = computed(() => props.title ?? activeItem.value?.label ?? activeArea.value?.label ?? 'VeeStore');
+const headTitle = ref('');
+
+const syncHeadTitle = () => {
+    headTitle.value = document.title.replace(/\s*-\s*VeeStore$/, '').trim();
+};
+
+const pageTitle = computed(
+    () =>
+        props.title ??
+        activeItem.value?.label ??
+        (headTitle.value && headTitle.value !== 'VeeStore Backoffice' ? headTitle.value : null) ??
+        activeArea.value?.label ??
+        'VeeStore',
+);
 
 const groupsForArea = computed(() => {
     const area = activeArea.value;
@@ -127,16 +142,49 @@ const onKeydown = (event: KeyboardEvent) => {
     }
 };
 
+const onDocumentClick = (event: MouseEvent) => {
+    if (!userMenuOpen.value) return;
+
+    if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
+        userMenuOpen.value = false;
+    }
+};
+
+const onNavigationStart = () => {
+    isNavigating.value = true;
+};
+
+const onNavigationFinish = () => {
+    isNavigating.value = false;
+};
+
 watch(mobileOpen, (open) => {
     document.documentElement.classList.toggle('inertia-sidebar-open', open);
 });
 
+let titleObserver: MutationObserver | null = null;
+
+onMounted(() => {
+    syncHeadTitle();
+    titleObserver = new MutationObserver(syncHeadTitle);
+    titleObserver.observe(document.head, { childList: true, subtree: true, characterData: true });
+});
+
 window.addEventListener('keydown', onKeydown);
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
+document.addEventListener('click', onDocumentClick);
+router.on('start', onNavigationStart);
+router.on('finish', onNavigationFinish);
+onBeforeUnmount(() => {
+    window.removeEventListener('keydown', onKeydown);
+    document.removeEventListener('click', onDocumentClick);
+    titleObserver?.disconnect();
+});
 </script>
 
 <template>
     <div class="app-shell">
+        <div v-if="isNavigating" class="app-progress" role="progressbar" aria-label="Memuat halaman"></div>
+
         <a href="#main-content" class="skip-link">Lewati ke konten</a>
 
         <div v-if="mobileOpen" class="app-overlay" aria-hidden="true" @click="closeMobile"></div>
@@ -221,7 +269,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                     <div>
                         <div class="app-breadcrumb">
                             {{ activeArea?.label ?? 'VeeStore' }}
-                            <span v-if="activeItem">/ {{ activeItem.label }}</span>
+                            <span v-if="activeItem || headTitle">/ {{ activeItem?.label ?? headTitle }}</span>
                         </div>
                         <h1 class="app-title">{{ pageTitle }}</h1>
                     </div>
@@ -238,8 +286,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
                         <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"></i>
                     </button>
 
-                    <div class="app-user" @keydown.esc="userMenuOpen = false">
-                    <button class="app-user-button" type="button" :aria-expanded="userMenuOpen" @click="userMenuOpen = !userMenuOpen">
+                    <div ref="userMenuRef" class="app-user" @keydown.esc="userMenuOpen = false">
+                    <button class="app-user-button" type="button" aria-haspopup="menu" :aria-expanded="userMenuOpen" @click.stop="userMenuOpen = !userMenuOpen">
                         <span class="app-avatar">{{ (user?.name ?? 'U').slice(0, 1).toUpperCase() }}</span>
                         <span class="d-none d-md-block text-start">
                             <strong>{{ user?.name ?? 'User' }}</strong>
@@ -273,6 +321,26 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
     font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+.app-progress {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 90;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--app-accent), transparent);
+    background-size: 40% 100%;
+    background-repeat: no-repeat;
+    animation: app-progress-slide 900ms ease-in-out infinite;
+}
+
+@keyframes app-progress-slide {
+    from {
+        background-position: -40% 0;
+    }
+    to {
+        background-position: 140% 0;
+    }
+}
+
 .skip-link {
     position: fixed;
     z-index: 100;
@@ -296,10 +364,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
     z-index: 40;
     display: flex;
     flex-direction: column;
-    width: 280px;
+    width: min(280px, 86vw);
+    padding-bottom: env(safe-area-inset-bottom);
     background: var(--app-sidebar-bg);
     border-right: 1px solid var(--app-sidebar-border);
     color: var(--app-sidebar-ink);
+    overscroll-behavior: contain;
     transform: translateX(-100%);
     transition: transform 180ms ease;
 }
@@ -458,6 +528,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 .app-main {
     min-height: 100vh;
+    min-width: 0;
 }
 
 .app-topbar {
@@ -467,11 +538,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.85rem 1.25rem;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--app-border);
     background: var(--app-surface);
     backdrop-filter: blur(10px);
+}
+
+.app-topbar > div {
+    min-width: 0;
 }
 
 .app-menu-button {
@@ -484,17 +559,23 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 }
 
 .app-breadcrumb {
+    overflow: hidden;
     color: var(--app-muted);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.04em;
+    text-overflow: ellipsis;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .app-title {
+    overflow: hidden;
     margin: 0.1rem 0 0;
     font-size: 1.15rem;
     font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .app-user {
@@ -509,6 +590,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
     border: 1px solid transparent;
     border-radius: 0.65rem;
     background: transparent;
+    color: var(--app-ink);
 }
 
 .app-user-button:hover,
@@ -543,7 +625,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
     position: absolute;
     right: 0;
     top: calc(100% + 0.4rem);
+    width: max-content;
     min-width: 180px;
+    max-width: min(240px, calc(100vw - 2rem));
     padding: 0.35rem;
     border: 1px solid var(--app-border);
     border-radius: 0.6rem;
@@ -570,9 +654,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 }
 
 .app-content {
-    padding: 1.25rem;
+    width: 100%;
+    min-width: 0;
     max-width: 1500px;
     margin: 0 auto;
+    padding: 1rem;
 }
 
 .app-overlay {
@@ -580,6 +666,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
     inset: 0;
     z-index: 35;
     background: rgba(23, 17, 31, 0.45);
+}
+
+@media (min-width: 576px) {
+    .app-content {
+        padding: 1.25rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .app-topbar {
+        padding: 0.85rem 1.25rem;
+    }
+
+    .app-content {
+        padding: 1.25rem 1.5rem;
+    }
 }
 
 @media (min-width: 992px) {
@@ -593,6 +695,37 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
     .app-content {
         padding: 1.5rem 2rem;
+    }
+}
+
+@media (min-width: 1400px) {
+    .app-content {
+        padding: 2rem 2.5rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .app-menu-button,
+    .theme-toggle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .app-close {
+        width: 44px;
+        height: 44px;
+    }
+
+    .app-item {
+        min-height: 44px;
+    }
+
+    .app-breadcrumb {
+        display: none;
+    }
+
+    .app-title {
+        font-size: 1rem;
     }
 }
 

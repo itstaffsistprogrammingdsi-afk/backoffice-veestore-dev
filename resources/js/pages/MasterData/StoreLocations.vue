@@ -63,6 +63,7 @@ interface StoreGroup {
 
 interface Props {
     groups: StoreGroup[];
+    canUpdate: boolean;
     stores: StoreOption[];
     filters: {
         q: string;
@@ -74,6 +75,7 @@ interface Props {
         index: string;
         generate: string;
         quickAdd: string;
+        updateName: string;
         update: string;
         destroy: string;
     };
@@ -94,6 +96,7 @@ const expandedRows = ref<Record<string, boolean>>({});
 const quickAddOpen = ref<string | null>(null);
 const quickAdd = ref<{ group: StoreGroup; type: string } | null>(null);
 const quickAddName = ref<HTMLInputElement | null>(null);
+const renamingGroup = ref<StoreGroup | null>(null);
 const editing = ref<LocationRow | null>(null);
 const editingGroup = ref<StoreGroup | null>(null);
 const editNameInput = ref<HTMLInputElement | null>(null);
@@ -117,7 +120,7 @@ const qrFileName = computed(() => {
     return `qr-${code || 'location'}`;
 });
 
-const modalOpen = computed(() => Boolean(editing.value || qrModal.value || quickAdd.value));
+const modalOpen = computed(() => Boolean(editing.value || qrModal.value || quickAdd.value || renamingGroup.value));
 const filtersActive = computed(() => Boolean(filters.q || filters.type));
 
 const createForm = useForm({
@@ -142,6 +145,10 @@ const quickAddForm = useForm({
     type: '',
     parent_id: '',
     store_id: '',
+});
+
+const renameForm = useForm({
+    name: '',
 });
 
 const quickAddTypes = [
@@ -276,6 +283,32 @@ const submitQuickAdd = () => {
     quickAddForm.post(props.urls.quickAdd, {
         preserveScroll: true,
         onSuccess: () => closeQuickAdd(),
+    });
+};
+
+const openRename = (group: StoreGroup) => {
+    closeQuickAddMenu();
+    closeQuickAdd();
+    closeQr();
+    editing.value = null;
+    showCreate.value = false;
+    renamingGroup.value = group;
+    renameForm.clearErrors();
+    renameForm.name = group.name;
+};
+
+const closeRename = () => {
+    renamingGroup.value = null;
+    renameForm.reset();
+    renameForm.clearErrors();
+};
+
+const submitRename = () => {
+    if (!renamingGroup.value) return;
+
+    renameForm.put(props.urls.updateName.replace('__ID__', renamingGroup.value.id), {
+        preserveScroll: true,
+        onSuccess: () => closeRename(),
     });
 };
 
@@ -496,6 +529,11 @@ const onKeydown = (event: KeyboardEvent) => {
         return;
     }
 
+    if (renamingGroup.value) {
+        closeRename();
+        return;
+    }
+
     if (qrModal.value) {
         closeQr();
         return;
@@ -673,7 +711,7 @@ onBeforeUnmount(() => {
                     <span class="location-group-icon"><i class="mdi mdi-store"></i></span>
                     <div>
                         <strong>{{ group.name }}</strong>
-                        <small>{{ group.code || 'Tanpa kode' }}<template v-if="group.address"> · {{ group.address }}</template></small>
+                        <small>{{ group.code || 'Tanpa kode' }}<template v-if="group.address"> &middot; {{ group.address }}</template></small>
                     </div>
                 </div>
                 <div class="location-group-stats">
@@ -683,6 +721,9 @@ onBeforeUnmount(() => {
                     <span><b>{{ formatCount(group.stats.layers) }}</b> Layer</span>
                     <span class="location-total">{{ formatCount(group.stats.total) }} lokasi</span>
                 </div>
+                <button v-if="props.canUpdate" class="location-edit-button" type="button" title="Edit nama store" aria-label="Edit nama store" @click.stop.prevent="openRename(group)">
+                    <i class="mdi mdi-pencil"></i>
+                </button>
                 <div class="location-add-wrap">
                     <button class="location-add-button" type="button" :aria-expanded="quickAddOpen === group.id" aria-haspopup="menu" @click.stop.prevent="toggleQuickAddMenu(group.id)">
                         <i class="mdi mdi-plus"></i>
@@ -730,7 +771,7 @@ onBeforeUnmount(() => {
                             </td>
                             <td><code class="location-code">{{ row.code }}</code></td>
                             <td><span class="badge" :class="typeClass(row.type)">{{ row.type_label }}</span></td>
-                            <td class="text-muted">{{ row.parent_name || '—' }}</td>
+                            <td class="text-muted">{{ row.parent_name || 'â€”' }}</td>
                             <td class="text-end location-actions">
                                 <button class="btn btn-sm btn-outline-secondary" type="button" :aria-label="`Buka QR ${row.name}`" title="Buka QR" @click="openQr(row, group)">
                                     <i class="mdi mdi-qrcode"></i>
@@ -772,7 +813,7 @@ onBeforeUnmount(() => {
                             <label class="form-label">Parent</label>
                             <select v-model="quickAddForm.parent_id" class="form-select" :disabled="quickAddParentOptions.length === 0">
                                 <option value="">Pilih parent</option>
-                                <option v-for="option in quickAddParentOptions" :key="option.id" :value="option.id">{{ option.type_label }} · {{ option.name }} ({{ option.code }})</option>
+                                <option v-for="option in quickAddParentOptions" :key="option.id" :value="option.id">{{ option.type_label }} &middot; {{ option.name }} ({{ option.code }})</option>
                             </select>
                             <div v-if="quickAddForm.errors.parent_id" class="text-danger small mt-1">{{ quickAddForm.errors.parent_id }}</div>
                             <div v-if="quickAddParentOptions.length === 0" class="alert alert-warning small mt-2 mb-0">
@@ -791,6 +832,35 @@ onBeforeUnmount(() => {
                             Create
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeQuickAdd">Batal</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </Teleport>
+
+    <Teleport to="body">
+        <div v-if="renamingGroup" class="location-modal-backdrop" @click.self="closeRename">
+            <div class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="rename-store-title">
+                <form @submit.prevent="submitRename">
+                    <div class="location-modal-header">
+                        <div>
+                            <h5 id="rename-store-title" class="mb-0">Edit Nama Store</h5>
+                            <small class="text-muted">{{ renamingGroup.code || '-' }}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup modal edit nama store" @click="closeRename">
+                            <i class="mdi mdi-close"></i>
+                        </button>
+                    </div>
+                    <div class="location-modal-body">
+                        <label class="form-label" for="store-name">Nama Store</label>
+                        <input id="store-name" v-model="renameForm.name" class="form-control" type="text" maxlength="150" required />
+                        <div v-if="renameForm.errors.name" class="text-danger small mt-1">{{ renameForm.errors.name }}</div>
+                    </div>
+                    <div class="location-modal-footer">
+                        <button class="btn btn-sm btn-primary" type="submit" :disabled="renameForm.processing || !renameForm.name.trim()">
+                            {{ renameForm.processing ? 'Menyimpan...' : 'Simpan' }}
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeRename">Batal</button>
                     </div>
                 </form>
             </div>
@@ -846,7 +916,7 @@ onBeforeUnmount(() => {
                 <div class="location-modal-header">
                     <div>
                         <h5 id="qr-modal-title" class="mb-0">QR {{ qrModal.row.type_label }}</h5>
-                        <small class="text-muted">{{ qrModal.group.name }} · {{ qrModal.row.code }}</small>
+                        <small class="text-muted">{{ qrModal.group.name }} &middot; {{ qrModal.row.code }}</small>
                     </div>
                     <button ref="qrCloseButton" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup modal QR" @click="closeQr">
                         <i class="mdi mdi-close"></i>
@@ -902,13 +972,16 @@ onBeforeUnmount(() => {
 .location-group-head:focus-visible { outline: 2px solid var(--app-accent); outline-offset: -2px; }
 .location-group-title { display: flex; flex: 1 1 320px; align-items: center; gap: 0.75rem; min-width: 0; }
 .location-group-icon { display: grid; flex: 0 0 auto; width: 2.15rem; height: 2.15rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.1rem; }
+.location-group-title > div { min-width: 0; }
 .location-group-title strong { display: block; color: var(--app-ink); }
-.location-group-title small { display: block; overflow: hidden; max-width: 62ch; color: var(--app-muted); text-overflow: ellipsis; white-space: nowrap; }
+.location-group-title small { display: block; overflow: hidden; max-width: 100%; color: var(--app-muted); text-overflow: ellipsis; white-space: nowrap; }
 .location-group-stats { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-end; }
 .location-group-stats span { padding: 0.25rem 0.5rem; border-radius: 999px; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.72rem; }
 .location-group-stats b { color: var(--app-ink); }
 .location-group-stats .location-total { background: var(--app-accent-soft); color: var(--app-accent-ink); font-weight: 700; }
 .location-add-wrap { position: relative; flex: 0 0 auto; }
+.location-edit-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 2.1rem; height: 2.1rem; border: 1px solid var(--app-border); border-radius: 0.45rem; background: var(--app-surface); color: var(--app-ink); font-size: 1rem; }
+.location-edit-button:hover, .location-edit-button:focus-visible { border-color: var(--app-accent); background: var(--app-accent-soft); color: var(--app-accent-ink); }
 .location-add-button { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.32rem 0.55rem; border: 1px solid var(--app-accent); border-radius: 0.45rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 0.76rem; font-weight: 700; }
 .location-add-menu { position: absolute; top: calc(100% + 0.35rem); right: 0; z-index: 20; display: grid; min-width: 180px; overflow: hidden; border: 1px solid var(--app-border); border-radius: 0.55rem; background: var(--app-surface); box-shadow: 0 0.9rem 2rem rgba(15, 23, 42, 0.18); }
 .location-add-menu button { padding: 0.55rem 0.75rem; border: 0; background: transparent; color: var(--app-ink); font-size: 0.8rem; text-align: left; }
@@ -917,12 +990,13 @@ onBeforeUnmount(() => {
 .location-group[open] .location-chevron { transform: rotate(180deg); }
 .location-table th { padding: 0.6rem 1rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; }
 .location-table td { padding: 0.7rem 1rem; border-color: var(--app-border); color: var(--app-ink); }
-.location-name { display: flex; align-items: flex-start; gap: 0.4rem; }
+.location-name { display: flex; align-items: flex-start; gap: 0.4rem; min-width: 0; }
+.location-name > div { min-width: 0; }
 .location-name strong { display: block; font-size: 0.88rem; }
 .location-row-toggle { display: inline-grid; flex: 0 0 auto; width: 1.35rem; height: 1.35rem; margin-top: 0.05rem; place-items: center; border: 0; border-radius: 0.3rem; background: transparent; color: var(--app-muted); }
 .location-row-toggle:hover { background: var(--app-surface-2); color: var(--app-ink); }
 .location-row-toggle-spacer { display: inline-block; flex: 0 0 1.35rem; }
-.location-name small { display: block; max-width: 58ch; overflow: hidden; color: var(--app-muted); font-size: 0.74rem; text-overflow: ellipsis; white-space: nowrap; }
+.location-name small { display: block; max-width: 100%; overflow: hidden; color: var(--app-muted); font-size: 0.74rem; text-overflow: ellipsis; white-space: nowrap; }
 .location-actions { white-space: nowrap; }
 .location-actions .btn { padding: 0.25rem 0.4rem; }
 .location-empty { display: grid; place-items: center; gap: 0.25rem; padding: 3rem 1rem; color: var(--app-muted); text-align: center; }
@@ -1043,8 +1117,26 @@ onBeforeUnmount(() => {
 
 @media (max-width: 991.98px) {
     .location-header { align-items: flex-start; flex-direction: column; }
-    .location-group-head { align-items: flex-start; }
+    .location-group-head { align-items: flex-start; flex-wrap: wrap; }
+    .location-group-title { flex-basis: 100%; }
     .location-group-stats { display: none; }
+}
+
+@media (max-width: 767.98px) {
+    .location-group-title small,
+    .location-name small {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (pointer: coarse) {
+    .location-edit-button {
+        width: 44px;
+        height: 44px;
+    }
 }
 
 @media (max-width: 575.98px) {

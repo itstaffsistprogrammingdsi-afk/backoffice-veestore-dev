@@ -16,9 +16,9 @@ class OutboundOperationsQuery
         'store' => 'Store',
     ];
 
-    public function build(string $q, ?string $warehouseId, ?string $status, ?string $channel): array
+    public function build(string $q, ?string $warehouseId, ?string $status, ?string $channel, ?string $from = null, ?string $to = null): array
     {
-        $rows = $this->baseQuery($q, $warehouseId, $status, $channel)
+        $rows = $this->baseQuery($q, $warehouseId, $status, $channel, true, $from, $to)
             ->paginate(10)
             ->withQueryString();
 
@@ -61,7 +61,7 @@ class OutboundOperationsQuery
         });
 
         $documentIds = DB::query()
-            ->fromSub($this->baseQuery($q, $warehouseId, null, $channel, false)->reorder(), 'outbound_rows')
+            ->fromSub($this->baseQuery($q, $warehouseId, null, $channel, false, $from, $to)->reorder(), 'outbound_rows')
             ->pluck('id')
             ->all();
 
@@ -69,7 +69,7 @@ class OutboundOperationsQuery
 
         return [
             'rows' => $rows,
-            'summary' => $this->summary($q, $warehouseId, $channel),
+            'summary' => $this->summary($q, $warehouseId, $channel, $from, $to),
             'movementSummary' => $skuBreakdown['summary'],
             'skuRows' => $skuBreakdown['rows'],
             'statusOptions' => [
@@ -82,7 +82,7 @@ class OutboundOperationsQuery
         ];
     }
 
-    private function baseQuery(string $q, ?string $warehouseId, ?string $status, ?string $channel, bool $applyStatus = true)
+    private function baseQuery(string $q, ?string $warehouseId, ?string $status, ?string $channel, bool $applyStatus = true, ?string $from = null, ?string $to = null)
     {
         $hasUsers = Schema::hasTable('users');
         $hasCouriers = Schema::hasTable('couriers');
@@ -107,6 +107,8 @@ class OutboundOperationsQuery
                 ->whereNotNull('wo.qc_passed_at')
                 ->whereNotNull('wo.released_at')
                 ->whereRaw("NULLIF(TRIM(wo.shipping_number), '') IS NOT NULL"))
+            ->when($from, fn ($query) => $query->whereRaw('COALESCE(wo.shipment_date, wo.released_at, wo.created_at)::date >= ?', [$from]))
+            ->when($to, fn ($query) => $query->whereRaw('COALESCE(wo.shipment_date, wo.released_at, wo.created_at)::date <= ?', [$to]))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('wo.invoice_number', 'ILIKE', "%{$q}%")
@@ -159,9 +161,9 @@ class OutboundOperationsQuery
             ->orderByDesc('wo.created_at');
     }
 
-    private function summary(string $q, ?string $warehouseId, ?string $channel): object
+    private function summary(string $q, ?string $warehouseId, ?string $channel, ?string $from = null, ?string $to = null): object
     {
-        $query = $this->baseQuery($q, $warehouseId, null, $channel, false);
+        $query = $this->baseQuery($q, $warehouseId, null, $channel, false, $from, $to);
 
         return DB::query()
             ->fromSub($query, 'outbound_rows')

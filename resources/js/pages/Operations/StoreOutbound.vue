@@ -39,12 +39,12 @@ interface Props {
     skuRows: SkuRow[];
     stores: Array<{ id: string; name: string; code: string | null }>;
     statusOptions: Array<{ value: string; label: string }>;
-    filters: { q: string; store_id: string | null; channel: string | null; status: string | null };
+    filters: { q: string; store_id: string | null; channel: string | null; status: string | null; from: string | null; to: string | null };
     urls: { index: string; stock: string; inbound: string; monitoring: string };
 }
 
 const props = defineProps<Props>();
-const filters = reactive({ q: props.filters.q ?? '', store_id: props.filters.store_id ?? '', channel: props.filters.channel ?? '', status: props.filters.status ?? '' });
+const filters = reactive({ q: props.filters.q ?? '', store_id: props.filters.store_id ?? '', channel: props.filters.channel ?? '', status: props.filters.status ?? '', from: props.filters.from ?? '', to: props.filters.to ?? '' });
 const expanded = ref<Record<string, boolean>>({});
 const skuDocsModal = ref<{ sku: SkuRow } | null>(null);
 const channelOptions = [{ value: '', label: 'Semua channel' }, { value: 'store', label: 'Store' }, { value: 'ecommerce', label: 'Ecommerce' }];
@@ -54,9 +54,9 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
 const statusClass = (status: OutboundRow['status']) => status === 'completed' ? 'bg-label-success' : 'bg-label-danger';
 
 const applyFilters = () => {
-    router.get(props.urls.index, { q: filters.q || undefined, store_id: filters.store_id || undefined, channel: filters.channel || undefined, status: filters.status || undefined }, { preserveState: true, preserveScroll: true, replace: true });
+    router.get(props.urls.index, { q: filters.q || undefined, store_id: filters.store_id || undefined, channel: filters.channel || undefined, status: filters.status || undefined, from: filters.from || undefined, to: filters.to || undefined }, { preserveState: true, preserveScroll: true, replace: true });
 };
-const resetFilters = () => { filters.q = ''; filters.store_id = ''; filters.channel = ''; filters.status = ''; applyFilters(); };
+const resetFilters = () => { filters.q = ''; filters.store_id = ''; filters.channel = ''; filters.status = ''; filters.from = ''; filters.to = ''; applyFilters(); };
 const toggleDetail = (id: string) => { expanded.value[id] = !expanded.value[id]; };
 const openSkuDocs = (sku: SkuRow) => { skuDocsModal.value = { sku }; };
 const closeSkuDocs = () => { skuDocsModal.value = null; };
@@ -96,11 +96,14 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
         <div class="card outbound-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-lg-4"><label class="form-label">Cari order atau SKU</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, store, atau SKU..." /></div>
-                    <div class="col-md-4 col-lg-2"><label class="form-label">Store</label><select v-model="filters.store_id" class="form-select form-select-sm"><option value="">Semua store</option><option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
-                    <div class="col-md-4 col-lg-2"><label class="form-label">Channel</label><select v-model="filters.channel" class="form-select form-select-sm"><option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
-                    <div class="col-md-4 col-lg-2"><label class="form-label">Status</label><select v-model="filters.status" class="form-select form-select-sm"><option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
-                    <div class="col-md-12 col-lg-2 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button></div>
+                    <div class="col-12 col-lg-6"><label class="form-label">Cari order atau SKU</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, store, atau SKU..." /></div>
+                    <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Store</label><select v-model="filters.store_id" class="form-select form-select-sm"><option value="">Semua store</option><option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                    <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Channel</label><select v-model="filters.channel" class="form-select form-select-sm"><option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+                    <div class="col-12 col-md-4 col-lg-2">
+                        <label class="form-label">Status</label><select v-model="filters.status" class="form-select form-select-sm"><option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+                    <div class="col-6 col-md-4 col-lg-3"><label class="form-label">Dari Tanggal</label><input v-model="filters.from" class="form-control form-control-sm" type="date" /></div>
+                    <div class="col-6 col-md-4 col-lg-3"><label class="form-label">Sampai Tanggal</label><input v-model="filters.to" class="form-control form-control-sm" type="date" /></div>
+                    <div class="col-12 col-md-4 col-lg-6 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button></div>
                 </form>
             </div>
         </div>
@@ -140,7 +143,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
     <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
             <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
-                <div class="sku-docs-header"><div><h5 id="sku-docs-title" class="mb-0">Referensi SKU Keluar</h5><small>{{ skuDocsModal.sku.product_name }} · {{ skuDocsModal.sku.product_code }}</small></div><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button></div>
+                <div class="sku-docs-header"><div><h5 id="sku-docs-title" class="mb-0">Referensi SKU Keluar</h5><small>{{ skuDocsModal.sku.product_name }} &middot; {{ skuDocsModal.sku.product_code }}</small></div><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button></div>
                 <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan order, invoice, atau nomor resi yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 outbound-detail-table"><thead><tr><th>Referensi</th><th>Tipe</th><th>Store</th><th>Resi</th><th>Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ document.shipping_number || '-' }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
                 <div class="sku-docs-footer"><button class="btn btn-sm btn-outline-secondary" type="button" @click="closeSkuDocs">Tutup</button></div>
             </div>

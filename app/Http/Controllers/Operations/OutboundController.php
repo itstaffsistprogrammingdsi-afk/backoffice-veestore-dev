@@ -19,15 +19,21 @@ class OutboundController extends Controller
         $status = in_array($status, ['qc_pending', 'release_pending', 'missing_awb', 'completed'], true) ? $status : null;
         $channel = trim((string) $request->query('channel', ''));
         $channel = in_array($channel, ['ecommerce', 'store'], true) ? $channel : null;
+        $from = trim((string) $request->query('from', ''));
+        $from = $from !== '' ? $from : null;
+        $to = trim((string) $request->query('to', ''));
+        $to = $to !== '' ? $to : null;
 
         return Inertia::render('Operations/Outbound', [
-            ...$query->build($q, $warehouseId, $status, $channel),
+            ...$query->build($q, $warehouseId, $status, $channel, $from, $to),
             'warehouses' => DB::table('warehouses')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name', 'code']),
             'filters' => [
                 'q' => $q,
                 'warehouse_id' => $warehouseId,
                 'status' => $status,
                 'channel' => $channel,
+                'from' => $from,
+                'to' => $to,
             ],
             'urls' => [
                 'index' => route('operations.outbound.index'),

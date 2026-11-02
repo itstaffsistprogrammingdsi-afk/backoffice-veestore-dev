@@ -12,6 +12,8 @@ interface CustomerRow {
     customer_name: string;
     wa_number: string | null;
     email: string | null;
+    membership_tier: string | null;
+    loyalty_points: number;
     store_id: string;
     store_name: string;
     visit_count: number;
@@ -48,6 +50,11 @@ const expanded = ref<Record<string, boolean>>({});
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 const formatCurrency = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '-';
+const tierClass = (tier: string | null) => ({
+    Bronze: 'bg-label-secondary',
+    Silver: 'bg-label-info',
+    Platinum: 'bg-label-primary',
+}[tier ?? ''] ?? 'bg-label-secondary');
 
 const applyFilters = () => {
     router.get(props.urls.index, { q: filters.q || undefined, store_id: filters.store_id || undefined }, { preserveState: true, preserveScroll: true, replace: true });
@@ -93,12 +100,14 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
             <div v-if="props.rows.data.length === 0" class="customer-empty"><i class="mdi mdi-account-off-outline"></i><strong>Tidak ada customer</strong><span>Coba ubah kata kunci atau filter store.</span></div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 customer-table">
-                    <thead><tr><th>Customer</th><th>Store</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Pembelian</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th>Customer</th><th>Store</th><th>Tier</th><th class="text-end">Poin</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Pembelian</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in props.rows.data" :key="`${row.customer_id}-${row.store_id}`">
                             <tr>
-                                <td><div class="customer-main"><strong>{{ row.customer_name }}</strong><small>{{ row.wa_number || row.email || '-' }}</small></div></td>
+                                <td><div class="customer-main"><strong>{{ row.customer_name }}</strong><small>{{ row.wa_number || row.email || '-' }}</small><small class="customer-mobile-meta d-md-none"><span class="badge" :class="tierClass(row.membership_tier)">{{ row.membership_tier || '-' }}</span><span>{{ formatNumber(row.loyalty_points) }} poin</span></small></div></td>
                                 <td><strong>{{ row.store_name }}</strong></td>
+                                <td><span class="badge" :class="tierClass(row.membership_tier)">{{ row.membership_tier || '-' }}</span></td>
+                                <td class="text-end">{{ formatNumber(row.loyalty_points) }}</td>
                                 <td class="text-end">{{ formatNumber(row.visit_count) }}</td>
                                 <td>{{ formatDate(row.last_visit_at) }}</td>
                                 <td class="text-end">{{ formatNumber(row.purchase_count) }}</td>
@@ -107,7 +116,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
                                 <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggle(`${row.customer_id}-${row.store_id}`)"><i class="mdi" :class="expanded[`${row.customer_id}-${row.store_id}`] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[`${row.customer_id}-${row.store_id}`] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
                             <tr v-if="expanded[`${row.customer_id}-${row.store_id}`]" class="customer-detail-row">
-                                <td colspan="8"><div class="customer-detail-wrap"><p class="mb-2"><strong>Barang yang sudah dibeli:</strong> {{ row.item_qty }} item dari {{ row.products.length }} SKU</p><table class="table table-sm mb-0 customer-detail-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Nilai</th></tr></thead><tbody><tr v-for="product in row.products" :key="product.product_id"><td><strong>{{ product.product_name }}</strong><small>{{ product.product_code }}</small></td><td class="text-end">{{ formatNumber(product.qty) }}</td><td class="text-end">{{ formatCurrency(product.spending) }}</td></tr><tr v-if="row.products.length === 0"><td colspan="3" class="text-center text-muted py-3">Belum ada pembelian.</td></tr></tbody></table></div></td>
+                                <td colspan="10"><div class="customer-detail-wrap"><p class="mb-2"><strong>Barang yang sudah dibeli:</strong> {{ row.item_qty }} item dari {{ row.products.length }} SKU</p><table class="table table-sm mb-0 customer-detail-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Nilai</th></tr></thead><tbody><tr v-for="product in row.products" :key="product.product_id"><td><strong>{{ product.product_name }}</strong><small>{{ product.product_code }}</small></td><td class="text-end">{{ formatNumber(product.qty) }}</td><td class="text-end">{{ formatCurrency(product.spending) }}</td></tr><tr v-if="row.products.length === 0"><td colspan="3" class="text-center text-muted py-3">Belum ada pembelian.</td></tr></tbody></table></div></td>
                             </tr>
                         </template>
                     </tbody>
@@ -140,6 +149,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
 .customer-table td { padding: 0.8rem 0.9rem; border-color: var(--app-border); }
 .customer-main strong, .customer-main small { display: block; }
 .customer-main small { color: var(--app-muted); font-size: 0.73rem; }
+.customer-main .customer-mobile-meta { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.3rem; }
 .customer-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
 .customer-detail-wrap { padding: 0.8rem 1rem 1rem 2.2rem; }
 .customer-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }

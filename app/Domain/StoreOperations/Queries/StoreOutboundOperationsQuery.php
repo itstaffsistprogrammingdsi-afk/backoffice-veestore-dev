@@ -14,9 +14,9 @@ class StoreOutboundOperationsQuery
         'transfer' => 'Transfer',
     ];
 
-    public function build(string $q, ?string $storeId, ?string $channel, ?string $status): array
+    public function build(string $q, ?string $storeId, ?string $channel, ?string $status, ?string $from = null, ?string $to = null): array
     {
-        $rows = $this->baseQuery($q, $storeId, $channel, $status)
+        $rows = $this->baseQuery($q, $storeId, $channel, $status, true, $from, $to)
             ->paginate(10)
             ->withQueryString();
 
@@ -43,7 +43,7 @@ class StoreOutboundOperationsQuery
         });
 
         $documentIds = DB::query()
-            ->fromSub($this->baseQuery($q, $storeId, $channel, null, false)->reorder(), 'store_outbound_rows')
+            ->fromSub($this->baseQuery($q, $storeId, $channel, null, false, $from, $to)->reorder(), 'store_outbound_rows')
             ->pluck('id')
             ->all();
 
@@ -51,7 +51,7 @@ class StoreOutboundOperationsQuery
 
         return [
             'rows' => $rows,
-            'summary' => $this->summary($q, $storeId, $channel),
+            'summary' => $this->summary($q, $storeId, $channel, $from, $to),
             'movementSummary' => $skuBreakdown['summary'],
             'skuRows' => $skuBreakdown['rows'],
             'statusOptions' => [
@@ -62,7 +62,7 @@ class StoreOutboundOperationsQuery
         ];
     }
 
-    private function baseQuery(string $q, ?string $storeId, ?string $channel, ?string $status, bool $applyStatus = true)
+    private function baseQuery(string $q, ?string $storeId, ?string $channel, ?string $status, bool $applyStatus = true, ?string $from = null, ?string $to = null)
     {
         $hasCouriers = Schema::hasTable('couriers');
 
@@ -82,6 +82,8 @@ class StoreOutboundOperationsQuery
                 ->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, '')), '') IS NULL"))
             ->when($applyStatus && $status === 'completed', fn ($query) => $query
                 ->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, '')), '') IS NOT NULL"))
+            ->when($from, fn ($query) => $query->whereRaw('COALESCE(so.shipment_date, so.created_at)::date >= ?', [$from]))
+            ->when($to, fn ($query) => $query->whereRaw('COALESCE(so.shipment_date, so.created_at)::date <= ?', [$to]))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('so.shipping_number', 'ILIKE', "%{$q}%")
@@ -122,9 +124,9 @@ class StoreOutboundOperationsQuery
             ->orderByDesc('total_items');
     }
 
-    private function summary(string $q, ?string $storeId, ?string $channel): object
+    private function summary(string $q, ?string $storeId, ?string $channel, ?string $from = null, ?string $to = null): object
     {
-        $query = $this->baseQuery($q, $storeId, $channel, null, false)->reorder();
+        $query = $this->baseQuery($q, $storeId, $channel, null, false, $from, $to)->reorder();
 
         return DB::query()
             ->fromSub($query, 'store_outbound_rows')

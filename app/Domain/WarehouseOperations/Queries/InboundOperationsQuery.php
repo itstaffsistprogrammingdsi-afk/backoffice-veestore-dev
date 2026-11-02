@@ -13,9 +13,9 @@ class InboundOperationsQuery
         'warehouse_transfer' => 'Transfer Warehouse',
     ];
 
-    public function build(string $q, ?string $warehouseId, ?string $status, ?string $supplierId): array
+    public function build(string $q, ?string $warehouseId, ?string $status, ?string $supplierId, ?string $from = null, ?string $to = null): array
     {
-        $rows = $this->baseQuery($q, $warehouseId, $status, $supplierId)
+        $rows = $this->baseQuery($q, $warehouseId, $status, $supplierId, true, $from, $to)
             ->paginate(10)
             ->withQueryString();
 
@@ -42,8 +42,8 @@ class InboundOperationsQuery
 
         return [
             'rows' => $rows,
-            'summary' => $this->summary($q, $warehouseId, $supplierId),
-            'skuRows' => $this->skuBreakdown($q, $warehouseId, $supplierId),
+            'summary' => $this->summary($q, $warehouseId, $supplierId, $from, $to),
+            'skuRows' => $this->skuBreakdown($q, $warehouseId, $supplierId, $from, $to),
             'statusOptions' => [
                 ['value' => '', 'label' => 'Semua status'],
                 ['value' => 'pending', 'label' => 'Menunggu penerimaan'],
@@ -52,7 +52,7 @@ class InboundOperationsQuery
         ];
     }
 
-    private function baseQuery(string $q, ?string $warehouseId, ?string $status, ?string $supplierId, bool $applyStatus = true)
+    private function baseQuery(string $q, ?string $warehouseId, ?string $status, ?string $supplierId, bool $applyStatus = true, ?string $from = null, ?string $to = null)
     {
         return DB::table('warehouse_inbounds as wi')
             ->join('warehouses as w', 'w.id', '=', 'wi.warehouse_id')
@@ -67,6 +67,8 @@ class InboundOperationsQuery
             ->when($supplierId, fn ($query) => $query->where('wi.supplier_id', $supplierId))
             ->when($applyStatus && $status === 'pending', fn ($query) => $query->whereNull('wi.received_date'))
             ->when($applyStatus && $status === 'received', fn ($query) => $query->whereNotNull('wi.received_date'))
+            ->when($from, fn ($query) => $query->whereRaw('COALESCE(wi.received_date, wi.created_at)::date >= ?', [$from]))
+            ->when($to, fn ($query) => $query->whereRaw('COALESCE(wi.received_date, wi.created_at)::date <= ?', [$to]))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('wi.invoice_number', 'ILIKE', "%{$q}%")
@@ -140,9 +142,9 @@ class InboundOperationsQuery
             ->orderByDesc('total_qty');
     }
 
-    private function summary(string $q, ?string $warehouseId, ?string $supplierId): object
+    private function summary(string $q, ?string $warehouseId, ?string $supplierId, ?string $from = null, ?string $to = null): object
     {
-        $query = $this->baseQuery($q, $warehouseId, null, $supplierId, false)->reorder();
+        $query = $this->baseQuery($q, $warehouseId, null, $supplierId, false, $from, $to)->reorder();
 
         $summary = DB::query()
             ->fromSub($query, 'inbound_rows')
@@ -155,7 +157,7 @@ class InboundOperationsQuery
             ->first();
 
         $documentIds = DB::query()
-            ->fromSub($this->baseQuery($q, $warehouseId, null, $supplierId, false)->reorder(), 'inbound_rows')
+            ->fromSub($this->baseQuery($q, $warehouseId, null, $supplierId, false, $from, $to)->reorder(), 'inbound_rows')
             ->pluck('id')
             ->all();
 
@@ -169,10 +171,10 @@ class InboundOperationsQuery
         return $summary;
     }
 
-    private function skuBreakdown(string $q, ?string $warehouseId, ?string $supplierId): array
+    private function skuBreakdown(string $q, ?string $warehouseId, ?string $supplierId, ?string $from = null, ?string $to = null): array
     {
         $documentIds = DB::query()
-            ->fromSub($this->baseQuery($q, $warehouseId, null, $supplierId, false)->reorder(), 'inbound_rows')
+            ->fromSub($this->baseQuery($q, $warehouseId, null, $supplierId, false, $from, $to)->reorder(), 'inbound_rows')
             ->pluck('id')
             ->all();
 

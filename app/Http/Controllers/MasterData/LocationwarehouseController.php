@@ -23,7 +23,7 @@ class LocationwarehouseController extends Controller
     {
         $this->middleware('permission:view master-data-locations-warehouse')->only(['index', 'treeData', 'qr']);
         $this->middleware('permission:create master-data-locations-warehouse')->only(['store', 'generate', 'quickAdd']);
-        $this->middleware('permission:update master-data-locations-warehouse')->only(['update']);
+        $this->middleware('permission:update master-data-locations-warehouse')->only(['update', 'updateWarehouseName']);
         $this->middleware('permission:delete master-data-locations-warehouse')->only(['destroy']);
     }
 
@@ -43,6 +43,7 @@ class LocationwarehouseController extends Controller
 
         return Inertia::render('MasterData/WarehouseLocations', [
             'groups' => $groups->build($q, $warehouseId, $type),
+            'canUpdate' => $request->user()?->can('update master-data-locations-warehouse') ?? false,
             'warehouses' => $warehouses->map(fn (Warehouse $warehouse) => [
                 'id' => $warehouse->id,
                 'name' => $warehouse->name,
@@ -65,6 +66,7 @@ class LocationwarehouseController extends Controller
                 'index' => route('master-data.locations-warehouse.index'),
                 'generate' => route('master-data.locations-warehouse.generate'),
                 'quickAdd' => route('master-data.locations-warehouse.quick-add'),
+                'updateName' => route('master-data.locations-warehouse.update-name', ['warehouse' => '__ID__']),
                 'update' => route('master-data.locations-warehouse.update', ['location' => '__ID__']),
                 'destroy' => route('master-data.locations-warehouse.destroy', ['location' => '__ID__']),
             ],
@@ -248,6 +250,17 @@ class LocationwarehouseController extends Controller
         };
 
         return response()->json($buildTree(null));
+    }
+
+    public function updateWarehouseName(Request $request, Warehouse $warehouse): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+        ]);
+
+        $warehouse->update(['name' => trim($data['name'])]);
+
+        return $this->redirectIndex()->with('success', 'Nama warehouse berhasil diperbarui.');
     }
 
     public function store(Request $request)

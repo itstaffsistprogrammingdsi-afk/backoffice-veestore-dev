@@ -18,10 +18,14 @@ class StoreInboundOperationsController extends Controller
         $warehouseId = trim((string) $request->query('warehouse_id', ''));
         $warehouseId = $warehouseId !== '' ? $warehouseId : null;
         $status = trim((string) $request->query('status', ''));
-        $status = in_array($status, ['pending', 'partial_passed', 'all_passed', 'rejected'], true) ? $status : null;
+        $status = in_array($status, ['pending', 'partial_passed', 'all_passed', 'all_failed'], true) ? $status : null;
+        $from = trim((string) $request->query('from', ''));
+        $from = $from !== '' ? $from : null;
+        $to = trim((string) $request->query('to', ''));
+        $to = $to !== '' ? $to : null;
 
         return Inertia::render('Operations/StoreInbound', [
-            ...$query->build($q, $storeId, $warehouseId, $status),
+            ...$query->build($q, $storeId, $warehouseId, $status, $from, $to),
             'stores' => DB::table('stores')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name', 'code']),
             'warehouses' => DB::table('warehouses')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name', 'code']),
             'filters' => [
@@ -29,6 +33,8 @@ class StoreInboundOperationsController extends Controller
                 'store_id' => $storeId,
                 'warehouse_id' => $warehouseId,
                 'status' => $status,
+                'from' => $from,
+                'to' => $to,
             ],
             'urls' => [
                 'index' => route('operations.store-inbound.index'),

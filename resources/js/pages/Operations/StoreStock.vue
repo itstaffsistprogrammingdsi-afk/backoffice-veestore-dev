@@ -136,6 +136,7 @@ interface Props {
     importNeeds: StockRow[];
     missingStock: MissingStockRow[];
     storeThresholds: StoreThresholdRow[];
+    showThreshold: boolean;
     summary: Summary;
     filters: {
         q: string;
@@ -494,7 +495,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                                     <th class="text-end">Reserved</th>
                                                     <th class="text-end">Available</th>
                                                     <th class="text-end">Barrier</th>
-                                                    <th class="text-end">Threshold</th>
+                                                    <th v-if="props.showThreshold" class="text-end">Threshold</th>
                                                     <th class="text-end">Outbound 30d</th>
                                                     <th>Movement</th>
                                                     <th>FIFO</th>
@@ -514,7 +515,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                                     <td class="text-end">{{ formatNumber(store.reserved) }}</td>
                                                     <td class="text-end"><strong>{{ formatNumber(store.available) }}</strong></td>
                                                     <td class="text-end">{{ store.stock_barrier === null ? '—' : formatNumber(store.stock_barrier) }}</td>
-                                                    <td class="text-end">{{ store.threshold === null ? '—' : formatNumber(store.threshold) }}</td>
+                                                    <td v-if="props.showThreshold" class="text-end">{{ store.threshold === null ? '—' : formatNumber(store.threshold) }}</td>
                                                     <td class="text-end">{{ formatNumber(store.outbound_30d) }}</td>
                                                     <td><span class="badge" :class="movementClass(store.movement_category)">{{ store.movement_label }}</span></td>
                                                     <td>
@@ -565,7 +566,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                             <th>Store</th>
                             <th class="text-end">Available</th>
                             <th class="text-end">Barrier</th>
-                            <th class="text-end">Threshold</th>
+                            <th v-if="props.showThreshold" class="text-end">Threshold</th>
                             <th class="text-end">Saran Restock</th>
                             <th>Status</th>
                             <th class="text-end">Aksi</th>
@@ -585,7 +586,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                             </td>
                             <td class="text-end">{{ formatNumber(row.available) }}</td>
                             <td class="text-end">{{ row.stock_barrier === null ? '—' : formatNumber(row.stock_barrier) }}</td>
-                            <td class="text-end">{{ row.threshold === null ? '—' : formatNumber(row.threshold) }}</td>
+                            <td v-if="props.showThreshold" class="text-end">{{ row.threshold === null ? '—' : formatNumber(row.threshold) }}</td>
                             <td class="text-end">
                                 <strong v-if="row.suggested_import_qty > 0" class="stock-import-qty">+{{ formatNumber(row.suggested_import_qty) }}</strong>
                                 <span v-else class="text-muted">Pantau</span>

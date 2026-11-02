@@ -25,6 +25,8 @@ class CustomerVisitPurchaseQuery
                 'customer_name' => $visit->customer_name,
                 'wa_number' => $visit->wa_number,
                 'email' => $visit->email,
+                'membership_tier' => $visit->membership_tier,
+                'loyalty_points' => (float) ($visit->loyalty_points ?? 0),
                 'store_id' => $visit->store_id,
                 'store_name' => $visit->store_name,
                 'visit_count' => (int) $visit->visit_count,
@@ -87,6 +89,22 @@ class CustomerVisitPurchaseQuery
                 c.name as customer_name,
                 c.wa_number,
                 c.email,
+                (
+                    SELECT m.name
+                    FROM customer_memberships cm
+                    JOIN memberships m ON m.id = cm.membership_id
+                    WHERE cm.customer_id = c.id
+                      AND cm.status = \'active\'
+                    ORDER BY cm.updated_at DESC
+                    LIMIT 1
+                ) as membership_tier,
+                (
+                    SELECT clp.balance
+                    FROM customer_loyalty_points clp
+                    WHERE clp.customer_id = c.id
+                    ORDER BY clp.updated_at DESC
+                    LIMIT 1
+                ) as loyalty_points,
                 s.id as store_id,
                 s.name as store_name,
                 COUNT(DISTINCT v.id)::int as visit_count,

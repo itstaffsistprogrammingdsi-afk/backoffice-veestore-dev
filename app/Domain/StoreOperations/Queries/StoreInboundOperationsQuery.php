@@ -8,14 +8,14 @@ class StoreInboundOperationsQuery
 {
     private const QC_LABELS = [
         'pending' => 'Menunggu QC',
-        'partial_passed' => 'QC Sebagian',
+        'partial_passed' => 'Lolos Sebagian',
         'all_passed' => 'Semua Lolos QC',
-        'rejected' => 'Ditolak QC',
+        'all_failed' => 'Semua Gagal QC',
     ];
 
-    public function build(string $q, ?string $storeId, ?string $warehouseId, ?string $status): array
+    public function build(string $q, ?string $storeId, ?string $warehouseId, ?string $status, ?string $from = null, ?string $to = null): array
     {
-        $rows = $this->baseQuery($q, $storeId, $warehouseId, $status)
+        $rows = $this->baseQuery($q, $storeId, $warehouseId, $status, true, $from, $to)
             ->paginate(10)
             ->withQueryString();
 
@@ -26,6 +26,8 @@ class StoreInboundOperationsQuery
             $row->total_sku = (int) $row->total_sku;
             $row->qc_checked_items = (int) $row->qc_checked_items;
             $row->qc_pending_items = (int) $row->qc_pending_items;
+            $row->qty_good = (int) $row->qty_good;
+            $row->qty_bad = (int) $row->qty_bad;
             $row->status_label = self::QC_LABELS[$row->qc_status] ?? ($row->qc_status ?: 'Menunggu QC');
             $row->product_details = collect($details->get($row->id, []))
                 ->map(fn (object $detail) => [
@@ -34,6 +36,8 @@ class StoreInboundOperationsQuery
                     'qty' => (int) $detail->qty,
                     'qc_checked' => (int) $detail->qc_checked,
                     'qc_pending' => (int) $detail->qc_pending,
+                    'qty_good' => (int) $detail->qty_good,
+                    'qty_bad' => (int) $detail->qty_bad,
                 ])
                 ->values()
                 ->all();
@@ -43,19 +47,19 @@ class StoreInboundOperationsQuery
 
         return [
             'rows' => $rows,
-            'summary' => $this->summary($q, $storeId, $warehouseId),
-            'skuRows' => $this->skuBreakdown($q, $storeId, $warehouseId),
+            'summary' => $this->summary($q, $storeId, $warehouseId, $from, $to),
+            'skuRows' => $this->skuBreakdown($q, $storeId, $warehouseId, $from, $to),
             'statusOptions' => [
                 ['value' => '', 'label' => 'Semua status'],
                 ['value' => 'pending', 'label' => 'Menunggu QC'],
-                ['value' => 'partial_passed', 'label' => 'QC Sebagian'],
+                ['value' => 'partial_passed', 'label' => 'Lolos Sebagian'],
                 ['value' => 'all_passed', 'label' => 'Semua Lolos QC'],
-                ['value' => 'rejected', 'label' => 'Ditolak QC'],
+                ['value' => 'all_failed', 'label' => 'Semua Gagal QC'],
             ],
         ];
     }
 
-    private function baseQuery(string $q, ?string $storeId, ?string $warehouseId, ?string $status, bool $applyStatus = true)
+    private function baseQuery(string $q, ?string $storeId, ?string $warehouseId, ?string $status, bool $applyStatus = true, ?string $from = null, ?string $to = null)
     {
         return DB::table('store_inbounds as si')
             ->join('stores as s', 's.id', '=', 'si.store_id')
@@ -63,10 +67,13 @@ class StoreInboundOperationsQuery
             ->leftJoin('store_inbound_details as sid', 'sid.store_inbound_id', '=', 'si.id')
             ->leftJoin('items as i', 'i.id', '=', 'sid.item_id')
             ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
+            ->leftJoin('item_conditions as ic', 'ic.id', '=', 'i.current_condition_id')
             ->whereNull('s.deleted_at')
             ->when($storeId, fn ($query) => $query->where('si.store_id', $storeId))
             ->when($warehouseId, fn ($query) => $query->where('si.warehouse_source_id', $warehouseId))
             ->when($applyStatus && $status, fn ($query) => $query->where('si.qc_status', $status))
+            ->when($from, fn ($query) => $query->whereRaw('COALESCE(si.received_date, si.created_at)::date >= ?', [$from]))
+            ->when($to, fn ($query) => $query->whereRaw('COALESCE(si.received_date, si.created_at)::date <= ?', [$to]))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
                     $sub->where('si.invoice_number', 'ILIKE', "%{$q}%")
@@ -100,7 +107,9 @@ class StoreInboundOperationsQuery
                 COUNT(DISTINCT sid.id)::int as total_items,
                 COUNT(DISTINCT i.product_id)::int as total_sku,
                 COALESCE(SUM(CASE WHEN sid.has_been_qc THEN 1 ELSE 0 END), 0)::int as qc_checked_items,
-                COALESCE(SUM(CASE WHEN sid.has_been_qc THEN 0 ELSE 1 END), 0)::int as qc_pending_items
+                COALESCE(SUM(CASE WHEN sid.has_been_qc THEN 0 ELSE 1 END), 0)::int as qc_pending_items,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad
             ')
             ->groupBy(
                 'si.id', 'si.store_id', 's.name', 's.code', 'si.warehouse_source_id', 'w.name', 'w.code',
@@ -111,9 +120,9 @@ class StoreInboundOperationsQuery
             ->orderByDesc('total_items');
     }
 
-    private function summary(string $q, ?string $storeId, ?string $warehouseId): object
+    private function summary(string $q, ?string $storeId, ?string $warehouseId, ?string $from = null, ?string $to = null): object
     {
-        $query = $this->baseQuery($q, $storeId, $warehouseId, null, false)->reorder();
+        $query = $this->baseQuery($q, $storeId, $warehouseId, null, false, $from, $to)->reorder();
 
         $summary = DB::query()
             ->fromSub($query, 'store_inbound_rows')
@@ -127,7 +136,7 @@ class StoreInboundOperationsQuery
             ->first();
 
         $documentIds = DB::query()
-            ->fromSub($this->baseQuery($q, $storeId, $warehouseId, null, false)->reorder(), 'store_inbound_rows')
+            ->fromSub($this->baseQuery($q, $storeId, $warehouseId, null, false, $from, $to)->reorder(), 'store_inbound_rows')
             ->pluck('id')
             ->all();
 
@@ -151,6 +160,7 @@ class StoreInboundOperationsQuery
         return DB::table('store_inbound_details as sid')
             ->join('items as i', 'i.id', '=', 'sid.item_id')
             ->join('products as p', 'p.id', '=', 'i.product_id')
+            ->leftJoin('item_conditions as ic', 'ic.id', '=', 'i.current_condition_id')
             ->whereIn('sid.store_inbound_id', $inboundIds)
             ->selectRaw('
                 sid.store_inbound_id,
@@ -158,7 +168,9 @@ class StoreInboundOperationsQuery
                 p.name as product_name,
                 COUNT(sid.id)::int as qty,
                 COALESCE(SUM(CASE WHEN sid.has_been_qc THEN 1 ELSE 0 END), 0)::int as qc_checked,
-                COALESCE(SUM(CASE WHEN sid.has_been_qc THEN 0 ELSE 1 END), 0)::int as qc_pending
+                COALESCE(SUM(CASE WHEN sid.has_been_qc THEN 0 ELSE 1 END), 0)::int as qc_pending,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad
             ')
             ->groupBy('sid.store_inbound_id', 'p.id', 'p.code', 'p.name')
             ->orderBy('p.name')
@@ -166,10 +178,10 @@ class StoreInboundOperationsQuery
             ->groupBy('store_inbound_id');
     }
 
-    private function skuBreakdown(string $q, ?string $storeId, ?string $warehouseId): array
+    private function skuBreakdown(string $q, ?string $storeId, ?string $warehouseId, ?string $from = null, ?string $to = null): array
     {
         $documentIds = DB::query()
-            ->fromSub($this->baseQuery($q, $storeId, $warehouseId, null, false)->reorder(), 'store_inbound_rows')
+            ->fromSub($this->baseQuery($q, $storeId, $warehouseId, null, false, $from, $to)->reorder(), 'store_inbound_rows')
             ->pluck('id')
             ->all();
 

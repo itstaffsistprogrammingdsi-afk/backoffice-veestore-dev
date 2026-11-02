@@ -214,6 +214,9 @@ class StoreStockOperationsQuery
             ->where('on_hand', '>', 0)
             ->filter(fn (array $row) => $row['days_to_expiry'] !== null && $row['days_to_expiry'] < 0)
             ->count();
+        $showThreshold = $flatRows->contains(
+            fn (array $row) => $row['threshold'] !== null && (int) $row['threshold'] !== (int) $row['stock_barrier']
+        );
 
         return [
             'stores' => $stores,
@@ -221,6 +224,7 @@ class StoreStockOperationsQuery
             'importNeeds' => $importNeeds->all(),
             'missingStock' => $missingStock->all(),
             'storeThresholds' => $storeThresholds,
+            'showThreshold' => $showThreshold,
             'summary' => [
                 'sku_total' => $products->count(),
                 'store_stock_count' => $flatRows

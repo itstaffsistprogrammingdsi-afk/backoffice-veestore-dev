@@ -1,77 +1,164 @@
-@extends('layouts/contentNavbarLayout')
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Akses Ditolak - VeeStore</title>
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('veestore.theme');
+                var theme = stored === 'light' || stored === 'dark'
+                    ? stored
+                    : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.dataset.theme = theme;
+            } catch (error) {
+                document.documentElement.dataset.theme = 'light';
+            }
+        })();
+    </script>
+    <style>
+        :root {
+            --bg: #f7f8fc;
+            --surface: #ffffff;
+            --ink: #171b26;
+            --muted: #5f6675;
+            --border: #e5e7f0;
+            --accent: #3b4cf0;
+            --accent-ink: #ffffff;
+            --danger: #b91c1c;
+            --danger-soft: #fee2e2;
+        }
 
-@section('title', 'Akses Ditolak')
+        html[data-theme="dark"] {
+            --bg: #0d1322;
+            --surface: #151c30;
+            --ink: #f5f7ff;
+            --muted: #b7bed3;
+            --border: #2a3455;
+            --accent: #8fa2ff;
+            --accent-ink: #111633;
+            --danger: #fca5a5;
+            --danger-soft: #3a1519;
+        }
 
-@section('content')
-<style>
-    .error-container {
-        text-align: center;
-        padding: 100px 20px;
-        min-height: 70vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-    }
+        * {
+            box-sizing: border-box;
+        }
 
-    .error-code {
-        font-size: 8rem;
-        font-weight: 800;
-        color: #ff6b6b;
-        text-shadow: 2px 2px 6px rgba(255, 0, 0, 0.3);
-        animation: pulse 2s infinite;
-    }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+        }
 
-    .error-message {
-        font-size: 1.5rem;
-        margin-top: 1rem;
-        color: #555;
-    }
+        .error-card {
+            width: min(100%, 520px);
+            padding: clamp(1.5rem, 5vw, 2.5rem);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            background: var(--surface);
+            text-align: center;
+        }
 
-    .error-desc {
-        color: #888;
-        margin-top: 0.5rem;
-    }
+        .error-icon {
+            display: grid;
+            place-items: center;
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            border-radius: 50%;
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
 
-    @keyframes pulse {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.05); opacity: 0.8; }
-    }
+        .error-code {
+            margin: 0;
+            font-size: clamp(2.5rem, 12vw, 4rem);
+            font-weight: 800;
+            line-height: 1;
+        }
 
-    .btn-back {
-        margin-top: 2rem;
-        font-weight: 600;
-    }
+        .error-title {
+            margin: 0.75rem 0 0.4rem;
+            font-size: clamp(1.15rem, 4vw, 1.4rem);
+        }
 
-    .lock-icon {
-        font-size: 5rem;
-        color: #ff6b6b;
-        margin-bottom: 1rem;
-        animation: float 2s ease-in-out infinite;
-    }
+        .error-description {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
 
-    @keyframes float {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-8px); }
-    }
-</style>
+        .error-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.6rem;
+            margin-top: 1.5rem;
+        }
 
-<div class="error-container">
-    <i class="mdi mdi-lock-outline lock-icon"></i>
-    <div class="error-code">403</div>
-    <div class="error-message">Akses Ditolak</div>
-    <p class="error-desc">
-        {{ $message ?? 'Anda tidak memiliki izin untuk mengakses halaman ini.' }}<br>
-        Silakan hubungi admin untuk meminta akses.
-    </p>
+        .error-actions a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0.65rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.55rem;
+            color: var(--ink);
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
 
-    <div class="d-flex gap-2 justify-content-center">
-        <a href="{{ url()->previous() }}" class="btn btn-outline-secondary btn-back">
-            <i class="mdi mdi-arrow-left"></i> Kembali
-        </a>
-        <a href="{{ route('dashboard') }}" class="btn btn-primary btn-back">
-            <i class="mdi mdi-home-outline"></i> Ke Dashboard
-        </a>
-    </div>
-</div>
-@endsection
+        .error-actions a:hover,
+        .error-actions a:focus-visible {
+            border-color: var(--accent);
+        }
+
+        .error-actions .primary {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: var(--accent-ink);
+        }
+
+        .error-actions a:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        @media (max-width: 420px) {
+            .error-actions a {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="error-card">
+        <div class="error-icon" aria-hidden="true">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="10" width="16" height="10" rx="2"></rect>
+                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+            </svg>
+        </div>
+        <p class="error-code">403</p>
+        <h1 class="error-title">Akses Ditolak</h1>
+        <p class="error-description">
+            {{ $message ?? 'Anda tidak memiliki izin untuk mengakses halaman ini.' }}<br>
+            Silakan hubungi admin untuk meminta akses.
+        </p>
+        <div class="error-actions">
+            <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('dashboard') }}">Kembali</a>
+            <a href="{{ route('dashboard') }}" class="primary">Ke Dashboard</a>
+        </div>
+    </main>
+</body>
+</html>
