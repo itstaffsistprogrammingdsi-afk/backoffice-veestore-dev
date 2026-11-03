@@ -19,13 +19,27 @@ class PaymentMethod extends Model
     // Hanya ada created_at, tidak ada updated_at
     const UPDATED_AT = null;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'type'];
+
+    protected $appends = ['type_label'];
+
+    public const TYPE_LABELS = [
+        'cash' => 'Cash',
+        'non_cash' => 'Non Cash',
+        'api' => 'API',
+        'receivable' => 'Receivable',
+    ];
 
     // Rapi: cast kolom waktu
     protected $casts = [
         'created_at' => 'datetime',
         'deleted_at' => 'datetime', // <-- penting untuk SoftDeletes
     ];
+
+    public function getTypeLabelAttribute(): string
+    {
+        return self::TYPE_LABELS[$this->type] ?? '-';
+    }
 
     protected static function boot()
     {

@@ -29,6 +29,13 @@ interface Column {
     align?: 'start' | 'end' | 'center';
 }
 
+interface SelectFilter {
+    key: string;
+    label: string;
+    options: Option[];
+    value?: string | null;
+}
+
 interface Paginator<T> {
     data: T[];
     links: Array<{ url: string | null; label: string; active: boolean }>;
@@ -56,6 +63,7 @@ interface Props {
     fields: Field[];
     rowActions?: RowAction[];
     filters: { q: string };
+    extraFilters?: SelectFilter[];
     urls: {
         index: string;
         store: string;
@@ -70,6 +78,9 @@ const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
 const search = reactive({ q: props.filters.q ?? '' });
+const extraSearch = reactive<Record<string, string>>(
+    Object.fromEntries((props.extraFilters ?? []).map((filter) => [filter.key, filter.value ?? ''])),
+);
 const showCreate = ref(false);
 const editingId = ref<string | null>(null);
 
@@ -174,7 +185,13 @@ const runRowAction = (action: RowAction, row: Record<string, any>) => {
 };
 
 const applySearch = () => {
-    router.get(props.urls.index, { q: search.q || undefined }, {
+    const params: Record<string, string | undefined> = { q: search.q || undefined };
+
+    for (const [key, value] of Object.entries(extraSearch)) {
+        params[key] = value || undefined;
+    }
+
+    router.get(props.urls.index, params, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -183,6 +200,11 @@ const applySearch = () => {
 
 const resetSearch = () => {
     search.q = '';
+
+    for (const key of Object.keys(extraSearch)) {
+        extraSearch[key] = '';
+    }
+
     applySearch();
 };
 
@@ -291,9 +313,19 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                 <h1>{{ props.title }}</h1>
                 <p>{{ props.description }}</p>
             </div>
-            <div class="d-flex gap-2">
-                <form class="d-flex gap-2" @submit.prevent="applySearch">
+            <div class="d-flex flex-wrap gap-2">
+                <form class="d-flex flex-wrap gap-2" @submit.prevent="applySearch">
                     <input v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
+                    <select
+                        v-for="filter in (props.extraFilters ?? [])"
+                        :key="filter.key"
+                        v-model="extraSearch[filter.key]"
+                        class="form-select form-select-sm crud-filter-select"
+                        :aria-label="filter.label"
+                    >
+                        <option value="">Semua {{ filter.label.toLowerCase() }}</option>
+                        <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
                     <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="mdi mdi-magnify"></i></button>
                     <button class="btn btn-outline-secondary btn-sm" type="button" @click="resetSearch"><i class="mdi mdi-refresh"></i></button>
                 </form>
@@ -432,5 +464,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
 .crud-actions .btn { padding: .25rem .4rem; }
 .crud-edit { background: var(--app-surface-2); }
 .crud-empty { padding: 2.5rem 1rem; color: var(--crud-muted); text-align: center; }
+.crud-filter-select { width: auto; min-width: 140px; }
 @media (max-width: 767.98px) { .crud-header { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 575.98px) { .crud-filter-select { width: 100%; } }
 </style>

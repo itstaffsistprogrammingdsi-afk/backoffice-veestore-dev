@@ -18,12 +18,25 @@ interface OrderDetail {
     product: { id: string; name: string } | null;
 }
 
+interface PaymentInfo {
+    id: string;
+    status: string;
+    total_amount: string | number;
+    paid_amount: string | number;
+    transaction_number: string | null;
+    completed_at: string | null;
+}
+
 interface OrderRow {
     id: string;
     order_number: string | null;
     status: string;
     created_at: string | null;
     grand_total: string | number;
+    payment_method_code: string | null;
+    payment_method_name: string | null;
+    payment_fee: string | number;
+    payment: PaymentInfo | null;
     store: Option | null;
     warehouse: Option | null;
     details: OrderDetail[];
@@ -42,6 +55,7 @@ interface Props {
     stores: Option[];
     warehouses: Option[];
     statuses: string[];
+    paymentMethods: Array<{ payment_method_code: string; payment_method_name: string }>;
     stockIssueOrderIds: string[];
     filters: {
         q: string;
@@ -49,6 +63,7 @@ interface Props {
         handler_type: string | null;
         store_id: string | null;
         warehouse_id: string | null;
+        payment_method_code: string | null;
         stock_issue: boolean;
         from: string | null;
         to: string | null;
@@ -70,6 +85,7 @@ const form = reactive({
     handler_type: props.filters.handler_type ?? '',
     store_id: props.filters.store_id ?? '',
     warehouse_id: props.filters.warehouse_id ?? '',
+    payment_method_code: props.filters.payment_method_code ?? '',
     stock_issue: props.filters.stock_issue,
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
@@ -90,6 +106,7 @@ const applyFilters = () => {
         handler_type: form.handler_type || undefined,
         store_id: form.store_id || undefined,
         warehouse_id: form.warehouse_id || undefined,
+        payment_method_code: form.payment_method_code || undefined,
         stock_issue: form.stock_issue ? 1 : undefined,
         from: form.from || undefined,
         to: form.to || undefined,
@@ -102,6 +119,7 @@ const reset = () => {
     form.handler_type = '';
     form.store_id = '';
     form.warehouse_id = '';
+    form.payment_method_code = '';
     form.stock_issue = false;
     form.from = '';
     form.to = '';
@@ -169,6 +187,18 @@ const statusClass = (status: string) => {
 
     return 'bg-warning';
 };
+
+const paymentStatusClass = (status: string | null | undefined) => {
+    if (status === 'paid' || status === 'success') {
+        return 'bg-label-success';
+    }
+
+    if (status === 'failed' || status === 'cancelled' || status === 'refunded') {
+        return 'bg-label-danger';
+    }
+
+    return 'bg-label-warning';
+};
 </script>
 
 <template>
@@ -189,18 +219,18 @@ const statusClass = (status: string) => {
         <div class="card ecommerce-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-md-3">
+                    <div class="col-12 col-lg-4">
                         <label class="form-label">Cari</label>
                         <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Order number, produk..." />
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Status</label>
                         <select v-model="form.status" class="form-select form-select-sm">
                             <option value="">Semua</option>
                             <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Handler</label>
                         <select v-model="form.handler_type" class="form-select form-select-sm">
                             <option value="">Semua</option>
@@ -208,29 +238,36 @@ const statusClass = (status: string) => {
                             <option value="warehouse">Warehouse</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Store</label>
                         <select v-model="form.store_id" class="form-select form-select-sm">
                             <option value="">Semua</option>
                             <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Warehouse</label>
                         <select v-model="form.warehouse_id" class="form-select form-select-sm">
                             <option value="">Semua</option>
                             <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
                         </select>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-12 col-md-4 col-lg-3">
+                        <label class="form-label">Metode Pembayaran</label>
+                        <select v-model="form.payment_method_code" class="form-select form-select-sm">
+                            <option value="">Semua metode</option>
+                            <option v-for="method in paymentMethods" :key="method.payment_method_code" :value="method.payment_method_code">{{ method.payment_method_name }}</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Dari</label>
                         <input v-model="form.from" class="form-control form-control-sm" type="date" />
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-6 col-md-2">
                         <label class="form-label">Sampai</label>
                         <input v-model="form.to" class="form-control form-control-sm" type="date" />
                     </div>
-                    <div class="col-12 d-flex flex-wrap align-items-center gap-3 mt-2">
+                    <div class="col-12 col-md-4 col-lg-5 d-flex flex-wrap align-items-center gap-3">
                         <div class="form-check">
                             <input id="stock-issue" v-model="form.stock_issue" class="form-check-input" type="checkbox" />
                             <label class="form-check-label" for="stock-issue">Hanya kendala stok</label>
@@ -250,6 +287,7 @@ const statusClass = (status: string) => {
                             <th>Order</th>
                             <th>Tanggal</th>
                             <th>Status</th>
+                            <th>Pembayaran</th>
                             <th>Store</th>
                             <th>Warehouse</th>
                             <th class="text-end">Item</th>
@@ -266,6 +304,11 @@ const statusClass = (status: string) => {
                                 </td>
                                 <td>{{ formatDate(order.created_at) }}</td>
                                 <td><span class="badge" :class="statusClass(order.status)">{{ order.status }}</span></td>
+                                <td>
+                                    <div class="fw-semibold">{{ order.payment_method_name || order.payment_method_code || '-' }}</div>
+                                    <span class="badge" :class="paymentStatusClass(order.payment?.status)">{{ order.payment?.status ?? 'tanpa payment' }}</span>
+                                    <small v-if="Number(order.payment_fee) > 0" class="text-muted d-block">Fee {{ formatCurrency(order.payment_fee) }}</small>
+                                </td>
                                 <td>{{ order.store?.name ?? '-' }}</td>
                                 <td>{{ order.warehouse?.name ?? '-' }}</td>
                                 <td class="text-end">{{ totalItems(order) }}</td>
@@ -283,7 +326,7 @@ const statusClass = (status: string) => {
                                 </td>
                             </tr>
                             <tr v-if="editingId === order.id">
-                                <td colspan="8" class="ecommerce-detail">
+                                <td colspan="9" class="ecommerce-detail">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-md-2">
                                             <label class="form-label">Status</label>
@@ -327,7 +370,7 @@ const statusClass = (status: string) => {
                             </tr>
                         </template>
                         <tr v-if="orders.data.length === 0">
-                            <td colspan="8" class="ecommerce-empty">Belum ada order.</td>
+                            <td colspan="9" class="ecommerce-empty">Belum ada order.</td>
                         </tr>
                     </tbody>
                 </table>

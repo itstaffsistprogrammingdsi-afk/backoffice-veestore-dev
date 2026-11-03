@@ -82,6 +82,8 @@ class Navigation
                 'icon' => 'mdi-cart-outline',
                 'items' => self::items($user, [
                     ['Orders', 'ecommerce.orders.index', 'mdi-cart-arrow-right', null],
+                    ['Payment Methods', 'master-data.payment-methods.index', 'mdi-credit-card-outline', 'view master-data-payment-methods'],
+                    ['Ecommerce Payments', 'monitoring.ecommerce-payment.index', 'mdi-receipt-text-outline', 'view monitoring-ecommerce-payment'],
                     ['Banners', 'master-data.ecommerce-banners.index', 'mdi-image-multiple-outline', 'view master-data-ecommerce-banners'],
                 ]),
             ],

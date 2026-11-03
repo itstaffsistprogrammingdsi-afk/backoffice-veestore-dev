@@ -30,6 +30,8 @@ class EcommerceOrderController extends Controller
         $handlerType = $request->query('handler_type');
         $storeId = $request->query('store_id');
         $warehouseId = $request->query('warehouse_id');
+        $paymentMethodCode = trim((string) $request->query('payment_method_code', ''));
+        $paymentMethodCode = $paymentMethodCode !== '' ? $paymentMethodCode : null;
         $stockIssue = $request->boolean('stock_issue');
         $from = $request->query('from')
             ?: ($stockIssue ? null : now()->toDateString());
@@ -41,6 +43,7 @@ class EcommerceOrderController extends Controller
             'store:id,name',
             'warehouse:id,name',
             'details.product:id,name',
+            'payment:id,status,total_amount,paid_amount,transaction_number,completed_at',
         ])
             ->when($q !== '', function ($builder) use ($q) {
                 $like = "%{$q}%";
@@ -76,6 +79,7 @@ class EcommerceOrderController extends Controller
             ->when(! $handlerType && $warehouseId, function ($builder) use ($warehouseId) {
                 $builder->where('handled_by_warehouse_id', $warehouseId);
             })
+            ->when($paymentMethodCode, fn ($builder) => $builder->where('payment_method_code', $paymentMethodCode))
             ->when($stockIssue, fn ($builder) => $stockAlertService->apply($builder))
             ->when($from && $to, fn ($builder) => $builder
                 ->whereBetween(DB::raw('created_at::date'), [$from, $to]))
@@ -105,11 +109,20 @@ class EcommerceOrderController extends Controller
             'cancelled',
         ]);
 
+        $paymentMethods = EcommerceOrder::query()
+            ->select('payment_method_code', 'payment_method_name')
+            ->whereNotNull('payment_method_code')
+            ->where('payment_method_code', '<>', '')
+            ->distinct()
+            ->orderBy('payment_method_name')
+            ->get();
+
         return Inertia::render('Ecommerce/Orders', [
             'orders' => $orders,
             'stores' => $stores,
             'warehouses' => $warehouses,
             'statuses' => $statuses,
+            'paymentMethods' => $paymentMethods,
             'stockIssueOrderIds' => $stockIssueOrderIds,
             'filters' => [
                 'q' => $q,
@@ -117,6 +130,7 @@ class EcommerceOrderController extends Controller
                 'handler_type' => $handlerType,
                 'store_id' => $storeId,
                 'warehouse_id' => $warehouseId,
+                'payment_method_code' => $paymentMethodCode,
                 'stock_issue' => $stockIssue,
                 'from' => $from,
                 'to' => $to,
