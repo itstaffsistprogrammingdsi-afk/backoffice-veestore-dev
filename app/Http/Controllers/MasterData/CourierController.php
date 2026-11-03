@@ -34,15 +34,23 @@ class CourierController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
+        $status = trim((string) $request->get('status', ''));
+        $status = in_array($status, array_keys(Courier::STATUS_LABELS), true) ? $status : null;
+        $serviceType = trim((string) $request->get('service_type', ''));
+        $serviceType = in_array($serviceType, array_keys(Courier::SERVICE_TYPE_LABELS), true) ? $serviceType : null;
 
         $couriers = Courier::query()
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($w) use ($q) {
                     $w->where('name', 'ILIKE', "%{$q}%")
                         ->orWhere('code', 'ILIKE', "%{$q}%")
-                        ->orWhere('phone', 'ILIKE', "%{$q}%");
+                        ->orWhere('phone', 'ILIKE', "%{$q}%")
+                        ->orWhere('contact_person', 'ILIKE', "%{$q}%")
+                        ->orWhere('email', 'ILIKE', "%{$q}%");
                 });
             })
+            ->when($status, fn ($query) => $query->where('status', $status))
+            ->when($serviceType, fn ($query) => $query->where('service_type', $serviceType))
             ->orderByRaw("
                 CAST(
                     REGEXP_REPLACE(code, '[^0-9]', '', 'g')
@@ -52,28 +60,42 @@ class CourierController extends Controller
             ->paginate(10)
             ->withQueryString();
 
-        $serviceTypes = ['regular', 'express', 'cargo'];
-        $statuses = ['active', 'non_active'];
+        $serviceTypes = collect(Courier::SERVICE_TYPE_LABELS)
+            ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+            ->values()
+            ->all();
+        $statuses = collect(Courier::STATUS_LABELS)
+            ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+            ->values()
+            ->all();
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Couriers',
-            'description' => 'Kelola kurir dan layanan pengiriman.',
+            'eyebrow' => 'Mitra / Pengiriman',
+            'description' => 'Kelola kurir, kontak, dan layanan pengiriman.',
             'searchPlaceholder' => 'Cari courier...',
             'items' => $couriers,
             'columns' => [
                 ['key' => 'code', 'label' => 'Kode'],
                 ['key' => 'name', 'label' => 'Nama'],
                 ['key' => 'phone', 'label' => 'Telepon'],
-                ['key' => 'service_type', 'label' => 'Layanan'],
-                ['key' => 'status', 'label' => 'Status'],
+                ['key' => 'contact_person', 'label' => 'Kontak'],
+                ['key' => 'service_type_label', 'label' => 'Layanan'],
+                ['key' => 'status_label', 'label' => 'Status'],
             ],
             'fields' => [
                 ['key' => 'name', 'label' => 'Nama Courier', 'required' => true],
                 ['key' => 'phone', 'label' => 'Telepon', 'required' => true],
-                ['key' => 'service_type', 'label' => 'Layanan', 'type' => 'select', 'options' => collect($serviceTypes)->map(fn ($type) => ['value' => $type, 'label' => $type])->values()->all()],
-                ['key' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => collect($statuses)->map(fn ($status) => ['value' => $status, 'label' => $status])->values()->all()],
+                ['key' => 'contact_person', 'label' => 'Contact Person'],
+                ['key' => 'email', 'label' => 'Email', 'type' => 'email'],
+                ['key' => 'service_type', 'label' => 'Layanan', 'type' => 'select', 'options' => $serviceTypes],
+                ['key' => 'status', 'label' => 'Status', 'type' => 'select', 'required' => true, 'options' => $statuses],
             ],
-            'filters' => ['q' => $q],
+            'filters' => ['q' => $q, 'status' => $status, 'service_type' => $serviceType],
+            'extraFilters' => [
+                ['key' => 'status', 'label' => 'Status', 'value' => $status, 'options' => $statuses],
+                ['key' => 'service_type', 'label' => 'Layanan', 'value' => $serviceType, 'options' => $serviceTypes],
+            ],
             'urls' => [
                 'index' => route('master-data.couriers.index'),
                 'store' => route('master-data.couriers.store'),

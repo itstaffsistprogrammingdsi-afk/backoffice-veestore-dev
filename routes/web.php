@@ -8,6 +8,7 @@ use App\Http\Controllers\BranchOperations\StoreLabelPrintRequestController;
 use App\Http\Controllers\BranchOperations\StoreVoucherRequestController;
 use App\Http\Controllers\dashboard\Analytics;
 use App\Http\Controllers\Ecommerce\EcommerceOrderController;
+use App\Http\Controllers\Ecommerce\EcommercePaymentOperationsController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointMutationController;
 // Master Data
@@ -272,6 +273,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/orders/{id}', [EcommerceOrderController::class, 'update'])->name('orders.update');
         Route::get('/orders/{id}', [EcommerceOrderController::class, 'show'])->name('orders.show');
         Route::get('/orders/{id}/stock', [EcommerceOrderController::class, 'stock'])->name('orders.stock');
+        Route::get('/payments', EcommercePaymentOperationsController::class)->name('payments.index');
     });
 
     /*

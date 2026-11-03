@@ -15,7 +15,7 @@ interface Option { value: string; label: string }
 interface Field {
     key: string;
     label: string;
-    type?: 'text' | 'number' | 'textarea' | 'select' | 'date' | 'file' | 'multiselect' | 'map';
+    type?: 'text' | 'email' | 'number' | 'textarea' | 'select' | 'date' | 'file' | 'multiselect' | 'map';
     required?: boolean;
     options?: Option[];
     placeholder?: string;
