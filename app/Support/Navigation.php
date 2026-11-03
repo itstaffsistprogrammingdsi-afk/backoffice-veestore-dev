@@ -127,6 +127,7 @@ class Navigation
                 'items' => self::items($user, [
                     ['Products', 'master-data.products.index', 'mdi-package-variant', 'view master-data-products'],
                     ['Product Prices', 'master-data.product-prices.index', 'mdi-currency-usd', 'view master-data-product-prices'],
+                    ['Product Specifications', 'master-data.product-specifications.index', 'mdi-format-list-bulleted', 'view master-data-product-specifications'],
                     ['Categories', 'master-data.product-categories.index', 'mdi-shape-outline', 'view master-data-product-categories'],
                     ['Category Groups', 'master-data.product-category-groups.index', 'mdi-layers-outline', 'view master-data-product-categories'],
                     ['Brands', 'master-data.brands.index', 'mdi-tag-outline', 'view master-data-brands'],
