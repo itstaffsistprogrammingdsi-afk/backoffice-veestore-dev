@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\MasterData;
 
+use App\Support\Navigation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\InteractsWithBackofficeAdmin;
@@ -51,5 +52,19 @@ class SimpleMasterDataPagesTest extends TestCase
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page->component($component));
         }
+    }
+
+    public function test_product_specifications_are_grouped_under_master_product(): void
+    {
+        $navigation = Navigation::forUser($this->admin());
+        $operations = collect($navigation['areas'])->firstWhere('key', 'operations');
+        $masterProduct = collect($operations['groups'])->firstWhere('label', 'Master Produk');
+
+        $this->assertNotNull($masterProduct);
+        $this->assertTrue(
+            collect($masterProduct['items'])
+                ->pluck('label')
+                ->contains('Product Specifications')
+        );
     }
 }

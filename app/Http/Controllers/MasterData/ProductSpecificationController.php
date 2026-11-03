@@ -31,11 +31,13 @@ class ProductSpecificationController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Product Specifications',
-            'description' => 'Kelola spesifikasi produk.',
+            'eyebrow' => 'Master Produk / Spesifikasi',
+            'description' => 'Kelola nilai spesifikasi yang dipakai pada produk.',
             'searchPlaceholder' => 'Cari spesifikasi...',
             'items' => $specs,
             'columns' => [
-                ['key' => 'value', 'label' => 'Value'],
+                ['key' => 'value', 'label' => 'Spesifikasi'],
+                ['key' => 'created_at', 'label' => 'Dibuat'],
             ],
             'fields' => [
                 ['key' => 'value', 'label' => 'Spesifikasi', 'required' => true],
