@@ -130,12 +130,12 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
 .monitoring-overview-link { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.55rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface); color: var(--app-ink); font-size: 0.8rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .monitoring-overview-link:hover { background: var(--app-accent-soft); color: var(--app-accent-ink); }
 .monitoring-search { position: relative; flex: 1 1 20rem; max-width: 30rem; }
-.monitoring-search .form-control { min-height: 2.75rem; padding-left: 2.6rem; padding-right: 2.6rem; border-color: rgba(255, 255, 255, 0.65); background: #eef1ff; color: #171b26; }
-.monitoring-search .form-control::placeholder { color: #4b5563; }
-.monitoring-search .form-control:focus { background: #ffffff; color: #171b26; border-color: var(--app-accent); }
-.monitoring-search-icon { position: absolute; top: 50%; left: 0.9rem; transform: translateY(-50%); color: #2f3dd1; font-size: 1.1rem; }
-.monitoring-search-clear { position: absolute; top: 50%; right: 0.45rem; display: grid; place-items: center; width: 2rem; height: 2rem; transform: translateY(-50%); border: 0; border-radius: 999px; background: transparent; color: #2f3dd1; }
-.monitoring-search-clear:hover { background: rgba(47, 61, 209, 0.1); color: #2632b3; }
+.monitoring-search .form-control { min-height: 2.75rem; padding-left: 2.6rem; padding-right: 2.6rem; border-color: var(--app-border); background: var(--app-surface); color: var(--app-ink); }
+.monitoring-search .form-control::placeholder { color: var(--app-muted); }
+.monitoring-search .form-control:focus { background: var(--app-surface); color: var(--app-ink); border-color: var(--app-accent); }
+.monitoring-search-icon { position: absolute; top: 50%; left: 0.9rem; transform: translateY(-50%); color: var(--app-accent-ink); font-size: 1.1rem; }
+.monitoring-search-clear { position: absolute; top: 50%; right: 0.45rem; display: grid; place-items: center; width: 2rem; height: 2rem; transform: translateY(-50%); border: 0; border-radius: 0.4rem; background: transparent; color: var(--app-accent-ink); }
+.monitoring-search-clear:hover { background: var(--app-accent-soft); color: var(--app-accent-strong); }
 .monitoring-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 1rem; color: var(--app-muted); font-size: 0.8rem; }
 .monitoring-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .monitoring-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }

@@ -173,8 +173,8 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
     padding: 1.3rem 1.75rem;
     margin-bottom: 1rem;
     border-radius: 1rem;
-    background: #142b59;
-    color: #fff;
+    background: var(--app-hero-bg);
+    color: var(--app-hero-text);
 }
 
 .vee-hero__mascot {
@@ -191,16 +191,15 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
 .vee-hero__eyebrow {
     display: inline-block;
     margin-bottom: 0.35rem;
-    color: #9cc9ff;
+    color: var(--app-hero-eyebrow);
     font-size: 0.68rem;
     font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
 .vee-hero h1 {
     margin: 0 0 0.35rem;
-    color: #fff !important;
+    color: var(--app-hero-text) !important;
     font-size: clamp(1.55rem, 3vw, 2.1rem);
     font-weight: 800;
     line-height: 1.15;
@@ -209,7 +208,7 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
 .vee-hero p {
     max-width: 38rem;
     margin: 0;
-    color: #d4e3ff;
+    color: var(--app-hero-muted);
     font-size: 0.88rem;
     line-height: 1.62;
 }
@@ -228,7 +227,7 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
     padding: 0.22rem 0.5rem;
     border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 0.45rem;
-    color: #e8f1ff;
+    color: var(--app-hero-text);
     font-size: 0.68rem;
     font-weight: 700;
 }
@@ -327,7 +326,7 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
 
 .vee-capabilities i {
     margin-top: 0.1rem;
-    color: #2468e8;
+    color: var(--app-accent-ink);
     font-size: 0.82rem;
 }
 
@@ -370,7 +369,7 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
     border: 1px solid var(--app-border);
     border-radius: 0.9rem;
     background: var(--app-surface);
-    box-shadow: 0 0.35rem 1rem rgba(20, 43, 89, 0.06);
+    box-shadow: none;
 }
 
 .vee-chat-card__header {
@@ -421,11 +420,11 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: #1c9e6b;
+    background: var(--app-success-ink);
 }
 
 .vee-status__dot--busy {
-    background: #d97706;
+    background: var(--app-warning-ink);
 }
 
 @media (max-width: 1099.98px) {

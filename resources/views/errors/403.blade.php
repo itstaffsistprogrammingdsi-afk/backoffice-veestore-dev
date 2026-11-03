@@ -21,25 +21,25 @@
     </script>
     <style>
         :root {
-            --bg: #f7f8fc;
+            --bg: #f5f6f3;
             --surface: #ffffff;
-            --ink: #171b26;
-            --muted: #5f6675;
-            --border: #e5e7f0;
-            --accent: #3b4cf0;
+            --ink: #1d2a25;
+            --muted: #58665f;
+            --border: #dbe2dc;
+            --accent: #b6474f;
             --accent-ink: #ffffff;
-            --danger: #b91c1c;
-            --danger-soft: #fee2e2;
+            --danger: #8e3239;
+            --danger-soft: #fdeef0;
         }
 
         html[data-theme="dark"] {
-            --bg: #0d1322;
-            --surface: #151c30;
-            --ink: #f5f7ff;
-            --muted: #b7bed3;
-            --border: #2a3455;
-            --accent: #8fa2ff;
-            --accent-ink: #111633;
+            --bg: #121a16;
+            --surface: #19221d;
+            --ink: #f1f5f1;
+            --muted: #b6c1ba;
+            --border: #37463d;
+            --accent: #ff8c83;
+            --accent-ink: #211b19;
             --danger: #fca5a5;
             --danger-soft: #3a1519;
         }
@@ -63,7 +63,7 @@
             width: min(100%, 520px);
             padding: clamp(1.5rem, 5vw, 2.5rem);
             border: 1px solid var(--border);
-            border-radius: 1rem;
+            border-radius: 0.75rem;
             background: var(--surface);
             text-align: center;
         }

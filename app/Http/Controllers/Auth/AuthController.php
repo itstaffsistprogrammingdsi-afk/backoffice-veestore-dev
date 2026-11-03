@@ -26,7 +26,6 @@ class AuthController extends Controller
         return Inertia::render('Auth/Login', [
             'urls' => [
                 'login' => route('login.attempt'),
-                'register' => route('auth-register-basic'),
                 'forgot' => route('auth-forgot-password-basic'),
             ],
         ]);
@@ -162,33 +161,9 @@ class AuthController extends Controller
 
         return Inertia::render('Auth/Register', [
             'urls' => [
-                'register' => route('register.attempt'),
                 'login' => route('auth-login-basic'),
             ],
         ]);
-    }
-
-    public function register(Request $request)
-    {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:150'],
-            'username' => ['required', 'string', 'max:100', 'unique:pgsql.users,username'],
-            'email' => ['required', 'email', 'max:191', 'unique:pgsql.users,email'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
-        ]);
-
-        $data += [
-            'ecommerce_access' => false,
-            'wms_access' => false,
-            'backoffice_access' => false,
-            'store_access' => false,
-        ];
-
-        User::create($data);
-
-        $request->session()->flash('success', 'Registrasi berhasil. Silakan login.');
-
-        return Inertia::location(route('auth-login-basic'));
     }
 
     public function logout(Request $request)

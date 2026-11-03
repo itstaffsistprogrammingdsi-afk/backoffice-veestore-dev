@@ -437,14 +437,14 @@ defineExpose({ focusInput: () => input.value?.focus() });
 
 .assistant-suggestion:hover,
 .assistant-suggestion:focus-visible {
-    border-color: #2468e8;
+    border-color: var(--app-accent);
     background: var(--app-surface-2);
 }
 
 .assistant-suggestion:focus-visible,
 .assistant-composer__send:focus-visible,
 .assistant-reset:focus-visible {
-    outline: 3px solid rgba(36, 104, 232, 0.3);
+    outline: 2px solid color-mix(in srgb, var(--app-accent) 35%, transparent);
     outline-offset: 2px;
 }
 
@@ -457,7 +457,7 @@ defineExpose({ focusInput: () => input.value?.focus() });
     min-height: 44px;
     padding: 0.35rem 0.55rem;
     font-size: 0.72rem;
-    border-radius: 999px;
+    border-radius: 0.5rem;
     white-space: nowrap;
 }
 
@@ -481,9 +481,9 @@ defineExpose({ focusInput: () => input.value?.focus() });
     width: 34px;
     height: 34px;
     overflow: hidden;
-    border: 1px solid #d9e7ff;
-    border-radius: 11px;
-    background: linear-gradient(145deg, #eff6ff, #dceaff);
+    border: 1px solid var(--app-border);
+    border-radius: 0.55rem;
+    background: var(--app-accent-soft);
 }
 
 .assistant-message__avatar .vee-mascot {
@@ -511,10 +511,10 @@ defineExpose({ focusInput: () => input.value?.focus() });
 }
 
 .assistant-message--user .assistant-message__content {
-    border-color: #cfe0ff;
+    border-color: var(--app-accent);
     border-radius: 0.8rem 3px 0.8rem 0.8rem;
-    background: #eaf2ff;
-    color: #142b59;
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
     white-space: pre-wrap;
 }
 
@@ -557,8 +557,8 @@ defineExpose({ focusInput: () => input.value?.focus() });
     padding: 0.65rem;
     overflow-x: auto;
     border-radius: 0.5rem;
-    background: #142b59;
-    color: #eaf2ff;
+    background: var(--app-hero-bg);
+    color: var(--app-hero-text);
 }
 
 .assistant-message__content :deep(pre code) {
@@ -590,10 +590,10 @@ defineExpose({ focusInput: () => input.value?.focus() });
     align-items: center;
     gap: 0.25rem;
     padding: 0.15rem 0.42rem;
-    border: 1px solid #d6e4ff;
-    border-radius: 999px;
-    background: #f3f8ff;
-    color: #31517f;
+    border: 1px solid var(--app-border);
+    border-radius: 0.4rem;
+    background: var(--app-surface-2);
+    color: var(--app-muted);
     font-size: 0.64rem;
     font-weight: 700;
 }
@@ -623,7 +623,7 @@ defineExpose({ focusInput: () => input.value?.focus() });
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #2468e8;
+    background: var(--app-accent);
     animation: vee-thinking 1.1s ease-in-out infinite;
 }
 
@@ -685,8 +685,8 @@ defineExpose({ focusInput: () => input.value?.focus() });
 }
 
 .assistant-composer:focus-within {
-    border-color: #6aa1ff;
-    box-shadow: 0 0 0 3px rgba(36, 104, 232, 0.12);
+    border-color: var(--app-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 18%, transparent);
 }
 
 .assistant-composer__input {
@@ -716,14 +716,14 @@ defineExpose({ focusInput: () => input.value?.focus() });
     height: 44px;
     border: 0;
     border-radius: 0.6rem;
-    background: #1e4fb8;
-    color: #fff;
+    background: var(--app-accent);
+    color: var(--app-on-accent);
     font-size: 1.15rem;
     cursor: pointer;
 }
 
 .assistant-composer__send:hover:not(:disabled) {
-    background: #173f9d;
+    background: var(--app-accent-strong);
 }
 
 .assistant-composer__send:disabled {

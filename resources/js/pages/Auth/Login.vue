@@ -6,7 +6,6 @@ import AuthShell from '../../components/AuthShell.vue';
 interface Props {
     urls: {
         login: string;
-        register: string;
         forgot: string;
     };
 }
@@ -30,11 +29,11 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Login" />
+    <Head title="Masuk" />
 
     <AuthShell title="Masuk ke Backoffice" description="Gunakan email atau username dan password akun Anda.">
-        <div v-if="flash.success" class="auth-alert auth-alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="auth-alert auth-alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="auth-alert auth-alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="auth-alert auth-alert-danger" role="alert">{{ flash.error }}</div>
 
         <form @submit.prevent="submit">
             <div class="auth-field">
@@ -45,10 +44,11 @@ const submit = () => {
                     type="text"
                     autocomplete="username"
                     :class="{ 'is-invalid': form.errors.login }"
+                    :aria-invalid="Boolean(form.errors.login)"
+                    :aria-describedby="form.errors.login ? 'login-error' : undefined"
                     required
-                    autofocus
                 />
-                <small v-if="form.errors.login" class="auth-error">{{ form.errors.login }}</small>
+                <small v-if="form.errors.login" id="login-error" class="auth-error">{{ form.errors.login }}</small>
             </div>
 
             <div class="auth-field">
@@ -59,9 +59,11 @@ const submit = () => {
                     type="password"
                     autocomplete="current-password"
                     :class="{ 'is-invalid': form.errors.password }"
+                    :aria-invalid="Boolean(form.errors.password)"
+                    :aria-describedby="form.errors.password ? 'password-error' : undefined"
                     required
                 />
-                <small v-if="form.errors.password" class="auth-error">{{ form.errors.password }}</small>
+                <small v-if="form.errors.password" id="password-error" class="auth-error">{{ form.errors.password }}</small>
             </div>
 
             <label class="auth-check">
@@ -76,7 +78,6 @@ const submit = () => {
 
         <div class="auth-links">
             <Link :href="props.urls.forgot">Lupa password?</Link>
-            <Link :href="props.urls.register">Buat akun</Link>
         </div>
     </AuthShell>
 </template>
@@ -90,13 +91,13 @@ const submit = () => {
 }
 
 .auth-alert-success {
-    background: #dcfce7;
-    color: #166534;
+    background: var(--app-success-bg);
+    color: var(--app-success-ink);
 }
 
 .auth-alert-danger {
-    background: #fee2e2;
-    color: #991b1b;
+    background: var(--app-danger-bg);
+    color: var(--app-danger-ink);
 }
 
 .auth-field {
@@ -114,7 +115,7 @@ const submit = () => {
     width: 100%;
     padding: 0.65rem 0.75rem;
     border: 1px solid var(--app-border);
-    border-radius: 0.55rem;
+    border-radius: 0.45rem;
     background: var(--app-surface);
     font: inherit;
 }
@@ -126,13 +127,13 @@ const submit = () => {
 }
 
 .auth-field input.is-invalid {
-    border-color: #dc2626;
+    border-color: var(--app-danger-ink);
 }
 
 .auth-error {
     display: block;
     margin-top: 0.3rem;
-    color: #b91c1c;
+    color: var(--app-danger-ink);
     font-size: 0.8rem;
 }
 
@@ -159,12 +160,12 @@ const submit = () => {
 
 .auth-button:disabled {
     opacity: 0.6;
-    cursor: wait;
+    cursor: not-allowed;
 }
 
 .auth-links {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     margin-top: 1rem;
     font-size: 0.85rem;
 }

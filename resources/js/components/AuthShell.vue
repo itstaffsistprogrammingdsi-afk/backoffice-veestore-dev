@@ -41,7 +41,7 @@ defineProps<{
                     :title="isDark ? 'Light mode' : 'Dark mode'"
                     @click="toggleTheme"
                 >
-                    <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"></i>
+                    <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -51,7 +51,6 @@ defineProps<{
                 <slot />
             </div>
 
-            <p class="auth-footer">VeeStore Backoffice</p>
         </div>
     </div>
 </template>
@@ -59,6 +58,7 @@ defineProps<{
 <style scoped>
 .auth-shell {
     min-height: 100vh;
+    min-height: 100dvh;
     display: grid;
     place-items: center;
     padding: 2rem 1rem;
@@ -98,8 +98,7 @@ defineProps<{
     color: var(--app-muted);
     font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
 .auth-card {
@@ -107,7 +106,7 @@ defineProps<{
     border: 1px solid var(--app-border);
     border-radius: 1rem;
     background: var(--app-surface);
-    box-shadow: 0 1.5rem 3rem rgba(23, 17, 31, 0.08);
+    box-shadow: 0 1rem 2rem rgba(26, 43, 35, 0.1);
 }
 
 .auth-card h1 {
@@ -121,10 +120,4 @@ defineProps<{
     font-size: 0.9rem;
 }
 
-.auth-footer {
-    margin: 1rem 0 0;
-    color: var(--app-muted);
-    font-size: 0.75rem;
-    text-align: center;
-}
 </style>

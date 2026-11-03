@@ -97,9 +97,9 @@ if ($user) {
 
     .navbar-menu-search .menu-search-input-wrap {
         min-height: 44px;
-        border-radius: 999px;
-        border: 1px solid rgba(226, 232, 240, .95);
-        background: rgba(248, 250, 252, .9);
+        border-radius: .5rem;
+        border: 1px solid var(--vee-border);
+        background: var(--vee-surface);
         transition: .18s ease;
     }
 
@@ -124,9 +124,9 @@ if ($user) {
         gap: .1rem;
         min-height: 52px;
         padding: .3rem .4rem;
-        border: 1px solid #eadfec;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #fff, #fdf4ff);
+        border: 1px solid var(--vee-border);
+        border-radius: .65rem;
+        background: var(--vee-surface);
     }
 
     .navbar-actions > .nav-item {
@@ -141,14 +141,13 @@ if ($user) {
         width: 42px;
         height: 42px;
         border-radius: 50%;
-        color: #2a2033;
-        transition: background .18s ease, color .18s ease, transform .18s ease;
+        color: var(--vee-ink);
+        transition: background-color .16s ease, color .16s ease;
     }
 
     #navbar-notifications {
         margin-left: .1rem;
-        border-right: 1px solid #eadfec;
-        border-radius: 999px 0 0 999px;
+        border-right: 1px solid var(--vee-border);
     }
 
     #notification-badge {
@@ -169,9 +168,8 @@ if ($user) {
 
     .navbar-action-button:hover,
     .navbar-action-button:focus-visible {
-        color: #7c3aed;
-        background: #f3e8ff;
-        transform: translateY(-1px);
+        color: var(--vee-blue-dark);
+        background: var(--vee-blue-soft);
     }
 
     .navbar-user-trigger {
@@ -181,13 +179,13 @@ if ($user) {
         min-width: 0;
         min-height: 44px;
         padding: .15rem .25rem .15rem .55rem !important;
-        border-radius: 999px;
+        border-radius: .5rem;
         transition: background .18s ease;
     }
 
     .navbar-user-trigger:hover,
     .navbar-user-trigger:focus-visible {
-        background: #fce7f3;
+        background: var(--vee-blue-soft);
     }
 
     .navbar-user-copy {
@@ -204,14 +202,14 @@ if ($user) {
     }
 
     .navbar-user-name {
-        color: #17111f;
+        color: var(--vee-ink);
         font-size: .8rem;
         font-weight: 800;
     }
 
     .navbar-user-role {
         margin-top: .22rem;
-        color: #75687d;
+        color: var(--vee-muted);
         font-size: .68rem;
     }
 
@@ -221,7 +219,7 @@ if ($user) {
         justify-content: center;
         width: 22px;
         height: 22px;
-        color: #9b8ca3;
+        color: var(--vee-muted);
         font-size: 1rem;
     }
 
@@ -238,7 +236,7 @@ if ($user) {
     .navbar-actions .avatar.avatar-online::after {
         right: -1px;
         bottom: 1px;
-        border: 2px solid #fff;
+        border: 2px solid var(--vee-surface);
     }
 
     .navbar-actions .avatar img {
@@ -246,13 +244,13 @@ if ($user) {
         height: 38px !important;
         object-fit: cover;
         border: 2px solid #fff;
-        box-shadow: 0 0 0 2px rgba(236, 72, 153, .18);
+        box-shadow: 0 0 0 2px rgba(182, 71, 79, .18);
     }
 
     .navbar-menu-search .menu-search-input-wrap:focus-within {
-        border-color: #5b5cf6;
-        background: #fff;
-        box-shadow: 0 0 0 .2rem rgba(91, 92, 246, .12);
+        border-color: var(--vee-blue);
+        background: var(--vee-surface);
+        box-shadow: 0 0 0 .18rem rgba(182, 71, 79, .18);
     }
 
     .navbar-menu-search .menu-search-input {
@@ -271,9 +269,9 @@ if ($user) {
         max-height: 420px;
         overflow-y: auto;
         background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 1rem;
-        box-shadow: 0 1.2rem 2.5rem rgba(15, 23, 42, .16);
+        border: 1px solid var(--vee-border);
+        border-radius: .65rem;
+        box-shadow: 0 .5rem 1.2rem rgba(26, 43, 35, .16);
         z-index: 1090;
         display: none;
     }
@@ -284,8 +282,8 @@ if ($user) {
 
     .navbar-menu-search-results .search-header {
         padding: .85rem 1rem;
-        border-bottom: 1px solid #e2e8f0;
-        background: linear-gradient(180deg, #fff, #f8fafc);
+        border-bottom: 1px solid var(--vee-border);
+        background: var(--vee-surface-2);
         position: sticky;
         top: 0;
         z-index: 1;
@@ -295,16 +293,16 @@ if ($user) {
         display: block;
         cursor: pointer;
         padding: .85rem 1rem;
-        color: #334155;
+        color: var(--vee-ink);
         text-decoration: none;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid var(--vee-border);
         transition: .15s ease;
     }
 
     .navbar-menu-search-results .search-item:hover,
     .navbar-menu-search-results .search-item.active {
-        background: rgba(91, 92, 246, .08);
-        color: #4338ca;
+        background: var(--vee-blue-soft);
+        color: var(--vee-blue-dark);
     }
 
     .navbar-menu-search-results .search-icon {
@@ -314,20 +312,20 @@ if ($user) {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(91, 92, 246, .12);
-        color: #4338ca;
+        background: var(--vee-blue-soft);
+        color: var(--vee-blue-dark);
         flex-shrink: 0;
     }
 
     .navbar-menu-search-results .search-path {
         font-size: .76rem;
-        color: #64748b;
+        color: var(--vee-muted);
         margin-top: .15rem;
     }
 
     .navbar-menu-search-results .search-empty {
         padding: 1.25rem;
-        color: #64748b;
+        color: var(--vee-muted);
         text-align: center;
     }
 
@@ -365,8 +363,8 @@ if ($user) {
     }
 
     .navbar-sidebar-toggle:hover {
-        background: rgba(91, 92, 246, .10);
-        color: #5b5cf6;
+        background: var(--vee-blue-soft);
+        color: var(--vee-blue-dark);
     }
 
     .sidebar-floating-toggle {
@@ -380,22 +378,21 @@ if ($user) {
         height: 44px;
         padding: 0;
         color: #fff;
-        border: 4px solid #f5f5fa;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #7367f0, #9b51e0);
-        box-shadow: 0 6px 18px rgba(115, 103, 240, .34);
-        transition: left .3s ease, transform .18s ease, box-shadow .18s ease;
+        border: 1px solid var(--vee-blue-dark);
+        border-radius: .55rem;
+        background: var(--vee-blue-dark);
+        box-shadow: none;
+        transition: left .2s ease, background-color .16s ease;
     }
 
     .sidebar-floating-toggle:hover,
     .sidebar-floating-toggle:focus-visible {
         color: #fff;
-        transform: scale(1.08);
-        box-shadow: 0 8px 22px rgba(115, 103, 240, .45);
+        background: #76272f;
     }
 
     .sidebar-floating-toggle:focus-visible {
-        outline: 3px solid rgba(115, 103, 240, .25);
+        outline: 2px solid var(--vee-sand);
         outline-offset: 2px;
     }
 
@@ -433,16 +430,14 @@ if ($user) {
 
     .account-profile-modal .modal-content {
         overflow: hidden;
-        border: 0;
-        border-radius: 1.25rem;
-        box-shadow: 0 1.5rem 4rem rgba(15, 23, 42, .22);
+        border: 1px solid var(--vee-border);
+        border-radius: .8rem;
+        box-shadow: 0 .65rem 1.5rem rgba(26, 43, 35, .18);
     }
 
     .account-profile-cover {
         min-height: 118px;
-        background:
-            radial-gradient(circle at 18% 20%, rgba(255, 255, 255, .32), transparent 24%),
-            linear-gradient(135deg, #5b5cf6, #8b5cf6 52%, #06b6d4);
+        background: var(--vee-forest);
     }
 
     .account-profile-avatar {
@@ -456,7 +451,6 @@ if ($user) {
         border: 5px solid #fff;
         border-radius: 50%;
         background: #fff;
-        box-shadow: 0 .65rem 1.5rem rgba(15, 23, 42, .18);
         object-fit: cover;
     }
 
@@ -466,14 +460,14 @@ if ($user) {
 
     .account-profile-info {
         padding: .9rem 1rem;
-        border: 1px solid #e2e8f0;
-        border-radius: .9rem;
-        background: #f8fafc;
+        border: 1px solid var(--vee-border);
+        border-radius: .55rem;
+        background: var(--vee-surface-2);
     }
 
     .account-profile-info .profile-label {
         margin-bottom: .2rem;
-        color: #64748b;
+        color: var(--vee-muted);
         font-size: .72rem;
         font-weight: 700;
         letter-spacing: .04em;
@@ -481,7 +475,7 @@ if ($user) {
     }
 
     .account-profile-info .profile-value {
-        color: #1e293b;
+        color: var(--vee-ink);
         font-weight: 600;
         overflow-wrap: anywhere;
     }

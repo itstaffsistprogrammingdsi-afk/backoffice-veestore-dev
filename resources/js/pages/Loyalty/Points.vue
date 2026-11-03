@@ -298,8 +298,8 @@ const formatDate = (value: string | null) => {
 }
 
 .loyalty-badge {
-    background: #eef1ff;
-    color: #2f3dd1;
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
 }
 
 .loyalty-empty {

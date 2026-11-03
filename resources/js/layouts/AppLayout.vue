@@ -97,6 +97,13 @@ const openGroups = ref<Record<string, boolean>>({});
 const mobileOpen = ref(false);
 const userMenuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
+const userMenuButtonRef = ref<HTMLButtonElement | null>(null);
+const mobileMenuButtonRef = ref<HTMLButtonElement | null>(null);
+const mobileCloseButtonRef = ref<HTMLButtonElement | null>(null);
+const mobileSidebarRef = ref<HTMLElement | null>(null);
+const pageHasHeading = ref(false);
+const focusMainAfterNavigation = ref(false);
+const isLoggingOut = ref(false);
 const isNavigating = ref(false);
 const sidebarCollapsed = ref(readSidebarCollapsed());
 const isDesktopViewport = ref(
@@ -165,6 +172,10 @@ const headTitle = ref('');
 
 const syncHeadTitle = () => {
     headTitle.value = document.title.replace(/\s*-\s*VeeStore$/, '').trim();
+};
+
+const syncPageHeading = () => {
+    pageHasHeading.value = Boolean(document.querySelector('#main-content h1'));
 };
 
 const pageTitle = computed(
@@ -250,6 +261,8 @@ const groupsForArea = computed(() => {
     return area?.groups ?? [];
 });
 
+const groupContentId = (label: string) => `app-nav-group-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+
 const toggleGroup = (label: string, group: NavGroup) => {
     if (!(label in openGroups.value)) {
         openGroups.value[label] = group.items.some((item) => isActive(item)) || group.items.length <= 4;
@@ -322,16 +335,66 @@ const onBreadcrumbMenuKeydown = (event: KeyboardEvent) => {
     items[(currentIndex - 1 + items.length) % items.length]?.focus();
 };
 
-const closeMobile = () => {
+const openMobile = async () => {
+    mobileOpen.value = true;
+    await nextTick();
+    mobileCloseButtonRef.value?.focus();
+};
+
+const closeMobile = (restoreFocus = true) => {
+    const wasOpen = mobileOpen.value;
     mobileOpen.value = false;
     userMenuOpen.value = false;
+
+    if (wasOpen && restoreFocus) {
+        nextTick(() => mobileMenuButtonRef.value?.focus());
+    }
+};
+
+const closeMobileForNavigation = () => {
+    focusMainAfterNavigation.value = mobileOpen.value && !isDesktopViewport.value;
+    closeMobile(false);
+};
+
+const closeUserMenu = (restoreFocus = false) => {
+    if (!userMenuOpen.value) return;
+    userMenuOpen.value = false;
+
+    if (restoreFocus) {
+        nextTick(() => userMenuButtonRef.value?.focus());
+    }
 };
 
 const logout = () => {
-    router.post('/logout');
+    if (isLoggingOut.value) return;
+
+    isLoggingOut.value = true;
+    closeUserMenu();
+    router.post('/logout', {}, {
+        onFinish: () => {
+            isLoggingOut.value = false;
+        },
+    });
 };
 
 const onKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Tab' && mobileOpen.value && !isDesktopViewport.value) {
+        const focusable = Array.from(
+            mobileSidebarRef.value?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') ?? [],
+        ).filter((element) => element.getClientRects().length > 0);
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+        }
+        return;
+    }
+
     if (event.key !== 'Escape') return;
 
     if (breadcrumbMenuOpen.value) {
@@ -339,7 +402,14 @@ const onKeydown = (event: KeyboardEvent) => {
         return;
     }
 
-    closeMobile();
+    if (userMenuOpen.value) {
+        closeUserMenu(true);
+        return;
+    }
+
+    if (mobileOpen.value) {
+        closeMobile(true);
+    }
 };
 
 const onDocumentClick = (event: MouseEvent) => {
@@ -363,10 +433,15 @@ const onStorage = (event: StorageEvent) => {
 };
 
 const onDesktopMediaChange = (event: MediaQueryListEvent) => {
+    const wasMobileOpen = mobileOpen.value;
     isDesktopViewport.value = event.matches;
 
     if (event.matches) {
         mobileOpen.value = false;
+
+        if (wasMobileOpen) {
+            nextTick(() => document.querySelector<HTMLElement>('#main-content')?.focus());
+        }
     }
 };
 
@@ -375,8 +450,15 @@ const onNavigationStart = () => {
     breadcrumbMenuOpen.value = false;
 };
 
-const onNavigationFinish = () => {
+const onNavigationFinish = async () => {
     isNavigating.value = false;
+    await nextTick();
+    syncPageHeading();
+
+    if (focusMainAfterNavigation.value) {
+        document.querySelector<HTMLElement>('#main-content')?.focus();
+        focusMainAfterNavigation.value = false;
+    }
 };
 
 watch(mobileOpen, (open) => {
@@ -396,24 +478,31 @@ let desktopMediaQuery: MediaQueryList | null = null;
 
 onMounted(() => {
     syncHeadTitle();
+    syncPageHeading();
     titleObserver = new MutationObserver(syncHeadTitle);
     titleObserver.observe(document.head, { childList: true, subtree: true, characterData: true });
     desktopMediaQuery = window.matchMedia('(min-width: 992px)');
     isDesktopViewport.value = desktopMediaQuery.matches;
     desktopMediaQuery.addEventListener('change', onDesktopMediaChange);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('keydown', onKeydown);
+    document.addEventListener('click', onDocumentClick);
+    removeNavigationStartListener = router.on('start', onNavigationStart);
+    removeNavigationFinishListener = router.on('finish', onNavigationFinish);
 });
 
-window.addEventListener('keydown', onKeydown);
-document.addEventListener('click', onDocumentClick);
-router.on('start', onNavigationStart);
-router.on('finish', onNavigationFinish);
+let removeNavigationStartListener: (() => void) | undefined;
+let removeNavigationFinishListener: (() => void) | undefined;
+
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKeydown);
     window.removeEventListener('storage', onStorage);
     desktopMediaQuery?.removeEventListener('change', onDesktopMediaChange);
     document.removeEventListener('click', onDocumentClick);
+    removeNavigationStartListener?.();
+    removeNavigationFinishListener?.();
     titleObserver?.disconnect();
+    document.documentElement.classList.remove('inertia-sidebar-open');
 });
 </script>
 
@@ -423,19 +512,24 @@ onBeforeUnmount(() => {
 
         <a href="#main-content" class="skip-link">Lewati ke konten</a>
 
-        <div v-if="mobileOpen" class="app-overlay" aria-hidden="true" @click="closeMobile"></div>
+        <div v-if="mobileOpen" class="app-overlay" aria-hidden="true" @click="closeMobile()"></div>
 
         <aside
+            ref="mobileSidebarRef"
             id="app-sidebar"
             class="app-sidebar"
             :class="{ 'is-open': mobileOpen, 'is-collapsed': isSidebarCollapsed }"
+            :role="mobileOpen && !isDesktopViewport ? 'dialog' : undefined"
+            :aria-modal="mobileOpen && !isDesktopViewport ? 'true' : undefined"
+            :aria-hidden="!isDesktopViewport && !mobileOpen ? 'true' : undefined"
+            :inert="!isDesktopViewport && !mobileOpen"
             aria-label="Navigasi utama"
         >
             <div class="app-brand">
                 <img
                     v-if="!isSidebarCollapsed"
                     :src="branding.logo_url"
-                    :alt="`${branding.name} ${branding.tagline}`"
+                    :alt="branding.name"
                     class="app-brand-logo"
                 />
                 <div v-else class="app-mark" :title="`${branding.name} ${branding.tagline}`">
@@ -444,29 +538,30 @@ onBeforeUnmount(() => {
                 <div class="app-brand-copy">
                     <strong>{{ branding.tagline }}</strong>
                 </div>
-                <button class="app-close d-lg-none" type="button" aria-label="Tutup menu" @click="closeMobile">
-                    <i class="mdi mdi-close"></i>
+                <button ref="mobileCloseButtonRef" class="app-close d-lg-none" type="button" aria-label="Tutup menu" @click="closeMobile()">
+                    <i class="mdi mdi-close" aria-hidden="true"></i>
                 </button>
             </div>
 
             <nav class="app-areas" aria-label="Area aplikasi">
-                <Link
-                    v-for="area in navigation.areas"
-                    :key="area.key"
-                    :href="area.url ?? '#'"
-                    class="app-area"
-                    :class="{ 'is-active': activeAreaKey === area.key }"
-                    :aria-current="activeAreaKey === area.key ? 'page' : undefined"
-                    :aria-label="isSidebarCollapsed ? area.label : undefined"
-                    :title="isSidebarCollapsed ? area.label : undefined"
-                    @click="closeMobile"
-                >
-                    <i class="mdi" :class="area.icon"></i>
-                    <span>
-                        <strong>{{ area.label }}</strong>
-                        <small>{{ area.description }}</small>
-                    </span>
-                </Link>
+                <template v-for="area in navigation.areas" :key="area.key">
+                    <Link
+                        v-if="area.url"
+                        :href="area.url"
+                        class="app-area"
+                        :class="{ 'is-active': activeAreaKey === area.key }"
+                        :aria-current="activeAreaKey === area.key ? 'location' : undefined"
+                        :aria-label="isSidebarCollapsed ? area.label : undefined"
+                        :title="isSidebarCollapsed ? area.label : undefined"
+                        @click="closeMobileForNavigation"
+                    >
+                        <i class="mdi" :class="area.icon" aria-hidden="true"></i>
+                        <span>
+                            <strong>{{ area.label }}</strong>
+                            <small>{{ area.description }}</small>
+                        </span>
+                    </Link>
+                </template>
             </nav>
 
             <div class="app-nav-scroll">
@@ -485,14 +580,15 @@ onBeforeUnmount(() => {
                         v-else
                         class="app-group-toggle"
                         type="button"
+                        :aria-controls="groupContentId(group.label)"
                         :aria-expanded="isGroupOpen(group)"
                         @click="toggleGroup(group.label, group)"
                     >
-                        <span><i class="mdi" :class="group.icon"></i> {{ group.label }}</span>
-                        <i class="mdi" :class="isGroupOpen(group) ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                        <span><i class="mdi" :class="group.icon" aria-hidden="true"></i> {{ group.label }}</span>
+                        <i class="mdi" :class="isGroupOpen(group) ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                     </button>
 
-                    <div v-show="isSidebarCollapsed || isGroupOpen(group)" class="app-group-items">
+                    <div :id="groupContentId(group.label)" v-show="isSidebarCollapsed || isGroupOpen(group)" class="app-group-items">
                         <template v-for="item in group.items" :key="item.route">
                             <Link
                                 v-if="item.inertia && item.url"
@@ -502,9 +598,9 @@ onBeforeUnmount(() => {
                                 :aria-current="isActive(item) ? 'page' : undefined"
                                 :aria-label="isSidebarCollapsed ? item.label : undefined"
                                 :title="isSidebarCollapsed ? item.label : undefined"
-                                @click="closeMobile"
+                                @click="closeMobileForNavigation"
                             >
-                                <i class="mdi" :class="item.icon"></i>
+                                <i class="mdi" :class="item.icon" aria-hidden="true"></i>
                                 <span class="app-item-label">{{ item.label }}</span>
                             </Link>
                             <a
@@ -515,8 +611,9 @@ onBeforeUnmount(() => {
                                 :aria-current="isActive(item) ? 'page' : undefined"
                                 :aria-label="isSidebarCollapsed ? item.label : undefined"
                                 :title="isSidebarCollapsed ? item.label : undefined"
+                                @click="closeMobileForNavigation"
                             >
-                                <i class="mdi" :class="item.icon"></i>
+                                <i class="mdi" :class="item.icon" aria-hidden="true"></i>
                                 <span class="app-item-label">{{ item.label }}</span>
                             </a>
                         </template>
@@ -525,11 +622,19 @@ onBeforeUnmount(() => {
             </div>
         </aside>
 
-        <div class="app-main">
+        <div class="app-main" :inert="mobileOpen && !isDesktopViewport">
             <header class="app-topbar">
                 <div class="d-flex align-items-center gap-2">
-                    <button class="app-menu-button d-lg-none" type="button" aria-label="Buka menu" @click="mobileOpen = true">
-                        <i class="mdi mdi-menu"></i>
+                    <button
+                        ref="mobileMenuButtonRef"
+                        class="app-menu-button d-lg-none"
+                        type="button"
+                        aria-label="Buka menu navigasi"
+                        aria-controls="app-sidebar"
+                        :aria-expanded="mobileOpen"
+                        @click="openMobile"
+                    >
+                        <i class="mdi mdi-menu" aria-hidden="true"></i>
                     </button>
                     <button
                         class="app-sidebar-toggle d-none d-lg-inline-flex"
@@ -540,11 +645,9 @@ onBeforeUnmount(() => {
                         :title="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
                         @click="toggleSidebar"
                     >
-                        <i class="mdi" :class="sidebarCollapsed ? 'mdi-chevron-double-right' : 'mdi-chevron-double-left'"></i>
+                        <i class="mdi" :class="sidebarCollapsed ? 'mdi-chevron-double-right' : 'mdi-chevron-double-left'" aria-hidden="true"></i>
                     </button>
-                    <div>
-                        <h1 class="app-title">{{ pageTitle }}</h1>
-                    </div>
+                    <h1 v-if="!pageHasHeading" class="app-title">{{ pageTitle }}</h1>
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
@@ -555,30 +658,30 @@ onBeforeUnmount(() => {
                         :title="isDark ? 'Light mode' : 'Dark mode'"
                         @click="toggleTheme"
                     >
-                        <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"></i>
+                        <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" aria-hidden="true"></i>
                     </button>
 
-                    <div ref="userMenuRef" class="app-user" @keydown.esc="userMenuOpen = false">
-                    <button class="app-user-button" type="button" aria-haspopup="menu" :aria-expanded="userMenuOpen" @click.stop="userMenuOpen = !userMenuOpen">
+                    <div ref="userMenuRef" class="app-user">
+                    <button ref="userMenuButtonRef" class="app-user-button" type="button" aria-controls="app-user-menu" :aria-label="`Akun ${user?.name ?? 'User'}${user?.email ? `, ${user.email}` : ''}`" :aria-expanded="userMenuOpen" @click.stop="userMenuOpen = !userMenuOpen">
                         <span class="app-avatar">{{ (user?.name ?? 'U').slice(0, 1).toUpperCase() }}</span>
                         <span class="d-none d-md-block text-start">
                             <strong>{{ user?.name ?? 'User' }}</strong>
                             <small>{{ user?.email ?? '' }}</small>
                         </span>
-                        <i class="mdi mdi-chevron-down d-none d-md-block"></i>
+                        <i class="mdi mdi-chevron-down d-none d-md-block" aria-hidden="true"></i>
                     </button>
 
-                    <div v-if="userMenuOpen" class="app-user-menu" role="menu">
-                        <button type="button" role="menuitem" @click="logout">
-                            <i class="mdi mdi-logout me-1"></i>
-                            Logout
+                    <div v-show="userMenuOpen" id="app-user-menu" class="app-user-menu" role="group" aria-label="Menu akun">
+                        <button type="button" :disabled="isLoggingOut" @click="logout">
+                            <i class="mdi mdi-logout me-1" aria-hidden="true"></i>
+                            {{ isLoggingOut ? 'Keluar...' : 'Keluar' }}
                         </button>
                     </div>
                     </div>
                 </div>
             </header>
 
-            <main id="main-content" class="app-content">
+            <main id="main-content" class="app-content" tabindex="-1">
                 <nav
                     v-if="breadcrumbItems.length > 0"
                     class="app-page-breadcrumb"
@@ -613,7 +716,7 @@ onBeforeUnmount(() => {
                                     <Link
                                         v-for="groupItem in activeGroup.items"
                                         :key="groupItem.route"
-                                        :href="groupItem.url ?? '#'"
+                                        :href="groupItem.url"
                                         class="app-breadcrumb-menu-item"
                                         :class="{ 'is-active': isActive(groupItem) }"
                                         role="menuitem"
@@ -652,13 +755,14 @@ onBeforeUnmount(() => {
             </main>
         </div>
 
-        <VeeAssistantWidget />
+        <VeeAssistantWidget :inert="mobileOpen && !isDesktopViewport" :aria-hidden="mobileOpen && !isDesktopViewport ? 'true' : undefined" />
     </div>
 </template>
 
 <style scoped>
 .app-shell {
     min-height: 100vh;
+    min-height: 100dvh;
     background: var(--app-bg);
     color: var(--app-ink);
     font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -669,7 +773,7 @@ onBeforeUnmount(() => {
     inset: 0 0 auto 0;
     z-index: 90;
     height: 3px;
-    background: linear-gradient(90deg, transparent, var(--app-accent), transparent);
+    background: var(--app-accent);
     background-size: 40% 100%;
     background-repeat: no-repeat;
     animation: app-progress-slide 900ms ease-in-out infinite;
@@ -766,8 +870,7 @@ onBeforeUnmount(() => {
     color: var(--app-sidebar-muted);
     font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
 .app-close {
@@ -791,7 +894,7 @@ onBeforeUnmount(() => {
     gap: 0.7rem;
     padding: 0.65rem 0.75rem;
     border: 1px solid var(--app-sidebar-border);
-    border-radius: 0.7rem;
+    border-radius: 0.5rem;
     color: var(--app-sidebar-ink);
     text-decoration: none;
 }
@@ -810,7 +913,11 @@ onBeforeUnmount(() => {
 
 .app-area i {
     font-size: 1.35rem;
-    color: var(--app-accent);
+    color: var(--app-sidebar-muted);
+}
+
+.app-area.is-active i {
+    color: var(--app-accent-ink);
 }
 
 .app-area strong {
@@ -821,7 +928,7 @@ onBeforeUnmount(() => {
 .app-area small {
     display: block;
     color: var(--app-sidebar-muted);
-    font-size: 0.7rem;
+    font-size: 0.74rem;
 }
 
 .app-nav-scroll {
@@ -845,8 +952,7 @@ onBeforeUnmount(() => {
     color: var(--app-sidebar-muted);
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0.02em;
 }
 
 .app-group-toggle:hover,
@@ -902,11 +1008,16 @@ onBeforeUnmount(() => {
 
 .app-item i {
     font-size: 1.05rem;
-    color: var(--app-accent);
+    color: var(--app-sidebar-muted);
+}
+
+.app-item.is-active i {
+    color: var(--app-accent-ink);
 }
 
 .app-main {
     min-height: 100vh;
+    min-height: 100dvh;
     min-width: 0;
 }
 
@@ -921,7 +1032,6 @@ onBeforeUnmount(() => {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--app-border);
     background: var(--app-surface);
-    backdrop-filter: blur(10px);
 }
 
 .app-topbar > div {
@@ -962,10 +1072,9 @@ onBeforeUnmount(() => {
 
 .app-page-breadcrumb {
     margin-bottom: 0.75rem;
-    padding: 0.3rem 0.45rem;
-    border: 1px solid var(--app-border);
-    border-radius: 0.65rem;
-    background: var(--app-surface);
+    padding: 0.15rem 0 0.45rem;
+    border-bottom: 1px solid var(--app-border);
+    background: transparent;
 }
 
 .app-page-breadcrumb-list {
@@ -1111,6 +1220,7 @@ onBeforeUnmount(() => {
     border-radius: 0.65rem;
     background: transparent;
     color: var(--app-ink);
+    cursor: pointer;
 }
 
 .app-user-button:hover,
@@ -1166,6 +1276,7 @@ onBeforeUnmount(() => {
     color: var(--app-ink);
     font: inherit;
     text-align: left;
+    cursor: pointer;
 }
 
 .app-user-menu button:hover,
@@ -1185,7 +1296,7 @@ onBeforeUnmount(() => {
     position: fixed;
     inset: 0;
     z-index: 35;
-    background: rgba(23, 17, 31, 0.45);
+    background: rgba(20, 31, 26, 0.48);
 }
 
 @media (min-width: 576px) {
@@ -1270,7 +1381,7 @@ onBeforeUnmount(() => {
     }
 
     .app-sidebar.is-collapsed .app-group.is-active .app-group-rail {
-        color: var(--app-accent);
+        color: var(--app-accent-ink);
         opacity: 1;
     }
 
@@ -1326,7 +1437,7 @@ onBeforeUnmount(() => {
 }
 
 :focus-visible {
-    outline: 2px solid var(--app-accent);
+    outline: 2px solid var(--app-accent-strong);
     outline-offset: 2px;
 }
 

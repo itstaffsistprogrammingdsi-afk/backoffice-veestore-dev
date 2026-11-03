@@ -12,10 +12,10 @@ const props = defineProps<Props>();
 </script>
 
 <template>
-    <Head title="Forgot Password" />
+    <Head title="Lupa Password" />
 
     <AuthShell title="Lupa password?" description="Reset password belum tersedia otomatis.">
-        <div class="auth-info">
+        <div class="auth-info" role="note">
             Hubungi administrator backoffice untuk mereset password akun Anda.
         </div>
 
@@ -26,10 +26,10 @@ const props = defineProps<Props>();
 <style scoped>
 .auth-info {
     padding: 0.9rem 1rem;
-    border: 1px dashed #d4dce3;
-    border-radius: 0.65rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
     background: var(--app-surface-2);
-    color: #42515e;
+    color: var(--app-ink);
     font-size: 0.9rem;
     line-height: 1.5;
 }

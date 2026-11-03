@@ -625,7 +625,7 @@ const resetFilters = () => {
 .pref-filter .form-label { margin-bottom: 0.3rem; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
 .pref-filter-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--app-border); }
 .pref-filter-meta { color: var(--app-muted); font-size: 0.78rem; }
-.pref-insight { display: flex; align-items: flex-start; gap: 1rem; padding: 1.2rem 1.3rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: linear-gradient(135deg, var(--app-accent-soft), var(--app-surface) 70%); box-shadow: var(--app-shadow); }
+.pref-insight { display: flex; align-items: flex-start; gap: 1rem; padding: 1.1rem 1.2rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface-2); box-shadow: none; }
 .pref-insight-empty { background: var(--app-surface); }
 .pref-insight-icon { display: grid; flex: 0 0 auto; width: 2.6rem; height: 2.6rem; place-items: center; border-radius: 0.7rem; background: var(--app-accent-strong); color: var(--app-on-accent); font-size: 1.4rem; }
 .pref-insight-content { flex: 1 1 auto; min-width: 0; }

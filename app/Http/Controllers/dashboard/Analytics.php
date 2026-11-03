@@ -105,6 +105,8 @@ class Analytics extends Controller
                 'type' => 'warning',
                 'title' => 'Stok cabang rendah',
                 'message' => number_format($lowStockStore->count(), 0, ',', '.').' item store berada pada kondisi stok rendah.',
+                'action' => 'Buka stok toko',
+                'url' => route('operations.store-stock.index'),
             ];
         }
 
@@ -113,30 +115,8 @@ class Analytics extends Controller
                 'type' => 'warning',
                 'title' => 'Stok gudang rendah',
                 'message' => number_format($lowStockWarehouse->count(), 0, ',', '.').' item warehouse berada pada kondisi stok rendah.',
-            ];
-        }
-
-        $insights = [];
-
-        if ($gmv > 0) {
-            $insights[] = [
-                'title' => 'Performa penjualan',
-                'message' => 'Periode ini menghasilkan GMV Rp'.number_format($gmv, 0, ',', '.').' dari '.number_format($orderCount, 0, ',', '.').' order dengan AOV Rp'.number_format($aov, 0, ',', '.').'.',
-            ];
-        }
-
-        if ($gmvPerStore->isNotEmpty()) {
-            $best = $gmvPerStore->first();
-            $insights[] = [
-                'title' => 'Store terbaik',
-                'message' => ($best->store_name ?? 'Store Tidak Diketahui').' memimpin dengan GMV Rp'.number_format((float) $best->gmv, 0, ',', '.').'.',
-            ];
-        }
-
-        if ((int) ($memberSummary->total_member ?? 0) > 0) {
-            $insights[] = [
-                'title' => 'Basis member',
-                'message' => number_format((int) $memberSummary->total_member, 0, ',', '.').' member terdaftar pada periode filter aktif.',
+                'action' => 'Buka stok gudang',
+                'url' => route('operations.stock.index'),
             ];
         }
 
@@ -165,7 +145,6 @@ class Analytics extends Controller
             'lowStockStore' => $lowStockStore,
             'visitSummary' => $visitSummary,
             'actionItems' => $actionItems,
-            'insights' => $insights,
             'urls' => ['index' => route('dashboard-analytics')],
         ]);
     }

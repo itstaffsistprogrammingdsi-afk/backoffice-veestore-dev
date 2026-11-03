@@ -29,7 +29,7 @@
 <!-- Shared index-page theme -->
 @include('layouts/sections/indexTheme')
 
-<!-- Global VeeStore palette: pink, purple, black, white -->
+<!-- Shared VeeStore backoffice visual system -->
 @include('layouts/sections/globalTheme')
 
 <!-- Helpers kecil -->

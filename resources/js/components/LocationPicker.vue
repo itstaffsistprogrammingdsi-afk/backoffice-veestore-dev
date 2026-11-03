@@ -279,6 +279,6 @@ onBeforeUnmount(() => {
     border: 3px solid #fff;
     border-radius: 50%;
     background: var(--app-accent);
-    box-shadow: 0 0 0 3px rgba(59, 76, 240, 0.22), 0 4px 12px rgba(15, 23, 42, 0.35);
+    box-shadow: 0 0 0 3px rgba(182, 71, 79, 0.24), 0 4px 12px rgba(26, 43, 35, 0.24);
 }
 </style>

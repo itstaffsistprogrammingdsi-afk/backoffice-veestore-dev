@@ -877,7 +877,7 @@ const exportOverview = () => {
 .overview-chart-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(2rem, 1fr); gap: 0.35rem; min-width: 560px; align-items: end; }
 .overview-chart-column { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; min-width: 0; }
 .overview-chart-track { display: flex; align-items: flex-end; width: 100%; height: 8rem; border-radius: 0.35rem 0.35rem 0 0; background: var(--app-surface-2); }
-.overview-chart-bar { width: 100%; border-radius: 0.35rem 0.35rem 0 0; background: linear-gradient(180deg, var(--app-accent), var(--app-accent-strong)); transition: height 160ms ease; }
+.overview-chart-bar { width: 100%; border-radius: 0.35rem 0.35rem 0 0; background: var(--app-accent); transition: height 160ms ease; }
 .overview-chart-label { color: var(--app-muted); font-size: 0.65rem; white-space: nowrap; }
 .overview-channel-list { display: grid; gap: 0.9rem; }
 .overview-channel-row, .overview-status-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; font-size: 0.82rem; }

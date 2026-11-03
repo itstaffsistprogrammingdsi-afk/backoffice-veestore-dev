@@ -141,7 +141,6 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.attempt');
 
     Route::get('/auth/register-basic', [AuthController::class, 'showRegister'])->name('auth-register-basic');
-    Route::post('/register', [AuthController::class, 'register'])->name('register.attempt');
 
     Route::get('/auth/forgot-password-basic', [AuthController::class, 'showForgotPassword'])
         ->name('auth-forgot-password-basic');

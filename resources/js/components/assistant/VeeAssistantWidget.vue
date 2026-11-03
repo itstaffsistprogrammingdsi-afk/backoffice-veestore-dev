@@ -184,9 +184,9 @@ const onKeydown = (event: KeyboardEvent) => {
     height: min(640px, calc(100dvh - 132px));
     overflow: hidden;
     border: 1px solid var(--app-border);
-    border-radius: 1rem;
+    border-radius: 0.75rem;
     background: var(--app-surface);
-    box-shadow: 0 1.25rem 3.5rem rgba(11, 25, 54, 0.22);
+    box-shadow: 0 0.9rem 2rem rgba(26, 43, 35, 0.18);
     pointer-events: auto;
 }
 
@@ -196,9 +196,9 @@ const onKeydown = (event: KeyboardEvent) => {
     align-items: center;
     gap: 0.6rem;
     padding: 0.7rem 0.85rem;
-    border-bottom: 1px solid #d7e5ff;
-    background: #142b59;
-    color: #fff;
+    border-bottom: 1px solid var(--app-hero-bg);
+    background: var(--app-hero-bg);
+    color: var(--app-hero-text);
 }
 
 .vee-widget__avatar {
@@ -208,8 +208,8 @@ const onKeydown = (event: KeyboardEvent) => {
     height: 38px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.24);
-    border-radius: 12px;
-    background: #eaf3ff;
+    border-radius: 0.55rem;
+    background: var(--app-accent-soft);
 }
 
 .vee-widget__avatar .vee-mascot {
@@ -229,7 +229,7 @@ const onKeydown = (event: KeyboardEvent) => {
 }
 
 .vee-widget__identity span {
-    color: #b8cdf4;
+    color: var(--app-hero-muted);
     font-size: 0.68rem;
 }
 
@@ -271,7 +271,7 @@ const onKeydown = (event: KeyboardEvent) => {
 
 .vee-widget__state i {
     font-size: 1.5rem;
-    color: #2468e8;
+    color: var(--app-accent-ink);
 }
 
 .vee-widget__state--error {

@@ -19,12 +19,7 @@ interface Props {
         stock: string;
         inbound: string;
         outbound: string;
-        customer_demographics: string;
-        store_orders: string;
-        store_returns: string;
     };
-    can_review_store_orders: boolean;
-    can_review_store_returns: boolean;
 }
 
 const props = defineProps<Props>();
@@ -34,21 +29,21 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
 const modules = [
     {
         title: 'Warehouse',
-        description: 'Warehouse master, layout, stock, inbound, outbound, dan QC operasional.',
+        description: 'Kelola data gudang, tata letak, stok, penerimaan, dan pengiriman barang.',
         icon: 'mdi-warehouse',
         url: 'warehouses',
         action: 'Kelola Gudang',
     },
     {
         title: 'Store',
-        description: 'Toko, stok, inbound/outbound, approval order, customer, dan kunjungan.',
+        description: 'Kelola data toko, stok, pesanan cabang, pelanggan, dan kunjungan.',
         icon: 'mdi-store',
         url: 'stores',
         action: 'Kelola Toko',
     },
     {
         title: 'Ecommerce',
-        description: 'Order ecommerce, pemenuhan stok, banner, promo, dan voucher.',
+        description: 'Pantau pesanan, pembayaran, stok, banner, promo, dan voucher.',
         icon: 'mdi-cart-outline',
         url: 'ecommerce',
         action: 'Kelola Ecommerce',
@@ -63,39 +58,23 @@ const modules = [
         <section class="hub-hero">
             <div>
                 <span class="hub-eyebrow">Area Operasional</span>
-                <h2>Operasional harian dalam satu tempat</h2>
+                <h2>Kelola operasional toko dan gudang</h2>
                 <p>
-                    Kelola warehouse, store, dan ecommerce tanpa bercampur dengan laporan analitik.
+                    Periksa stok, penerimaan barang, pengiriman, dan pesanan cabang dari halaman kerja terkait.
                 </p>
             </div>
             <div class="hub-hero-actions">
                 <Link :href="props.urls.stock" class="hub-button hub-button-accent">
                     <i class="mdi mdi-clipboard-list-outline me-1"></i>
-                    Stock Operations
+                    Buka stok gudang
                 </Link>
                 <Link :href="props.urls.inbound" class="hub-button hub-button-light">
                     <i class="mdi mdi-tray-arrow-down me-1"></i>
-                    Inbound
+                    Penerimaan barang
                 </Link>
                 <Link :href="props.urls.outbound" class="hub-button hub-button-light">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
-                    Outbound
-                </Link>
-                <Link :href="props.urls.customer_demographics" class="hub-button hub-button-light">
-                    <i class="mdi mdi-account-details-outline me-1"></i>
-                    Customer Demographics
-                </Link>
-                <Link v-if="props.can_review_store_orders" :href="props.urls.store_orders" class="hub-button hub-button-light">
-                    <i class="mdi mdi-clipboard-check-outline me-1"></i>
-                    Approval Order Store
-                </Link>
-                <Link v-if="props.can_review_store_returns" :href="props.urls.store_returns" class="hub-button hub-button-light">
-                    <i class="mdi mdi-backup-restore me-1"></i>
-                    Approval Retur Store
-                </Link>
-                <Link :href="props.urls.ecommerce" class="hub-button hub-button-light">
-                    <i class="mdi mdi-cart-arrow-right me-1"></i>
-                    Order Ecommerce
+                    Pengiriman barang
                 </Link>
             </div>
         </section>
