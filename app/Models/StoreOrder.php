@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StoreOrder extends Model
 {
     use HasUuids;
 
     protected $table = 'store_orders';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $fillable = [
@@ -27,29 +31,28 @@ class StoreOrder extends Model
 
     protected $casts = [
         'requested_at' => 'datetime',
-        'approved_at'  => 'datetime',
-        'created_at'   => 'datetime',
-        'updated_at'   => 'datetime',
-        'date'         => 'date',
+        'approved_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'date' => 'date',
     ];
 
-    /** relationships */
-    public function store()
+    public function store(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Store::class, 'store_id');
+        return $this->belongsTo(Store::class, 'store_id');
     }
 
-    public function warehouse()
+    public function warehouse(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Warehouse::class, 'warehouse_id');
+        return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
 
-    public function approver()
+    public function approver(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
-    public function details()
+    public function details(): HasMany
     {
         return $this->hasMany(StoreOrderDetail::class, 'store_order_id');
     }

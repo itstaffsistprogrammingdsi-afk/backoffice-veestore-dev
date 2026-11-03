@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, reactive } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 interface Customer {
     id: string;
@@ -23,9 +24,20 @@ interface LoyaltyPoint {
 interface MutationRow {
     id: string;
     type: string;
-    value: string | number;
+    type_label: string;
+    mutation_type: string | null;
+    points: number;
+    balance_after: number;
+    used_points: number;
+    current_balance: number;
+    description: string | null;
+    ref: string | null;
     created_at: string | null;
-    loyalty_point: LoyaltyPoint | null;
+    expired_at: string | null;
+    has_expiration: boolean;
+    customer_name: string | null;
+    customer_email: string | null;
+    customer_wa_number: string | null;
 }
 
 interface Paginator<T> {
@@ -39,6 +51,7 @@ interface Paginator<T> {
 interface Props {
     rows: Paginator<MutationRow>;
     clps: LoyaltyPoint[];
+    typeOptions: Array<{ value: string; label: string }>;
     filters: {
         q: string;
         type: string;
@@ -88,6 +101,14 @@ const reset = () => {
 const formatNumber = (value: number | string) =>
     new Intl.NumberFormat('id-ID').format(Number(value ?? 0));
 
+const typeClass = (type: string) => {
+    if (['earn', 'referral_register', 'referral_first_tx'].includes(type)) return 'bg-label-success';
+    if (type === 'redeem') return 'bg-label-danger';
+    if (type === 'expire') return 'bg-label-warning';
+    if (type === 'adjust') return 'bg-label-info';
+    return 'bg-label-secondary';
+};
+
 const formatDate = (value: string | null) => {
     if (!value) {
         return '-';
@@ -109,11 +130,13 @@ const formatDate = (value: string | null) => {
     <div class="loyalty-page">
         <div class="loyalty-header">
             <div>
-                <span class="loyalty-eyebrow">Loyalty & Membership</span>
+                <span class="loyalty-eyebrow">Loyalty / Mutations</span>
                 <h1>Loyalty Point Mutations</h1>
-                <p>Riwayat penambahan dan pengurangan poin pelanggan.</p>
+                <p>Riwayat penambahan, redeem, expire, dan penyesuaian poin pelanggan.</p>
             </div>
         </div>
+
+        <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
@@ -128,9 +151,8 @@ const formatDate = (value: string | null) => {
                     <div class="col-md-2">
                         <label class="form-label">Tipe</label>
                         <select v-model="form.type" class="form-select form-select-sm">
-                            <option value="">Semua</option>
-                            <option value="in">In</option>
-                            <option value="out">Out</option>
+                            <option value="">Semua tipe</option>
+                            <option v-for="option in props.typeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-md-3">
@@ -168,26 +190,35 @@ const formatDate = (value: string | null) => {
                         <tr>
                             <th>Waktu</th>
                             <th>Customer</th>
-                            <th>Email</th>
-                            <th>WA</th>
-                            <th class="text-center">Type</th>
-                            <th class="text-end">Value</th>
-                            <th class="text-end">Balance</th>
+                            <th>Tipe</th>
+                            <th class="text-end">Poin</th>
+                            <th class="text-end">Saldo akhir</th>
+                            <th>Referensi</th>
+                            <th>Deskripsi</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="row in rows.data" :key="row.id">
-                            <td>{{ formatDate(row.created_at) }}</td>
-                            <td class="fw-semibold">{{ row.loyalty_point?.customer?.name ?? '-' }}</td>
-                            <td>{{ row.loyalty_point?.customer?.email ?? '-' }}</td>
-                            <td>{{ row.loyalty_point?.customer?.wa_number ?? '-' }}</td>
-                            <td class="text-center">
-                                <span class="badge" :class="row.type === 'in' ? 'bg-success' : 'bg-danger'">
-                                    {{ row.type.toUpperCase() }}
-                                </span>
+                            <td class="text-nowrap">{{ formatDate(row.created_at) }}</td>
+                            <td>
+                                <strong>{{ row.customer_name ?? '-' }}</strong>
+                                <small class="loyalty-subvalue">{{ row.customer_email ?? '-' }}</small>
+                                <small v-if="row.customer_wa_number" class="loyalty-subvalue">{{ row.customer_wa_number }}</small>
                             </td>
-                            <td class="text-end">{{ formatNumber(row.value) }}</td>
-                            <td class="text-end">{{ formatNumber(row.loyalty_point?.balance ?? 0) }}</td>
+                            <td>
+                                <span class="badge" :class="typeClass(row.type)">{{ row.type_label }}</span>
+                            </td>
+                            <td class="text-end">
+                                <strong :class="row.points >= 0 ? 'text-success' : 'text-danger'">
+                                    {{ row.points >= 0 ? '+' : '' }}{{ formatNumber(row.points) }}
+                                </strong>
+                            </td>
+                            <td class="text-end">{{ formatNumber(row.balance_after) }}</td>
+                            <td>
+                                <span v-if="row.ref" class="badge bg-label-secondary">{{ row.ref }}</span>
+                                <small v-if="row.has_expiration && row.expired_at" class="loyalty-subvalue">Exp: {{ formatDate(row.expired_at) }}</small>
+                            </td>
+                            <td>{{ row.description || '-' }}</td>
                         </tr>
                         <tr v-if="rows.data.length === 0">
                             <td colspan="7" class="loyalty-empty">Tidak ada data.</td>
@@ -253,6 +284,12 @@ const formatDate = (value: string | null) => {
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+.loyalty-subvalue {
+    display: block;
+    color: var(--loyalty-muted);
+    font-size: 0.72rem;
 }
 
 .loyalty-empty {

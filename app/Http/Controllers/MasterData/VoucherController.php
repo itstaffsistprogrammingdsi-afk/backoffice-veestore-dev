@@ -50,6 +50,7 @@ class VoucherController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Vouchers',
+            'eyebrow' => 'Promo / Voucher',
             'description' => 'Kelola voucher dan konteks pemakaiannya.',
             'searchPlaceholder' => 'Cari voucher...',
             'items' => $vouchers,

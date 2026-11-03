@@ -26,15 +26,15 @@ class StoreReturnRequested implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         $count = DB::table('store_returns')
-            ->where('status', 'requested')
+            ->whereIn('status', ['requested', 'pending_approval'])
             ->count();
 
         return [
             'count' => $count,
-            'title' => 'Retur Cabang: Requested',
+            'title' => 'Retur Store: Menunggu Approval',
             'subtitle' => "{$count} menunggu approval",
             'time' => now()->format('d M H:i'),
-            'url' => route('reports.retur-cabang.index', ['status' => 'requested']),
+            'url' => route('operations.store-returns.index'),
         ];
     }
 }

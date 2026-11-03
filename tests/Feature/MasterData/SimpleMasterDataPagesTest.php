@@ -30,6 +30,7 @@ class SimpleMasterDataPagesTest extends TestCase
             'master-data.diskons.index' => 'MasterData/SimpleCrud',
             'master-data.brands.index' => 'MasterData/SimpleCrud',
             'master-data.product-categories.index' => 'MasterData/SimpleCrud',
+            'master-data.product-category-groups.index' => 'MasterData/SimpleCrud',
             'master-data.customers.index' => 'MasterData/SimpleCrud',
             'master-data.stores.index' => 'MasterData/SimpleCrud',
             'master-data.products.index' => 'MasterData/SimpleCrud',

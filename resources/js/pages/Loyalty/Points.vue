@@ -4,8 +4,9 @@ import AppLayout from '@/layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 import { computed, reactive } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 interface Customer {
     id: string;
@@ -31,8 +32,14 @@ interface Paginator<T> {
 
 interface Props {
     rows: Paginator<PointRow>;
+    summary: {
+        members: number;
+        total_balance: number;
+        earned_this_month: number;
+        redeemed_this_month: number;
+    };
     filters: { q: string };
-    urls: { index: string };
+    urls: { index: string; mutations: string };
 }
 
 const props = defineProps<Props>();
@@ -81,9 +88,9 @@ const formatDate = (value: string | null) => {
     <div class="loyalty-page">
         <div class="loyalty-header">
             <div>
-                <span class="loyalty-eyebrow">Loyalty & Membership</span>
+                <span class="loyalty-eyebrow">Loyalty / Points</span>
                 <h1>Customer Loyalty Points</h1>
-                <p>Daftar saldo poin pelanggan. Halaman ini bersifat read-only.</p>
+                <p>Pantau saldo poin pelanggan dan riwayat mutasinya.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applyFilters">
                 <input
@@ -101,8 +108,37 @@ const formatDate = (value: string | null) => {
             </form>
         </div>
 
+        <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
+
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-3">
+                <div class="loyalty-summary">
+                    <span class="loyalty-summary-icon"><i class="mdi mdi-account-star-outline"></i></span>
+                    <div><span>Member</span><strong>{{ formatNumber(props.summary.members) }}</strong><small>Punya saldo poin</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="loyalty-summary">
+                    <span class="loyalty-summary-icon"><i class="mdi mdi-wallet-outline"></i></span>
+                    <div><span>Total saldo</span><strong>{{ formatNumber(props.summary.total_balance) }}</strong><small>Poin aktif</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="loyalty-summary loyalty-summary-success">
+                    <span class="loyalty-summary-icon"><i class="mdi mdi-plus-circle-outline"></i></span>
+                    <div><span>Poin masuk</span><strong>{{ formatNumber(props.summary.earned_this_month) }}</strong><small>Bulan ini</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="loyalty-summary loyalty-summary-danger">
+                    <span class="loyalty-summary-icon"><i class="mdi mdi-minus-circle-outline"></i></span>
+                    <div><span>Poin keluar</span><strong>{{ formatNumber(props.summary.redeemed_this_month) }}</strong><small>Bulan ini</small></div>
+                </div>
+            </div>
+        </div>
 
         <div class="card loyalty-card">
             <div class="table-responsive">
@@ -114,6 +150,7 @@ const formatDate = (value: string | null) => {
                             <th>WA</th>
                             <th class="text-end">Balance</th>
                             <th>Updated</th>
+                            <th class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -125,9 +162,18 @@ const formatDate = (value: string | null) => {
                                 <span class="badge loyalty-badge">{{ formatNumber(row.balance) }}</span>
                             </td>
                             <td>{{ formatDate(row.updated_at) }}</td>
+                            <td class="text-end">
+                                <Link
+                                    :href="`${props.urls.mutations}?clp=${row.id}`"
+                                    class="btn btn-sm btn-outline-primary"
+                                >
+                                    <i class="mdi mdi-swap-horizontal me-1"></i>
+                                    Riwayat
+                                </Link>
+                            </td>
                         </tr>
                         <tr v-if="rows.data.length === 0">
-                            <td colspan="5" class="loyalty-empty">Tidak ada data.</td>
+                            <td colspan="6" class="loyalty-empty">Tidak ada data.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -180,6 +226,62 @@ const formatDate = (value: string | null) => {
 .loyalty-header p {
     margin: 0;
     color: var(--app-hero-muted);
+}
+
+.loyalty-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid var(--loyalty-border);
+    border-radius: 0.9rem;
+    background: var(--app-surface);
+    box-shadow: var(--app-shadow);
+}
+
+.loyalty-summary-icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 2.4rem;
+    height: 2.4rem;
+    place-items: center;
+    border-radius: 0.65rem;
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
+    font-size: 1.25rem;
+}
+
+.loyalty-summary span:not(.loyalty-summary-icon) {
+    display: block;
+    color: var(--loyalty-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.loyalty-summary strong {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 1.35rem;
+}
+
+.loyalty-summary small {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--loyalty-muted);
+    font-size: 0.68rem;
+}
+
+.loyalty-summary-success .loyalty-summary-icon {
+    background: var(--app-success-bg);
+    color: var(--app-success-ink);
+}
+
+.loyalty-summary-danger .loyalty-summary-icon {
+    background: var(--app-danger-bg);
+    color: var(--app-danger-ink);
 }
 
 .loyalty-card {

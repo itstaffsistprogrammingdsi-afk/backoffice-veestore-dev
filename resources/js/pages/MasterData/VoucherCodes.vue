@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import ModuleNav from '@/components/ModuleNav.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -58,12 +59,14 @@ const isActive = (code: VoucherCode) => Boolean(code.is_active);
     <div class="voucher-page">
         <div class="voucher-header">
             <div>
-                <span class="voucher-eyebrow">Master Promo &amp; Discount / Voucher</span>
+                <span class="voucher-eyebrow">Promo / Voucher</span>
                 <h1>Kode Voucher</h1>
                 <p>{{ voucher.name }} <span class="badge bg-label-primary ms-1">{{ voucher.code }}</span></p>
             </div>
             <Link :href="urls.index" class="btn btn-outline-secondary btn-sm"><i class="mdi mdi-arrow-left me-1"></i>Kembali</Link>
         </div>
+
+        <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
         <div v-if="flash.success" class="alert alert-success"><i class="mdi mdi-check-circle-outline me-1"></i>{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger"><i class="mdi mdi-alert-circle-outline me-1"></i>{{ flash.error }}</div>

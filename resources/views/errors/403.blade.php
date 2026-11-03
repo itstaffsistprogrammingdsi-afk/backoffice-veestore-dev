@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Akses Ditolak - VeeStore</title>
+    <link rel="icon" type="image/png" href="{{ asset('assets/img/logo.png') }}" />
+    <link rel="apple-touch-icon" href="{{ asset('assets/img/logo.png') }}" />
     <script>
         (function () {
             try {

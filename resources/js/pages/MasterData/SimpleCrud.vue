@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, defineAsyncComponent, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 const LocationPicker = defineAsyncComponent(() => import('../../components/LocationPicker.vue'));
 
@@ -302,6 +303,10 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                 </button>
             </div>
         </div>
+
+        <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
+        <ModuleNav module-key="masterDataModule" aria-label="Modul Master Produk" />
+        <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

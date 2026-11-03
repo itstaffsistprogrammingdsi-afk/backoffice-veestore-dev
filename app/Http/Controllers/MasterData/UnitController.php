@@ -67,6 +67,7 @@ class UnitController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Units',
+            'eyebrow' => 'Master Produk / Unit',
             'description' => 'Kelola satuan produk.',
             'searchPlaceholder' => 'Cari unit...',
             'items' => $units,

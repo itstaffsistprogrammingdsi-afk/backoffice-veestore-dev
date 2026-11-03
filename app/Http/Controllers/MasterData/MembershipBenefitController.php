@@ -40,6 +40,7 @@ class MembershipBenefitController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Membership Benefits',
+            'eyebrow' => 'Loyalty / Benefit',
             'description' => 'Kelola benefit setiap tier membership.',
             'searchPlaceholder' => 'Cari benefit...',
             'items' => $benefits,

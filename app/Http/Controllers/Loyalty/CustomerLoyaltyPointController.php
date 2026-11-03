@@ -20,11 +20,13 @@ class CustomerLoyaltyPointController extends Controller
 
         return Inertia::render('Loyalty/Points', [
             'rows' => $query->paginate($filters['q'] ?? null),
+            'summary' => $query->summary(),
             'filters' => [
                 'q' => $filters['q'] ?? '',
             ],
             'urls' => [
                 'index' => route('loyalty.customer-loyalty-points.index'),
+                'mutations' => route('loyalty.customer-loyalty-point-mutations.index'),
             ],
         ]);
     }

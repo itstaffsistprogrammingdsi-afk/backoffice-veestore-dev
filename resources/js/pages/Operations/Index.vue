@@ -19,7 +19,11 @@ interface Props {
         stock: string;
         inbound: string;
         outbound: string;
+        store_orders: string;
+        store_returns: string;
     };
+    can_review_store_orders: boolean;
+    can_review_store_returns: boolean;
 }
 
 const props = defineProps<Props>();
@@ -36,7 +40,7 @@ const modules = [
     },
     {
         title: 'Store',
-        description: 'Toko, lokasi toko, customer, kunjungan, dan request operasional.',
+        description: 'Toko, stok, inbound/outbound, approval order, customer, dan kunjungan.',
         icon: 'mdi-store',
         url: 'stores',
         action: 'Kelola Toko',
@@ -75,6 +79,14 @@ const modules = [
                 <Link :href="props.urls.outbound" class="hub-button hub-button-light">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
                     Outbound
+                </Link>
+                <Link v-if="props.can_review_store_orders" :href="props.urls.store_orders" class="hub-button hub-button-light">
+                    <i class="mdi mdi-clipboard-check-outline me-1"></i>
+                    Approval Order Store
+                </Link>
+                <Link v-if="props.can_review_store_returns" :href="props.urls.store_returns" class="hub-button hub-button-light">
+                    <i class="mdi mdi-backup-restore me-1"></i>
+                    Approval Retur Store
                 </Link>
                 <Link :href="props.urls.ecommerce" class="hub-button hub-button-light">
                     <i class="mdi mdi-cart-arrow-right me-1"></i>

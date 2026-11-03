@@ -23,6 +23,7 @@ class CustomerLoyaltyPointMutationController extends Controller
         return Inertia::render('Loyalty/Mutations', [
             'rows' => $query->paginate($filters),
             'clps' => $query->customerPoints(),
+            'typeOptions' => $query->typeOptions(),
             'filters' => [
                 'q' => $filters['q'] ?? '',
                 'type' => $filters['type'] ?? '',

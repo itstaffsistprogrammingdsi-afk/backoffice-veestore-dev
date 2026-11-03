@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 
@@ -30,6 +30,19 @@ interface Navigation {
     areas: NavArea[];
 }
 
+interface BreadcrumbItem {
+    key: string;
+    label: string;
+    url: string | null;
+    current: boolean;
+}
+
+interface Branding {
+    name: string;
+    tagline: string;
+    logo_url: string;
+}
+
 interface Props {
     title?: string;
 }
@@ -42,6 +55,13 @@ const page = usePage();
 const { isDark, toggleTheme } = useTheme();
 
 const navigation = computed<Navigation>(() => (page.props.navigation ?? { areas: [] }) as Navigation);
+const branding = computed<Branding>(() => (
+    page.props.branding ?? {
+        name: 'VeeStore',
+        tagline: 'Backoffice',
+        logo_url: '/assets/img/logo.png',
+    }
+) as Branding);
 const user = computed(() => (page.props.auth as { user?: { name?: string; email?: string } } | undefined)?.user);
 
 const currentPath = computed(() => page.url.split('?')[0]);
@@ -61,11 +81,32 @@ const isReportsArea = computed(() => {
 
 const activeAreaKey = computed(() => (isReportsArea.value ? 'reports' : 'operations'));
 const activeArea = computed(() => navigation.value.areas.find((area) => area.key === activeAreaKey.value));
+const SIDEBAR_STORAGE_KEY = 'veestore.sidebar.collapsed';
+
+const readSidebarCollapsed = () => {
+    if (typeof window === 'undefined') return false;
+
+    try {
+        return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === '1';
+    } catch {
+        return false;
+    }
+};
+
 const openGroups = ref<Record<string, boolean>>({});
 const mobileOpen = ref(false);
 const userMenuOpen = ref(false);
 const userMenuRef = ref<HTMLElement | null>(null);
 const isNavigating = ref(false);
+const sidebarCollapsed = ref(readSidebarCollapsed());
+const isDesktopViewport = ref(
+    typeof window !== 'undefined'
+        ? window.matchMedia('(min-width: 992px)').matches
+        : false,
+);
+const breadcrumbMenuOpen = ref(false);
+
+const isSidebarCollapsed = computed(() => isDesktopViewport.value && sidebarCollapsed.value);
 
 const pathOf = (url: string | null) => {
     if (!url) return '';
@@ -95,6 +136,18 @@ const activeItem = computed(() => {
     return null;
 });
 
+const activeGroup = computed(() => {
+    for (const area of navigation.value.areas) {
+        for (const group of area.groups) {
+            if (group.items.some((item) => isActive(item))) {
+                return group;
+            }
+        }
+    }
+
+    return null;
+});
+
 const headTitle = ref('');
 
 const syncHeadTitle = () => {
@@ -109,6 +162,75 @@ const pageTitle = computed(
         activeArea.value?.label ??
         'VeeStore',
 );
+
+const normalizedHeadTitle = computed(() => {
+    const title = headTitle.value.trim();
+
+    if (!title) return '';
+
+    return title.split(' - ')[0].trim();
+});
+
+const isExactNavPage = computed(() => {
+    return Boolean(
+        activeItem.value
+        && pathOf(activeItem.value.url) === currentPath.value,
+    );
+});
+
+const currentPageLabel = computed(() => {
+    if (normalizedHeadTitle.value) {
+        return normalizedHeadTitle.value;
+    }
+
+    return activeItem.value?.label ?? activeArea.value?.label ?? 'VeeStore';
+});
+
+const breadcrumbItems = computed<BreadcrumbItem[]>(() => {
+    const items: BreadcrumbItem[] = [];
+
+    items.push({
+        key: 'area',
+        label: activeArea.value?.label ?? 'VeeStore',
+        url: activeArea.value?.url ?? null,
+        current: false,
+    });
+
+    if (activeGroup.value) {
+        items.push({
+            key: 'group',
+            label: activeGroup.value.label,
+            url: null,
+            current: false,
+        });
+    }
+
+    if (activeItem.value && !isExactNavPage.value) {
+        items.push({
+            key: 'item',
+            label: activeItem.value.label,
+            url: activeItem.value.url,
+            current: false,
+        });
+    }
+
+    const currentLabel = currentPageLabel.value;
+    const last = items[items.length - 1];
+
+    if (last && last.label.toLowerCase() === currentLabel.toLowerCase()) {
+        last.current = true;
+        last.url = null;
+    } else {
+        items.push({
+            key: 'current',
+            label: currentLabel,
+            url: null,
+            current: true,
+        });
+    }
+
+    return items;
+});
 
 const groupsForArea = computed(() => {
     const area = activeArea.value;
@@ -127,6 +249,66 @@ const isGroupOpen = (group: NavGroup) => {
     return group.items.some((item) => isActive(item)) || group.items.length <= 4;
 };
 
+const toggleSidebar = () => {
+    sidebarCollapsed.value = !sidebarCollapsed.value;
+};
+
+const toggleBreadcrumbMenu = async () => {
+    breadcrumbMenuOpen.value = !breadcrumbMenuOpen.value;
+
+    if (!breadcrumbMenuOpen.value) return;
+
+    await nextTick();
+    document.querySelector<HTMLElement>('.app-breadcrumb-menu-item')?.focus();
+};
+
+const closeBreadcrumbMenu = (restoreFocus = false) => {
+    if (!breadcrumbMenuOpen.value) return;
+
+    if (restoreFocus) {
+        document.querySelector<HTMLButtonElement>('.app-page-breadcrumb-menu-button')?.focus();
+    }
+
+    breadcrumbMenuOpen.value = false;
+};
+
+const onBreadcrumbMenuFocusOut = (event: FocusEvent) => {
+    const nextTarget = event.relatedTarget as Element | null;
+
+    if (!nextTarget?.closest('.app-breadcrumb-menu-wrap')) {
+        breadcrumbMenuOpen.value = false;
+    }
+};
+
+const onBreadcrumbMenuKeydown = (event: KeyboardEvent) => {
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (!keys.includes(event.key)) return;
+
+    const items = Array.from(document.querySelectorAll<HTMLElement>('.app-breadcrumb-menu-item'));
+    if (items.length === 0) return;
+
+    event.preventDefault();
+
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+
+    if (event.key === 'Home') {
+        items[0]?.focus();
+        return;
+    }
+
+    if (event.key === 'End') {
+        items[items.length - 1]?.focus();
+        return;
+    }
+
+    if (event.key === 'ArrowDown') {
+        items[(currentIndex + 1) % items.length]?.focus();
+        return;
+    }
+
+    items[(currentIndex - 1 + items.length) % items.length]?.focus();
+};
+
 const closeMobile = () => {
     mobileOpen.value = false;
     userMenuOpen.value = false;
@@ -137,12 +319,23 @@ const logout = () => {
 };
 
 const onKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-        closeMobile();
+    if (event.key !== 'Escape') return;
+
+    if (breadcrumbMenuOpen.value) {
+        closeBreadcrumbMenu(true);
+        return;
     }
+
+    closeMobile();
 };
 
 const onDocumentClick = (event: MouseEvent) => {
+    const target = event.target as Element | null;
+
+    if (breadcrumbMenuOpen.value && !target?.closest('.app-breadcrumb-menu-wrap')) {
+        breadcrumbMenuOpen.value = false;
+    }
+
     if (!userMenuOpen.value) return;
 
     if (userMenuRef.value && !userMenuRef.value.contains(event.target as Node)) {
@@ -150,8 +343,23 @@ const onDocumentClick = (event: MouseEvent) => {
     }
 };
 
+const onStorage = (event: StorageEvent) => {
+    if (event.key === SIDEBAR_STORAGE_KEY) {
+        sidebarCollapsed.value = event.newValue === '1';
+    }
+};
+
+const onDesktopMediaChange = (event: MediaQueryListEvent) => {
+    isDesktopViewport.value = event.matches;
+
+    if (event.matches) {
+        mobileOpen.value = false;
+    }
+};
+
 const onNavigationStart = () => {
     isNavigating.value = true;
+    breadcrumbMenuOpen.value = false;
 };
 
 const onNavigationFinish = () => {
@@ -162,12 +370,25 @@ watch(mobileOpen, (open) => {
     document.documentElement.classList.toggle('inertia-sidebar-open', open);
 });
 
+watch(sidebarCollapsed, (collapsed) => {
+    try {
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0');
+    } catch {
+        return;
+    }
+});
+
 let titleObserver: MutationObserver | null = null;
+let desktopMediaQuery: MediaQueryList | null = null;
 
 onMounted(() => {
     syncHeadTitle();
     titleObserver = new MutationObserver(syncHeadTitle);
     titleObserver.observe(document.head, { childList: true, subtree: true, characterData: true });
+    desktopMediaQuery = window.matchMedia('(min-width: 992px)');
+    isDesktopViewport.value = desktopMediaQuery.matches;
+    desktopMediaQuery.addEventListener('change', onDesktopMediaChange);
+    window.addEventListener('storage', onStorage);
 });
 
 window.addEventListener('keydown', onKeydown);
@@ -176,25 +397,39 @@ router.on('start', onNavigationStart);
 router.on('finish', onNavigationFinish);
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKeydown);
+    window.removeEventListener('storage', onStorage);
+    desktopMediaQuery?.removeEventListener('change', onDesktopMediaChange);
     document.removeEventListener('click', onDocumentClick);
     titleObserver?.disconnect();
 });
 </script>
 
 <template>
-    <div class="app-shell">
+    <div class="app-shell" :class="{ 'is-sidebar-collapsed': isSidebarCollapsed }">
         <div v-if="isNavigating" class="app-progress" role="progressbar" aria-label="Memuat halaman"></div>
 
         <a href="#main-content" class="skip-link">Lewati ke konten</a>
 
         <div v-if="mobileOpen" class="app-overlay" aria-hidden="true" @click="closeMobile"></div>
 
-        <aside class="app-sidebar" :class="{ 'is-open': mobileOpen }" aria-label="Navigasi utama">
+        <aside
+            id="app-sidebar"
+            class="app-sidebar"
+            :class="{ 'is-open': mobileOpen, 'is-collapsed': isSidebarCollapsed }"
+            aria-label="Navigasi utama"
+        >
             <div class="app-brand">
-                <div class="app-mark">VS</div>
-                <div>
-                    <strong>VeeStore</strong>
-                    <span>Backoffice</span>
+                <img
+                    v-if="!isSidebarCollapsed"
+                    :src="branding.logo_url"
+                    :alt="`${branding.name} ${branding.tagline}`"
+                    class="app-brand-logo"
+                />
+                <div v-else class="app-mark" :title="`${branding.name} ${branding.tagline}`">
+                    <img :src="branding.logo_url" :alt="branding.name" class="app-mark-logo" />
+                </div>
+                <div class="app-brand-copy">
+                    <strong>{{ branding.tagline }}</strong>
                 </div>
                 <button class="app-close d-lg-none" type="button" aria-label="Tutup menu" @click="closeMobile">
                     <i class="mdi mdi-close"></i>
@@ -209,6 +444,8 @@ onBeforeUnmount(() => {
                     class="app-area"
                     :class="{ 'is-active': activeAreaKey === area.key }"
                     :aria-current="activeAreaKey === area.key ? 'page' : undefined"
+                    :aria-label="isSidebarCollapsed ? area.label : undefined"
+                    :title="isSidebarCollapsed ? area.label : undefined"
                     @click="closeMobile"
                 >
                     <i class="mdi" :class="area.icon"></i>
@@ -220,8 +457,19 @@ onBeforeUnmount(() => {
             </nav>
 
             <div class="app-nav-scroll">
-                <div v-for="group in groupsForArea" :key="group.label" class="app-group">
+                <div
+                    v-for="group in groupsForArea"
+                    :key="group.label"
+                    class="app-group"
+                    :class="{ 'is-active': group.items.some((item) => isActive(item)) }"
+                    :role="isSidebarCollapsed ? 'group' : undefined"
+                    :aria-label="isSidebarCollapsed ? group.label : undefined"
+                >
+                    <div v-if="isSidebarCollapsed" class="app-group-rail" :title="group.label" aria-hidden="true">
+                        <i class="mdi" :class="group.icon"></i>
+                    </div>
                     <button
+                        v-else
                         class="app-group-toggle"
                         type="button"
                         :aria-expanded="isGroupOpen(group)"
@@ -231,7 +479,7 @@ onBeforeUnmount(() => {
                         <i class="mdi" :class="isGroupOpen(group) ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
                     </button>
 
-                    <div v-show="isGroupOpen(group)" class="app-group-items">
+                    <div v-show="isSidebarCollapsed || isGroupOpen(group)" class="app-group-items">
                         <template v-for="item in group.items" :key="item.route">
                             <Link
                                 v-if="item.inertia && item.url"
@@ -239,10 +487,12 @@ onBeforeUnmount(() => {
                                 class="app-item"
                                 :class="{ 'is-active': isActive(item) }"
                                 :aria-current="isActive(item) ? 'page' : undefined"
+                                :aria-label="isSidebarCollapsed ? item.label : undefined"
+                                :title="isSidebarCollapsed ? item.label : undefined"
                                 @click="closeMobile"
                             >
                                 <i class="mdi" :class="item.icon"></i>
-                                <span>{{ item.label }}</span>
+                                <span class="app-item-label">{{ item.label }}</span>
                             </Link>
                             <a
                                 v-else-if="item.url"
@@ -250,9 +500,11 @@ onBeforeUnmount(() => {
                                 class="app-item"
                                 :class="{ 'is-active': isActive(item) }"
                                 :aria-current="isActive(item) ? 'page' : undefined"
+                                :aria-label="isSidebarCollapsed ? item.label : undefined"
+                                :title="isSidebarCollapsed ? item.label : undefined"
                             >
                                 <i class="mdi" :class="item.icon"></i>
-                                <span>{{ item.label }}</span>
+                                <span class="app-item-label">{{ item.label }}</span>
                             </a>
                         </template>
                     </div>
@@ -266,11 +518,18 @@ onBeforeUnmount(() => {
                     <button class="app-menu-button d-lg-none" type="button" aria-label="Buka menu" @click="mobileOpen = true">
                         <i class="mdi mdi-menu"></i>
                     </button>
+                    <button
+                        class="app-sidebar-toggle d-none d-lg-inline-flex"
+                        type="button"
+                        aria-controls="app-sidebar"
+                        :aria-expanded="!sidebarCollapsed"
+                        :aria-label="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
+                        :title="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
+                        @click="toggleSidebar"
+                    >
+                        <i class="mdi" :class="sidebarCollapsed ? 'mdi-chevron-double-right' : 'mdi-chevron-double-left'"></i>
+                    </button>
                     <div>
-                        <div class="app-breadcrumb">
-                            {{ activeArea?.label ?? 'VeeStore' }}
-                            <span v-if="activeItem || headTitle">/ {{ activeItem?.label ?? headTitle }}</span>
-                        </div>
                         <h1 class="app-title">{{ pageTitle }}</h1>
                     </div>
                 </div>
@@ -307,6 +566,75 @@ onBeforeUnmount(() => {
             </header>
 
             <main id="main-content" class="app-content">
+                <nav
+                    v-if="breadcrumbItems.length > 0"
+                    class="app-page-breadcrumb"
+                    :class="{ 'is-primary-nav': isSidebarCollapsed }"
+                    aria-label="Breadcrumb"
+                >
+                    <ol class="app-page-breadcrumb-list">
+                        <li v-for="(item, index) in breadcrumbItems" :key="item.key" class="app-page-breadcrumb-item">
+                            <div
+                                v-if="item.key === 'group' && activeGroup && activeGroup.items.length > 1"
+                                class="app-breadcrumb-menu-wrap"
+                            >
+                                <button
+                                    class="app-page-breadcrumb-link app-page-breadcrumb-menu-button"
+                                    type="button"
+                                    aria-haspopup="menu"
+                                    :aria-expanded="breadcrumbMenuOpen"
+                                    :aria-label="`Buka menu ${item.label}`"
+                                    @click.stop="toggleBreadcrumbMenu"
+                                >
+                                    {{ item.label }}
+                                    <i class="mdi mdi-chevron-down" aria-hidden="true"></i>
+                                </button>
+                                <div
+                                    v-if="breadcrumbMenuOpen"
+                                    class="app-breadcrumb-menu"
+                                    role="menu"
+                                    :aria-label="`Menu ${item.label}`"
+                                    @keydown="onBreadcrumbMenuKeydown"
+                                    @focusout="onBreadcrumbMenuFocusOut"
+                                >
+                                    <Link
+                                        v-for="groupItem in activeGroup.items"
+                                        :key="groupItem.route"
+                                        :href="groupItem.url ?? '#'"
+                                        class="app-breadcrumb-menu-item"
+                                        :class="{ 'is-active': isActive(groupItem) }"
+                                        role="menuitem"
+                                        @click="closeBreadcrumbMenu()"
+                                    >
+                                        <i class="mdi" :class="groupItem.icon" aria-hidden="true"></i>
+                                        <span>{{ groupItem.label }}</span>
+                                        <i v-if="isActive(groupItem)" class="mdi mdi-check app-breadcrumb-menu-check" aria-hidden="true"></i>
+                                    </Link>
+                                </div>
+                            </div>
+                            <Link
+                                v-else-if="item.url && !item.current"
+                                :href="item.url"
+                                class="app-page-breadcrumb-link"
+                            >
+                                {{ item.label }}
+                            </Link>
+                            <span
+                                v-else
+                                class="app-page-breadcrumb-text"
+                                :aria-current="item.current ? 'page' : undefined"
+                            >
+                                {{ item.label }}
+                            </span>
+                            <i
+                                v-if="index < breadcrumbItems.length - 1"
+                                class="mdi mdi-chevron-right app-page-breadcrumb-separator"
+                                aria-hidden="true"
+                            ></i>
+                        </li>
+                    </ol>
+                </nav>
+
                 <slot />
             </main>
         </div>
@@ -371,7 +699,7 @@ onBeforeUnmount(() => {
     color: var(--app-sidebar-ink);
     overscroll-behavior: contain;
     transform: translateX(-100%);
-    transition: transform 180ms ease;
+    transition: transform 180ms ease, width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .app-sidebar.is-open {
@@ -382,30 +710,49 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1.1rem 1rem;
+    padding: 0.95rem 1rem;
     border-bottom: 1px solid var(--app-sidebar-border);
+}
+
+.app-brand-logo {
+    display: block;
+    width: 92px;
+    height: auto;
+    flex: 0 0 auto;
 }
 
 .app-mark {
     display: grid;
     place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: var(--app-sidebar-active-bg);
-    color: var(--app-sidebar-active-ink);
-    font-weight: 800;
+    width: 48px;
+    height: 48px;
+    overflow: hidden;
+    border: 1px solid var(--app-sidebar-border);
+    border-radius: 14px;
+    background: var(--app-sidebar-soft);
 }
 
-.app-brand strong {
+.app-mark-logo {
     display: block;
-    font-size: 1rem;
+    width: 46px;
+    height: 24px;
+    object-fit: cover;
+    object-position: top center;
 }
 
-.app-brand span {
+.app-brand-copy {
+    min-width: 0;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--app-sidebar-border);
+}
+
+.app-brand-copy strong {
     display: block;
     color: var(--app-sidebar-muted);
-    font-size: 0.75rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .app-close {
@@ -492,6 +839,23 @@ onBeforeUnmount(() => {
     color: var(--app-sidebar-ink);
 }
 
+.app-group-rail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    margin: 0.35rem 0 0.2rem;
+    font-size: 0.85rem;
+}
+
+.app-group-rail::before,
+.app-group-rail::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--app-sidebar-border);
+}
+
 .app-group-items {
     display: grid;
     gap: 0.15rem;
@@ -549,7 +913,12 @@ onBeforeUnmount(() => {
     min-width: 0;
 }
 
-.app-menu-button {
+.app-menu-button,
+.app-sidebar-toggle {
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
     padding: 0.45rem;
     border: 1px solid var(--app-border);
     border-radius: 0.55rem;
@@ -558,24 +927,160 @@ onBeforeUnmount(() => {
     font-size: 1.3rem;
 }
 
-.app-breadcrumb {
-    overflow: hidden;
-    color: var(--app-muted);
-    font-size: 0.72rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-overflow: ellipsis;
-    text-transform: uppercase;
-    white-space: nowrap;
+.app-menu-button:hover,
+.app-sidebar-toggle:hover,
+.app-menu-button:focus-visible,
+.app-sidebar-toggle:focus-visible {
+    border-color: var(--app-accent);
+    background: var(--app-surface-2);
+    color: var(--app-accent-ink);
 }
 
 .app-title {
     overflow: hidden;
-    margin: 0.1rem 0 0;
+    margin: 0;
     font-size: 1.15rem;
     font-weight: 800;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.app-page-breadcrumb {
+    margin-bottom: 0.75rem;
+    padding: 0.3rem 0.45rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.65rem;
+    background: var(--app-surface);
+}
+
+.app-page-breadcrumb-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.1rem 0.15rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.app-page-breadcrumb-item {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.app-page-breadcrumb-link,
+.app-page-breadcrumb-text {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 36px;
+    padding: 0 0.4rem;
+    border-radius: 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.app-page-breadcrumb-link {
+    color: var(--app-muted);
+    text-decoration: none;
+}
+
+.app-page-breadcrumb-link:hover,
+.app-page-breadcrumb-link:focus-visible {
+    background: var(--app-surface-2);
+    color: var(--app-accent-ink);
+}
+
+.app-page-breadcrumb-link:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
+.app-page-breadcrumb-text {
+    color: var(--app-muted);
+}
+
+.app-page-breadcrumb-text[aria-current="page"] {
+    color: var(--app-ink);
+    font-weight: 700;
+}
+
+.app-page-breadcrumb-separator {
+    flex: 0 0 auto;
+    color: var(--app-muted);
+    font-size: 0.9rem;
+    opacity: 0.65;
+}
+
+.app-breadcrumb-menu-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.app-page-breadcrumb-menu-button {
+    gap: 0.15rem;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.app-breadcrumb-menu {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    z-index: 45;
+    display: grid;
+    gap: 0.1rem;
+    width: max-content;
+    min-width: 220px;
+    max-width: min(320px, calc(100vw - 2rem));
+    max-height: min(360px, 60vh);
+    padding: 0.3rem;
+    overflow-y: auto;
+    border: 1px solid var(--app-border);
+    border-radius: 0.65rem;
+    background: var(--app-surface);
+    box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.18);
+}
+
+.app-breadcrumb-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 40px;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.45rem;
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.app-breadcrumb-menu-item:hover,
+.app-breadcrumb-menu-item:focus-visible {
+    background: var(--app-surface-2);
+    color: var(--app-ink);
+}
+
+.app-breadcrumb-menu-item.is-active {
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
+}
+
+.app-breadcrumb-menu-item i {
+    font-size: 1rem;
+}
+
+.app-breadcrumb-menu-check {
+    margin-left: auto;
+}
+
+.app-page-breadcrumb.is-primary-nav {
+    border-color: color-mix(in srgb, var(--app-accent) 22%, var(--app-border));
 }
 
 .app-user {
@@ -689,8 +1194,69 @@ onBeforeUnmount(() => {
         transform: none;
     }
 
+    .app-sidebar.is-collapsed {
+        width: 84px;
+    }
+
     .app-main {
         margin-left: 280px;
+        transition: margin-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .app-shell.is-sidebar-collapsed .app-main {
+        margin-left: 84px;
+    }
+
+    .app-sidebar.is-collapsed .app-brand {
+        justify-content: center;
+        padding: 1rem 0.5rem;
+    }
+
+    .app-sidebar.is-collapsed .app-brand-copy,
+    .app-sidebar.is-collapsed .app-area > span,
+    .app-sidebar.is-collapsed .app-item-label {
+        display: none;
+    }
+
+    .app-sidebar.is-collapsed .app-areas {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .app-sidebar.is-collapsed .app-area {
+        justify-content: center;
+        padding: 0.65rem;
+    }
+
+    .app-sidebar.is-collapsed .app-nav-scroll {
+        padding: 0 0.5rem 1rem;
+    }
+
+    .app-sidebar.is-collapsed .app-group {
+        margin-top: 0.35rem;
+    }
+
+    .app-sidebar.is-collapsed .app-group-items {
+        gap: 0.2rem;
+        padding-left: 0;
+    }
+
+    .app-sidebar.is-collapsed .app-item {
+        justify-content: center;
+        padding: 0.6rem 0.5rem;
+    }
+
+    .app-sidebar.is-collapsed .app-item i {
+        font-size: 1.15rem;
+    }
+
+    .app-sidebar.is-collapsed .app-group-rail {
+        color: var(--app-sidebar-muted);
+        opacity: 0.75;
+    }
+
+    .app-sidebar.is-collapsed .app-group.is-active .app-group-rail {
+        color: var(--app-accent);
+        opacity: 1;
     }
 
     .app-content {
@@ -720,12 +1286,27 @@ onBeforeUnmount(() => {
         min-height: 44px;
     }
 
-    .app-breadcrumb {
-        display: none;
-    }
-
     .app-title {
         font-size: 1rem;
+    }
+
+    .app-page-breadcrumb {
+        padding: 0.2rem;
+    }
+
+    .app-page-breadcrumb-link,
+    .app-page-breadcrumb-text,
+    .app-breadcrumb-menu-item {
+        min-height: 44px;
+        font-size: 0.76rem;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .app-sidebar,
+    .app-main,
+    .app-progress {
+        transition: none;
+        animation: none;
     }
 }
 
@@ -733,4 +1314,5 @@ onBeforeUnmount(() => {
     outline: 2px solid var(--app-accent);
     outline-offset: 2px;
 }
+
 </style>

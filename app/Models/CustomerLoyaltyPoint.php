@@ -18,7 +18,7 @@ class CustomerLoyaltyPoint extends Model
     protected $fillable = ['customer_id', 'balance'];
 
     protected $casts = [
-        'balance' => 'integer',
+        'balance' => 'decimal:2',
     ];
 
     protected static function boot()

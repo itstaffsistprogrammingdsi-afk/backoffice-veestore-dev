@@ -16,13 +16,28 @@ class CustomerLoyaltyPointMutation extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
-        'customer_loyalty_point_id', // FK -> customer_loyalty_points.id
-        'value',                     // integer (positif)
-        'type',                      // 'in' | 'out'
+        'customer_id',
+        'ref_id',
+        'type',
+        'points',
+        'balance_after',
+        'description',
+        'customer_loyalty_point_id',
+        'mutation_type',
+        'expired_at',
+        'has_expiration',
+        'used_points',
+        'ref',
     ];
 
     protected $casts = [
-        'value' => 'integer',
+        'points' => 'decimal:2',
+        'balance_after' => 'decimal:2',
+        'used_points' => 'decimal:2',
+        'has_expiration' => 'boolean',
+        'expired_at' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -41,9 +56,8 @@ class CustomerLoyaltyPointMutation extends Model
         return $this->belongsTo(CustomerLoyaltyPoint::class, 'customer_loyalty_point_id');
     }
 
-    // shortcut ke customer
     public function customer(): BelongsTo
     {
-        return $this->loyaltyPoint()->withDefault()->getRelated()->customer();
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
 }

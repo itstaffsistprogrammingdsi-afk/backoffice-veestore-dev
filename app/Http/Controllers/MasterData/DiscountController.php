@@ -61,6 +61,7 @@ class DiscountController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Discounts',
+            'eyebrow' => 'Promo / Diskon',
             'description' => 'Kelola diskon dan aturan dasarnya.',
             'searchPlaceholder' => 'Cari diskon...',
             'items' => $discounts,

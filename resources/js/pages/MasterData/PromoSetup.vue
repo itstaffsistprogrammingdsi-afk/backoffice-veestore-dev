@@ -2,6 +2,7 @@
 import { computed, reactive } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import ModuleNav from '@/components/ModuleNav.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -59,11 +60,13 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
     <div class="promo-page">
         <div class="promo-header">
             <div>
-                <span class="promo-eyebrow">Master Data</span>
+                <span class="promo-eyebrow">Promo / Setup</span>
                 <h1>Promo Setup</h1>
                 <p>Buat promo, diskon, dan target produk dalam satu alur.</p>
             </div>
         </div>
+
+        <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

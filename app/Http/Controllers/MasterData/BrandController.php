@@ -26,6 +26,7 @@ class BrandController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Brands',
+            'eyebrow' => 'Master Produk / Brand',
             'description' => 'Kelola brand produk dan logo.',
             'searchPlaceholder' => 'Cari brand...',
             'items' => $brands,

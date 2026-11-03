@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class OperationsHubController extends Controller
 {
-    public function __invoke()
+    public function __invoke(Request $request)
     {
         return Inertia::render('Operations/Index', [
             'stats' => [
@@ -23,7 +24,11 @@ class OperationsHubController extends Controller
                 'stock' => route('operations.stock.index'),
                 'inbound' => route('operations.inbound.index'),
                 'outbound' => route('operations.outbound.index'),
+                'store_orders' => route('operations.store-orders.index'),
+                'store_returns' => route('operations.store-returns.index'),
             ],
+            'can_review_store_orders' => $request->user()?->can('view branch-order-cabang') ?? false,
+            'can_review_store_returns' => $request->user()?->can('view branch-retur-cabang') ?? false,
         ]);
     }
 }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "npm run development",
+    "dev": "vite",
     "build": "mix --production",
     "development": "mix",
     "watch": "mix watch",
@@ -14,7 +14,8 @@
     "dev:vite": "vite",
     "build:vite": "vite build",
     "build:all": "npm run build && npm run build:vite",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "dev:mix": "mix"
   },
   "devDependencies": {
     "@babel/core": "7.22.5",

@@ -70,6 +70,8 @@ class Navigation
                     ['Store Stock Operations', 'operations.store-stock.index', 'mdi-clipboard-list-outline', null],
                     ['Store Inbound Operations', 'operations.store-inbound.index', 'mdi-tray-arrow-down', null],
                     ['Store Outbound Operations', 'operations.store-outbound.index', 'mdi-tray-arrow-up', null],
+                    ['Store Order Approval', 'operations.store-orders.index', 'mdi-clipboard-check-outline', 'view branch-order-cabang'],
+                    ['Store Return Approval', 'operations.store-returns.index', 'mdi-backup-restore', 'view branch-retur-cabang'],
                     ['Customers & Visits', 'operations.customers.index', 'mdi-account-group-outline', null],
                     ['Label Requests', 'branch-operations.request-label.index', 'mdi-tag-multiple-outline', null],
                     ['Voucher Requests', 'branch-operations.request-voucher.index', 'mdi-ticket-confirmation-outline', null],
@@ -81,9 +83,28 @@ class Navigation
                 'items' => self::items($user, [
                     ['Orders', 'ecommerce.orders.index', 'mdi-cart-arrow-right', null],
                     ['Banners', 'master-data.ecommerce-banners.index', 'mdi-image-multiple-outline', 'view master-data-ecommerce-banners'],
+                ]),
+            ],
+            [
+                'label' => 'Promo',
+                'icon' => 'mdi-sale-outline',
+                'items' => self::items($user, [
                     ['Promos', 'master-data.promos.index', 'mdi-sale-outline', 'view master-data-promos'],
-                    ['Vouchers', 'master-data.vouchers.index', 'mdi-ticket-percent-outline', 'view master-data-vouchers'],
                     ['Discounts', 'master-data.diskons.index', 'mdi-percent-outline', 'view master-data-discounts'],
+                    ['Product Discounts', 'master-data.products-diskons.index', 'mdi-tag-multiple-outline', 'view master-data-product-discounts'],
+                    ['Vouchers', 'master-data.vouchers.index', 'mdi-ticket-percent-outline', 'view master-data-vouchers'],
+                    ['Promo Setup', 'master-data.promo-setup.index', 'mdi-playlist-plus', 'view master-data-promos'],
+                ]),
+            ],
+            [
+                'label' => 'Loyalty',
+                'icon' => 'mdi-crown-outline',
+                'items' => self::items($user, [
+                    ['Loyalty Points', 'loyalty.customer-loyalty-points.index', 'mdi-star-circle-outline', 'view loyalty-customer-loyalty-points'],
+                    ['Point Mutations', 'loyalty.customer-loyalty-point-mutations.index', 'mdi-swap-horizontal', 'view loyalty-customer-loyalty-point-mutations'],
+                    ['Customer Visits', 'loyalty.customer-visits.index', 'mdi-map-marker-check-outline', 'view loyalty-customer-visits'],
+                    ['Membership Tiers', 'master-data.memberships.index', 'mdi-crown-outline', 'view master-data-memberships'],
+                    ['Membership Benefits', 'master-data.membership-benefits.index', 'mdi-gift-outline', 'view master-data-membership-benefits'],
                 ]),
             ],
             [
@@ -93,6 +114,7 @@ class Navigation
                     ['Products', 'master-data.products.index', 'mdi-package-variant', 'view master-data-products'],
                     ['Product Prices', 'master-data.product-prices.index', 'mdi-currency-usd', 'view master-data-product-prices'],
                     ['Categories', 'master-data.product-categories.index', 'mdi-shape-outline', 'view master-data-product-categories'],
+                    ['Category Groups', 'master-data.product-category-groups.index', 'mdi-layers-outline', 'view master-data-product-categories'],
                     ['Brands', 'master-data.brands.index', 'mdi-tag-outline', 'view master-data-brands'],
                     ['Units', 'master-data.units.index', 'mdi-ruler', 'view master-data-units'],
                     ['Suppliers', 'master-data.suppliers.index', 'mdi-truck-delivery-outline', 'view master-data-suppliers'],

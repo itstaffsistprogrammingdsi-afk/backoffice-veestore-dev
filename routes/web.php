@@ -29,6 +29,7 @@ use App\Http\Controllers\MasterData\MembershipController;
 use App\Http\Controllers\MasterData\PartnerController;
 use App\Http\Controllers\MasterData\PaymentMethodController;
 use App\Http\Controllers\MasterData\ProductCategoryController;
+use App\Http\Controllers\MasterData\ProductCategoryGroupController;
 use App\Http\Controllers\MasterData\ProductController;
 use App\Http\Controllers\MasterData\ProductDiscountController;
 use App\Http\Controllers\MasterData\ProductPriceController;
@@ -94,7 +95,9 @@ use App\Http\Controllers\Operations\InboundController;
 use App\Http\Controllers\Operations\OperationalStockController;
 use App\Http\Controllers\Operations\OutboundController;
 use App\Http\Controllers\Operations\StoreInboundOperationsController;
+use App\Http\Controllers\Operations\StoreOrderApprovalController;
 use App\Http\Controllers\Operations\StoreOutboundOperationsController;
+use App\Http\Controllers\Operations\StoreReturnApprovalController as OperationsStoreReturnApprovalController;
 use App\Http\Controllers\Operations\StoreStockOperationsController;
 use App\Http\Controllers\OperationsHubController;
 use App\Http\Controllers\ReportExportController;
@@ -165,6 +168,30 @@ Route::middleware('auth')->group(function () {
     Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
     Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
+    Route::prefix('operations/store-orders')->name('operations.store-orders.')->group(function () {
+        Route::get('/', [StoreOrderApprovalController::class, 'index'])->name('index');
+        Route::get('{order}', [StoreOrderApprovalController::class, 'show'])
+            ->whereUuid('order')
+            ->name('show');
+        Route::patch('{order}/approve', [StoreOrderApprovalController::class, 'approve'])
+            ->whereUuid('order')
+            ->name('approve');
+        Route::patch('{order}/reject', [StoreOrderApprovalController::class, 'reject'])
+            ->whereUuid('order')
+            ->name('reject');
+    });
+    Route::prefix('operations/store-returns')->name('operations.store-returns.')->group(function () {
+        Route::get('/', [OperationsStoreReturnApprovalController::class, 'index'])->name('index');
+        Route::get('{return}', [OperationsStoreReturnApprovalController::class, 'show'])
+            ->whereUuid('return')
+            ->name('show');
+        Route::patch('{return}/approve', [OperationsStoreReturnApprovalController::class, 'approve'])
+            ->whereUuid('return')
+            ->name('approve');
+        Route::patch('{return}/reject', [OperationsStoreReturnApprovalController::class, 'reject'])
+            ->whereUuid('return')
+            ->name('reject');
+    });
     Route::get('/reports', ReportsHubController::class)->name('reports.index');
 
     Route::get('/dashboard', [Analytics::class, 'index'])->name('dashboard-analytics');
@@ -298,6 +325,11 @@ Route::middleware('auth')->group(function () {
         Route::post('product-categories', [ProductCategoryController::class, 'store'])->name('product-categories.store');
         Route::put('product-categories/{product_category}', [ProductCategoryController::class, 'update'])->name('product-categories.update');
         Route::delete('product-categories/{product_category}', [ProductCategoryController::class, 'destroy'])->name('product-categories.destroy');
+
+        Route::get('product-category-groups', [ProductCategoryGroupController::class, 'index'])->name('product-category-groups.index');
+        Route::post('product-category-groups', [ProductCategoryGroupController::class, 'store'])->name('product-category-groups.store');
+        Route::put('product-category-groups/{product_category_group}', [ProductCategoryGroupController::class, 'update'])->name('product-category-groups.update');
+        Route::delete('product-category-groups/{product_category_group}', [ProductCategoryGroupController::class, 'destroy'])->name('product-category-groups.destroy');
 
         Route::get('stores', [StoreController::class, 'index'])->name('stores.index');
         Route::post('stores', [StoreController::class, 'store'])->name('stores.store');

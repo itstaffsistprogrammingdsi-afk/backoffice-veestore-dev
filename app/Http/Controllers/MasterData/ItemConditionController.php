@@ -57,6 +57,7 @@ class ItemConditionController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Item Conditions',
+            'eyebrow' => 'Master Produk / Kondisi Barang',
             'description' => 'Kelola kondisi item.',
             'searchPlaceholder' => 'Cari kondisi...',
             'items' => $conditions,

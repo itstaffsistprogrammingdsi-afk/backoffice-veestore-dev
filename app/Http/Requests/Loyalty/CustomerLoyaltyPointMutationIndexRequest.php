@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Loyalty;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class CustomerLoyaltyPointMutationIndexRequest extends FormRequest
 {
@@ -16,7 +15,7 @@ class CustomerLoyaltyPointMutationIndexRequest extends FormRequest
     {
         return [
             'q' => ['nullable', 'string', 'max:255'],
-            'type' => ['nullable', Rule::in(['in', 'out'])],
+            'type' => ['nullable', 'string', 'max:50'],
             'clp' => ['nullable', 'uuid', 'exists:customer_loyalty_points,id'],
             'from' => ['nullable', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:from'],

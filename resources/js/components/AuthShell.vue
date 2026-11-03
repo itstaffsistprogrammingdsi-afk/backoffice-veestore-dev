@@ -1,7 +1,23 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 
+interface Branding {
+    name: string;
+    tagline: string;
+    logo_url: string;
+}
+
 const { isDark, toggleTheme } = useTheme();
+const page = usePage();
+const branding = computed<Branding>(() => (
+    page.props.branding ?? {
+        name: 'VeeStore',
+        tagline: 'Backoffice',
+        logo_url: '/assets/img/logo.png',
+    }
+) as Branding);
 
 defineProps<{
     title: string;
@@ -14,11 +30,8 @@ defineProps<{
         <div class="auth-panel">
             <div class="auth-topline">
                 <div class="auth-brand">
-                    <div class="auth-mark">VS</div>
-                    <div>
-                        <strong>VeeStore</strong>
-                        <span>Backoffice</span>
-                    </div>
+                    <img :src="branding.logo_url" :alt="`${branding.name} ${branding.tagline}`" class="auth-logo" />
+                    <strong class="auth-tagline">{{ branding.tagline }}</strong>
                 </div>
 
                 <button
@@ -72,26 +85,21 @@ defineProps<{
     gap: 0.8rem;
 }
 
-.auth-mark {
-    display: grid;
-    place-items: center;
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
-    background: var(--app-surface-3);
-    color: var(--app-accent-ink);
-    font-weight: 800;
+.auth-logo {
+    display: block;
+    width: 128px;
+    height: auto;
 }
 
-.auth-brand strong {
+.auth-tagline {
     display: block;
-    font-size: 1.1rem;
-}
-
-.auth-brand span {
-    display: block;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--app-border);
     color: var(--app-muted);
-    font-size: 0.8rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .auth-card {

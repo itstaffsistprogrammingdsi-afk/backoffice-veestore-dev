@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, reactive } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 interface StoreOption {
     id: string;
@@ -110,11 +111,13 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
     <div class="loyalty-page">
         <div class="loyalty-header">
             <div>
-                <span class="loyalty-eyebrow">Loyalty & Membership</span>
-                <h1>Visit Customer</h1>
+                <span class="loyalty-eyebrow">Loyalty / Visits</span>
+                <h1>Customer Visits</h1>
                 <p>Pantau riwayat kunjungan customer di setiap cabang.</p>
             </div>
         </div>
+
+        <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

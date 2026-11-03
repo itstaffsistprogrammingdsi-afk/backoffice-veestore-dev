@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -129,11 +130,13 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
     <div class="price-page">
         <div class="price-header">
             <div>
-                <span class="price-eyebrow">Master Data</span>
+                <span class="price-eyebrow">Master Produk / Harga</span>
                 <h1>Product Prices</h1>
                 <p>Kelola harga base, store, dan ecommerce per produk.</p>
             </div>
         </div>
+
+        <ModuleNav module-key="masterDataModule" aria-label="Modul Master Produk" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

@@ -32,6 +32,7 @@ class MembershipController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Memberships',
+            'eyebrow' => 'Loyalty / Membership',
             'description' => 'Kelola tier membership pelanggan.',
             'searchPlaceholder' => 'Cari membership...',
             'items' => $memberships,

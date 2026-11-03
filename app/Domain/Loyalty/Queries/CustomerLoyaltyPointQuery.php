@@ -4,6 +4,7 @@ namespace App\Domain\Loyalty\Queries;
 
 use App\Models\CustomerLoyaltyPoint;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class CustomerLoyaltyPointQuery
 {
@@ -23,5 +24,28 @@ class CustomerLoyaltyPointQuery
             ->orderByDesc('updated_at')
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    public function summary(): array
+    {
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
+
+        $earned = DB::table('customer_loyalty_point_mutations')
+            ->where('points', '>', 0)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->sum('points');
+
+        $redeemed = DB::table('customer_loyalty_point_mutations')
+            ->where('points', '<', 0)
+            ->whereBetween('created_at', [$monthStart, $monthEnd])
+            ->sum('points');
+
+        return [
+            'members' => (int) CustomerLoyaltyPoint::query()->count(),
+            'total_balance' => (float) CustomerLoyaltyPoint::query()->sum('balance'),
+            'earned_this_month' => (float) abs($earned),
+            'redeemed_this_month' => (float) abs($redeemed),
+        ];
     }
 }

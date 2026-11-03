@@ -4,10 +4,12 @@ namespace App\Http\Controllers\MasterData;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProductCategory;
+use App\Models\ProductCategoryGroup;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Throwable;
@@ -27,20 +29,34 @@ class ProductCategoryController extends Controller
         $q = $this->normalizeName($request->get('q'));
 
         $categories = ProductCategory::query()
+            ->with('group:id,name,sort_order')
             ->when($q !== '', fn ($query) => $query->where('name', 'ILIKE', '%'.$q.'%'))
-            ->orderBy('name')
+            ->leftJoin('product_category_groups as category_groups', function ($join): void {
+                $join->on('category_groups.id', '=', 'product_categories.group_id')
+                    ->whereNull('category_groups.deleted_at');
+            })
+            ->orderByRaw('COALESCE(category_groups.sort_order, 999)')
+            ->orderBy('product_categories.name')
+            ->select('product_categories.*')
             ->paginate(10)
             ->withQueryString();
 
+        $groups = ProductCategoryGroup::query()
+            ->ordered()
+            ->get(['id', 'name']);
+
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Product Categories',
-            'description' => 'Kelola kategori produk dan gambar kategori.',
+            'eyebrow' => 'Master Produk / Kategori',
+            'description' => 'Kelola grup kategori, kategori produk, dan gambar kategori.',
             'searchPlaceholder' => 'Cari kategori...',
             'items' => $categories,
             'columns' => [
+                ['key' => 'group.name', 'label' => 'Grup Kategori'],
                 ['key' => 'name', 'label' => 'Nama'],
             ],
             'fields' => [
+                ['key' => 'group_id', 'label' => 'Grup Kategori', 'type' => 'select', 'required' => true, 'options' => $groups->map(fn ($group) => ['value' => $group->id, 'label' => $group->name])->values()->all()],
                 ['key' => 'name', 'label' => 'Nama Kategori', 'required' => true],
                 ['key' => 'image', 'label' => 'Gambar', 'type' => 'file'],
             ],
@@ -59,7 +75,12 @@ class ProductCategoryController extends Controller
         $request->merge(['name' => $this->normalizeName($request->input('name'))]);
 
         try {
-            $validated = $request->validateWithBag('createCategory', [
+            $validated = $request->validate([
+                'group_id' => [
+                    'required',
+                    'uuid',
+                    Rule::exists('product_category_groups', 'id')->whereNull('deleted_at'),
+                ],
                 'name' => [
                     'required',
                     'string',
@@ -74,6 +95,9 @@ class ProductCategoryController extends Controller
                 ],
                 'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             ], [
+                'group_id.required' => 'Grup kategori wajib dipilih.',
+                'group_id.uuid' => 'Grup kategori tidak valid.',
+                'group_id.exists' => 'Grup kategori tidak ditemukan atau sudah dihapus.',
                 'name.required' => 'Nama kategori wajib diisi.',
                 'name.string' => 'Nama kategori harus berupa teks.',
                 'name.max' => 'Nama kategori maksimal 100 karakter.',
@@ -84,6 +108,7 @@ class ProductCategoryController extends Controller
 
             DB::transaction(function () use ($request, $validated) {
                 ProductCategory::create([
+                    'group_id' => $validated['group_id'],
                     'name' => $validated['name'],
                     'image_url' => $request->hasFile('image')
                         ? $this->storeImageAndReturnUrl($request->file('image'))
@@ -110,7 +135,12 @@ class ProductCategoryController extends Controller
         $request->merge(['name' => $this->normalizeName($request->input('name'))]);
 
         try {
-            $validated = $request->validateWithBag('editCategory', [
+            $validated = $request->validate([
+                'group_id' => [
+                    'required',
+                    'uuid',
+                    Rule::exists('product_category_groups', 'id')->whereNull('deleted_at'),
+                ],
                 'name' => [
                     'required',
                     'string',
@@ -129,6 +159,9 @@ class ProductCategoryController extends Controller
                 'update_url' => ['nullable', 'string'],
                 'current_image_url' => ['nullable', 'string'],
             ], [
+                'group_id.required' => 'Grup kategori wajib dipilih.',
+                'group_id.uuid' => 'Grup kategori tidak valid.',
+                'group_id.exists' => 'Grup kategori tidak ditemukan atau sudah dihapus.',
                 'name.required' => 'Nama kategori wajib diisi.',
                 'name.string' => 'Nama kategori harus berupa teks.',
                 'name.max' => 'Nama kategori maksimal 100 karakter.',
@@ -147,6 +180,7 @@ class ProductCategoryController extends Controller
                 }
 
                 $product_category->update([
+                    'group_id' => $validated['group_id'],
                     'name' => $validated['name'],
                     'image_url' => $imageUrl,
                 ]);

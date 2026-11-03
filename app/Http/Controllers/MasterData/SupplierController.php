@@ -59,6 +59,7 @@ class SupplierController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Suppliers',
+            'eyebrow' => 'Master Produk / Supplier',
             'description' => 'Kelola data supplier dan kontak.',
             'searchPlaceholder' => 'Cari supplier...',
             'items' => $suppliers,

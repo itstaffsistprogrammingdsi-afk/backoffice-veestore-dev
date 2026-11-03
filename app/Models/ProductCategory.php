@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -19,6 +20,7 @@ class ProductCategory extends Model
     protected $fillable = [
         'name',
         'image_url',
+        'group_id',
     ];
 
     protected function casts(): array
@@ -50,6 +52,11 @@ class ProductCategory extends Model
         $name = trim((string) $name);
 
         return preg_replace('/\s+/u', ' ', $name) ?? $name;
+    }
+
+    public function group(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategoryGroup::class, 'group_id');
     }
 
     public function products()

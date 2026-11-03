@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -131,11 +132,13 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
     <div class="pd-page">
         <div class="pd-header">
             <div>
-                <span class="pd-eyebrow">Master Data</span>
+                <span class="pd-eyebrow">Promo / Produk Diskon</span>
                 <h1>Product Discounts</h1>
                 <p>Atur produk yang mengikuti diskon dan cakupannya.</p>
             </div>
         </div>
+
+        <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

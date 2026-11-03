@@ -78,6 +78,7 @@ class ProductController extends Controller
 
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Products',
+            'eyebrow' => 'Master Produk',
             'description' => 'Kelola katalog produk.',
             'searchPlaceholder' => 'Cari produk...',
             'items' => $products,
