@@ -42,6 +42,12 @@ class EcommerceOrder extends Model
     {
         return $this->belongsTo(Warehouse::class, 'handled_by_warehouse_id', 'id');
     }
+
+    public function payment()
+    {
+        return $this->belongsTo(Payment::class, 'payment_id', 'id');
+    }
+
     public function shippingAddress()
 {
     return $this->belongsTo(

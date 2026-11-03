@@ -22,27 +22,40 @@ class PaymentMethodController extends Controller
     public function index(Request $request)
     {
         $q = trim((string) $request->get('q', ''));
+        $type = trim((string) $request->get('type', ''));
+        $type = in_array($type, array_keys(PaymentMethod::TYPE_LABELS), true) ? $type : null;
 
         $methods = PaymentMethod::when(
             $q,
             fn ($qry) => $qry->where('name', 'ILIKE', "%{$q}%")
         )
+            ->when($type, fn ($qry) => $qry->where('type', $type))
             ->orderBy('name')
             ->paginate(10)
             ->withQueryString();
 
+        $typeOptions = collect(PaymentMethod::TYPE_LABELS)
+            ->map(fn (string $label, string $value) => ['value' => $value, 'label' => $label])
+            ->values()
+            ->all();
+
         return Inertia::render('MasterData/SimpleCrud', [
             'title' => 'Payment Methods',
-            'description' => 'Kelola metode pembayaran.',
+            'description' => 'Kelola metode pembayaran yang dipakai transaksi store dan ecommerce.',
             'searchPlaceholder' => 'Cari metode pembayaran...',
             'items' => $methods,
             'columns' => [
                 ['key' => 'name', 'label' => 'Nama'],
+                ['key' => 'type_label', 'label' => 'Tipe'],
             ],
             'fields' => [
                 ['key' => 'name', 'label' => 'Nama Payment Method', 'required' => true],
+                ['key' => 'type', 'label' => 'Tipe', 'type' => 'select', 'options' => $typeOptions, 'required' => true],
             ],
-            'filters' => ['q' => $q],
+            'filters' => ['q' => $q, 'type' => $type],
+            'extraFilters' => [
+                ['key' => 'type', 'label' => 'Tipe', 'value' => $type, 'options' => $typeOptions],
+            ],
             'urls' => [
                 'index' => route('master-data.payment-methods.index'),
                 'store' => route('master-data.payment-methods.store'),
@@ -56,6 +69,7 @@ class PaymentMethodController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150', 'unique:payment_methods,name'],
+            'type' => ['nullable', 'string', Rule::in(array_keys(PaymentMethod::TYPE_LABELS))],
         ]);
 
         PaymentMethod::create($data);
@@ -73,6 +87,7 @@ class PaymentMethodController extends Controller
                 'max:150',
                 Rule::unique('payment_methods', 'name')->ignore($payment_method->id, 'id'),
             ],
+            'type' => ['nullable', 'string', Rule::in(array_keys(PaymentMethod::TYPE_LABELS))],
         ]);
 
         $payment_method->update($data);

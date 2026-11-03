@@ -22,6 +22,7 @@ class EcommerceOrdersTest extends TestCase
                 ->has('stores')
                 ->has('warehouses')
                 ->has('statuses')
+                ->has('paymentMethods')
                 ->has('stockIssueOrderIds')
                 ->has('filters')
                 ->has('urls'));
