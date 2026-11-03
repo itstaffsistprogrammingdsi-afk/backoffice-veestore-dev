@@ -74,7 +74,7 @@ body { margin: 0; background: var(--app-bg); color: var(--app-ink); font: 14px/1
 }
 @media print {
     @page { size: A4; margin: 10mm; }
-    body { background: #fff; color: #1d2a25; }
+    body { background: #fff; color: #1d2a35; }
     .print-toolbar { display: none; }
     .print-sheet { max-width: none; gap: 8mm; }
     .print-voucher { break-inside: avoid; box-shadow: none; min-height: 230px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

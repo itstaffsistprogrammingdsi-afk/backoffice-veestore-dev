@@ -140,7 +140,7 @@
 
 .veestore-index-theme .btn-outline-secondary {
     color: var(--index-muted);
-    border-color: #89968f;
+    border-color: #8fa3b5;
     background: var(--index-surface);
 }
 
@@ -152,7 +152,7 @@
 
 .veestore-index-theme .table-responsive {
     border-radius: 0 0 var(--index-radius) var(--index-radius);
-    scrollbar-color: #9ba89f transparent;
+    scrollbar-color: #9db3c6 transparent;
     scrollbar-width: thin;
 }
 
@@ -220,7 +220,7 @@
     padding: .4rem;
     border: 1px solid var(--index-border);
     border-radius: .55rem;
-    box-shadow: 0 .65rem 1.5rem rgba(26, 43, 35, .14);
+    box-shadow: 0 .65rem 1.5rem rgba(25, 44, 62, .14);
 }
 
 .veestore-index-theme .dropdown-item {
@@ -255,7 +255,7 @@
     overflow: hidden;
     border: 1px solid var(--index-border);
     border-radius: .65rem;
-    box-shadow: 0 1rem 2.5rem rgba(26, 43, 35, .2);
+    box-shadow: 0 1rem 2.5rem rgba(25, 44, 62, .2);
 }
 
 .veestore-index-theme .modal-header,

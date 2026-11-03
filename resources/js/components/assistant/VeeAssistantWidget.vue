@@ -186,7 +186,7 @@ const onKeydown = (event: KeyboardEvent) => {
     border: 1px solid var(--app-border);
     border-radius: 0.75rem;
     background: var(--app-surface);
-    box-shadow: 0 0.9rem 2rem rgba(26, 43, 35, 0.18);
+    box-shadow: 0 0.9rem 2rem rgba(25, 44, 62, 0.18);
     pointer-events: auto;
 }
 

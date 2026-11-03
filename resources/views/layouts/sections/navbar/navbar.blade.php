@@ -271,7 +271,7 @@ if ($user) {
         background: #fff;
         border: 1px solid var(--vee-border);
         border-radius: .65rem;
-        box-shadow: 0 .5rem 1.2rem rgba(26, 43, 35, .16);
+        box-shadow: 0 .5rem 1.2rem rgba(25, 44, 62, .16);
         z-index: 1090;
         display: none;
     }
@@ -388,7 +388,7 @@ if ($user) {
     .sidebar-floating-toggle:hover,
     .sidebar-floating-toggle:focus-visible {
         color: #fff;
-        background: #76272f;
+        background: var(--vee-blue-hover);
     }
 
     .sidebar-floating-toggle:focus-visible {
@@ -432,12 +432,12 @@ if ($user) {
         overflow: hidden;
         border: 1px solid var(--vee-border);
         border-radius: .8rem;
-        box-shadow: 0 .65rem 1.5rem rgba(26, 43, 35, .18);
+        box-shadow: 0 .65rem 1.5rem rgba(25, 44, 62, .18);
     }
 
     .account-profile-cover {
         min-height: 118px;
-        background: var(--vee-forest);
+        background: var(--vee-navy);
     }
 
     .account-profile-avatar {

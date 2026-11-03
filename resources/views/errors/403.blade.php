@@ -23,7 +23,7 @@
         :root {
             --bg: #f5f6f3;
             --surface: #ffffff;
-            --ink: #1d2a25;
+            --ink: #1d2a35;
             --muted: #58665f;
             --border: #dbe2dc;
             --accent: #b6474f;

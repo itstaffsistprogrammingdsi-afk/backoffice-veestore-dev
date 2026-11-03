@@ -106,7 +106,7 @@ defineProps<{
     border: 1px solid var(--app-border);
     border-radius: 1rem;
     background: var(--app-surface);
-    box-shadow: 0 1rem 2rem rgba(26, 43, 35, 0.1);
+    box-shadow: 0 1rem 2rem rgba(25, 44, 62, 0.1);
 }
 
 .auth-card h1 {

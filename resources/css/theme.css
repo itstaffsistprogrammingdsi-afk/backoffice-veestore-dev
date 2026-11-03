@@ -15,9 +15,9 @@
     --app-accent-soft: #eaf4ff;
     --app-control-accent: #155d9e;
     --app-focus: #155d9e;
-    --app-hero-bg: #d7f5e2;
-    --app-hero-text: #18372e;
-    --app-hero-muted: #35594b;
+    --app-hero-bg: #dcecff;
+    --app-hero-text: #183b5a;
+    --app-hero-muted: #345b7d;
     --app-hero-eyebrow: #155d9e;
     --app-sidebar-bg: #ffffff;
     --app-sidebar-soft: #f5f9ff;
@@ -26,15 +26,15 @@
     --app-sidebar-border: #d9e4ef;
     --app-sidebar-active-bg: #eaf4ff;
     --app-sidebar-active-ink: #155d9e;
-    --app-success-bg: #e2f7e9;
-    --app-success-ink: #176344;
+    --app-success-bg: #eaf4ff;
+    --app-success-ink: #155d9e;
     --app-danger-bg: #ffe8e4;
     --app-danger-ink: #a3352d;
     --app-warning-bg: #fff3ca;
     --app-warning-ink: #795000;
     --app-info-bg: #e3f4fa;
     --app-info-ink: #135e78;
-    --app-shadow: 0 0.65rem 1.6rem rgba(26, 43, 35, 0.12);
+    --app-shadow: 0 0.65rem 1.6rem rgba(25, 44, 62, 0.12);
 }
 
 html[data-theme="dark"] {
@@ -65,8 +65,8 @@ html[data-theme="dark"] {
     --app-sidebar-border: #2f414c;
     --app-sidebar-active-bg: #1d3145;
     --app-sidebar-active-ink: #9ccfff;
-    --app-success-bg: #193b27;
-    --app-success-ink: #9af0b0;
+    --app-success-bg: #1d3145;
+    --app-success-ink: #9ccfff;
     --app-danger-bg: #421e1b;
     --app-danger-ink: #ffb1a7;
     --app-warning-bg: #403410;
@@ -244,6 +244,41 @@ h6 {
     background-color: var(--app-accent-strong) !important;
     border-color: var(--app-accent-strong) !important;
     color: var(--app-on-accent) !important;
+}
+
+.btn-success {
+    --bs-btn-color: var(--app-on-accent);
+    --bs-btn-bg: var(--app-accent);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-on-accent);
+    --bs-btn-hover-bg: var(--app-accent-strong);
+    --bs-btn-hover-border-color: var(--app-accent-strong);
+    --bs-btn-active-color: var(--app-on-accent);
+    --bs-btn-active-bg: var(--app-accent-strong);
+    --bs-btn-active-border-color: var(--app-accent-strong);
+    --bs-btn-disabled-color: var(--app-on-accent);
+    --bs-btn-disabled-bg: var(--app-accent);
+    --bs-btn-disabled-border-color: var(--app-accent);
+}
+
+.btn-outline-success {
+    --bs-btn-color: var(--app-accent-strong);
+    --bs-btn-border-color: var(--app-accent);
+    --bs-btn-hover-color: var(--app-accent-strong);
+    --bs-btn-hover-bg: var(--app-accent-soft);
+    --bs-btn-hover-border-color: var(--app-accent);
+    --bs-btn-active-color: var(--app-accent-strong);
+    --bs-btn-active-bg: var(--app-accent-soft);
+    --bs-btn-active-border-color: var(--app-accent);
+}
+
+.bg-success {
+    background-color: var(--app-accent) !important;
+    color: var(--app-on-accent) !important;
+}
+
+.text-success {
+    color: var(--app-success-ink) !important;
 }
 
 .btn-outline-primary {

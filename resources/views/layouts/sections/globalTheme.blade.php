@@ -4,22 +4,20 @@
     --vee-blue-dark: #155d9e;
     --vee-blue-hover: #104a80;
     --vee-blue-soft: #eaf4ff;
-    --vee-forest: #233c34;
-    --vee-forest-dark: #172b24;
-    --vee-mint: #39c982;
-    --vee-mint-soft: #d7f5e2;
+    --vee-navy: #25465f;
+    --vee-navy-dark: #142d40;
     --vee-sand: #ffd84a;
-    --vee-hero-bg: #d7f5e2;
-    --vee-hero-text: #18372e;
-    --vee-hero-muted: #35594b;
+    --vee-hero-bg: #dcecff;
+    --vee-hero-text: #183b5a;
+    --vee-hero-muted: #345b7d;
     --vee-ink: #1d2a35;
     --vee-canvas: #ffffff;
     --vee-surface: #ffffff;
     --vee-surface-2: #f5f9ff;
     --vee-border: #d9e4ef;
     --vee-muted: #526474;
-    --vee-success: #176344;
-    --vee-success-soft: #e2f7e9;
+    --vee-success: #155d9e;
+    --vee-success-soft: #eaf4ff;
     --vee-info: #135e78;
     --vee-info-soft: #e3f4fa;
     --vee-warning: #795000;
@@ -33,7 +31,7 @@
     --bs-secondary: var(--vee-muted);
     --bs-secondary-rgb: 82, 100, 116;
     --bs-success: var(--vee-success);
-    --bs-success-rgb: 23, 99, 68;
+    --bs-success-rgb: 21, 93, 158;
     --bs-info: var(--vee-info);
     --bs-info-rgb: 19, 94, 120;
     --bs-warning: var(--vee-warning);
@@ -83,7 +81,7 @@
 
   .layout-menu.bg-menu-theme {
     color: rgba(255, 255, 255, .82);
-    background: var(--vee-forest-dark) !important;
+    background: var(--vee-navy-dark) !important;
     box-shadow: none;
   }
 
@@ -178,7 +176,7 @@
   .offcanvas {
     border-color: var(--vee-border) !important;
     background-color: var(--vee-surface);
-    box-shadow: 0 .5rem 1.2rem rgba(26, 43, 35, .16);
+    box-shadow: 0 .5rem 1.2rem rgba(25, 44, 62, .16);
   }
 
   .card-header,
@@ -206,7 +204,7 @@
     background: var(--vee-success) !important;
     box-shadow: none !important;
   }
-  .btn-success:hover { color: #fff !important; border-color: #19523d !important; background: #19523d !important; }
+  .btn-success:hover { color: #fff !important; border-color: var(--vee-blue-hover) !important; background: var(--vee-blue-hover) !important; }
 
   .btn-info {
     color: #fff !important;
@@ -238,7 +236,7 @@
   .btn-outline-info { color: var(--vee-info) !important; border-color: var(--vee-info) !important; background: var(--vee-surface) !important; }
   .btn-outline-warning { color: var(--vee-warning) !important; border-color: var(--vee-warning) !important; background: var(--vee-surface) !important; }
   .btn-outline-danger { color: var(--vee-danger) !important; border-color: var(--vee-danger) !important; background: var(--vee-surface) !important; }
-  .btn-outline-secondary { color: var(--vee-muted) !important; border-color: #89968f !important; background: var(--vee-surface) !important; }
+  .btn-outline-secondary { color: var(--vee-muted) !important; border-color: #8fa3b5 !important; background: var(--vee-surface) !important; }
 
   .btn-outline-primary:hover,
   .btn-outline-beauty:hover { color: var(--vee-blue-dark) !important; background: var(--vee-blue-soft) !important; }
@@ -249,7 +247,7 @@
   .btn-outline-secondary:hover { color: var(--vee-blue-dark) !important; border-color: var(--vee-blue) !important; background: var(--vee-blue-soft) !important; }
 
   .btn-dark,
-  .bg-dark { background: var(--vee-forest-dark) !important; }
+  .bg-dark { background: var(--vee-navy-dark) !important; }
 
   .form-control,
   .form-select,
@@ -301,7 +299,7 @@
   .badge.bg-danger, .bg-label-danger, .badge-soft-danger { color: var(--vee-danger) !important; background: var(--vee-danger-soft) !important; }
   .badge-soft-secondary { color: var(--vee-muted) !important; background: var(--vee-surface-2) !important; }
 
-  .alert-success { color: var(--vee-success) !important; border-color: #c7e5d4 !important; background: var(--vee-success-soft) !important; }
+  .alert-success { color: var(--vee-success) !important; border-color: #c5def5 !important; background: var(--vee-success-soft) !important; }
   .alert-info { color: var(--vee-info) !important; border-color: #c9e0e7 !important; background: var(--vee-info-soft) !important; }
   .alert-warning { color: var(--vee-warning) !important; border-color: #ead9a8 !important; background: var(--vee-warning-soft) !important; }
   .alert-danger { color: var(--vee-danger) !important; border-color: #efc9cc !important; background: var(--vee-danger-soft) !important; }
