@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -122,6 +122,40 @@ class BranchOperationNotificationService
             ];
         }
 
+        foreach ($this->stockBarrierSnapshots() as $scope => [$count, $fingerprint]) {
+            $key = 'stock-barrier-'.$scope;
+            $isRead = ($readFingerprints[$key] ?? null) === $fingerprint;
+
+            if ($count === 0 || $isRead) {
+                continue;
+            }
+
+            $isStore = $scope === 'store';
+            $url = $isStore
+                ? route('operations.store-stock.index')
+                : route('operations.stock.index');
+            $title = $isStore
+                ? 'Stok Store Menyentuh Barrier'
+                : 'Stok Warehouse Menyentuh Barrier';
+
+            $notifications[] = [
+                'key' => $key,
+                'fingerprint' => $fingerprint,
+                'count' => $count,
+                'menu_slug' => $isStore ? 'operations-store-stock' : 'operations-stock',
+                'title' => $title,
+                'subtitle' => number_format($count, 0, ',', '.').' produk perlu ditinjau',
+                'icon' => 'mdi-package-variant-closed-alert',
+                'severity' => 'danger',
+                'url' => $url,
+                'open_url' => route('notifications.open', [
+                    'key' => $key,
+                    'redirect' => $url,
+                ]),
+                'time' => 'Stok tersedia sudah mencapai ambang barrier',
+            ];
+        }
+
         return [
             // Navbar badge represents notification items/categories, while each
             // item retains its own underlying order/request count.
@@ -137,7 +171,9 @@ class BranchOperationNotificationService
     public function markRead(string $notificationKey, ?string $userId = null): void
     {
         $userId ??= auth()->id();
-        if (! $userId || ! Schema::hasTable('notification_reads')) {
+        $connection = 'immostore_backoffice';
+
+        if (! $userId || ! Schema::connection($connection)->hasTable('notification_reads')) {
             return;
         }
 
@@ -150,7 +186,7 @@ class BranchOperationNotificationService
         }
 
         $now = now();
-        DB::table('notification_reads')->upsert([
+        DB::connection($connection)->table('notification_reads')->upsert([
             [
                 'id' => (string) Str::uuid(),
                 'user_id' => $userId,
@@ -202,13 +238,17 @@ class BranchOperationNotificationService
         $lock = Cache::lock($key.':refresh', 120);
         if (! $lock->get()) {
             // Serve the previous snapshot during refresh instead of repeating expensive queries.
-            if ($cached) return $cached;
+            if ($cached) {
+                return $cached;
+            }
             throw new \RuntimeException('Ringkasan notifikasi sedang disiapkan.');
         }
 
         try {
             $latest = Cache::get($key);
-            if ($latest && $latest['fresh_until'] > time()) return $latest;
+            if ($latest && $latest['fresh_until'] > time()) {
+                return $latest;
+            }
             $branches = [];
             foreach ($definitions as $name => $definition) {
                 $branches[$name] = $this->statusSnapshot($definition['table'], $definition['statuses']);
@@ -221,6 +261,7 @@ class BranchOperationNotificationService
                 'fresh_until' => time() + 30,
             ];
             Cache::put($key, $result, 300);
+
             return $result;
         } finally {
             $lock->release();
@@ -230,19 +271,53 @@ class BranchOperationNotificationService
     private function readFingerprints(): array
     {
         $userId = auth()->id();
-        if (! $userId || ! Schema::hasTable('notification_reads')) {
+        $connection = 'immostore_backoffice';
+
+        if (! $userId || ! Schema::connection($connection)->hasTable('notification_reads')) {
             return [];
         }
 
-        return DB::table('notification_reads')
+        return DB::connection($connection)->table('notification_reads')
             ->where('user_id', $userId)
             ->pluck('fingerprint', 'notification_key')
+            ->all();
+    }
+
+    /** @return array<string, array{0: int, 1: ?string}> */
+    private function stockBarrierSnapshots(): array
+    {
+        $connection = 'immostore_backoffice';
+
+        if (! Schema::connection($connection)->hasTable('stock_barrier_alert_states')) {
+            return [];
+        }
+
+        $snapshots = DB::connection($connection)->table('stock_barrier_alert_states')
+            ->where('is_active', true)
+            ->select('scope_type')
+            ->selectRaw('COUNT(*)::int AS alert_count, MAX(activated_at) AS latest_activation')
+            ->groupBy('scope_type')
+            ->get()
+            ->keyBy('scope_type');
+
+        return collect(['store', 'warehouse'])
+            ->mapWithKeys(function (string $scope) use ($snapshots): array {
+                $snapshot = $snapshots->get($scope);
+                $count = (int) ($snapshot->alert_count ?? 0);
+                $activation = $snapshot->latest_activation ?? null;
+                $fingerprint = $count > 0
+                    ? hash('sha256', $count.'|'.$activation)
+                    : null;
+
+                return [$scope => [$count, $fingerprint]];
+            })
             ->all();
     }
 
     private function fingerprint(array $ids): ?string
     {
         sort($ids, SORT_STRING);
+
         return $ids === [] ? null : hash('sha256', implode('|', $ids));
     }
 }

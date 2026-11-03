@@ -36,6 +36,8 @@ class AreaHubsTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Reports/Index')
                 ->has('summary')
-                ->has('urls'));
+                ->has('urls')
+                ->where('urls.overview', route('reports.business-overview.index'))
+                ->where('urls.preference', route('reports.crm.customer-preference.index')));
     }
 }

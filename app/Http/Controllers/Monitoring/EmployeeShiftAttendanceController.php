@@ -408,7 +408,7 @@ class EmployeeShiftAttendanceController extends Controller
             'employeeOvertimes' => $employeeOvertimes,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.employee-shift-attendance.export')],
         ]);
     }
 

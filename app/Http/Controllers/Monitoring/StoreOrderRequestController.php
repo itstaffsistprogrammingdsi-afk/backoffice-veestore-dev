@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\StoreOrderRequestExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -10,6 +9,7 @@ use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StoreOrderRequestController extends Controller
@@ -21,6 +21,17 @@ class StoreOrderRequestController extends Controller
     }
 
     public function index(Request $request)
+    {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Order Requests',
+            'description' => 'Laporan monitoring.',
+            'data' => $this->report($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.store-order-requests.export')],
+        ]);
+    }
+
+    public function report(Request $request): array
     {
         $filters = $this->getFilters($request);
 
@@ -57,28 +68,29 @@ class StoreOrderRequestController extends Controller
             ->paginate($filters['per_page'])
             ->withQueryString();
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Store Order Requests',
-            'description' => 'Laporan monitoring.',
-            'data' => [
-            'rows'        => $rows,
-            'summary'     => $summary,
-            'stores'      => $stores,
-            'warehouses'  => $warehouses,
+        $statuses = DB::table('store_orders')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
 
-            'storeId'     => $filters['store_id'],
+        return [
+            'rows' => $rows,
+            'summary' => $summary,
+            'stores' => $stores,
+            'warehouses' => $warehouses,
+            'statuses' => $statuses,
+
+            'storeId' => $filters['store_id'],
             'warehouseId' => $filters['warehouse_id'],
-            'status'      => $filters['status'],
-            'keyword'     => $filters['keyword'],
-            'startDate'   => $filters['start_date'],
-            'endDate'     => $filters['end_date'],
-            'perPage'     => $filters['per_page'],
-            'today'       => $filters['today'],
-            'lastUpdate'  => now()->format('d-m-Y H:i:s'),
-        ],
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
-        ]);
+            'status' => $filters['status'],
+            'keyword' => $filters['keyword'],
+            'startDate' => $filters['start_date'],
+            'endDate' => $filters['end_date'],
+            'perPage' => $filters['per_page'],
+            'today' => $filters['today'],
+            'lastUpdate' => now()->format('d-m-Y H:i:s'),
+        ];
     }
 
     public function export(Request $request)
@@ -116,16 +128,16 @@ class StoreOrderRequestController extends Controller
                 ->value('name') ?? '-';
         }
 
-        $filename = 'store-order-requests-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'store-order-requests-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
             new StoreOrderRequestExport($rows, [
-                'store_name'      => $storeName,
-                'warehouse_name'  => $warehouseName,
-                'status'          => $filters['status'] ?: '-',
-                'keyword'         => $filters['keyword'] ?: '-',
-                'start_date'      => $filters['start_date'],
-                'end_date'        => $filters['end_date'],
+                'store_name' => $storeName,
+                'warehouse_name' => $warehouseName,
+                'status' => $filters['status'] ?: '-',
+                'keyword' => $filters['keyword'] ?: '-',
+                'start_date' => $filters['start_date'],
+                'end_date' => $filters['end_date'],
             ]),
             $filename
         );
@@ -151,19 +163,19 @@ class StoreOrderRequestController extends Controller
 
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
         return [
-            'store_id'     => $this->normalizeNullableString($request->query('store_id')),
+            'store_id' => $this->normalizeNullableString($request->query('store_id')),
             'warehouse_id' => $this->normalizeNullableString($request->query('warehouse_id')),
-            'status'       => $this->normalizeNullableString($request->query('status')),
-            'keyword'      => $this->normalizeNullableString($request->query('keyword')),
-            'start_date'   => $startDate,
-            'end_date'     => $endDate,
-            'per_page'     => $perPage,
-            'today'        => $today,
+            'status' => $this->normalizeNullableString($request->query('status')),
+            'keyword' => $this->normalizeNullableString($request->query('keyword')),
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'per_page' => $perPage,
+            'today' => $today,
         ];
     }
 
@@ -206,10 +218,10 @@ class StoreOrderRequestController extends Controller
                 DB::raw("COALESCE(p.code, '-') as product_code"),
                 DB::raw("COALESCE(p.name, '-') as product_name"),
 
-                DB::raw("COALESCE(sod.product_price, 0)::numeric as product_price"),
-                DB::raw("COALESCE(sod.requested_qty, 0)::int as requested_qty"),
-                DB::raw("COALESCE(sod.approved_qty, 0)::int as approved_qty"),
-                DB::raw("COALESCE(sod.received_qty, 0)::int as received_qty"),
+                DB::raw('COALESCE(sod.product_price, 0)::numeric as product_price'),
+                DB::raw('COALESCE(sod.requested_qty, 0)::int as requested_qty'),
+                DB::raw('COALESCE(sod.approved_qty, 0)::int as approved_qty'),
+                DB::raw('COALESCE(sod.received_qty, 0)::int as received_qty'),
                 DB::raw("COALESCE(sod.note, '-') as note"),
 
                 DB::raw('COALESCE(sod.requested_qty, 0) * COALESCE(sod.product_price, 0) as requested_total'),
@@ -254,7 +266,7 @@ class StoreOrderRequestController extends Controller
     {
         return DB::query()
             ->fromSub($query, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(DISTINCT x.store_order_id)::int as total_orders,
                 COUNT(*)::int as total_rows,
                 COALESCE(SUM(x.requested_qty), 0)::int as total_requested_qty,
@@ -263,13 +275,13 @@ class StoreOrderRequestController extends Controller
                 COALESCE(SUM(x.requested_total), 0)::numeric as total_requested_amount,
                 COALESCE(SUM(x.approved_total), 0)::numeric as total_approved_amount,
                 COALESCE(SUM(x.received_total), 0)::numeric as total_received_amount
-            ")
+            ')
             ->first();
     }
 
     private function normalizeDate(?string $date): ?string
     {
-        if (!$date) {
+        if (! $date) {
             return null;
         }
 
@@ -305,7 +317,7 @@ class StoreOrderRequestController extends Controller
 
     private function applyDeletedAtFilter($query, string $table, ?string $alias = null): void
     {
-        if (!Schema::hasColumn($table, 'deleted_at')) {
+        if (! Schema::hasColumn($table, 'deleted_at')) {
             return;
         }
 

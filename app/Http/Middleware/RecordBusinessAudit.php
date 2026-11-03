@@ -21,19 +21,21 @@ class RecordBusinessAudit
     {
         $response = $next($request);
 
-        if (!in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+        if (! in_array($request->method(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             return $response;
         }
 
         try {
-            if (!Schema::hasTable('business_audit_logs')) {
+            $connection = 'immostore_backoffice';
+
+            if (! Schema::connection($connection)->hasTable('business_audit_logs')) {
                 return $response;
             }
 
             $routeName = $request->route()?->getName();
             $user = $request->user();
 
-            DB::table('business_audit_logs')->insert([
+            DB::connection($connection)->table('business_audit_logs')->insert([
                 'id' => (string) Str::uuid(),
                 'user_id' => $user?->getAuthIdentifier(),
                 'user_name' => $user->name ?? $user->username ?? $user->email ?? null,

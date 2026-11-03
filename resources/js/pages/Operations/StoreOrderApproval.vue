@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 
 defineOptions({ layout: AppLayout });
@@ -122,6 +123,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const warehouseSelectOptions = (warehouses: Array<{ id: string; name: string }>) => warehouses.map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.name,
+}));
+
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -693,10 +705,13 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="approval-store">Store</label>
-                        <select id="approval-store" v-model="filters.store_id" class="form-select form-select-sm">
-                            <option value="">Semua store</option>
-                            <option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            id="approval-store"
+                            v-model="filters.store_id"
+                            :options="storeOptions"
+                            placeholder="Semua store"
+                            search-placeholder="Cari store..."
+                        />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="approval-from">Dari tanggal</label>
@@ -888,18 +903,15 @@ onBeforeUnmount(() => {
                                     <div v-for="(row, index) in rowsFor(detail)" :key="`${detail.id}-${index}`" class="approval-allocation-row">
                                         <div class="approval-field">
                                             <label :for="`warehouse-${detail.id}-${index}`">Gudang</label>
-                                            <select
+                                            <SearchableSelect
                                                 :id="`warehouse-${detail.id}-${index}`"
                                                 v-model="row.warehouse_id"
-                                                class="form-select form-select-sm"
+                                                :options="warehouseSelectOptions(orderDetail.warehouses)"
+                                                placeholder="Pilih gudang"
+                                                search-placeholder="Cari gudang..."
                                                 :disabled="!orderDetail.is_editable || working"
                                                 @change="onWarehouseChange(detail, row)"
-                                            >
-                                                <option value="">Pilih gudang</option>
-                                                <option v-for="warehouse in orderDetail.warehouses" :key="warehouse.id" :value="warehouse.id">
-                                                    {{ warehouse.name }}
-                                                </option>
-                                            </select>
+                                            />
                                         </div>
 
                                         <div class="approval-field approval-field-qty">

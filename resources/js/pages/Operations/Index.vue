@@ -19,6 +19,7 @@ interface Props {
         stock: string;
         inbound: string;
         outbound: string;
+        customer_demographics: string;
         store_orders: string;
         store_returns: string;
     };
@@ -79,6 +80,10 @@ const modules = [
                 <Link :href="props.urls.outbound" class="hub-button hub-button-light">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
                     Outbound
+                </Link>
+                <Link :href="props.urls.customer_demographics" class="hub-button hub-button-light">
+                    <i class="mdi mdi-account-details-outline me-1"></i>
+                    Customer Demographics
                 </Link>
                 <Link v-if="props.can_review_store_orders" :href="props.urls.store_orders" class="hub-button hub-button-light">
                     <i class="mdi mdi-clipboard-check-outline me-1"></i>

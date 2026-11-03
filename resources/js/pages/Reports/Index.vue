@@ -5,39 +5,54 @@ defineOptions({ layout: AppLayout });
 
 import { Head, Link } from '@inertiajs/vue3';
 
-interface ModelRun {
-    model_name: string;
-    completed_at: string | null;
-}
-
 interface Props {
-    latestRun: ModelRun | null;
     summary: {
-        total: number;
-        critical: number;
-        high: number;
-        recommended_units: number;
+        revenue: number;
+        transactions: number;
+        average_transaction: number;
+        buyers: number;
+    };
+    orders: {
+        ecommerce_total: number;
+        ecommerce_open: number;
+        store_order_open: number;
+        return_open: number;
+    };
+    inventory: {
+        warehouse_units: number;
+        store_units: number;
+        low_stock_alerts: number;
+        expiring_90_units: number;
     };
     urls: {
+        overview: string;
         dashboard: string;
-        ai: string;
         assistant: string;
         monitoring: string;
         crm: string;
+        demographics: string;
+        preference: string;
         exports: string;
     };
 }
 
 const props = defineProps<Props>();
 
+const currency = (value: number) => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+}).format(value);
+
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 
 const modules = [
     { title: 'Dashboard Analitik', description: 'Ringkasan performa penjualan dan operasional.', icon: 'mdi-view-dashboard-outline', url: 'dashboard', action: 'Buka Dashboard' },
-    { title: 'AI Analytics', description: 'Forecast penjualan dan rekomendasi restock.', icon: 'mdi-robot-outline', url: 'ai', action: 'Buka AI Analytics' },
-    { title: 'AI Assistant', description: 'Tanya data operasional dengan bahasa natural.', icon: 'mdi-chat-processing-outline', url: 'assistant', action: 'Buka Assistant' },
+    { title: 'VEE Assistant', description: 'Tanya data operasional dengan bahasa natural dan jawaban dari data terkini.', icon: 'mdi-chat-processing-outline', url: 'assistant', action: 'Buka VEE' },
     { title: 'Monitoring', description: 'Command center, stok, omset, dan audit operasional.', icon: 'mdi-monitor-dashboard', url: 'monitoring', action: 'Buka Monitoring' },
-    { title: 'CRM', description: 'Profil customer, demografi, dan aktivitas pelanggan.', icon: 'mdi-account-heart-outline', url: 'crm', action: 'Buka CRM' },
+    { title: 'CRM', description: 'Profil customer dan aktivitas pelanggan.', icon: 'mdi-account-heart-outline', url: 'crm', action: 'Buka CRM' },
+    { title: 'Customer Demographics', description: 'Segmentasi gender, usia, wilayah, tier, dan kanal registrasi.', icon: 'mdi-account-details-outline', url: 'demographics', action: 'Buka Demografi' },
+    { title: 'Customer Preference', description: 'Hubungkan usia, gender, wilayah, dan tier dengan produk yang dibeli.', icon: 'mdi-account-star-outline', url: 'preference', action: 'Buka Preferensi' },
     { title: 'Export Saya', description: 'Unduh laporan yang sudah diproses.', icon: 'mdi-file-export-outline', url: 'exports', action: 'Lihat Export' },
 ];
 </script>
@@ -49,28 +64,45 @@ const modules = [
         <section class="hub-hero">
             <div>
                 <span class="hub-eyebrow">Area Laporan</span>
-                <h2>Analitik dan laporan terpisah dari operasional</h2>
+                <h2>Pusat laporan yang mudah dibaca</h2>
                 <p>
-                    Fokus pada insight, monitoring, dan export tanpa mengganggu alur kerja harian.
+                    Mulai dari ringkasan penjualan, pesanan, dan stok &amp; logistik, lalu telusuri detail ke monitoring.
                 </p>
             </div>
-            <Link :href="props.urls.dashboard" class="hub-primary">
-                <i class="mdi mdi-chart-line me-1"></i>
-                Buka Dashboard
+            <Link :href="props.urls.overview" class="hub-primary">
+                <i class="mdi mdi-view-dashboard-outline me-1"></i>
+                Buka Ringkasan Usaha
             </Link>
         </section>
 
         <div class="row g-3 mb-3">
             <div v-for="stat in [
-                { label: 'Rekomendasi AI', value: summary.total },
-                { label: 'Risiko Kritis', value: summary.critical },
-                { label: 'Risiko Tinggi', value: summary.high },
-                { label: 'Saran Restock', value: summary.recommended_units }
+                { label: 'Omzet 30 hari', value: currency(summary.revenue) },
+                { label: 'Transaksi', value: formatNumber(summary.transactions) },
+                { label: 'Stok menipis', value: formatNumber(inventory.low_stock_alerts) },
+                { label: 'Order terbuka', value: formatNumber(orders.ecommerce_open + orders.store_order_open + orders.return_open) }
             ]" :key="stat.label" class="col-6 col-xl-3">
                 <div class="hub-stat">
                     <span>{{ stat.label }}</span>
-                    <strong>{{ formatNumber(stat.value) }}</strong>
+                    <strong>{{ stat.value }}</strong>
                 </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div v-for="domain in [
+                { title: 'Penjualan', description: 'Nilai penjualan lunas, transaksi, channel, dan produk terlaris.', anchor: 'penjualan', icon: 'mdi-cash-multiple' },
+                { title: 'Pesanan', description: 'Status pesanan, antrean SLA, permintaan store, dan retur.', anchor: 'pesanan', icon: 'mdi-clipboard-check-outline' },
+                { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' }
+            ]" :key="domain.title" class="col-md-4">
+                <a :href="`${props.urls.overview}#${domain.anchor}`" class="hub-domain">
+                    <span class="hub-domain-icon"><i class="mdi" :class="domain.icon"></i></span>
+                    <div>
+                        <h3>{{ domain.title }}</h3>
+                        <p>{{ domain.description }}</p>
+                    </div>
+                    <i class="mdi mdi-arrow-right hub-domain-arrow"></i>
+                </a>
             </div>
         </div>
 
@@ -100,6 +132,12 @@ const modules = [
 .hub-stat { height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
 .hub-stat span { display: block; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .hub-stat strong { display: block; margin-top: 0.25rem; font-size: 1.45rem; }
+.hub-domain { display: flex; align-items: flex-start; gap: 0.75rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); color: var(--app-ink); text-decoration: none; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
+.hub-domain:hover { border-color: var(--app-accent); }
+.hub-domain-icon { display: grid; flex: 0 0 auto; width: 2.3rem; height: 2.3rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.2rem; }
+.hub-domain h3 { margin: 0 0 0.2rem; font-size: 0.95rem; }
+.hub-domain p { margin: 0; color: var(--app-muted); font-size: 0.78rem; line-height: 1.45; }
+.hub-domain-arrow { margin-left: auto; color: var(--app-accent-ink); }
 .hub-card { height: 100%; padding: 1.35rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
 .hub-card-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 1rem; border-radius: 0.75rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.5rem; }
 .hub-card h3 { margin: 0 0 0.4rem; font-size: 1.1rem; }

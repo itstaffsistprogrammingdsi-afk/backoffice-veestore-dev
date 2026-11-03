@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, reactive, ref } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface Option {
     id: string;
@@ -75,6 +76,16 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+})));
+
+const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.name,
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -240,17 +251,11 @@ const paymentStatusClass = (status: string | null | undefined) => {
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label">Store</label>
-                        <select v-model="form.store_id" class="form-select form-select-sm">
-                            <option value="">Semua</option>
-                            <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." />
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label">Warehouse</label>
-                        <select v-model="form.warehouse_id" class="form-select form-select-sm">
-                            <option value="">Semua</option>
-                            <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
-                        </select>
+                        <SearchableSelect v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
                     </div>
                     <div class="col-12 col-md-4 col-lg-3">
                         <label class="form-label">Metode Pembayaran</label>
@@ -343,17 +348,11 @@ const paymentStatusClass = (status: string | null | undefined) => {
                                         </div>
                                         <div v-if="editForm.handler_type === 'store'" class="col-md-3">
                                             <label class="form-label">Store</label>
-                                            <select v-model="editForm.store_id" class="form-select form-select-sm">
-                                                <option value="">Pilih store</option>
-                                                <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                                            </select>
+                                            <SearchableSelect v-model="editForm.store_id" :options="storeOptions" placeholder="Pilih store" search-placeholder="Cari store..." />
                                         </div>
                                         <div v-else class="col-md-3">
                                             <label class="form-label">Warehouse</label>
-                                            <select v-model="editForm.warehouse_id" class="form-select form-select-sm">
-                                                <option value="">Pilih warehouse</option>
-                                                <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
-                                            </select>
+                                            <SearchableSelect v-model="editForm.warehouse_id" :options="warehouseOptions" placeholder="Pilih warehouse" search-placeholder="Cari warehouse..." />
                                         </div>
                                         <div class="col-md-3 d-flex gap-2">
                                             <button class="btn btn-sm btn-primary" type="button" @click="save(order)">Simpan</button>

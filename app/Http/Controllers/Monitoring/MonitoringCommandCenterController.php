@@ -18,6 +18,7 @@ class MonitoringCommandCenterController extends Controller
 
         return Inertia::render('Monitoring/Index', [
             'monitoringGroups' => $monitoringGroups,
+            'overviewUrl' => route('reports.business-overview.index'),
         ]);
     }
 
@@ -78,6 +79,39 @@ class MonitoringCommandCenterController extends Controller
                     'items' => $items,
                 ];
             })
+            ->flatMap(function (array $group) {
+                if ($group['slug'] !== 'monitoring-sales-payment') {
+                    return [$group];
+                }
+
+                $paymentItems = collect($group['items'])
+                    ->filter(fn (array $item) => preg_match('/payment-income|payment-reconciliation|store-payment|ecommerce-payment/', $item['url']) === 1)
+                    ->values()
+                    ->all();
+
+                $performanceItems = collect($group['items'])
+                    ->reject(fn (array $item) => in_array($item, $paymentItems, true))
+                    ->values()
+                    ->all();
+
+                return [
+                    [
+                        ...$group,
+                        'name' => 'Pembayaran & Pemasukan',
+                        'icon' => 'mdi-credit-card-check-outline',
+                        'description' => 'Pemasukan realtime, rekonsiliasi, dan pembayaran store/ecommerce.',
+                        'items' => $paymentItems,
+                    ],
+                    [
+                        ...$group,
+                        'slug' => 'monitoring-sales-performance',
+                        'name' => 'Omzet & Kasir',
+                        'icon' => 'mdi-chart-line',
+                        'description' => 'Omzet cabang, omset kotor & bersih, produk terlaris, shift kasir, dan void.',
+                        'items' => $performanceItems,
+                    ],
+                ];
+            })
             ->filter(fn (array $group) => ! empty($group['items']))
             ->values()
             ->all();
@@ -120,59 +154,136 @@ class MonitoringCommandCenterController extends Controller
 
     public function qualityControl(Request $request)
     {
-        $warehouseRows = DB::table('warehouse_qc as qc')
-            ->leftJoin('warehouses as w', 'w.id', '=', 'qc.warehouse_id')
-            ->leftJoin('items as i', 'i.id', '=', 'qc.item_id')
-            ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
-            ->leftJoin('item_conditions as ic', 'ic.id', '=', 'qc.item_condition_id')
-            ->leftJoin('users as u', 'u.id', '=', 'qc.performed_by')
-            ->select('qc.*', 'w.name as location_name', 'p.name as product_name', 'p.code as product_code', 'ic.name as condition_name', 'u.name as performer_name')
-            ->orderByDesc('qc.performed_at')
-            ->limit(100)
-            ->get()
-            ->map(fn ($row) => tap($row, fn ($item) => $item->source = 'Warehouse'));
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'source' => trim((string) $request->query('source', '')),
+            'warehouse_id' => trim((string) $request->query('warehouse_id', '')),
+            'store_id' => trim((string) $request->query('store_id', '')),
+            'condition_id' => trim((string) $request->query('condition_id', '')),
+            'status' => trim((string) $request->query('status', '')),
+            'date_from' => $this->normalizeDate($request->query('date_from')),
+            'date_to' => $this->normalizeDate($request->query('date_to')),
+        ];
 
-        $storeRows = DB::table('store_qc as qc')
-            ->leftJoin('stores as s', 's.id', '=', 'qc.store_id')
-            ->leftJoin('items as i', 'i.id', '=', 'qc.item_id')
-            ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
-            ->leftJoin('item_conditions as ic', 'ic.id', '=', 'qc.item_condition_id')
-            ->leftJoin('users as u', 'u.id', '=', 'qc.performed_by')
-            ->select([
-                'qc.id', 'qc.qc_type', 'qc.performed_at', 'qc.created_at',
-                DB::raw('NULL::text as status'), DB::raw('NULL::text as note'),
-                's.name as location_name', 'p.name as product_name', 'p.code as product_code',
-                'ic.name as condition_name', 'u.name as performer_name',
-            ])
-            ->orderByDesc('qc.performed_at')
-            ->limit(100)
-            ->get()
-            ->map(fn ($row) => tap($row, fn ($item) => $item->source = 'Store'));
+        $warehouseRows = collect();
+
+        if ($filters['source'] !== 'store') {
+            $warehouseRows = DB::table('warehouse_qc as qc')
+                ->leftJoin('warehouses as w', 'w.id', '=', 'qc.warehouse_id')
+                ->leftJoin('items as i', 'i.id', '=', 'qc.item_id')
+                ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
+                ->leftJoin('item_conditions as ic', 'ic.id', '=', 'qc.item_condition_id')
+                ->leftJoin('users as u', 'u.id', '=', 'qc.performed_by')
+                ->when($filters['warehouse_id'] !== '', fn ($q) => $q->where('qc.warehouse_id', $filters['warehouse_id']))
+                ->when($filters['condition_id'] !== '', fn ($q) => $q->where('qc.item_condition_id', $filters['condition_id']))
+                ->when($filters['status'] !== '', fn ($q) => $q->whereRaw('qc.status::text = ?', [$filters['status']]))
+                ->when($filters['date_from'], fn ($q) => $q->whereRaw('COALESCE(qc.performed_at, qc.created_at)::date >= ?', [$filters['date_from']]))
+                ->when($filters['date_to'], fn ($q) => $q->whereRaw('COALESCE(qc.performed_at, qc.created_at)::date <= ?', [$filters['date_to']]))
+                ->when($filters['q'] !== '', function ($q) use ($filters) {
+                    $like = '%'.$filters['q'].'%';
+
+                    $q->where(function ($search) use ($like) {
+                        $search->where('p.name', 'ILIKE', $like)
+                            ->orWhere('p.code', 'ILIKE', $like)
+                            ->orWhere('w.name', 'ILIKE', $like)
+                            ->orWhere('ic.name', 'ILIKE', $like);
+                    });
+                })
+                ->select('qc.*', 'w.name as location_name', 'p.name as product_name', 'p.code as product_code', 'ic.name as condition_name', 'u.name as performer_name')
+                ->orderByDesc('qc.performed_at')
+                ->limit(100)
+                ->get()
+                ->map(fn ($row) => tap($row, fn ($item) => $item->source = 'Warehouse'));
+        }
+
+        $storeRows = collect();
+
+        if ($filters['source'] !== 'warehouse' && $filters['status'] === '') {
+            $storeRows = DB::table('store_qc as qc')
+                ->leftJoin('stores as s', 's.id', '=', 'qc.store_id')
+                ->leftJoin('items as i', 'i.id', '=', 'qc.item_id')
+                ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
+                ->leftJoin('item_conditions as ic', 'ic.id', '=', 'qc.item_condition_id')
+                ->leftJoin('users as u', 'u.id', '=', 'qc.performed_by')
+                ->when($filters['store_id'] !== '', fn ($q) => $q->where('qc.store_id', $filters['store_id']))
+                ->when($filters['condition_id'] !== '', fn ($q) => $q->where('qc.item_condition_id', $filters['condition_id']))
+                ->when($filters['date_from'], fn ($q) => $q->whereRaw('COALESCE(qc.performed_at, qc.created_at)::date >= ?', [$filters['date_from']]))
+                ->when($filters['date_to'], fn ($q) => $q->whereRaw('COALESCE(qc.performed_at, qc.created_at)::date <= ?', [$filters['date_to']]))
+                ->when($filters['q'] !== '', function ($q) use ($filters) {
+                    $like = '%'.$filters['q'].'%';
+
+                    $q->where(function ($search) use ($like) {
+                        $search->where('p.name', 'ILIKE', $like)
+                            ->orWhere('p.code', 'ILIKE', $like)
+                            ->orWhere('s.name', 'ILIKE', $like)
+                            ->orWhere('ic.name', 'ILIKE', $like);
+                    });
+                })
+                ->select([
+                    'qc.id', 'qc.qc_type', 'qc.performed_at', 'qc.created_at',
+                    DB::raw('NULL::text as status'), DB::raw('NULL::text as note'),
+                    's.name as location_name', 'p.name as product_name', 'p.code as product_code',
+                    'ic.name as condition_name', 'u.name as performer_name',
+                ])
+                ->orderByDesc('qc.performed_at')
+                ->limit(100)
+                ->get()
+                ->map(fn ($row) => tap($row, fn ($item) => $item->source = 'Store'));
+        }
 
         $rows = $warehouseRows->concat($storeRows)
-            ->when($request->filled('q'), function ($items) use ($request) {
-                $needle = mb_strtolower($request->string('q')->toString());
-
-                return $items->filter(fn ($row) => str_contains(mb_strtolower(implode(' ', [
-                    $row->product_name, $row->product_code, $row->location_name, $row->condition_name,
-                ])), $needle));
-            })
             ->sortByDesc(fn ($row) => $row->performed_at ?? $row->created_at)
             ->take(100)
             ->values();
 
         $summary = [
-            'warehouse' => $this->countTable('warehouse_qc'),
-            'store' => $this->countTable('store_qc'),
-            'rejected' => $this->countWhere('warehouse_qc', "status::text IN ('rejected','reject','failed','bad')"),
-            'today' => $this->countWhere('warehouse_qc', 'COALESCE(performed_at, created_at)::date = CURRENT_DATE')
-                + $this->countWhere('store_qc', 'COALESCE(performed_at, created_at)::date = CURRENT_DATE'),
+            'warehouse' => $rows->where('source', 'Warehouse')->count(),
+            'store' => $rows->where('source', 'Store')->count(),
+            'rejected' => $rows->filter(fn ($row) => in_array(mb_strtolower((string) ($row->status ?? '')), ['rejected', 'reject', 'failed', 'bad'], true))->count(),
+            'today' => $rows->filter(function ($row) {
+                $date = $row->performed_at ?? $row->created_at;
+
+                return $date && Carbon::parse($date)->isToday();
+            })->count(),
         ];
+
+        $warehouses = DB::table('warehouses')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $stores = DB::table('stores')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $conditions = DB::table('item_conditions')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $statuses = DB::table('warehouse_qc')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Operations Quality Control',
-            'description' => 'Laporan monitoring.',
-            'data' => compact('rows', 'summary'),
+            'description' => 'Telusuri hasil QC warehouse dan store beserta kondisinya.',
+            'data' => compact(
+                'rows',
+                'summary',
+                'filters',
+                'warehouses',
+                'stores',
+                'conditions',
+                'statuses'
+            ) + [
+                'sources' => [
+                    ['value' => 'warehouse', 'label' => 'Warehouse'],
+                    ['value' => 'store', 'label' => 'Store'],
+                ],
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current()],
         ]);
@@ -180,14 +291,25 @@ class MonitoringCommandCenterController extends Controller
 
     public function paymentReconciliation(Request $request)
     {
-        $query = DB::table('ecommerce_orders as eo')
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'order_status' => trim((string) $request->query('order_status', '')),
+            'payment_status' => trim((string) $request->query('payment_status', '')),
+            'reconciliation_status' => trim((string) $request->query('reconciliation_status', '')),
+            'exception_only' => $request->boolean('exception_only'),
+            'start_date' => $this->normalizeDate($request->query('start_date')),
+            'end_date' => $this->normalizeDate($request->query('end_date')),
+            'per_page' => $this->normalizePerPage($request->query('per_page'), 20),
+        ];
+
+        $baseQuery = DB::table('ecommerce_orders as eo')
             ->leftJoin('payments as p', 'p.id', '=', 'eo.payment_id')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->select([
                 'eo.id', 'eo.order_number', 'eo.status as order_status', 'eo.grand_total',
-                'eo.payment_method_name', 'eo.created_at', 'c.name as customer_name',
-                'p.transaction_number', 'p.status as payment_status', 'p.paid_amount',
-                'p.total_amount', 'p.completed_at',
+                'eo.payment_id', 'eo.payment_method_name', 'eo.created_at', 'c.name as customer_name',
+                'p.id as payment_record_id', 'p.transaction_number', 'p.status as payment_status',
+                'p.paid_amount', 'p.total_amount', 'p.completed_at',
                 DB::raw("CASE
                     WHEN eo.payment_id IS NULL THEN 'Tanpa pembayaran'
                     WHEN p.id IS NULL THEN 'Referensi pembayaran hilang'
@@ -197,9 +319,26 @@ class MonitoringCommandCenterController extends Controller
                 END AS reconciliation_status"),
             ]);
 
-        $this->applySearch($query, $request, ['eo.order_number', 'p.transaction_number', 'c.name']);
-        if ($request->filled('exception_only')) {
-            $query->where(function ($q) {
+        $this->applySearch($baseQuery, $request, ['eo.order_number', 'p.transaction_number', 'c.name']);
+
+        if ($filters['order_status'] !== '') {
+            $baseQuery->whereRaw('eo.status::text = ?', [$filters['order_status']]);
+        }
+
+        if ($filters['payment_status'] !== '') {
+            $baseQuery->whereRaw('p.status::text = ?', [$filters['payment_status']]);
+        }
+
+        if ($filters['start_date']) {
+            $baseQuery->whereRaw('eo.created_at::date >= ?', [$filters['start_date']]);
+        }
+
+        if ($filters['end_date']) {
+            $baseQuery->whereRaw('eo.created_at::date <= ?', [$filters['end_date']]);
+        }
+
+        if ($filters['exception_only']) {
+            $baseQuery->where(function ($q) {
                 $q->whereNull('eo.payment_id')
                     ->orWhereNull('p.id')
                     ->orWhereRaw('ABS(COALESCE(p.total_amount, 0) - COALESCE(eo.grand_total, 0)) > 0.01')
@@ -207,18 +346,63 @@ class MonitoringCommandCenterController extends Controller
             });
         }
 
-        $rows = $query->orderByDesc('eo.created_at')->paginate(20)->withQueryString();
+        $summaryQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
+
+        if ($filters['reconciliation_status'] !== '') {
+            $summaryQuery->where('reconciliation_status', $filters['reconciliation_status']);
+        }
+
+        $rowsQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
+
+        if ($filters['reconciliation_status'] !== '') {
+            $rowsQuery->where('reconciliation_status', $filters['reconciliation_status']);
+        }
+
+        $rows = $rowsQuery
+            ->orderByDesc('created_at')
+            ->paginate($filters['per_page'])
+            ->withQueryString();
+
         $summary = [
-            'orders' => $this->countTable('ecommerce_orders'),
-            'without_payment' => $this->countWhere('ecommerce_orders', 'payment_id IS NULL'),
-            'pending_payment' => $this->countWhere('payments', "status::text NOT IN ('paid','completed','success') AND deleted_at IS NULL"),
-            'voided' => $this->countWhere('payments', "void_status IS NOT NULL AND void_status NOT IN ('none','')"),
+            'orders' => (clone $summaryQuery)->count(),
+            'exceptions' => (clone $summaryQuery)->where('reconciliation_status', '!=', 'Sesuai')->count(),
+            'without_payment' => (clone $summaryQuery)->whereNull('payment_id')->count(),
+            'pending_payment' => (clone $summaryQuery)
+                ->whereNotNull('payment_record_id')
+                ->whereRaw("COALESCE(payment_status::text, '') NOT IN ('paid','completed','success')")
+                ->count(),
         ];
+
+        $orderStatuses = DB::table('ecommerce_orders')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
+
+        $paymentStatuses = DB::table('payments')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Operations Payment Reconciliation',
-            'description' => 'Laporan monitoring.',
-            'data' => compact('rows', 'summary'),
+            'description' => 'Cocokkan nilai order dengan pembayaran dan temukan selisih.',
+            'data' => compact(
+                'rows',
+                'summary',
+                'filters',
+                'orderStatuses',
+                'paymentStatuses'
+            ) + [
+                'reconciliationStatuses' => [
+                    'Sesuai',
+                    'Tanpa pembayaran',
+                    'Referensi pembayaran hilang',
+                    'Nominal berbeda',
+                    'Pembayaran belum selesai',
+                ],
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current()],
         ]);
@@ -226,26 +410,121 @@ class MonitoringCommandCenterController extends Controller
 
     public function fulfillmentControl(Request $request)
     {
-        $ecommerce = DB::table('ecommerce_orders as eo')
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'status' => trim((string) $request->query('status', '')),
+            'handled_type' => trim((string) $request->query('handled_type', '')),
+            'store_id' => trim((string) $request->query('store_id', '')),
+            'warehouse_id' => trim((string) $request->query('warehouse_id', '')),
+            'start_date' => $this->normalizeDate($request->query('start_date')),
+            'end_date' => $this->normalizeDate($request->query('end_date')),
+            'per_page' => $this->normalizePerPage($request->query('per_page'), 20),
+        ];
+
+        $baseQuery = DB::table('ecommerce_orders as eo')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->leftJoin('stores as s', 's.id', '=', 'eo.handled_by_store_id')
             ->leftJoin('warehouses as w', 'w.id', '=', 'eo.handled_by_warehouse_id')
-            ->select('eo.*', 'c.name as customer_name', 's.name as store_name', 'w.name as warehouse_name')
-            ->orderByDesc('eo.created_at')
-            ->paginate(20)
-            ->withQueryString();
+            ->select(
+                'eo.*',
+                'c.name as customer_name',
+                's.name as store_name',
+                'w.name as warehouse_name',
+                DB::raw("
+                    CASE
+                        WHEN LOWER(eo.status::text) IN ('pending','paid','processed','processing','packing','shipped','on_hold')
+                            AND eo.created_at < NOW() - INTERVAL '24 hours'
+                        THEN 'Lewat 24 Jam'
+                        ELSE NULL
+                    END AS sla_status
+                ")
+            );
+
+        $this->applySearch($baseQuery, $request, ['eo.order_number', 'c.name', 'eo.shipping_number']);
+
+        if ($filters['status'] !== '') {
+            $baseQuery->whereRaw('eo.status::text = ?', [$filters['status']]);
+        }
+
+        if ($filters['handled_type'] === 'store') {
+            $baseQuery->whereNotNull('eo.handled_by_store_id');
+        } elseif ($filters['handled_type'] === 'warehouse') {
+            $baseQuery->whereNotNull('eo.handled_by_warehouse_id');
+        } elseif ($filters['handled_type'] === 'unhandled') {
+            $baseQuery->whereNull('eo.handled_by_store_id')->whereNull('eo.handled_by_warehouse_id');
+        }
+
+        if ($filters['store_id'] !== '') {
+            $baseQuery->where('eo.handled_by_store_id', $filters['store_id']);
+        }
+
+        if ($filters['warehouse_id'] !== '') {
+            $baseQuery->where('eo.handled_by_warehouse_id', $filters['warehouse_id']);
+        }
+
+        if ($filters['start_date']) {
+            $baseQuery->whereRaw('eo.created_at::date >= ?', [$filters['start_date']]);
+        }
+
+        if ($filters['end_date']) {
+            $baseQuery->whereRaw('eo.created_at::date <= ?', [$filters['end_date']]);
+        }
+
+        $summaryQuery = DB::query()->fromSub(clone $baseQuery, 'fulfillment');
 
         $summary = [
-            'pending' => $this->countWhere('ecommerce_orders', "status::text IN ('pending','unpaid','processing')"),
-            'without_handler' => $this->countWhere('ecommerce_orders', 'handled_by_store_id IS NULL AND handled_by_warehouse_id IS NULL'),
-            'without_awb' => $this->countWhere('ecommerce_orders', "status::text IN ('processed','shipped') AND NULLIF(shipping_number, '') IS NULL"),
-            'over_24h' => $this->countWhere('ecommerce_orders', "status::text IN ('pending','processing','paid') AND created_at < NOW() - INTERVAL '24 hours'"),
+            'orders' => (clone $summaryQuery)->count(),
+            'pending' => (clone $summaryQuery)->whereRaw("status::text IN ('pending','unpaid','processing')")->count(),
+            'without_handler' => (clone $summaryQuery)
+                ->whereNull('handled_by_store_id')
+                ->whereNull('handled_by_warehouse_id')
+                ->count(),
+            'without_awb' => (clone $summaryQuery)
+                ->whereRaw("status::text IN ('processed','shipped')")
+                ->where(function ($q) {
+                    $q->whereNull('shipping_number')->orWhere('shipping_number', '');
+                })
+                ->count(),
+            'over_24h' => (clone $summaryQuery)
+                ->whereRaw("LOWER(status::text) IN ('pending','paid','processed','processing','packing','shipped','on_hold')")
+                ->where('created_at', '<', now()->subDay())
+                ->count(),
         ];
+
+        $ecommerce = $baseQuery
+            ->orderByDesc('eo.created_at')
+            ->paginate($filters['per_page'])
+            ->withQueryString();
+
+        $stores = DB::table('stores')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $warehouses = DB::table('warehouses')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        $orderStatuses = DB::table('ecommerce_orders')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Operations Fulfillment Control',
-            'description' => 'Laporan monitoring.',
-            'data' => compact('ecommerce', 'summary'),
+            'description' => 'Pantau status pemenuhan, penanggung jawab, dan SLA pesanan.',
+            'data' => compact(
+                'ecommerce',
+                'summary',
+                'filters',
+                'stores',
+                'warehouses',
+                'orderStatuses'
+            ) + [
+                'handledTypes' => ['store', 'warehouse', 'unhandled'],
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current()],
         ]);
@@ -253,17 +532,29 @@ class MonitoringCommandCenterController extends Controller
 
     public function auditCenter(Request $request)
     {
-        $logs = Schema::hasTable('business_audit_logs')
-            ? DB::table('business_audit_logs')
-                ->when($request->filled('q'), function ($query) use ($request) {
-                    $like = '%'.$request->string('q')->toString().'%';
+        $backoffice = DB::connection('immostore_backoffice');
+        $hasAuditLogs = Schema::connection('immostore_backoffice')->hasTable('business_audit_logs');
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'action' => trim((string) $request->query('action', '')),
+            'from' => $this->normalizeDate($request->query('from')),
+            'to' => $this->normalizeDate($request->query('to')),
+            'per_page' => $this->normalizePerPage($request->query('per_page'), 20),
+        ];
+
+        $logs = $hasAuditLogs
+            ? $backoffice->table('business_audit_logs')
+                ->when($filters['q'] !== '', function ($query) use ($filters) {
+                    $like = '%'.$filters['q'].'%';
                     $query->where(fn ($q) => $q->where('user_name', 'ILIKE', $like)
                         ->orWhere('module', 'ILIKE', $like)
                         ->orWhere('route_name', 'ILIKE', $like));
                 })
-                ->when($request->filled('action'), fn ($q) => $q->where('action', $request->string('action')->toString()))
+                ->when($filters['action'] !== '', fn ($q) => $q->where('action', $filters['action']))
+                ->when($filters['from'], fn ($q) => $q->where('occurred_at', '>=', Carbon::parse($filters['from'])->startOfDay()))
+                ->when($filters['to'], fn ($q) => $q->where('occurred_at', '<', Carbon::parse($filters['to'])->addDay()->startOfDay()))
                 ->orderByDesc('occurred_at')
-                ->paginate(20)
+                ->paginate($filters['per_page'])
                 ->withQueryString()
             : null;
 
@@ -275,17 +566,32 @@ class MonitoringCommandCenterController extends Controller
                 ->orderByDesc('fa.created_at')->limit(10)->get()
             : collect();
 
+        $actions = $hasAuditLogs
+            ? $backoffice->table('business_audit_logs')
+                ->selectRaw('DISTINCT action')
+                ->whereNotNull('action')
+                ->orderBy('action')
+                ->pluck('action')
+            : collect();
+
         $summary = [
-            'changes_today' => $this->countWhere('business_audit_logs', 'occurred_at::date = CURRENT_DATE'),
-            'failed_changes' => $this->countWhere('business_audit_logs', 'response_status >= 400'),
+            'changes_today' => $hasAuditLogs
+                ? $backoffice->table('business_audit_logs')
+                    ->where('occurred_at', '>=', now()->startOfDay())
+                    ->where('occurred_at', '<', now()->addDay()->startOfDay())
+                    ->count()
+                : 0,
+            'failed_changes' => $hasAuditLogs
+                ? $backoffice->table('business_audit_logs')->where('response_status', '>=', 400)->count()
+                : 0,
             'open_fraud' => $this->countWhere('fraud_alerts', "status::text NOT IN ('resolved','closed','dismissed')"),
             'failed_login' => $this->countWhere('session_logs', "status::text IN ('failed','rejected') AND logged_at >= NOW() - INTERVAL '24 hours'"),
         ];
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Audit Center',
-            'description' => 'Laporan monitoring.',
-            'data' => compact('logs', 'fraudAlerts', 'summary'),
+            'description' => 'Telusuri aktivitas perubahan data dan peringatan fraud.',
+            'data' => compact('logs', 'fraudAlerts', 'summary', 'filters', 'actions'),
             'filters' => request()->query(),
             'urls' => ['index' => url()->current()],
         ]);
@@ -341,6 +647,26 @@ class MonitoringCommandCenterController extends Controller
         if ($count > 0) {
             $alerts->push(compact('count', 'severity', 'title', 'description', 'url'));
         }
+    }
+
+    private function normalizeDate(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function normalizePerPage(mixed $value, int $default = 20): int
+    {
+        $perPage = (int) ($value ?: $default);
+
+        return in_array($perPage, [10, 20, 25, 50, 100], true) ? $perPage : $default;
     }
 
     private function countTable(string $table): int

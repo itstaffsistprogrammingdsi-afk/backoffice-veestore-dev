@@ -47,7 +47,7 @@ class ProdukTerlarisController extends Controller
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.produk-terlaris.export')],
         ]);
     }
 

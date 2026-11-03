@@ -121,6 +121,17 @@ return [
             'key' => env('MISTRAL_API_KEY'),
         ],
 
+        'nine_router' => [
+            'driver' => 'nine_router',
+            'url' => env('NINE_ROUTER_URL', 'https://9router.103-42-244-197.sslip.io/v1'),
+            'key' => env('NINE_ROUTER_API_KEY'),
+            'models' => [
+                'text' => [
+                    'default' => env('NINE_ROUTER_MODEL', 'ocg/deepseek-v4.1-flash'),
+                ],
+            ],
+        ],
+
         'ollama' => [
             'driver' => 'ollama',
             'key' => env('OLLAMA_API_KEY', ''),

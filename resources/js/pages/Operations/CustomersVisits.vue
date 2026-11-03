@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -56,6 +57,11 @@ const props = defineProps<Props>();
 const filters = reactive({ q: props.filters.q ?? '', store_id: props.filters.store_id ?? '' });
 const expanded = ref<Record<string, boolean>>({});
 
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+})));
+
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 const formatCurrency = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '-';
@@ -103,7 +109,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-7"><label class="form-label">Cari customer atau store</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama customer, WhatsApp, email, atau store..." /></div>
-                    <div class="col-md-4 col-lg-3"><label class="form-label">Store</label><select v-model="filters.store_id" class="form-select form-select-sm"><option value="">Semua store</option><option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                    <div class="col-md-4 col-lg-3"><label class="form-label">Store</label><SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
                     <div class="col-md-6 col-lg-2 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button></div>
                 </form>
             </div>

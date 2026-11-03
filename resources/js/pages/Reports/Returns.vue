@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
 import { computed, reactive, ref } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface Option { id: string; name: string }
 
@@ -56,6 +58,11 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.name,
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -137,17 +144,46 @@ const statusClass = (status: string) => {
     if (['requested', 'pending_approval', 'shipped'].includes(status)) return 'bg-info';
     return 'bg-warning';
 };
+
+const exportReturns = () => downloadExcelTable('Retur-Cabang', 'Retur Cabang', [
+    { key: 'return_number', label: 'Nomor Retur' },
+    { key: 'date', label: 'Tanggal' },
+    { key: 'store_name', label: 'Store' },
+    { key: 'warehouse_name', label: 'Warehouse' },
+    { key: 'status', label: 'Status' },
+    { key: 'approved_by_name', label: 'Disetujui Oleh' },
+    { key: 'approved_at', label: 'Tanggal Persetujuan' },
+], props.returns.data.map((row) => ({
+    return_number: row.return_number ?? row.id,
+    date: row.date ?? row.created_at,
+    store_name: row.store_name ?? '',
+    warehouse_name: row.warehouse_name ?? '',
+    status: row.status,
+    approved_by_name: row.approved_by_name ?? '',
+    approved_at: row.approved_at ?? '',
+})), {
+    title: 'Retur Cabang',
+    filters: [
+        { label: 'Pencarian', value: props.filters.q },
+        { label: 'Status', value: props.filters.status },
+        { label: 'Dari', value: props.filters.from },
+        { label: 'Sampai', value: props.filters.to },
+    ],
+});
 </script>
 
 <template>
     <Head title="Retur Cabang" />
     <div class="report-page">
-        <div class="report-header">
+        <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
                 <span class="report-eyebrow">Reports</span>
                 <h1>Retur Cabang</h1>
                 <p>Permintaan retur dari toko ke gudang.</p>
             </div>
+            <button class="btn btn-light btn-sm" type="button" @click="exportReturns">
+                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+            </button>
         </div>
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
@@ -197,10 +233,7 @@ const statusClass = (status: string) => {
                     <div class="row g-2 align-items-end mb-3">
                         <div class="col-md-4">
                             <label class="form-label">Warehouse untuk approve</label>
-                            <select v-model="warehouseId" class="form-select form-select-sm">
-                                <option value="">Pilih warehouse</option>
-                                <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
-                            </select>
+                            <SearchableSelect v-model="warehouseId" :options="warehouseOptions" placeholder="Pilih warehouse" search-placeholder="Cari warehouse..." />
                         </div>
                         <div class="col-md-8 d-flex gap-2">
                             <button class="btn btn-sm btn-success" type="button" @click="decide('approve')">Approve</button>

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\CashierShiftReportDetailExport;
 use App\Exports\CashierShiftReportExport;
 use App\Http\Controllers\Controller;
@@ -10,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CashierShiftReportController extends Controller
@@ -44,9 +44,14 @@ class CashierShiftReportController extends Controller
             ->selectRaw("
                 COALESCE(SUM(x.omzet), 0)::numeric as today_omzet,
                 COALESCE(SUM(x.total_transactions), 0)::int as today_transactions,
+                COALESCE(SUM(x.total_cash_amount), 0)::numeric as today_cash_amount,
+                COALESCE(SUM(x.total_non_cash_amount), 0)::numeric as today_non_cash_amount,
+                COALESCE(SUM(x.total_cash_transactions), 0)::int as today_cash_transactions,
+                COALESCE(SUM(x.total_non_cash_transactions), 0)::int as today_non_cash_transactions,
                 COUNT(*)::int as today_sessions,
                 COALESCE(SUM(CASE WHEN x.cashier_status = 'open' THEN 1 ELSE 0 END), 0)::int as today_open_sessions,
                 COALESCE(SUM(CASE WHEN x.cashier_status = 'closed' THEN 1 ELSE 0 END), 0)::int as today_closed_sessions,
+                COALESCE(SUM(x.total_receivable_amount), 0)::numeric as today_receivable_amount,
                 COALESCE(SUM(x.total_change_amount), 0)::numeric as today_change_amount,
                 COALESCE(SUM(x.opening_cash), 0)::numeric as today_opening_cash,
                 COALESCE(SUM(x.closing_cash_system), 0)::numeric as today_system_cash,
@@ -66,9 +71,14 @@ class CashierShiftReportController extends Controller
             ->selectRaw("
                 COALESCE(SUM(x.omzet), 0)::numeric as total_omzet,
                 COALESCE(SUM(x.total_transactions), 0)::int as total_transactions,
+                COALESCE(SUM(x.total_cash_amount), 0)::numeric as total_cash_amount,
+                COALESCE(SUM(x.total_non_cash_amount), 0)::numeric as total_non_cash_amount,
+                COALESCE(SUM(x.total_cash_transactions), 0)::int as total_cash_transactions,
+                COALESCE(SUM(x.total_non_cash_transactions), 0)::int as total_non_cash_transactions,
                 COUNT(*)::int as total_sessions,
                 COALESCE(SUM(CASE WHEN x.cashier_status = 'open' THEN 1 ELSE 0 END), 0)::int as total_open_sessions,
                 COALESCE(SUM(CASE WHEN x.cashier_status = 'closed' THEN 1 ELSE 0 END), 0)::int as total_closed_sessions,
+                COALESCE(SUM(x.total_receivable_amount), 0)::numeric as total_receivable_amount,
                 COALESCE(SUM(x.total_change_amount), 0)::numeric as total_change_amount,
                 COALESCE(SUM(x.opening_cash), 0)::numeric as total_opening_cash,
                 COALESCE(SUM(x.closing_cash_system), 0)::numeric as total_system_cash,
@@ -200,28 +210,29 @@ class CashierShiftReportController extends Controller
             ]);
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Cashier Shift Report',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Shift Kasir',
+            'description' => 'Ringkasan sesi kasir, termasuk transaksi tunai, non-tunai, dan piutang rekanan.',
             'data' => [
-            'rows' => $rows,
-            'filters' => $filters,
-            'stores' => $stores,
-            'cashiers' => $cashiers,
+                'rows' => $rows,
+                'filters' => $filters,
+                'stores' => $stores,
+                'cashiers' => $cashiers,
 
-            'todaySummary' => $todaySummary,
-            'summary' => $summary,
+                'todaySummary' => $todaySummary,
+                'summary' => $summary,
 
-            'dailyOmzetRows' => $dailyOmzetRows,
-            'dailyShiftRows' => $dailyShiftRows,
-            'storeOmzetRows' => $storeOmzetRows,
-            'cashierOmzetRows' => $cashierOmzetRows,
-            'latestRows' => $latestRows,
-            'shifts' => $shifts,
+                'dailyOmzetRows' => $dailyOmzetRows,
+                'dailyShiftRows' => $dailyShiftRows,
+                'storeOmzetRows' => $storeOmzetRows,
+                'cashierOmzetRows' => $cashierOmzetRows,
+                'latestRows' => $latestRows,
+                'shifts' => $shifts,
+                'statuses' => ['open', 'closed'],
 
-            'autoRefresh' => $filters['auto_refresh'],
-        ],
+                'autoRefresh' => $filters['auto_refresh'],
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.cashier-shift-report.export')],
         ]);
     }
 
@@ -241,14 +252,14 @@ class CashierShiftReportController extends Controller
             ->orderBy('x.shift_start_time')
             ->get();
 
-        $filename = 'cashier-shift-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'cashier-shift-report-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new CashierShiftReportExport($dailyShiftRows, $rows), $filename);
     }
 
     public function detail(Request $request, string $cashierSession)
     {
-        if (!Str::isUuid($cashierSession)) {
+        if (! Str::isUuid($cashierSession)) {
             abort(404);
         }
 
@@ -259,20 +270,33 @@ class CashierShiftReportController extends Controller
         $transactions = $this->getSessionTransactions($cashierSession);
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Cashier Shift Report',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Shift Kasir',
+            'description' => 'Ringkasan sesi kasir, termasuk transaksi tunai, non-tunai, dan piutang rekanan.',
             'data' => [
-            'session' => $session,
-            'transactions' => $transactions,
-        ],
+                'session' => $session,
+                'transactions' => $transactions,
+                'payment_breakdown' => $session->payment_breakdown ?? [],
+                'summary' => [
+                    'total_transactions' => (int) ($session->total_transactions ?? 0),
+                    'total_omzet' => (float) ($session->payment_total_amount ?? $session->total_sales ?? 0),
+                    'total_cash_amount' => (float) ($session->total_cash_amount ?? 0),
+                    'total_non_cash_amount' => (float) ($session->total_non_cash_amount ?? 0),
+                    'total_cash_transactions' => (int) ($session->total_cash_transactions ?? 0),
+                    'total_non_cash_transactions' => (int) ($session->total_non_cash_transactions ?? 0),
+                    'total_receivable_amount' => (float) ($session->total_receivable_amount ?? 0),
+                ],
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => [
+                'index' => url()->current(),
+                'export' => route('monitoring.cashier-shift-report.detail-export', ['cashierSession' => $cashierSession]),
+            ],
         ]);
     }
 
     public function detailExport(Request $request, string $cashierSession)
     {
-        if (!Str::isUuid($cashierSession)) {
+        if (! Str::isUuid($cashierSession)) {
             abort(404);
         }
 
@@ -290,9 +314,9 @@ class CashierShiftReportController extends Controller
 
         $items = $this->getTransactionItemsForExport($transactionIds);
 
-        $filename = 'cashier-shift-report-detail-' .
-            ($session->session_number ?? 'session') . '-' .
-            now()->format('Ymd_His') . '.xlsx';
+        $filename = 'cashier-shift-report-detail-'.
+            ($session->session_number ?? 'session').'-'.
+            now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
             new CashierShiftReportDetailExport($session, $transactions, $items),
@@ -302,7 +326,7 @@ class CashierShiftReportController extends Controller
 
     public function transactionItems(string $paymentId)
     {
-        if (!Str::isUuid($paymentId)) {
+        if (! Str::isUuid($paymentId)) {
             return response()->json([
                 'transaction' => null,
                 'items' => [],
@@ -314,7 +338,7 @@ class CashierShiftReportController extends Controller
             ->leftJoin('store_customer_visits as scv', 'scv.id', '=', 'svp.visit_id')
             ->leftJoin('customers as c', 'c.id', '=', 'scv.customer_id')
             ->where('p.id', $paymentId)
-            ->selectRaw("
+            ->selectRaw('
                 p.id,
                 p.transaction_number,
                 p.total_amount,
@@ -326,10 +350,10 @@ class CashierShiftReportController extends Controller
                 p.completed_at,
                 svp.visit_id,
                 c.name as customer_name
-            ")
+            ')
             ->first();
 
-        if (!$transaction) {
+        if (! $transaction) {
             return response()->json([
                 'transaction' => null,
                 'items' => [],
@@ -380,13 +404,13 @@ class CashierShiftReportController extends Controller
 
         $status = $this->normalizeNullableString($request->query('status'));
 
-        if (!in_array($status, [null, 'open', 'closed'], true)) {
+        if (! in_array($status, [null, 'open', 'closed'], true)) {
             $status = null;
         }
 
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -407,12 +431,12 @@ class CashierShiftReportController extends Controller
     {
         $userStoreIds = $this->accessibleStoreIds();
 
-        return DB::table('cashier_sessions as cs')
+        $session = DB::table('cashier_sessions as cs')
             ->join('stores as s', 's.id', '=', 'cs.store_id')
             ->join('users as u', 'u.id', '=', 'cs.user_id')
             ->where('cs.id', $cashierSession)
             ->whereIn('cs.store_id', $userStoreIds)
-            ->selectRaw("
+            ->selectRaw('
                 cs.id,
                 cs.session_number,
                 cs.status,
@@ -428,8 +452,50 @@ class CashierShiftReportController extends Controller
                 cs.note_close,
                 s.name as store_name,
                 u.name as cashier_name
-            ")
+            ')
             ->first();
+
+        if (! $session) {
+            return null;
+        }
+
+        $breakdown = $this->getSessionPaymentBreakdown($cashierSession);
+
+        $session->payment_breakdown = $breakdown['rows'];
+        $session->payment_total_amount = $breakdown['total_payment_amount'];
+        $session->total_cash_amount = $breakdown['total_cash_amount'];
+        $session->total_cash_transactions = $breakdown['total_cash_transactions'];
+        $session->total_non_cash_amount = $breakdown['total_non_cash_amount'];
+        $session->total_non_cash_transactions = $breakdown['total_non_cash_transactions'];
+        $session->total_receivable_amount = $breakdown['total_receivable_amount'];
+
+        return $session;
+    }
+
+    private function getSessionPaymentBreakdown(string $cashierSession): array
+    {
+        $rows = DB::table('cashier_session_payment_summaries as csps')
+            ->join('payment_methods as pm', 'pm.id', '=', 'csps.payment_method_id')
+            ->where('csps.cashier_session_id', $cashierSession)
+            ->selectRaw('
+                pm.name as payment_method_name,
+                pm.type::text as payment_method_type,
+                COALESCE(csps.total_amount, 0)::numeric as total_amount,
+                COALESCE(csps.transaction_count, 0)::int as transaction_count
+            ')
+            ->orderBy('pm.type')
+            ->orderBy('pm.name')
+            ->get();
+
+        return [
+            'rows' => $rows,
+            'total_payment_amount' => (float) $rows->sum('total_amount'),
+            'total_cash_amount' => (float) $rows->where('payment_method_type', 'cash')->sum('total_amount'),
+            'total_cash_transactions' => (int) $rows->where('payment_method_type', 'cash')->sum('transaction_count'),
+            'total_non_cash_amount' => (float) $rows->whereIn('payment_method_type', ['non_cash', 'api'])->sum('total_amount'),
+            'total_non_cash_transactions' => (int) $rows->whereIn('payment_method_type', ['non_cash', 'api'])->sum('transaction_count'),
+            'total_receivable_amount' => (float) $rows->where('payment_method_type', 'receivable')->sum('total_amount'),
+        ];
     }
 
     private function getSessionTransactions(string $cashierSession)
@@ -440,7 +506,7 @@ class CashierShiftReportController extends Controller
             ->leftJoin('customers as c', 'c.id', '=', 'scv.customer_id')
             ->leftJoin('users as cashier', 'cashier.id', '=', 'svp.cashier_user_id')
             ->where('svp.cashier_session_id', $cashierSession)
-            ->selectRaw("
+            ->selectRaw('
                 svp.id,
                 svp.visit_id,
                 svp.payment_id,
@@ -456,7 +522,7 @@ class CashierShiftReportController extends Controller
                 p.completed_at,
                 c.name as customer_name,
                 cashier.name as cashier_name
-            ")
+            ')
             ->orderByRaw('COALESCE(p.completed_at, p.created_at) DESC')
             ->get();
     }
@@ -503,11 +569,25 @@ class CashierShiftReportController extends Controller
         */
         $changeSub = DB::table('store_visit_payments as svp')
             ->join('payments as p', 'p.id', '=', 'svp.payment_id')
-            ->selectRaw("
+            ->selectRaw('
                 svp.cashier_session_id,
                 COALESCE(SUM(p.change_amount), 0)::numeric as total_change_amount
-            ")
+            ')
             ->groupBy('svp.cashier_session_id');
+
+        $paymentSummarySub = DB::table('cashier_session_payment_summaries as csps')
+            ->join('payment_methods as pm', 'pm.id', '=', 'csps.payment_method_id')
+            ->selectRaw("
+                csps.cashier_session_id,
+                COALESCE(SUM(csps.total_amount), 0)::numeric as total_payment_amount,
+                COALESCE(SUM(csps.transaction_count), 0)::int as total_payment_count,
+                COALESCE(SUM(CASE WHEN pm.type::text = 'cash' THEN csps.total_amount ELSE 0 END), 0)::numeric as total_cash_amount,
+                COALESCE(SUM(CASE WHEN pm.type::text = 'cash' THEN csps.transaction_count ELSE 0 END), 0)::int as total_cash_transactions,
+                COALESCE(SUM(CASE WHEN pm.type::text IN ('non_cash', 'api') THEN csps.total_amount ELSE 0 END), 0)::numeric as total_non_cash_amount,
+                COALESCE(SUM(CASE WHEN pm.type::text IN ('non_cash', 'api') THEN csps.transaction_count ELSE 0 END), 0)::int as total_non_cash_transactions,
+                COALESCE(SUM(CASE WHEN pm.type::text = 'receivable' THEN csps.total_amount ELSE 0 END), 0)::numeric as total_receivable_amount
+            ")
+            ->groupBy('csps.cashier_session_id');
 
         $attendanceShiftSub = $this->buildAttendanceShiftSubquery();
         $scheduledShiftSub = $this->buildScheduledShiftSubquery();
@@ -517,6 +597,9 @@ class CashierShiftReportController extends Controller
             ->join('users as u', 'u.id', '=', 'cs.user_id')
             ->leftJoinSub($changeSub, 'chg', function ($join) {
                 $join->on('chg.cashier_session_id', '=', 'cs.id');
+            })
+            ->leftJoinSub($paymentSummarySub, 'pay_sum', function ($join) {
+                $join->on('pay_sum.cashier_session_id', '=', 'cs.id');
             })
             ->leftJoinSub($attendanceShiftSub, 'attendance_shift', function ($join) {
                 $join->on('attendance_shift.store_id', '=', 'cs.store_id')
@@ -599,8 +682,13 @@ class CashierShiftReportController extends Controller
                 COALESCE(cs.expected_cash, 0)::numeric as closing_cash_system,
                 COALESCE(cs.actual_cash, 0)::numeric as closing_cash_physical,
                 COALESCE(cs.difference, 0)::numeric as cash_difference,
-                COALESCE(cs.total_sales, 0)::numeric as omzet,
-                COALESCE(cs.total_transactions, 0)::int as total_transactions,
+                COALESCE(pay_sum.total_payment_amount, cs.total_sales, 0)::numeric as omzet,
+                COALESCE(pay_sum.total_payment_count, cs.total_transactions, 0)::int as total_transactions,
+                COALESCE(pay_sum.total_cash_amount, 0)::numeric as total_cash_amount,
+                COALESCE(pay_sum.total_cash_transactions, 0)::int as total_cash_transactions,
+                COALESCE(pay_sum.total_non_cash_amount, 0)::numeric as total_non_cash_amount,
+                COALESCE(pay_sum.total_non_cash_transactions, 0)::int as total_non_cash_transactions,
+                COALESCE(pay_sum.total_receivable_amount, 0)::numeric as total_receivable_amount,
                 COALESCE(chg.total_change_amount, 0)::numeric as total_change_amount,
                 1::int as total_sessions
             ");
@@ -645,6 +733,11 @@ class CashierShiftReportController extends Controller
                 COUNT(DISTINCT x.cashier_session_id)::int as total_sessions,
                 COALESCE(SUM(x.total_transactions), 0)::int as total_transactions,
                 COALESCE(SUM(x.omzet), 0)::numeric as total_omzet,
+                COALESCE(SUM(x.total_cash_amount), 0)::numeric as total_cash_amount,
+                COALESCE(SUM(x.total_non_cash_amount), 0)::numeric as total_non_cash_amount,
+                COALESCE(SUM(x.total_cash_transactions), 0)::int as total_cash_transactions,
+                COALESCE(SUM(x.total_non_cash_transactions), 0)::int as total_non_cash_transactions,
+                COALESCE(SUM(x.total_receivable_amount), 0)::numeric as total_receivable_amount,
                 COALESCE(SUM(x.total_change_amount), 0)::numeric as total_change_amount,
                 COALESCE(SUM(x.cash_difference), 0)::numeric as total_cash_difference
             ")

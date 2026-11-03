@@ -8,12 +8,11 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class CashierShiftPerShiftExport implements FromCollection, WithHeadings, ShouldAutoSize, WithTitle
+class CashierShiftPerShiftExport implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     public function __construct(
         protected Collection $rows
-    ) {
-    }
+    ) {}
 
     public function collection(): Collection
     {
@@ -27,6 +26,11 @@ class CashierShiftPerShiftExport implements FromCollection, WithHeadings, Should
             'Jumlah Sesi' => $row->total_sessions,
             'Transaksi' => $row->total_transactions,
             'Omzet' => $row->total_omzet,
+            'Tunai' => $row->total_cash_amount ?? 0,
+            'Non-Tunai' => $row->total_non_cash_amount ?? 0,
+            'Trx Tunai' => $row->total_cash_transactions ?? 0,
+            'Trx Non-Tunai' => $row->total_non_cash_transactions ?? 0,
+            'Piutang' => $row->total_receivable_amount ?? 0,
             'Kembalian' => $row->total_change_amount,
             'Selisih' => $row->total_cash_difference,
         ]);
@@ -34,7 +38,7 @@ class CashierShiftPerShiftExport implements FromCollection, WithHeadings, Should
 
     public function headings(): array
     {
-        return ['Tanggal', 'Store', 'Shift Name', 'Kode Shift', 'Mulai Shift', 'Jumlah Kasir', 'Jumlah Sesi', 'Transaksi', 'Omzet', 'Kembalian', 'Selisih'];
+        return ['Tanggal', 'Store', 'Shift Name', 'Kode Shift', 'Mulai Shift', 'Jumlah Kasir', 'Jumlah Sesi', 'Transaksi', 'Omzet', 'Tunai', 'Non-Tunai', 'Trx Tunai', 'Trx Non-Tunai', 'Piutang', 'Kembalian', 'Selisih'];
     }
 
     public function title(): string

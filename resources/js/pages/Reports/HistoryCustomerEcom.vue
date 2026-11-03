@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 import { Head, Link } from '@inertiajs/vue3';
+import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface OrderRow {
     order_id: string;
@@ -21,6 +22,17 @@ interface Props {
 const props = defineProps<Props>();
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '-';
+const exportOrders = () => downloadExcelTable('History-Customer-Order-Ecommerce', 'Order Ecommerce', [
+    { key: 'order_id', label: 'Order ID' },
+    { key: 'order_date', label: 'Tanggal' },
+], props.orders, {
+    title: 'History Customer Ecommerce',
+    filters: [
+        { label: 'Customer', value: props.customerId },
+        { label: 'Dari', value: props.from },
+        { label: 'Sampai', value: props.to },
+    ],
+});
 </script>
 
 <template>
@@ -32,7 +44,12 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                 <h1>Detail Ecommerce</h1>
                 <p>Customer {{ props.customerId }} | {{ props.from }} sampai {{ props.to }}</p>
             </div>
-            <Link :href="props.urls.index" class="btn btn-light btn-sm">Kembali</Link>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-light btn-sm" @click="exportOrders">
+                    <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                </button>
+                <Link :href="props.urls.index" class="btn btn-light btn-sm">Kembali</Link>
+            </div>
         </div>
 
         <div class="card report-card">

@@ -60,7 +60,13 @@ class StoreSlowstockController extends Controller
             'dead'      => $dead,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => [
+                'index' => url()->current(),
+                'exports' => [
+                    'slow' => route('monitoring.store-slowstock.export-slow'),
+                    'dead' => route('monitoring.store-slowstock.export-dead'),
+                ],
+            ],
         ]);
     }
 

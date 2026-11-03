@@ -2,13 +2,6 @@
 
 return [
 
-    'ai_analytics' => [
-        'url' => env('AI_ANALYTICS_URL', 'http://127.0.0.1:8000'),
-        'token' => env('AI_ANALYTICS_TOKEN'),
-        'timeout' => env('AI_ANALYTICS_TIMEOUT', 5),
-        'job_timeout' => env('AI_ANALYTICS_JOB_TIMEOUT', 120),
-    ],
-
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

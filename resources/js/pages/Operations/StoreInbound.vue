@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -95,6 +96,18 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
+const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.name,
+    hint: warehouse.code ?? undefined,
+})));
+
 
 const filters = reactive({
     q: props.filters.q ?? '',
@@ -235,17 +248,21 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label">Store</label>
-                        <select v-model="filters.store_id" class="form-select form-select-sm">
-                            <option value="">Semua store</option>
-                            <option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="filters.store_id"
+                            :options="storeOptions"
+                            placeholder="Semua store"
+                            search-placeholder="Cari store..."
+                        />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label">Warehouse Asal</label>
-                        <select v-model="filters.warehouse_id" class="form-select form-select-sm">
-                            <option value="">Semua warehouse</option>
-                            <option v-for="warehouse in props.warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="filters.warehouse_id"
+                            :options="warehouseOptions"
+                            placeholder="Semua warehouse"
+                            search-placeholder="Cari warehouse..."
+                        />
                     </div>
                     <div class="col-12 col-md-4 col-lg-2">
                         <label class="form-label">Status QC</label>

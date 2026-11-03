@@ -1,6 +1,7 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '@mdi/font/css/materialdesignicons.css';
 import '../css/theme.css';
+import '../css/vee-mascot.css';
 import { createApp, h } from 'vue';
 import type { DefineComponent } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';

@@ -5,6 +5,7 @@ defineOptions({ layout: AppLayout });
 
 import { Head, Link } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface ExportRow {
     id: string;
@@ -68,18 +69,27 @@ const formatDate = (value: string | null) => {
         minute: '2-digit',
     }).format(new Date(value));
 };
+
+const exportHistory = () => downloadExcelTable('Export-Saya', 'Export Saya', [
+    { key: 'filename', label: 'Nama File' },
+    { key: 'status', label: 'Status' },
+    { key: 'created_at', label: 'Dibuat' },
+], props.exports.data);
 </script>
 
 <template>
     <Head title="Export Saya" />
 
     <div class="report-page">
-        <div class="report-header">
+        <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
                 <span class="report-eyebrow">Reports</span>
                 <h1>Export Saya</h1>
                 <p>Daftar permintaan export laporan yang Anda buat.</p>
             </div>
+            <button class="btn btn-light btn-sm" type="button" @click="exportHistory">
+                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+            </button>
         </div>
 
         <div class="card report-card">

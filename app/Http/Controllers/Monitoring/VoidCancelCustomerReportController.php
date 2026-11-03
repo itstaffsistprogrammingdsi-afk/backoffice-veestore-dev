@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\VoidCancelCustomerReportExport;
 use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class VoidCancelCustomerReportController extends Controller
@@ -19,7 +20,7 @@ class VoidCancelCustomerReportController extends Controller
         $storeId = $request->query('store_id');
         $requestedBy = $request->query('requested_by');
         $authorizedBy = $request->query('authorized_by');
-        $from = $request->query('from') ?: now()->startOfMonth()->toDateString();
+        $from = $request->query('from') ?: now()->subDays(89)->toDateString();
         $to = $request->query('to') ?: now()->toDateString();
 
         // Show dihilangkan dari tampilan.
@@ -35,7 +36,7 @@ class VoidCancelCustomerReportController extends Controller
             from: $from,
             to: $to
         )
-            ->orderByDesc('vt.requested_at')
+            ->orderByDesc(DB::raw('COALESCE(vt.requested_at, vt.created_at)'))
             ->orderByDesc('vt.id');
 
         $rows = $query->paginate($perPage)->withQueryString();
@@ -176,11 +177,11 @@ class VoidCancelCustomerReportController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
+            ->selectRaw('
                 x.request_date,
                 COUNT(*) as total_request,
                 COALESCE(SUM(x.voided_amount), 0) as total_voided_amount
-            ")
+            ')
             ->groupBy('x.request_date')
             ->orderBy('x.request_date')
             ->get();
@@ -198,11 +199,11 @@ class VoidCancelCustomerReportController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
+            ->selectRaw('
                 x.status_label,
                 COUNT(*) as total_request,
                 COALESCE(SUM(x.voided_amount), 0) as total_voided_amount
-            ")
+            ')
             ->groupBy('x.status_label')
             ->orderByDesc('total_request')
             ->get();
@@ -254,7 +255,7 @@ class VoidCancelCustomerReportController extends Controller
             ->get();
 
         $voidDailyLabels = $voidDailyRows->map(function ($row) {
-            return \Carbon\Carbon::parse($row->request_date)->format('d M');
+            return Carbon::parse($row->request_date)->format('d M');
         })->values();
 
         $voidDailyCounts = $voidDailyRows->map(function ($row) {
@@ -302,41 +303,41 @@ class VoidCancelCustomerReportController extends Controller
         })->values();
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Void Cancel Customer',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Void & Pembatalan',
+            'description' => 'Pengajuan void transaksi POS. Jika kosong, belum ada pengajuan void pada periode ini.',
             'data' => compact(
-            'rows',
-            'detailItems',
-            'q',
-            'status',
-            'storeId',
-            'requestedBy',
-            'authorizedBy',
-            'from',
-            'to',
-            'stores',
-            'users',
-            'statuses',
-            'summary',
-            'voidDailyRows',
-            'voidStatusRows',
-            'voidStoreRows',
-            'voidCashierRows',
-            'voidDailyLabels',
-            'voidDailyCounts',
-            'voidDailyAmounts',
-            'voidStatusLabels',
-            'voidStatusCounts',
-            'voidStatusAmounts',
-            'voidStoreLabels',
-            'voidStoreCounts',
-            'voidStoreAmounts',
-            'voidCashierLabels',
-            'voidCashierCounts',
-            'voidCashierAmounts'
-        ),
+                'rows',
+                'detailItems',
+                'q',
+                'status',
+                'storeId',
+                'requestedBy',
+                'authorizedBy',
+                'from',
+                'to',
+                'stores',
+                'users',
+                'statuses',
+                'summary',
+                'voidDailyRows',
+                'voidStatusRows',
+                'voidStoreRows',
+                'voidCashierRows',
+                'voidDailyLabels',
+                'voidDailyCounts',
+                'voidDailyAmounts',
+                'voidStatusLabels',
+                'voidStatusCounts',
+                'voidStatusAmounts',
+                'voidStoreLabels',
+                'voidStoreCounts',
+                'voidStoreAmounts',
+                'voidCashierLabels',
+                'voidCashierCounts',
+                'voidCashierAmounts'
+            ),
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.void-cancel-customer.export')],
         ]);
     }
 
@@ -436,8 +437,7 @@ class VoidCancelCustomerReportController extends Controller
             ->when($authorizedBy, function ($qBuilder) use ($authorizedBy) {
                 $qBuilder->where('vt.authorized_by', $authorizedBy);
             })
-            ->whereNotNull('vt.requested_at')
-            ->whereBetween(DB::raw('vt.requested_at::date'), [$from, $to]);
+            ->whereBetween(DB::raw('COALESCE(vt.requested_at, vt.created_at)::date'), [$from, $to]);
     }
 
     private function buildDashboardBaseQuery(
@@ -464,7 +464,7 @@ class VoidCancelCustomerReportController extends Controller
                 vt.voided_amount,
                 vt.items_restored_count,
                 vt.requested_at,
-                vt.requested_at::date as request_date,
+                COALESCE(vt.requested_at, vt.created_at)::date as request_date,
 
                 s.name as store_name,
                 cashier.name as cashier_name,
@@ -513,13 +513,12 @@ class VoidCancelCustomerReportController extends Controller
             ->when($authorizedBy, function ($qBuilder) use ($authorizedBy) {
                 $qBuilder->where('vt.authorized_by', $authorizedBy);
             })
-            ->whereNotNull('vt.requested_at')
-            ->whereBetween(DB::raw('vt.requested_at::date'), [$from, $to]);
+            ->whereBetween(DB::raw('COALESCE(vt.requested_at, vt.created_at)::date'), [$from, $to]);
     }
 
     public function export(Request $request)
     {
-        $filename = 'void-cancel-customer-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'void-cancel-customer-report-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
             new VoidCancelCustomerReportExport($request),

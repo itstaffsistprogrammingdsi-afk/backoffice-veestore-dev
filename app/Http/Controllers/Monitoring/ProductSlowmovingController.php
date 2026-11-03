@@ -111,10 +111,20 @@ class ProductSlowmovingController extends Controller
             'chartProductsSlow' => $chartProductsSlow,
             'chartProductsDead' => $chartProductsDead,
             'chartStatus'       => $chartStatus,
+            'modeOptions'       => [
+                ['value' => 'store', 'label' => 'Store'],
+                ['value' => 'warehouse', 'label' => 'Warehouse'],
+            ],
             'lastUpdate'        => now()->format('d-m-Y H:i:s'),
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => [
+                'index' => url()->current(),
+                'exports' => [
+                    'slow' => route('monitoring.product-slowmoving.export-slow'),
+                    'dead' => route('monitoring.product-slowmoving.export-dead'),
+                ],
+            ],
         ]);
     }
 

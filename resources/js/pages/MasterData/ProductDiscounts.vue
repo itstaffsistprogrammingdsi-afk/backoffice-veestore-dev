@@ -4,6 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -43,6 +44,22 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const productOptions = computed(() => props.products.map((product) => ({
+    value: product.id,
+    label: `${product.code ? `${product.code} - ` : ''}${product.name}`,
+})));
+
+const discountOptions = computed(() => props.discounts.map((discount) => ({
+    value: discount.id,
+    label: `${discount.name} (${discount.type} ${formatNumber(discount.value)})`,
+})));
+
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
@@ -149,10 +166,14 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
                 <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
                     <div class="col-md-4">
                         <label class="form-label">Diskon</label>
-                        <select v-model="createForm.discount_id" class="form-select form-select-sm" required>
-                            <option value="">Pilih diskon</option>
-                            <option v-for="discount in discounts" :key="discount.id" :value="discount.id">{{ discount.name }} ({{ discount.type }} {{ formatNumber(discount.value) }})</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="createForm.discount_id"
+                            :options="discountOptions"
+                            placeholder="Pilih diskon"
+                            search-placeholder="Cari diskon..."
+                            required
+                            :clearable="false"
+                        />
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Berlaku Untuk</label>
@@ -162,19 +183,20 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
                     </div>
                     <div v-if="createForm.applied_to === 'store'" class="col-md-3">
                         <label class="form-label">Store</label>
-                        <select v-model="createForm.store_id" class="form-select form-select-sm">
-                            <option value="">Pilih store</option>
-                            <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect v-model="createForm.store_id" :options="storeOptions" placeholder="Pilih store" search-placeholder="Cari store..." />
                     </div>
                     <div class="col-md-2">
                         <div class="form-check"><input id="all-products" v-model="createForm.all_products" class="form-check-input" type="checkbox" /><label class="form-check-label" for="all-products">Semua Produk</label></div>
                     </div>
                     <div v-if="!createForm.all_products" class="col-md-12">
                         <label class="form-label">Produk</label>
-                        <select v-model="createForm.product_id" class="form-select form-select-sm" multiple size="5">
-                            <option v-for="product in products" :key="product.id" :value="product.id">{{ product.code ? `${product.code} - ` : '' }}{{ product.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="createForm.product_id"
+                            :options="productOptions"
+                            placeholder="Pilih satu atau beberapa produk"
+                            search-placeholder="Cari nama atau kode produk..."
+                            multiple
+                        />
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2"><button class="btn btn-sm btn-primary" type="submit" :disabled="createForm.processing">Simpan</button></div>
                 </form>
@@ -185,8 +207,8 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="apply">
                     <div class="col-md-4"><label class="form-label">Cari Produk</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk" /></div>
-                    <div class="col-md-3"><label class="form-label">Diskon</label><select v-model="filters.discount_id" class="form-select form-select-sm"><option value="">Semua</option><option v-for="discount in discounts" :key="discount.id" :value="discount.id">{{ discount.name }}</option></select></div>
-                    <div class="col-md-3"><label class="form-label">Store</label><select v-model="filters.store_id" class="form-select form-select-sm"><option value="">Semua</option><option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                    <div class="col-md-3"><label class="form-label">Diskon</label><SearchableSelect v-model="filters.discount_id" :options="discountOptions" placeholder="Semua diskon" search-placeholder="Cari diskon..." /></div>
+                    <div class="col-md-3"><label class="form-label">Store</label><SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
                     <div class="col-md-2 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Filter</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="resetFilters">Reset</button></div>
                 </form>
             </div>
@@ -213,9 +235,9 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
                             <tr v-if="editing && editing.discount_id === row.discount_id && editing.product_id === row.product_id">
                                 <td colspan="5" class="pd-edit">
                                     <form class="row g-2 align-items-end" @submit.prevent="submitEdit">
-                                        <div class="col-md-3"><label class="form-label">Diskon Baru</label><select v-model="editForm.discount_id" class="form-select form-select-sm"><option v-for="discount in discounts" :key="discount.id" :value="discount.id">{{ discount.name }}</option></select></div>
+                                        <div class="col-md-3"><label class="form-label">Diskon Baru</label><SearchableSelect v-model="editForm.discount_id" :options="discountOptions" placeholder="Pilih diskon" search-placeholder="Cari diskon..." :clearable="false" /></div>
                                         <div class="col-md-2"><label class="form-label">Berlaku</label><select v-model="editForm.applied_to" class="form-select form-select-sm"><option v-for="option in appliedToOptions" :key="option" :value="option">{{ option }}</option></select></div>
-                                        <div class="col-md-3"><label class="form-label">Store</label><select v-model="editForm.store_id" class="form-select form-select-sm"><option value="">Tanpa store</option><option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                                        <div class="col-md-3"><label class="form-label">Store</label><SearchableSelect v-model="editForm.store_id" :options="storeOptions" placeholder="Tanpa store" search-placeholder="Cari store..." /></div>
                                         <div class="col-md-2 d-flex gap-2"><button class="btn btn-sm btn-success" type="submit">Simpan</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="editing = null">Batal</button></div>
                                     </form>
                                 </td>

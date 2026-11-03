@@ -2,6 +2,7 @@
 import { computed, reactive } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -35,6 +36,16 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: String(store.id),
+    label: String(store.name ?? '-'),
+})));
+
+const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
+    value: String(warehouse.id),
+    label: String(warehouse.name ?? '-'),
+})));
+
 
 const form = reactive({
     from: props.from,
@@ -90,8 +101,8 @@ const cards = computed(() => [
                     <div class="col-md-2"><label class="form-label">Dari</label><input v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Sampai</label><input v-model="form.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Channel</label><select v-model="form.channel" class="form-select form-select-sm"><option value="all">Semua</option><option value="store">Store</option><option value="ecommerce">Ecommerce</option></select></div>
-                    <div class="col-md-2"><label class="form-label">Store</label><select v-model="form.store_id" class="form-select form-select-sm"><option value="">Semua</option><option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
-                    <div class="col-md-2"><label class="form-label">Warehouse</label><select v-model="form.warehouse_id" class="form-select form-select-sm"><option value="">Semua</option><option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option></select></div>
+                    <div class="col-md-2"><label class="form-label">Store</label><SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
+                    <div class="col-md-2"><label class="form-label">Warehouse</label><SearchableSelect v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." /></div>
                     <div class="col-md-2"><button class="btn btn-sm btn-primary w-100" type="submit"><i class="mdi mdi-filter me-1"></i>Terapkan</button></div>
                 </form>
             </div>

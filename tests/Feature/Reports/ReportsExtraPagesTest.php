@@ -63,10 +63,35 @@ class ReportsExtraPagesTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Reports/CrmDemographics')
-                ->has('totalCustomers')
+                ->has('filters')
+                ->has('summary')
                 ->has('genderRows')
                 ->has('ageRows')
-                ->has('urls'));
+                ->has('tierRows')
+                ->has('provinceRows')
+                ->has('registrationTrend')
+                ->has('birthdayCustomers')
+                ->has('rows')
+                ->where('urls.index', route('reports.crm.demographics'))
+                ->where('urls.export', route('reports.crm.demographics.export')));
+    }
+
+    public function test_reports_crm_demographics_accepts_complete_filters(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('reports.crm.demographics', [
+                'gender' => 'female',
+                'age_group' => '25_34',
+                'is_guest' => 'no',
+                'sort' => 'spending',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/CrmDemographics')
+                ->where('filters.gender', 'female')
+                ->where('filters.age_group', '25_34')
+                ->where('filters.is_guest', 'no')
+                ->where('filters.sort', 'spending'));
     }
 
     public function test_history_customer_page_uses_inertia(): void

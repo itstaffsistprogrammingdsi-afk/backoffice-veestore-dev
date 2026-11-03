@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -72,6 +73,16 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+})));
+
+const userOptions = computed(() => props.users.map((user) => ({
+    value: user.id,
+    label: user.name ?? '-',
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -177,10 +188,7 @@ const formatDate = (value: string | null) => {
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Store</label>
-                        <select v-model="form.store_id" class="form-select form-select-sm">
-                            <option value="">Semua Store</option>
-                            <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Store" search-placeholder="Cari store..." />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Status</label>
@@ -191,10 +199,7 @@ const formatDate = (value: string | null) => {
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Peminta</label>
-                        <select v-model="form.requested_by" class="form-select form-select-sm">
-                            <option value="">Semua User</option>
-                            <option v-for="user in users" :key="user.id" :value="user.id">{{ user.name }}</option>
-                        </select>
+                        <SearchableSelect v-model="form.requested_by" :options="userOptions" placeholder="Semua User" search-placeholder="Cari user..." />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Cari</label>

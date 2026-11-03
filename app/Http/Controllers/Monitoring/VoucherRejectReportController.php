@@ -81,7 +81,7 @@ class VoucherRejectReportController extends Controller
             'statuses' => $statuses,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.voucher-reject-report.export')],
         ]);
     }
 

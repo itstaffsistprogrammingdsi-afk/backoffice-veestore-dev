@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
 import { computed, reactive, ref } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface Option { id: string; name: string }
 
@@ -63,6 +65,11 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.name,
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -165,17 +172,44 @@ const statusClass = (status: string) => {
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '-';
 const formatNumber = (value: number | null | undefined) => new Intl.NumberFormat('id-ID').format(Number(value ?? 0));
+
+const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
+    { key: 'order_number', label: 'Nomor Order' },
+    { key: 'date', label: 'Tanggal' },
+    { key: 'store', label: 'Store' },
+    { key: 'warehouse', label: 'Warehouse' },
+    { key: 'status', label: 'Status' },
+    { key: 'requested_quantity', label: 'Qty Diminta' },
+], props.orders.data.map((order) => ({
+    order_number: order.order_number ?? order.id,
+    date: order.date ?? order.created_at,
+    store: order.store?.name ?? '',
+    warehouse: order.warehouse?.name ?? '',
+    status: order.status,
+    requested_quantity: Number(order.details_sum_requested_qty ?? 0),
+})), {
+    title: 'Order Cabang',
+    filters: [
+        { label: 'Pencarian', value: props.filters.q },
+        { label: 'Status', value: props.filters.status },
+        { label: 'Dari', value: props.filters.from },
+        { label: 'Sampai', value: props.filters.to },
+    ],
+});
 </script>
 
 <template>
     <Head title="Order Cabang" />
     <div class="report-page">
-        <div class="report-header">
+        <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
                 <span class="report-eyebrow">Reports</span>
                 <h1>Order Cabang</h1>
                 <p>Permintaan order dari toko ke gudang.</p>
             </div>
+            <button class="btn btn-light btn-sm" type="button" @click="exportOrders">
+                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+            </button>
         </div>
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
@@ -225,10 +259,7 @@ const formatNumber = (value: number | null | undefined) => new Intl.NumberFormat
                     <div class="row g-2 align-items-end mb-3">
                         <div class="col-md-4">
                             <label class="form-label">Warehouse untuk approve</label>
-                            <select v-model="warehouseId" class="form-select form-select-sm">
-                                <option value="">Pilih warehouse</option>
-                                <option v-for="warehouse in warehouses" :key="warehouse.id" :value="warehouse.id">{{ warehouse.name }}</option>
-                            </select>
+                            <SearchableSelect v-model="warehouseId" :options="warehouseOptions" placeholder="Pilih warehouse" search-placeholder="Cari warehouse..." />
                         </div>
                         <div class="col-md-8 d-flex flex-wrap gap-2">
                             <button class="btn btn-sm btn-outline-secondary" type="button" @click="action('request')">Request</button>

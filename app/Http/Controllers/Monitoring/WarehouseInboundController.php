@@ -106,7 +106,7 @@ class WarehouseInboundController extends Controller
             'filters' => $filters,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.warehouse-inbound.export')],
         ]);
     }
 

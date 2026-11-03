@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\EcommercePaymentExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class EcommercePaymentController extends Controller
@@ -23,16 +23,16 @@ class EcommercePaymentController extends Controller
         */
         $today = now()->toDateString();
 
-        $customerName   = trim((string) $request->get('customer_name'));
-        $email          = trim((string) $request->get('email'));
-        $waNumber       = trim((string) $request->get('wa_number'));
-        $orderNumber    = trim((string) $request->get('order_number'));
-        $orderStatus    = $this->normalizeNullableString($request->get('order_status'));
-        $paymentStatus  = $this->normalizeNullableString($request->get('payment_status'));
-        $paymentMethod  = $this->normalizeNullableString($request->get('payment_method_id'));
+        $customerName = trim((string) $request->get('customer_name'));
+        $email = trim((string) $request->get('email'));
+        $waNumber = trim((string) $request->get('wa_number'));
+        $orderNumber = trim((string) $request->get('order_number'));
+        $orderStatus = $this->normalizeNullableString($request->get('order_status'));
+        $paymentStatus = $this->normalizeNullableString($request->get('payment_status'));
+        $paymentMethod = $this->normalizeNullableString($request->get('payment_method_id'));
 
-        $startDate      = $this->normalizeDate($request->get('start_date')) ?: $today;
-        $endDate        = $this->normalizeDate($request->get('end_date')) ?: $today;
+        $startDate = $this->normalizeDate($request->get('start_date')) ?: $today;
+        $endDate = $this->normalizeDate($request->get('end_date')) ?: $today;
 
         if ($startDate > $endDate) {
             [$startDate, $endDate] = [$endDate, $startDate];
@@ -40,7 +40,7 @@ class EcommercePaymentController extends Controller
 
         $perPage = (int) $request->get('per_page', 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
             $perPage = 10;
         }
 
@@ -48,15 +48,15 @@ class EcommercePaymentController extends Controller
         $itemAgg = $this->itemAggregate();
 
         $filters = [
-            'customer_name'     => $customerName,
-            'email'             => $email,
-            'wa_number'         => $waNumber,
-            'order_number'      => $orderNumber,
-            'order_status'      => $orderStatus,
-            'payment_status'    => $paymentStatus,
+            'customer_name' => $customerName,
+            'email' => $email,
+            'wa_number' => $waNumber,
+            'order_number' => $orderNumber,
+            'order_status' => $orderStatus,
+            'payment_status' => $paymentStatus,
             'payment_method_id' => $paymentMethod,
-            'start_date'        => $startDate,
-            'end_date'          => $endDate,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
         ];
 
         $query = $this->baseQuery($paymentDetailAgg, $itemAgg, $filters);
@@ -90,33 +90,33 @@ class EcommercePaymentController extends Controller
             ->pluck('status');
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Ecommerce Payment',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Pembayaran Ecommerce',
+            'description' => 'Nilai pesanan, pembayaran diterima, dan sisa tagihan ecommerce. Pembayaran dihitung dari status pembayaran.',
             'data' => [
-            'rows'               => $rows,
-            'customerName'       => $customerName,
-            'email'              => $email,
-            'waNumber'           => $waNumber,
-            'orderNumber'        => $orderNumber,
-            'orderStatus'        => $orderStatus,
-            'paymentStatus'      => $paymentStatus,
-            'paymentMethod'      => $paymentMethod,
-            'startDate'          => $startDate,
-            'endDate'            => $endDate,
-            'perPage'            => $perPage,
-            'paymentMethods'     => $paymentMethods,
-            'orderStatuses'      => $orderStatuses,
-            'paymentStatuses'    => $paymentStatuses,
-            'today'              => $today,
-            'lastUpdate'         => now()->format('d-m-Y H:i:s'),
+                'rows' => $rows,
+                'customerName' => $customerName,
+                'email' => $email,
+                'waNumber' => $waNumber,
+                'orderNumber' => $orderNumber,
+                'orderStatus' => $orderStatus,
+                'paymentStatus' => $paymentStatus,
+                'paymentMethod' => $paymentMethod,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'perPage' => $perPage,
+                'paymentMethods' => $paymentMethods,
+                'orderStatuses' => $orderStatuses,
+                'paymentStatuses' => $paymentStatuses,
+                'today' => $today,
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
 
-            'dashboardSummary'   => $dashboardSummary,
-            'chartOmzetDaily'    => $chartOmzetDaily,
-            'chartPaymentStatus' => $chartPaymentStatus,
-            'chartPaymentMethod' => $chartPaymentMethod,
-        ],
+                'dashboardSummary' => $dashboardSummary,
+                'chartOmzetDaily' => $chartOmzetDaily,
+                'chartPaymentStatus' => $chartPaymentStatus,
+                'chartPaymentMethod' => $chartPaymentMethod,
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.ecommerce-payment.export')],
         ]);
     }
 
@@ -142,7 +142,7 @@ class EcommercePaymentController extends Controller
             ])
             ->first();
 
-        if (!$orderData) {
+        if (! $orderData) {
             return response()->json([
                 'success' => false,
                 'message' => 'Order tidak ditemukan.',
@@ -162,29 +162,29 @@ class EcommercePaymentController extends Controller
                 'eod.product_id',
                 DB::raw("COALESCE(p.code, '-') as product_code"),
                 DB::raw("COALESCE(p.name, '-') as product_name"),
-                DB::raw("COALESCE(eod.quantity, 0) as quantity"),
-                DB::raw("COALESCE(eod.total_price, 0) as total_price"),
-                DB::raw("COALESCE(eod.total_discount, 0) as total_discount"),
+                DB::raw('COALESCE(eod.quantity, 0) as quantity'),
+                DB::raw('COALESCE(eod.total_price, 0) as total_price'),
+                DB::raw('COALESCE(eod.total_discount, 0) as total_discount'),
             ])
             ->when($hasPrice, function ($query) {
-                $query->addSelect(DB::raw("COALESCE(eod.price, 0) as price"));
+                $query->addSelect(DB::raw('COALESCE(eod.price, 0) as price'));
             }, function ($query) {
-                $query->addSelect(DB::raw("0 as price"));
+                $query->addSelect(DB::raw('0 as price'));
             })
             ->when($hasUnitPrice, function ($query) {
-                $query->addSelect(DB::raw("COALESCE(eod.unit_price, 0) as unit_price"));
+                $query->addSelect(DB::raw('COALESCE(eod.unit_price, 0) as unit_price'));
             }, function ($query) {
-                $query->addSelect(DB::raw("0 as unit_price"));
+                $query->addSelect(DB::raw('0 as unit_price'));
             })
             ->when($hasDiscountPrice, function ($query) {
-                $query->addSelect(DB::raw("COALESCE(eod.discount_price, 0) as discount_price"));
+                $query->addSelect(DB::raw('COALESCE(eod.discount_price, 0) as discount_price'));
             }, function ($query) {
-                $query->addSelect(DB::raw("0 as discount_price"));
+                $query->addSelect(DB::raw('0 as discount_price'));
             })
             ->when($hasFinalPrice, function ($query) {
-                $query->addSelect(DB::raw("COALESCE(eod.final_price, 0) as final_price"));
+                $query->addSelect(DB::raw('COALESCE(eod.final_price, 0) as final_price'));
             }, function ($query) {
-                $query->addSelect(DB::raw("0 as final_price"));
+                $query->addSelect(DB::raw('0 as final_price'));
             })
             ->orderBy('p.name')
             ->get()
@@ -254,15 +254,15 @@ class EcommercePaymentController extends Controller
         */
         $today = now()->toDateString();
 
-        if (!$request->filled('start_date')) {
+        if (! $request->filled('start_date')) {
             $request->merge(['start_date' => $today]);
         }
 
-        if (!$request->filled('end_date')) {
+        if (! $request->filled('end_date')) {
             $request->merge(['end_date' => $today]);
         }
 
-        $filename = 'monitoring-ecommerce-payment-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'monitoring-ecommerce-payment-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new EcommercePaymentExport($request), $filename);
     }
@@ -371,15 +371,15 @@ class EcommercePaymentController extends Controller
 
     private function baseQuery($paymentDetailAgg, $itemAgg, array $filters)
     {
-        $customerName  = $filters['customer_name'] ?? '';
-        $email         = $filters['email'] ?? '';
-        $waNumber      = $filters['wa_number'] ?? '';
-        $orderNumber   = $filters['order_number'] ?? '';
-        $orderStatus   = $filters['order_status'] ?? null;
+        $customerName = $filters['customer_name'] ?? '';
+        $email = $filters['email'] ?? '';
+        $waNumber = $filters['wa_number'] ?? '';
+        $orderNumber = $filters['order_number'] ?? '';
+        $orderStatus = $filters['order_status'] ?? null;
         $paymentStatus = $filters['payment_status'] ?? null;
         $paymentMethod = $filters['payment_method_id'] ?? null;
-        $startDate     = $filters['start_date'] ?? null;
-        $endDate       = $filters['end_date'] ?? null;
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
 
         return DB::table('ecommerce_orders as eo')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
@@ -412,7 +412,7 @@ class EcommercePaymentController extends Controller
                 DB::raw("COALESCE(sm.courier_name, '-') as shipping_courier_name"),
                 DB::raw("COALESCE(sm.service, '-') as shipping_service"),
                 DB::raw("COALESCE(sm.duration, '-') as shipping_duration"),
-                DB::raw("COALESCE(sm.price, 0) as shipping_price"),
+                DB::raw('COALESCE(sm.price, 0) as shipping_price'),
                 DB::raw("
                     CASE
                         WHEN sm.id IS NULL THEN '-'
@@ -430,10 +430,17 @@ class EcommercePaymentController extends Controller
                 'p.status as payment_status',
                 'p.note as payment_note',
                 'p.transaction_number',
-                DB::raw("COALESCE(p.total_amount, 0) as total_amount"),
-                DB::raw("COALESCE(p.paid_amount, 0) as paid_amount"),
-                DB::raw("COALESCE(p.change_amount, 0) as change_amount"),
-                DB::raw("COALESCE(p.tax_amount, 0) as tax_amount"),
+                DB::raw('COALESCE(p.total_amount, 0) as total_amount'),
+                DB::raw("
+                    CASE
+                        WHEN LOWER(COALESCE(p.status::text, '')) IN ('paid', 'settlement', 'capture', 'success', 'completed')
+                        THEN COALESCE(NULLIF(p.paid_amount, 0), p.total_amount, 0)
+                        ELSE 0
+                    END as paid_amount
+                "),
+                DB::raw("CASE WHEN LOWER(COALESCE(p.status::text, '')) IN ('paid', 'settlement', 'capture', 'success', 'completed') THEN 1 ELSE 0 END as is_paid"),
+                DB::raw('COALESCE(p.change_amount, 0) as change_amount'),
+                DB::raw('COALESCE(p.tax_amount, 0) as tax_amount'),
                 'p.completed_at as payment_completed_at',
 
                 DB::raw('COALESCE(pda.total_payment_detail_amount, 0) as total_payment_detail_amount'),
@@ -504,9 +511,16 @@ class EcommercePaymentController extends Controller
                 COALESCE(SUM(x.grand_total), 0) as total_grand_total,
                 COALESCE(SUM(x.paid_amount), 0) as total_paid_amount,
 
-                COALESCE(SUM(x.grand_total), 0) - COALESCE(SUM(x.paid_amount), 0) as total_outstanding,
+                COALESCE(SUM(
+                    CASE
+                        WHEN x.is_paid = 0
+                        AND LOWER(COALESCE(x.order_status::text, '')) <> 'cancelled'
+                        THEN GREATEST(x.grand_total - x.paid_amount, 0)
+                        ELSE 0
+                    END
+                ), 0) as total_outstanding,
 
-                COALESCE(AVG(NULLIF(x.grand_total, 0)), 0) as average_order_value
+                COALESCE(AVG(CASE WHEN x.is_paid = 1 THEN NULLIF(x.paid_amount, 0) END), 0) as average_order_value
             ")
             ->first();
     }
@@ -515,12 +529,13 @@ class EcommercePaymentController extends Controller
     {
         return DB::query()
             ->fromSub($query, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 DATE(x.order_created_at) as tanggal,
                 COUNT(DISTINCT x.id)::int as total_order,
-                COALESCE(SUM(x.grand_total), 0) as total_omset,
+                COALESCE(SUM(x.grand_total), 0) as total_order_value,
+                COALESCE(SUM(x.paid_amount), 0) as total_omset,
                 COALESCE(SUM(x.paid_amount), 0) as total_paid
-            ")
+            ')
             ->groupByRaw('DATE(x.order_created_at)')
             ->orderByRaw('DATE(x.order_created_at)')
             ->get();
@@ -533,7 +548,8 @@ class EcommercePaymentController extends Controller
             ->selectRaw("
                 COALESCE(x.payment_status::text, '-') as label,
                 COUNT(DISTINCT x.id)::int as total_order,
-                COALESCE(SUM(x.grand_total), 0) as total_omset
+                COALESCE(SUM(x.grand_total), 0) as total_order_value,
+                COALESCE(SUM(x.paid_amount), 0) as total_omset
             ")
             ->groupByRaw("COALESCE(x.payment_status::text, '-')")
             ->orderByDesc('total_order')
@@ -547,7 +563,8 @@ class EcommercePaymentController extends Controller
             ->selectRaw("
                 COALESCE(x.payment_method_descriptions, '-') as label,
                 COUNT(DISTINCT x.id)::int as total_order,
-                COALESCE(SUM(x.grand_total), 0) as total_omset
+                COALESCE(SUM(x.grand_total), 0) as total_order_value,
+                COALESCE(SUM(x.paid_amount), 0) as total_omset
             ")
             ->groupByRaw("COALESCE(x.payment_method_descriptions, '-')")
             ->orderByDesc('total_omset')
@@ -557,7 +574,7 @@ class EcommercePaymentController extends Controller
 
     private function normalizeDate($date): ?string
     {
-        if (!$date) {
+        if (! $date) {
             return null;
         }
 
@@ -573,6 +590,7 @@ class EcommercePaymentController extends Controller
 
         if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
             [$day, $month, $year] = explode('/', $date);
+
             return "{$year}-{$month}-{$day}";
         }
 

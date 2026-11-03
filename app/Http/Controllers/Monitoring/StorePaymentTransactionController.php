@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\StorePaymentTransactionExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StorePaymentTransactionController extends Controller
@@ -43,7 +43,7 @@ class StorePaymentTransactionController extends Controller
         $keyword = $this->normalizeNullableString($request->query('keyword'));
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
             $perPage = 10;
         }
 
@@ -56,6 +56,12 @@ class StorePaymentTransactionController extends Controller
             ->whereNull('deleted_at')
             ->orderBy('name')
             ->get(['id', 'name']);
+
+        $paymentStatuses = DB::table('payments')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
 
         $rows = $this->buildRowsQuery(
             startDate: $startDate,
@@ -130,39 +136,40 @@ class StorePaymentTransactionController extends Controller
             ->values();
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Store Payment Transactions',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Pembayaran Store',
+            'description' => 'Transaksi pembayaran store beserta metode pembayaran dan rincian produk.',
             'data' => [
-            'rows' => $rows,
-            'stores' => $stores,
-            'paymentMethods' => $paymentMethods,
-            'paymentMethodSummaries' => $paymentMethodSummaries,
-            'paymentMethodUsageDetails' => $paymentMethodUsageDetails,
-            'summaryDashboard' => $summaryDashboard,
+                'rows' => $rows,
+                'stores' => $stores,
+                'paymentMethods' => $paymentMethods,
+                'paymentStatuses' => $paymentStatuses,
+                'paymentMethodSummaries' => $paymentMethodSummaries,
+                'paymentMethodUsageDetails' => $paymentMethodUsageDetails,
+                'summaryDashboard' => $summaryDashboard,
 
-            'summaryGrandTotal' => $summaryGrandTotal,
-            'summaryGrandTransaction' => $summaryGrandTransaction,
+                'summaryGrandTotal' => $summaryGrandTotal,
+                'summaryGrandTransaction' => $summaryGrandTransaction,
 
-            'paymentMethodLabels' => $paymentMethodLabels,
-            'paymentMethodCounts' => $paymentMethodCounts,
-            'paymentMethodAmounts' => $paymentMethodAmounts,
+                'paymentMethodLabels' => $paymentMethodLabels,
+                'paymentMethodCounts' => $paymentMethodCounts,
+                'paymentMethodAmounts' => $paymentMethodAmounts,
 
-            'dailyLabels' => $dailyLabels,
-            'dailyCounts' => $dailyCounts,
-            'dailyAmounts' => $dailyAmounts,
+                'dailyLabels' => $dailyLabels,
+                'dailyCounts' => $dailyCounts,
+                'dailyAmounts' => $dailyAmounts,
 
-            'storeId' => $storeId,
-            'paymentMethodId' => $paymentMethodId,
-            'paymentStatus' => $paymentStatus,
-            'keyword' => $keyword,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-            'perPage' => $perPage,
-            'today' => $today,
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'storeId' => $storeId,
+                'paymentMethodId' => $paymentMethodId,
+                'paymentStatus' => $paymentStatus,
+                'keyword' => $keyword,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'perPage' => $perPage,
+                'today' => $today,
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.store-payment-transactions.export')],
         ]);
     }
 
@@ -232,7 +239,7 @@ class StorePaymentTransactionController extends Controller
                 ],
                 $paymentMethodSummaries
             ),
-            'store-payment-transactions-' . now()->format('Ymd_His') . '.xlsx'
+            'store-payment-transactions-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
@@ -333,7 +340,7 @@ class StorePaymentTransactionController extends Controller
                 'p.completed_at',
                 'p.created_at as payment_created_at',
 
-                DB::raw("COALESCE(p.completed_at, p.created_at, scv.check_in_at) as payment_real_date"),
+                DB::raw('COALESCE(p.completed_at, p.created_at, scv.check_in_at) as payment_real_date'),
                 DB::raw("COALESCE(pma.payment_methods, '-') as payment_methods"),
                 DB::raw('COALESCE(pma.payment_detail_amount, 0)::numeric as payment_detail_amount'),
 
@@ -367,14 +374,14 @@ class StorePaymentTransactionController extends Controller
 
         return DB::query()
             ->fromSub($paymentQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(DISTINCT x.payment_id)::int as total_transactions,
                 COUNT(DISTINCT x.store_id)::int as total_stores,
                 COUNT(DISTINCT x.customer_id)::int as total_customers,
                 COALESCE(SUM(x.total_amount), 0)::numeric as total_amount,
                 COALESCE(SUM(x.paid_amount), 0)::numeric as total_paid,
                 COALESCE(SUM(x.change_amount), 0)::numeric as total_change
-            ")
+            ')
             ->first();
     }
 
@@ -403,14 +410,14 @@ class StorePaymentTransactionController extends Controller
         $this->applyCommonFilters($query, $storeId, $paymentMethodId, $paymentStatus, $keyword, 'pd');
 
         return $query
-            ->selectRaw("
+            ->selectRaw('
                 pm.id as payment_method_id,
                 pm.name as payment_method_name,
                 COUNT(DISTINCT p.id)::int as total_transactions,
                 COALESCE(SUM(pd.amount), 0)::numeric as total_amount,
                 MIN(COALESCE(p.completed_at, p.created_at, scv.check_in_at)) as first_used_at,
                 MAX(COALESCE(p.completed_at, p.created_at, scv.check_in_at)) as last_used_at
-            ")
+            ')
             ->groupBy('pm.id', 'pm.name')
             ->orderByDesc('total_amount')
             ->orderBy('pm.name')
@@ -485,11 +492,11 @@ class StorePaymentTransactionController extends Controller
 
         return DB::query()
             ->fromSub($paymentQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 x.payment_real_date::date as payment_date,
                 COUNT(DISTINCT x.payment_id)::int as total_transactions,
                 COALESCE(SUM(x.total_amount), 0)::numeric as total_amount
-            ")
+            ')
             ->groupBy(DB::raw('x.payment_real_date::date'))
             ->orderBy(DB::raw('x.payment_real_date::date'))
             ->get();
@@ -518,7 +525,7 @@ class StorePaymentTransactionController extends Controller
         $this->applyCommonFilters($query, $storeId, $paymentMethodId, $paymentStatus, $keyword);
 
         return $query
-            ->selectRaw("
+            ->selectRaw('
                 p.id as payment_id,
                 scv.store_id,
                 c.id as customer_id,
@@ -526,8 +533,8 @@ class StorePaymentTransactionController extends Controller
                 COALESCE(p.paid_amount, 0)::numeric as paid_amount,
                 COALESCE(p.change_amount, 0)::numeric as change_amount,
                 COALESCE(p.completed_at, p.created_at, scv.check_in_at) as payment_real_date
-            ")
-            ->groupByRaw("
+            ')
+            ->groupByRaw('
                 p.id,
                 scv.store_id,
                 c.id,
@@ -535,7 +542,7 @@ class StorePaymentTransactionController extends Controller
                 p.paid_amount,
                 p.change_amount,
                 COALESCE(p.completed_at, p.created_at, scv.check_in_at)
-            ");
+            ');
     }
 
     private function applyCommonFilters(
@@ -598,7 +605,7 @@ class StorePaymentTransactionController extends Controller
 
     private function normalizeDate(?string $date): ?string
     {
-        if (!$date) {
+        if (! $date) {
             return null;
         }
 
@@ -614,6 +621,7 @@ class StorePaymentTransactionController extends Controller
 
         if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
             [$day, $month, $year] = explode('/', $date);
+
             return "{$year}-{$month}-{$day}";
         }
 

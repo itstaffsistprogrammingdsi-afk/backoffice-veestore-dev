@@ -46,7 +46,7 @@ class MonitoringDiskonController extends Controller
             ],
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.diskon.export')],
         ]);
     }
 

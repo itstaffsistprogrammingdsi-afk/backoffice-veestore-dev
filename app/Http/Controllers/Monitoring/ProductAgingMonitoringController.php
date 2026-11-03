@@ -100,6 +100,12 @@ class ProductAgingMonitoringController extends Controller
             ->orderBy('stores.name')
             ->get();
 
+        $statuses = DB::table('item_conditions')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
+
         return Inertia::render('Monitoring/Report', [
             'title' => 'Product Aging',
             'description' => 'Laporan monitoring.',
@@ -108,6 +114,7 @@ class ProductAgingMonitoringController extends Controller
             'filters'           => $filters,
             'warehouses'        => $warehouses,
             'stores'            => $stores,
+            'statuses'          => $statuses,
             'asOfDate'          => now(),
             'lastUpdate'        => now()->format('d-m-Y H:i:s'),
             'summary'           => $summary,
@@ -116,7 +123,7 @@ class ProductAgingMonitoringController extends Controller
             'topAgingOverall'   => $topAgingOverall,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.product-aging.export')],
         ]);
     }
 

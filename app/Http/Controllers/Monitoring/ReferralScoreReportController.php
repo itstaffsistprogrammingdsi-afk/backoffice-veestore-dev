@@ -203,7 +203,7 @@ class ReferralScoreReportController extends Controller
             'latestReferralRows'
         ),
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.referral-score-report.export')],
         ]);
     }
 

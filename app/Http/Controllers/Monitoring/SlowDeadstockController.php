@@ -62,7 +62,13 @@ class SlowDeadstockController extends Controller
             'dead'       => $dead,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => [
+                'index' => url()->current(),
+                'exports' => [
+                    'slow' => route('monitoring.slow-deadstock.export-slow'),
+                    'dead' => route('monitoring.slow-deadstock.export-dead'),
+                ],
+            ],
         ]);
     }
 

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\OmsetCabangExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class OmsetCabangController extends Controller
@@ -67,25 +67,30 @@ class OmsetCabangController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Cabang',
-            'description' => 'Laporan monitoring.',
+            'description' => 'Ringkasan omset per cabang. Baris tabel adalah cabang, bukan rincian produk.',
             'data' => [
-            'rows' => $rows,
-            'summary' => $summary,
-            'stores' => $stores,
-            'products' => $products,
-            'chartRows' => $chartRows,
+                'rows' => $rows,
+                'summary' => $summary,
+                'stores' => $stores,
+                'products' => $products,
+                'chartRows' => $chartRows,
+                'omsetTab' => 'cabang',
+                'omsetUrls' => [
+                    'cabang' => route('monitoring.omset-cabang.index'),
+                    'kotor' => route('monitoring.omset-kotor.index'),
+                ],
 
-            'storeId' => $filters['store_id'],
-            'productId' => $filters['product_id'],
-            'q' => $filters['q'],
-            'dateFrom' => $filters['date_from'],
-            'dateTo' => $filters['date_to'],
-            'perPage' => $filters['per_page'],
-            'today' => $filters['today'],
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'storeId' => $filters['store_id'],
+                'productId' => $filters['product_id'],
+                'q' => $filters['q'],
+                'dateFrom' => $filters['date_from'],
+                'dateTo' => $filters['date_to'],
+                'perPage' => $filters['per_page'],
+                'today' => $filters['today'],
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.omset-cabang.export')],
         ]);
     }
 
@@ -109,7 +114,7 @@ class OmsetCabangController extends Controller
 
         return Excel::download(
             new OmsetCabangExport($rows),
-            'laporan-omset-cabang-' . now()->format('Ymd_His') . '.xlsx'
+            'laporan-omset-cabang-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
@@ -133,7 +138,7 @@ class OmsetCabangController extends Controller
 
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -164,10 +169,6 @@ class OmsetCabangController extends Controller
             dateTo: $dateTo
         )
             ->orderBy('x.store_name')
-            ->orderBy('x.order_source')
-            ->orderBy('x.customer_name')
-            ->orderBy('x.order_number')
-            ->orderBy('x.product_name')
             ->paginate($perPage)
             ->withQueryString();
     }
@@ -187,10 +188,6 @@ class OmsetCabangController extends Controller
             dateTo: $dateTo
         )
             ->orderBy('x.store_name')
-            ->orderBy('x.order_source')
-            ->orderBy('x.customer_name')
-            ->orderBy('x.order_number')
-            ->orderBy('x.product_name')
             ->get();
     }
 
@@ -212,66 +209,25 @@ class OmsetCabangController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
-                x.order_source,
-                x.sales_channel,
-                x.order_id,
-                x.order_number,
-                x.status,
-
-                x.customer_id,
-                x.customer_name,
-
-                x.store_id,
+            ->selectRaw('
+                MAX(x.store_id::text)::uuid as store_id,
                 x.store_name,
                 x.store_code,
-                x.fulfillment_store_names,
-                x.fulfillment_warehouse_names,
 
-                x.product_id,
-                x.product_name,
-                x.product_code,
+                COUNT(DISTINCT x.order_id)::int as total_order,
+                COUNT(DISTINCT x.product_id)::int as total_produk,
 
-                SUM(x.requested_qty) as total_barang_diambil,
-                SUM(x.approved_qty) as total_barang_keluar,
-                SUM(x.received_qty) as total_barang_diterima,
-                SUM(x.requested_qty - x.approved_qty) as total_sisa_belum_keluar,
-                SUM(x.fulfillment_store_qty) as total_barang_keluar_store_ecommerce,
-                SUM(x.fulfillment_warehouse_qty) as total_barang_keluar_warehouse_ecommerce,
+                COALESCE(SUM(x.requested_qty), 0)::int as total_barang_diambil,
+                COALESCE(SUM(x.approved_qty), 0)::int as total_barang_keluar,
+                COALESCE(SUM(x.received_qty), 0)::int as total_barang_diterima,
+                COALESCE(SUM(x.requested_qty - x.approved_qty), 0)::int as total_sisa_belum_keluar,
 
-                MAX(x.harga_order_store) as harga_order_store,
-                MAX(x.harga_base) as harga_base,
-                MAX(x.harga_jual_store) as harga_jual_store,
-                MAX(x.harga_jual_ecommerce) as harga_jual_ecommerce,
-
-                SUM(x.total_harga_order_store) as total_harga_order_store,
-                SUM(x.total_harga_base) as total_harga_base,
-                SUM(x.total_harga_awal) as total_harga_awal,
-                SUM(x.total_diskon_produk) as total_diskon_produk,
-                SUM(x.total_voucher_promo) as total_voucher_promo,
-                SUM(x.total_harga_akhir) as total_harga_akhir,
-                SUM(x.total_omset_kotor_store) as total_omset_kotor_store,
-                SUM(x.total_omset_kotor_ecommerce) as total_omset_kotor_ecommerce,
-
-                COUNT(DISTINCT x.order_id) as total_order
-            ")
-            ->groupBy(
-                'x.order_source',
-                'x.sales_channel',
-                'x.order_id',
-                'x.order_number',
-                'x.status',
-                'x.customer_id',
-                'x.customer_name',
-                'x.store_id',
-                'x.store_name',
-                'x.store_code',
-                'x.fulfillment_store_names',
-                'x.fulfillment_warehouse_names',
-                'x.product_id',
-                'x.product_name',
-                'x.product_code'
-            );
+                COALESCE(SUM(x.total_harga_base), 0)::numeric as total_harga_base,
+                COALESCE(SUM(x.total_omset_kotor_store), 0)::numeric as total_omset_kotor_store,
+                COALESCE(SUM(x.total_omset_kotor_ecommerce), 0)::numeric as total_omset_kotor_ecommerce,
+                COALESCE(SUM(x.total_omset_kotor_store + x.total_omset_kotor_ecommerce), 0)::numeric as total_omset
+            ')
+            ->groupBy('x.store_name', 'x.store_code');
     }
 
     private function getSummary(
@@ -292,8 +248,8 @@ class OmsetCabangController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
-                COUNT(DISTINCT x.store_id) as total_cabang,
+            ->selectRaw('
+                COUNT(DISTINCT COALESCE(x.store_code, x.store_name)) as total_cabang,
                 COUNT(DISTINCT x.product_id) as total_produk,
                 COUNT(DISTINCT x.customer_id) as total_customer,
                 COUNT(DISTINCT x.order_id) as total_store_order,
@@ -306,8 +262,9 @@ class OmsetCabangController extends Controller
                 COALESCE(SUM(x.total_harga_order_store), 0) as total_harga_order_store,
                 COALESCE(SUM(x.total_harga_base), 0) as total_harga_base,
                 COALESCE(SUM(x.total_omset_kotor_store), 0) as total_omset_kotor_store,
-                COALESCE(SUM(x.total_omset_kotor_ecommerce), 0) as total_omset_kotor_ecommerce
-            ")
+                COALESCE(SUM(x.total_omset_kotor_ecommerce), 0) as total_omset_kotor_ecommerce,
+                COALESCE(SUM(x.total_omset_kotor_store + x.total_omset_kotor_ecommerce), 0) as total_omset
+            ')
             ->first();
     }
 
@@ -329,8 +286,8 @@ class OmsetCabangController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
-                x.store_id,
+            ->selectRaw('
+                MAX(x.store_id::text)::uuid as store_id,
                 x.store_name,
                 x.store_code,
 
@@ -338,8 +295,8 @@ class OmsetCabangController extends Controller
                 COALESCE(SUM(x.total_harga_base), 0) as total_harga_base,
                 COALESCE(SUM(x.total_omset_kotor_store), 0) as total_omset_kotor_store,
                 COALESCE(SUM(x.total_omset_kotor_ecommerce), 0) as total_omset_kotor_ecommerce
-            ")
-            ->groupBy('x.store_id', 'x.store_name', 'x.store_code')
+            ')
+            ->groupBy('x.store_name', 'x.store_code')
             ->orderByDesc(DB::raw('SUM(x.total_omset_kotor_ecommerce)'))
             ->limit(10)
             ->get();
@@ -564,8 +521,8 @@ class OmsetCabangController extends Controller
                 eo.created_at as order_datetime,
                 {$orderDateSql} as order_date,
 
-                'Ecommerce'::text as store_name,
-                'ECOMMERCE'::text as store_code,
+                COALESCE(store_fulfillment.fulfillment_store_names, handled_store.name, 'Ecommerce (Gudang)')::text as store_name,
+                COALESCE(handled_store.code, 'ECOMMERCE')::text as store_code,
                 COALESCE(store_fulfillment.fulfillment_store_ids, eo.handled_by_store_id::text) as fulfillment_store_ids,
                 COALESCE(store_fulfillment.fulfillment_store_names, handled_store.name) as fulfillment_store_names,
                 COALESCE(warehouse_fulfillment.fulfillment_warehouse_names, handled_warehouse.name) as fulfillment_warehouse_names,
@@ -598,7 +555,7 @@ class OmsetCabangController extends Controller
 
     private function buildStoreOrderBaseQuery()
     {
-        $orderDateSql = "COALESCE(so.requested_at, so.created_at)::date";
+        $orderDateSql = 'COALESCE(so.requested_at, so.created_at)::date';
 
         $basePriceSql = $this->priceSql('p.id', $orderDateSql, 'base');
         $storePriceSql = $this->priceSql('p.id', $orderDateSql, 'store');
@@ -660,7 +617,7 @@ class OmsetCabangController extends Controller
 
     private function buildEcommerceOrderBaseQuery()
     {
-        $orderDateSql = "eo.created_at::date";
+        $orderDateSql = 'eo.created_at::date';
 
         $basePriceSql = $this->priceSql('p.id', $orderDateSql, 'base');
         $storePriceSql = $this->priceSql('p.id', $orderDateSql, 'store');
@@ -669,12 +626,12 @@ class OmsetCabangController extends Controller
         $storeOutboundQtySub = DB::table('store_outbound_details as sod_out')
             ->join('store_outbounds as so_out', 'so_out.id', '=', 'sod_out.store_outbound_id')
             ->join('items as i', 'i.id', '=', 'sod_out.item_id')
-            ->selectRaw("
+            ->selectRaw('
                 so_out.ecommerce_order_id,
                 so_out.store_id,
                 i.product_id,
                 COUNT(sod_out.item_id)::int as outbound_qty
-            ")
+            ')
             ->whereNotNull('so_out.ecommerce_order_id')
             ->groupBy(
                 'so_out.ecommerce_order_id',
@@ -803,7 +760,7 @@ class OmsetCabangController extends Controller
 
     private function applyDeletedAtFilter($query, string $table, ?string $alias = null): void
     {
-        if (!Schema::hasColumn($table, 'deleted_at')) {
+        if (! Schema::hasColumn($table, 'deleted_at')) {
             return;
         }
 

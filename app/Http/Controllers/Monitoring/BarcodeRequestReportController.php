@@ -71,7 +71,7 @@ class BarcodeRequestReportController extends Controller
             'statuses' => $statuses,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.barcode-request-report.export')],
         ]);
     }
 

@@ -5,6 +5,7 @@ defineOptions({ layout: AppLayout });
 
 import { computed, reactive } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface Option { id: string; name: string }
 
@@ -32,6 +33,7 @@ interface Props {
         export: string;
         customerProfiles: string;
         demographics: string;
+        preference: string;
     };
 }
 
@@ -43,6 +45,11 @@ const form = reactive({
     channel: props.channel,
     store_id: props.storeId ?? '',
 });
+
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+})));
 
 const query = computed(() => ({
     from: form.from || undefined,
@@ -92,6 +99,7 @@ function topValue(row: Record<string, any>, keys: string[]) {
             <div class="d-flex gap-2">
                 <a :href="props.urls.customerProfiles" class="btn btn-light btn-sm">Customer Profile</a>
                 <a :href="props.urls.demographics" class="btn btn-light btn-sm">Demografi</a>
+                <a :href="props.urls.preference" class="btn btn-light btn-sm">Preferensi</a>
                 <a :href="exportUrl" class="btn btn-light btn-sm"><i class="mdi mdi-download me-1"></i>Export</a>
             </div>
         </div>
@@ -102,7 +110,7 @@ function topValue(row: Record<string, any>, keys: string[]) {
                     <div class="col-md-2"><label class="form-label">Dari</label><input v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Sampai</label><input v-model="form.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Channel</label><select v-model="form.channel" class="form-select form-select-sm"><option value="">Semua</option><option value="pos">POS</option><option value="ecom">Ecommerce</option></select></div>
-                    <div class="col-md-3"><label class="form-label">Store</label><select v-model="form.store_id" class="form-select form-select-sm"><option value="">Semua Store</option><option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                    <div class="col-md-3"><label class="form-label">Store</label><SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Store" search-placeholder="Cari store..." /></div>
                     <div class="col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Filter</button></div>
                 </form>
             </div>

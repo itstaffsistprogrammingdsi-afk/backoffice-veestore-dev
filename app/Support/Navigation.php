@@ -12,7 +12,6 @@ class Navigation
         'monitoring.',
         'dashboard-analytics',
         'reports.',
-        'ai-analytics.',
         'ai-assistant.',
         'settings.',
         'loyalty.',
@@ -73,6 +72,7 @@ class Navigation
                     ['Store Order Approval', 'operations.store-orders.index', 'mdi-clipboard-check-outline', 'view branch-order-cabang'],
                     ['Store Return Approval', 'operations.store-returns.index', 'mdi-backup-restore', 'view branch-retur-cabang'],
                     ['Customers & Visits', 'operations.customers.index', 'mdi-account-group-outline', null],
+                    ['Customer Demographics', 'operations.customers.demographics', 'mdi-account-details-outline', null],
                     ['Label Requests', 'branch-operations.request-label.index', 'mdi-tag-multiple-outline', null],
                     ['Voucher Requests', 'branch-operations.request-voucher.index', 'mdi-ticket-confirmation-outline', null],
                 ]),
@@ -156,8 +156,7 @@ class Navigation
                 'icon' => 'mdi-chart-line',
                 'items' => self::items($user, [
                     ['Dashboard Analitik', 'dashboard-analytics', 'mdi-view-dashboard-outline', null],
-                    ['AI Analytics', 'ai-analytics.index', 'mdi-robot-outline', null],
-                    ['AI Assistant', 'ai-assistant.index', 'mdi-chat-processing-outline', 'view ai-analytics'],
+                    ['VEE Assistant', 'ai-assistant.index', 'mdi-chat-processing-outline', 'view ai-analytics|view ai-assistant'],
                 ]),
             ],
             [
@@ -165,13 +164,12 @@ class Navigation
                 'icon' => 'mdi-monitor-dashboard',
                 'items' => self::items($user, [
                     ['Command Center', 'monitoring.command-center.index', 'mdi-monitor-dashboard', null],
-                    ['Omset Kotor', 'monitoring.omset-kotor.index', 'mdi-chart-areaspline', 'view monitoring-omset-kotor'],
-                    ['Omset Cabang', 'monitoring.omset-cabang.index', 'mdi-chart-bar', 'view monitoring-omset-cabang'],
+                    ['Omset', 'monitoring.omset-cabang.index', 'mdi-chart-box-outline', 'view monitoring-omset-cabang'],
                     ['Stok Percabang', 'monitoring.stok-percabang', 'mdi-package-variant-closed', null],
                     ['Tracking Barang', 'monitoring.tracking-barang.index', 'mdi-map-marker-path', 'view monitoring-tracking-barang'],
                     ['Slow Moving', 'monitoring.product-slowmoving.index', 'mdi-timer-sand', 'view monitoring-product-slowmoving'],
                     ['Product Aging', 'monitoring.product-aging.index', 'mdi-calendar-clock', null],
-                    ['Ecommerce Payment', 'monitoring.ecommerce-payment.index', 'mdi-receipt-text-outline', 'view monitoring-ecommerce-payment'],
+                    ['Pembayaran Ecommerce', 'monitoring.ecommerce-payment.index', 'mdi-receipt-text-outline', 'view monitoring-ecommerce-payment'],
                     ['Audit Opname WMS', 'monitoring.audit-wms-opnames.index', 'mdi-clipboard-text-clock-outline', null],
                 ]),
             ],
@@ -179,7 +177,10 @@ class Navigation
                 'label' => 'Laporan',
                 'icon' => 'mdi-file-chart-outline',
                 'items' => self::items($user, [
+                    ['Ringkasan Usaha', 'reports.business-overview.index', 'mdi-view-dashboard-outline', null],
                     ['CRM', 'reports.crm.index', 'mdi-account-heart-outline', null],
+                    ['Customer Demographics', 'reports.crm.demographics', 'mdi-account-details-outline', null],
+                    ['Customer Preference', 'reports.crm.customer-preference.index', 'mdi-account-star-outline', null],
                     ['History Customer', 'reports.history-customer.index', 'mdi-history', null],
                     ['Order Cabang', 'reports.order-cabang.index', 'mdi-clipboard-list-outline', null],
                     ['Retur Cabang', 'reports.retur-cabang.index', 'mdi-keyboard-return', null],
@@ -206,8 +207,12 @@ class Navigation
                 continue;
             }
 
-            if ($permission && $user && ! $user->can($permission)) {
-                continue;
+            if ($permission && $user) {
+                $permissions = explode('|', $permission);
+
+                if (! $user->canAny($permissions)) {
+                    continue;
+                }
             }
 
             $result[] = [

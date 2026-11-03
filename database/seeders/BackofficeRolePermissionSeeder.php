@@ -72,7 +72,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                     ]),
                     $menu([
                         'dashboard-analytics',
-                        'ai-analytics',
+                        'ai-assistant',
                         'ecommerce-orders',
                         'master-data-product-categories',
                         'master-data-brands',
@@ -100,6 +100,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                         'monitoring-produk-terlaris',
                         'monitoring.fulfillment-control',
                         'monitoring-ecommerce-order-fulfillment',
+                        'monitoring-order-handled',
                         'monitoring.stok-percabang',
                         'monitoring-physical-stocks',
                         'monitoring-product-slowmoving',
@@ -169,6 +170,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                         'branch-request-voucher',
                         'monitoring-store-order-requests',
                         'monitoring-store-return-requests',
+                        'monitoring-order-handled',
                     ])
                 ),
                 'Finance' => array_merge(
@@ -178,7 +180,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                     ]),
                     $menu([
                         'dashboard-analytics',
-                        'ai-analytics',
+                        'ai-assistant',
                         'ecommerce-orders',
                         'master-data-product-prices',
                         'master-data-stores',
@@ -196,6 +198,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                         'monitoring-ecommerce-order-fulfillment',
                         'monitoring-store-order-requests',
                         'monitoring-store-return-requests',
+                        'monitoring-order-handled',
                         'monitoring-voucher-reject-report',
                     ])
                 ),
@@ -244,11 +247,11 @@ class BackofficeRolePermissionSeeder extends Seeder
 
         $collect = function (array $items) use (&$collect, &$permissions): void {
             foreach ($items as $item) {
-                if (!empty($item['slug'])) {
-                    $permissions[] = 'view ' . $item['slug'];
+                if (! empty($item['slug'])) {
+                    $permissions[] = 'view '.$item['slug'];
                 }
 
-                if (!empty($item['submenu']) && is_array($item['submenu'])) {
+                if (! empty($item['submenu']) && is_array($item['submenu'])) {
                     $collect($item['submenu']);
                 }
             }

@@ -21,7 +21,7 @@ class ProductCategoryGroupTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('MasterData/SimpleCrud')
                 ->where('masterDataModule.current', 'category-groups')
-                ->has('masterDataModule.items', 8)
+                ->has('masterDataModule.items', 9)
                 ->has('items.data'));
 
         $this->actingAs($this->admin())
@@ -30,7 +30,7 @@ class ProductCategoryGroupTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('MasterData/SimpleCrud')
                 ->where('masterDataModule.current', 'categories')
-                ->has('masterDataModule.items', 8));
+                ->has('masterDataModule.items', 9));
     }
 
     public function test_category_group_can_be_created_updated_and_deleted(): void

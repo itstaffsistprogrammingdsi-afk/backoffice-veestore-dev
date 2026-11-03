@@ -1,22 +1,5 @@
 parameters:
 	ignoreErrors:
-		-
-			message: '#^Relation ''product'' is not found in App\\Models\\Analytics\\StockRecommendation model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Domain/Analytics/Queries/AnalyticsDashboardQuery.php
-
-		-
-			message: '#^Relation ''reviewer'' is not found in App\\Models\\Analytics\\StockRecommendation model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Domain/Analytics/Queries/AnalyticsDashboardQuery.php
-
-		-
-			message: '#^Relation ''store'' is not found in App\\Models\\Analytics\\StockRecommendation model\.$#'
-			identifier: larastan.relationExistence
-			count: 1
-			path: app/Domain/Analytics/Queries/AnalyticsDashboardQuery.php
 
 		-
 			message: '#^Undefined variable\: \$hasApprovedBy$#'
@@ -143,24 +126,6 @@ parameters:
 			identifier: larastan.relationExistence
 			count: 1
 			path: app/Http/Controllers/Monitoring/WarehouseStockBarrierController.php
-
-		-
-			message: '#^Relation ''details'' is not found in App\\Models\\StoreOrder model\.$#'
-			identifier: larastan.relationExistence
-			count: 3
-			path: app/Http/Controllers/Reports/OrderCabangController.php
-
-		-
-			message: '#^Relation ''store'' is not found in App\\Models\\StoreOrder model\.$#'
-			identifier: larastan.relationExistence
-			count: 2
-			path: app/Http/Controllers/Reports/OrderCabangController.php
-
-		-
-			message: '#^Relation ''warehouse'' is not found in App\\Models\\StoreOrder model\.$#'
-			identifier: larastan.relationExistence
-			count: 2
-			path: app/Http/Controllers/Reports/OrderCabangController.php
 
 		-
 			message: '#^Class App\\Exports\\VoucherUsageExport does not have a constructor and must be instantiated without any parameters\.$#'

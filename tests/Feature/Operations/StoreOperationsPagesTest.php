@@ -71,4 +71,27 @@ class StoreOperationsPagesTest extends TestCase
                 ->has('stores')
                 ->has('urls'));
     }
+
+    public function test_customer_demographics_operations_page_uses_inertia(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('operations.customers.demographics'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Operations/CustomerDemographics')
+                ->has('filters')
+                ->has('summary')
+                ->has('genderRows')
+                ->has('ageRows')
+                ->has('tierRows')
+                ->has('provinceRows')
+                ->has('regencyRows')
+                ->has('districtRows')
+                ->has('villageRows')
+                ->has('registrationTrend')
+                ->has('birthdayCustomers')
+                ->has('rows')
+                ->where('urls.index', route('operations.customers.demographics'))
+                ->where('urls.export', route('operations.customers.demographics.export')));
+    }
 }

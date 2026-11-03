@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
+import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
 
 interface NavItem {
     label: string;
@@ -74,7 +75,6 @@ const isReportsArea = computed(() => {
         path === '/dashboard' ||
         path.startsWith('/monitoring') ||
         path.startsWith('/report-exports') ||
-        path.startsWith('/ai-analytics') ||
         path.startsWith('/ai-assistant')
     );
 });
@@ -117,24 +117,37 @@ const pathOf = (url: string | null) => {
     }
 };
 
-const isActive = (item: NavItem) => {
+const pathMatchScore = (item: NavItem) => {
     const path = pathOf(item.url);
-    if (!path) return false;
-    if (path === '/') return currentPath.value === '/';
-    return currentPath.value === path || currentPath.value.startsWith(`${path}/`);
+    if (!path) return -1;
+    if (path === '/') return currentPath.value === '/' ? 100000 : -1;
+    if (currentPath.value === path) return 100000 + path.length;
+    if (currentPath.value.startsWith(`${path}/`)) return path.length;
+
+    return -1;
 };
 
 const activeItem = computed(() => {
+    let best: NavItem | null = null;
+    let bestScore = -1;
+
     for (const area of navigation.value.areas) {
         for (const group of area.groups) {
             for (const item of group.items) {
-                if (isActive(item)) return item;
+                const score = pathMatchScore(item);
+
+                if (score > bestScore) {
+                    best = item;
+                    bestScore = score;
+                }
             }
         }
     }
 
-    return null;
+    return best;
 });
+
+const isActive = (item: NavItem) => activeItem.value?.route === item.route;
 
 const activeGroup = computed(() => {
     for (const area of navigation.value.areas) {
@@ -638,6 +651,8 @@ onBeforeUnmount(() => {
                 <slot />
             </main>
         </div>
+
+        <VeeAssistantWidget />
     </div>
 </template>
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -51,6 +52,11 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -155,12 +161,7 @@ const statusClass = (status: string) => {
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Toko</label>
-                        <select v-model="form.store_id" class="form-select form-select-sm">
-                            <option value="">Semua Toko</option>
-                            <option v-for="store in stores" :key="store.id" :value="store.id">
-                                {{ store.name }}
-                            </option>
-                        </select>
+                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Dari</label>

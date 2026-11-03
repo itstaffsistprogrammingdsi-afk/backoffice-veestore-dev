@@ -2,17 +2,28 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\StoreReturnRequestExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StoreReturnRequestController extends Controller
 {
     public function index(Request $request)
+    {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Store Return Requests',
+            'description' => 'Laporan monitoring.',
+            'data' => $this->report($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.store-return-requests.export')],
+        ]);
+    }
+
+    public function report(Request $request): array
     {
         $filters = $this->getFilters($request);
 
@@ -47,10 +58,7 @@ class StoreReturnRequestController extends Controller
             'close' => 'Close',
         ];
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Store Return Requests',
-            'description' => 'Laporan monitoring.',
-            'data' => [
+        return [
             'rows' => $rows,
             'summary' => $summary,
             'q' => $filters['q'],
@@ -63,10 +71,7 @@ class StoreReturnRequestController extends Controller
             'statusList' => $statusList,
             'today' => $filters['today'],
             'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
-        ]);
+        ];
     }
 
     public function export(Request $request)
@@ -88,7 +93,7 @@ class StoreReturnRequestController extends Controller
             'to' => $filters['to'],
         ]);
 
-        $filename = 'monitoring-store-return-requests-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'monitoring-store-return-requests-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new StoreReturnRequestExport($request), $filename);
     }
@@ -113,7 +118,7 @@ class StoreReturnRequestController extends Controller
 
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -177,10 +182,10 @@ class StoreReturnRequestController extends Controller
                 DB::raw("COALESCE(ua.name, '-') as approved_by_name"),
                 DB::raw("COALESCE(r.note_store, '-') as note_store"),
                 DB::raw("COALESCE(r.note_warehouse, '-') as note_warehouse"),
-                DB::raw("COALESCE(da.total_lines, 0)::int as total_lines"),
-                DB::raw("COALESCE(da.total_products, 0)::int as total_products"),
+                DB::raw('COALESCE(da.total_lines, 0)::int as total_lines'),
+                DB::raw('COALESCE(da.total_products, 0)::int as total_products'),
                 DB::raw("COALESCE(da.product_names, '-') as product_names"),
-                DB::raw("COALESCE(da.qty_approved, 0)::int as qty_approved"),
+                DB::raw('COALESCE(da.qty_approved, 0)::int as qty_approved'),
             ]);
 
         if ($hasWarehouseId) {
@@ -279,7 +284,7 @@ class StoreReturnRequestController extends Controller
 
     private function applyDeletedAtFilter($query, string $table, ?string $alias = null): void
     {
-        if (!Schema::hasColumn($table, 'deleted_at')) {
+        if (! Schema::hasColumn($table, 'deleted_at')) {
             return;
         }
 

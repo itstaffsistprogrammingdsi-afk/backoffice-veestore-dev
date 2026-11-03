@@ -10,9 +10,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 
 class CashierShiftReportDetailSummarySheet implements FromCollection, ShouldAutoSize, WithTitle
 {
-    public function __construct(protected object $session)
-    {
-    }
+    public function __construct(protected object $session) {}
 
     public function collection()
     {
@@ -27,8 +25,13 @@ class CashierShiftReportDetailSummarySheet implements FromCollection, ShouldAuto
             ['Expected Cash', (float) ($this->session->expected_cash ?? 0)],
             ['Actual Cash', (float) ($this->session->actual_cash ?? 0)],
             ['Difference', (float) ($this->session->difference ?? 0)],
-            ['Total Sales', (float) ($this->session->total_sales ?? 0)],
+            ['Total Sales', (float) ($this->session->payment_total_amount ?? $this->session->total_sales ?? 0)],
             ['Total Transactions', (int) ($this->session->total_transactions ?? 0)],
+            ['Total Tunai', (float) ($this->session->total_cash_amount ?? 0)],
+            ['Transaksi Tunai', (int) ($this->session->total_cash_transactions ?? 0)],
+            ['Total Non-Tunai', (float) ($this->session->total_non_cash_amount ?? 0)],
+            ['Transaksi Non-Tunai', (int) ($this->session->total_non_cash_transactions ?? 0)],
+            ['Piutang Rekanan', (float) ($this->session->total_receivable_amount ?? 0)],
             ['Note Open', $this->session->note_open ?? '-'],
             ['Note Close', $this->session->note_close ?? '-'],
         ]);

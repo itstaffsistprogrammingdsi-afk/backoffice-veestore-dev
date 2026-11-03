@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\OmsetKotorSalesExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class OmsetKotorSalesController extends Controller
@@ -36,21 +36,21 @@ class OmsetKotorSalesController extends Controller
         $groupBy = $this->normalizeNullableString($request->query('group_by')) ?? 'product';
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($channel, ['all', 'store', 'ecommerce'], true)) {
+        if (! in_array($channel, ['all', 'store', 'ecommerce'], true)) {
             $channel = 'all';
         }
 
-        if (!in_array($groupBy, ['product', 'daily', 'monthly'], true)) {
+        if (! in_array($groupBy, ['product', 'daily', 'monthly'], true)) {
             $groupBy = 'product';
         }
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
         $promo = $this->normalizeNullableString($request->query('promo')) ?? 'all';
 
-        if (!in_array($promo, ['all', 'none', 'any', 'product', 'voucher'], true)) {
+        if (! in_array($promo, ['all', 'none', 'any', 'product', 'voucher'], true)) {
             $promo = 'all';
         }
 
@@ -107,28 +107,33 @@ class OmsetKotorSalesController extends Controller
         };
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Omset Kotor',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Omset Kotor & Bersih',
+            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin.',
             'data' => [
-            'rows' => $rows,
-            'summary' => $summary,
-            'products' => $products,
-            'customers' => $customers,
-            'channel' => $channel,
-            'productId' => $productId,
-            'customerId' => $customerId,
-            'q' => $q,
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-            'groupBy' => $groupBy,
-            'promo' => $promo,
-            'promoOptions' => $this->promoOptions(),
-            'perPage' => $perPage,
-            'today' => now()->toDateString(),
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'rows' => $rows,
+                'summary' => $summary,
+                'products' => $products,
+                'customers' => $customers,
+                'channel' => $channel,
+                'productId' => $productId,
+                'customerId' => $customerId,
+                'q' => $q,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'groupBy' => $groupBy,
+                'promo' => $promo,
+                'promoOptions' => $this->promoOptions(),
+                'perPage' => $perPage,
+                'omsetTab' => 'kotor',
+                'omsetUrls' => [
+                    'cabang' => route('monitoring.omset-cabang.index'),
+                    'kotor' => route('monitoring.omset-kotor.index'),
+                ],
+                'today' => now()->toDateString(),
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.omset-kotor.export')],
         ]);
     }
 
@@ -145,17 +150,17 @@ class OmsetKotorSalesController extends Controller
         }
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($channel, ['all', 'store', 'ecommerce'], true)) {
+        if (! in_array($channel, ['all', 'store', 'ecommerce'], true)) {
             $channel = 'all';
         }
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
         $promo = $this->normalizeNullableString($request->query('promo')) ?? 'all';
 
-        if (!in_array($promo, ['all', 'none', 'any', 'product', 'voucher'], true)) {
+        if (! in_array($promo, ['all', 'none', 'any', 'product', 'voucher'], true)) {
             $promo = 'all';
         }
 
@@ -163,7 +168,7 @@ class OmsetKotorSalesController extends Controller
             ->where('id', $productId)
             ->first(['id', 'name', 'code']);
 
-        abort_if(!$product, 404);
+        abort_if(! $product, 404);
 
         $rows = $this->getTransactionDetailRows(
             channel: $channel,
@@ -189,36 +194,44 @@ class OmsetKotorSalesController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(*) as total_rows,
-                SUM(x.qty) as total_qty,
                 SUM(x.gross_sales) as total_gross_sales,
+                SUM(x.final_paid_amount) as total_final_paid,
+                SUM(x.total_discount_amount) as total_discount_amount,
+                SUM(x.net_after_product_discount) as total_net_after_product_discount,
+                SUM(x.qty) as total_qty,
+                COUNT(DISTINCT x.product_id) as total_products,
+                COUNT(DISTINCT x.customer_id) as total_customers,
                 SUM(x.base_price_total) as total_base_price,
                 SUM(x.product_discount_amount) as total_product_discount,
-                SUM(x.allocated_order_discount) as total_voucher_discount,
-                SUM(x.total_discount_amount) as total_discount_amount,
-                SUM(x.final_paid_amount) as total_final_paid
-            ")
+                SUM(x.allocated_order_discount) as total_voucher_discount
+            ')
             ->first();
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Omset Kotor',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Omset Kotor & Bersih',
+            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin.',
             'data' => [
-            'product' => $product,
-            'rows' => $rows,
-            'summary' => $summary,
-            'channel' => $channel,
-            'customerId' => $customerId,
-            'q' => $q,
-            'dateFrom' => $dateFrom,
-            'dateTo' => $dateTo,
-            'perPage' => $perPage,
-            'promo' => $promo,
-            'promoOptions' => $this->promoOptions(),
-            'today' => now()->toDateString(),
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'product' => $product,
+                'rows' => $rows,
+                'summary' => $summary,
+                'channel' => $channel,
+                'customerId' => $customerId,
+                'q' => $q,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'perPage' => $perPage,
+                'omsetTab' => 'kotor',
+                'omsetUrls' => [
+                    'cabang' => route('monitoring.omset-cabang.index'),
+                    'kotor' => route('monitoring.omset-kotor.index'),
+                ],
+                'promo' => $promo,
+                'promoOptions' => $this->promoOptions(),
+                'today' => now()->toDateString(),
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current()],
         ]);
@@ -237,13 +250,13 @@ class OmsetKotorSalesController extends Controller
             [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
         }
 
-        if (!in_array($channel, ['all', 'store', 'ecommerce'], true)) {
+        if (! in_array($channel, ['all', 'store', 'ecommerce'], true)) {
             $channel = 'all';
         }
 
         $promo = $this->normalizeNullableString($request->query('promo')) ?? 'all';
 
-        if (!in_array($promo, ['all', 'none', 'any', 'product', 'voucher'], true)) {
+        if (! in_array($promo, ['all', 'none', 'any', 'product', 'voucher'], true)) {
             $promo = 'all';
         }
 
@@ -260,14 +273,14 @@ class OmsetKotorSalesController extends Controller
 
         return Excel::download(
             new OmsetKotorSalesExport($detailRows),
-            'omset-kotor-detail-' . now()->format('Ymd_His') . '.xlsx'
+            'omset-kotor-detail-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
     private function buildStoreCartNetSubquery()
     {
         return DB::table('store_cart_details as scd')
-            ->selectRaw("
+            ->selectRaw('
                 scd.cart_id,
                 SUM(
                     GREATEST(
@@ -275,7 +288,7 @@ class OmsetKotorSalesController extends Controller
                         0
                     )
                 ) as cart_item_net_total
-            ")
+            ')
             ->groupBy('scd.cart_id');
     }
 
@@ -284,7 +297,12 @@ class OmsetKotorSalesController extends Controller
         return DB::query()->fromSub(
             DB::table('store_visit_payments as svp')
                 ->join('payments as pay', 'pay.id', '=', 'svp.payment_id')
-                ->selectRaw("
+                ->whereNull('pay.deleted_at')
+                ->where(function ($query) {
+                    $query->whereNotNull('pay.completed_at')
+                        ->orWhereIn(DB::raw('LOWER(pay.status::text)'), ['paid', 'settlement', 'capture', 'success', 'completed']);
+                })
+                ->selectRaw('
                     svp.visit_id,
                     pay.id as payment_id,
                     pay.transaction_number,
@@ -292,7 +310,7 @@ class OmsetKotorSalesController extends Controller
                         PARTITION BY svp.visit_id
                         ORDER BY pay.completed_at DESC NULLS LAST, pay.created_at DESC NULLS LAST, pay.id DESC
                     ) as rn
-                "),
+                '),
             'svp_pay_raw'
         )
             ->select([
@@ -306,7 +324,7 @@ class OmsetKotorSalesController extends Controller
     private function buildEcommerceOrderNetSubquery()
     {
         return DB::table('ecommerce_order_details as eod')
-            ->selectRaw("
+            ->selectRaw('
                 eod.ecommerce_order_id,
                 SUM(
                     COALESCE(
@@ -314,7 +332,7 @@ class OmsetKotorSalesController extends Controller
                         (COALESCE(eod.product_price, 0) * COALESCE(eod.quantity, 0)) - COALESCE(eod.total_discount, 0)
                     )
                 ) as order_item_net_total
-            ")
+            ')
             ->groupBy('eod.ecommerce_order_id');
     }
 
@@ -465,9 +483,10 @@ class OmsetKotorSalesController extends Controller
             ->leftJoinSub($cartNetSub, 'cart_net', function ($join) {
                 $join->on('cart_net.cart_id', '=', 'sc.id');
             })
-            ->leftJoinSub($storeVisitPaymentSub, 'svp_pay', function ($join) {
+            ->joinSub($storeVisitPaymentSub, 'svp_pay', function ($join) {
                 $join->on('svp_pay.visit_id', '=', 'sc.visit_id');
             })
+            ->whereRaw("COALESCE(scd.void_status, '') <> 'void'")
             ->selectRaw("
                 scd.created_at::date as trx_date,
                 scd.created_at as trx_datetime,
@@ -560,11 +579,18 @@ class OmsetKotorSalesController extends Controller
 
         return DB::table('ecommerce_order_details as eod')
             ->join('ecommerce_orders as eo', 'eo.id', '=', 'eod.ecommerce_order_id')
+            ->join('payments as pay', 'pay.id', '=', 'eo.payment_id')
             ->join('products as p', 'p.id', '=', 'eod.product_id')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->leftJoinSub($orderNetSub, 'order_net', function ($join) {
                 $join->on('order_net.ecommerce_order_id', '=', 'eo.id');
             })
+            ->whereNull('pay.deleted_at')
+            ->where(function ($query) {
+                $query->whereNotNull('pay.completed_at')
+                    ->orWhereIn(DB::raw('LOWER(pay.status::text)'), ['paid', 'settlement', 'capture', 'success', 'completed']);
+            })
+            ->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
             ->leftJoinSub($warehouseRfidSub, 'ewr', function ($join) {
                 $join->on('ewr.ecommerce_order_id', '=', 'eod.ecommerce_order_id')
                     ->on('ewr.product_id', '=', 'eod.product_id');
@@ -624,20 +650,20 @@ class OmsetKotorSalesController extends Controller
         string $promo = 'all'
     ) {
         $storeBase = DB::query()->fromSub($this->buildStoreSalesQuery(), 's')
-            ->selectRaw("
+            ->selectRaw('
                 s.*,
                 GREATEST(s.gross_sales - s.product_discount_amount, 0)::numeric(18,2) as net_after_product_discount,
                 GREATEST((s.gross_sales - s.product_discount_amount) - s.allocated_order_discount, 0)::numeric(18,2) as final_paid_amount,
                 (s.product_discount_amount + s.allocated_order_discount)::numeric(18,2) as total_discount_amount
-            ");
+            ');
 
         $ecommerceBase = DB::query()->fromSub($this->buildEcommerceSalesQuery(), 'e')
-            ->selectRaw("
+            ->selectRaw('
                 e.*,
                 GREATEST(e.gross_sales - e.product_discount_amount, 0)::numeric(18,2) as net_after_product_discount,
                 GREATEST((e.gross_sales - e.product_discount_amount) - e.allocated_order_discount, 0)::numeric(18,2) as final_paid_amount,
                 (e.product_discount_amount + e.allocated_order_discount)::numeric(18,2) as total_discount_amount
-            ");
+            ');
 
         if ($channel === 'store') {
             $base = DB::query()->fromSub($storeBase, 'x');
@@ -721,18 +747,19 @@ class OmsetKotorSalesController extends Controller
                 ),
                 'x'
             )
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(*) as total_rows,
+                SUM(x.gross_sales) as total_gross_sales,
+                SUM(x.final_paid_amount) as total_final_paid,
+                SUM(x.total_discount_amount) as total_discount_amount,
+                SUM(x.net_after_product_discount) as total_net_after_product_discount,
+                SUM(x.qty) as total_qty,
                 COUNT(DISTINCT x.product_id) as total_products,
                 COUNT(DISTINCT x.customer_id) as total_customers,
-                SUM(x.qty) as total_qty,
-                SUM(x.gross_sales) as total_gross_sales,
                 SUM(x.base_price_total) as total_base_price,
                 SUM(x.product_discount_amount) as total_product_discount,
-                SUM(x.allocated_order_discount) as total_voucher_discount,
-                SUM(x.total_discount_amount) as total_discount_amount,
-                SUM(x.final_paid_amount) as total_final_paid
-            ")
+                SUM(x.allocated_order_discount) as total_voucher_discount
+            ')
             ->first();
     }
 
@@ -906,7 +933,6 @@ class OmsetKotorSalesController extends Controller
             ->withQueryString();
     }
 
-
     private function normalizeDate($date): ?string
     {
         if ($date === null) {
@@ -925,6 +951,7 @@ class OmsetKotorSalesController extends Controller
 
         if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
             [$day, $month, $year] = explode('/', $date);
+
             return "{$year}-{$month}-{$day}";
         }
 

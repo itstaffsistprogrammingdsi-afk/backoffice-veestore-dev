@@ -54,6 +54,19 @@ class SimpleMasterDataPagesTest extends TestCase
         }
     }
 
+    public function test_product_specification_page_is_in_master_product_module_navigation(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('master-data.product-specifications.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('MasterData/SimpleCrud')
+                ->where('masterDataModule.current', 'product-specifications')
+                ->has('masterDataModule.items', 9)
+                ->where('masterDataModule.items.2.label', 'Product Specifications')
+                ->has('items.data'));
+    }
+
     public function test_product_specifications_are_grouped_under_master_product(): void
     {
         $navigation = Navigation::forUser($this->admin());

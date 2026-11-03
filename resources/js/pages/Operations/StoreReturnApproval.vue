@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 
 defineOptions({ layout: AppLayout });
@@ -116,6 +117,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const warehouseSelectOptions = (warehouses: Array<{ id: string; name: string }>) => warehouses.map((warehouse) => ({
+    value: warehouse.id,
+    label: warehouse.name,
+}));
+
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -525,10 +537,13 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="return-store">Store</label>
-                        <select id="return-store" v-model="filters.store_id" class="form-select form-select-sm">
-                            <option value="">Semua store</option>
-                            <option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            id="return-store"
+                            v-model="filters.store_id"
+                            :options="storeOptions"
+                            placeholder="Semua store"
+                            search-placeholder="Cari store..."
+                        />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="return-from">Dari tanggal</label>
@@ -708,17 +723,15 @@ onBeforeUnmount(() => {
                             <div class="return-decision-grid">
                                 <div class="return-field">
                                     <label for="return-warehouse">Gudang tujuan retur</label>
-                                    <select
+                                    <SearchableSelect
                                         id="return-warehouse"
                                         v-model="warehouseId"
-                                        class="form-select"
+                                        :options="warehouseSelectOptions(returnDetail.warehouses)"
+                                        placeholder="Pilih gudang"
+                                        search-placeholder="Cari gudang..."
+                                        size="md"
                                         :disabled="!returnDetail.is_editable || !returnDetail.can_change_warehouse || working"
-                                    >
-                                        <option value="">Pilih gudang</option>
-                                        <option v-for="warehouse in returnDetail.warehouses" :key="warehouse.id" :value="warehouse.id">
-                                            {{ warehouse.name }}
-                                        </option>
-                                    </select>
+                                    />
                                     <small v-if="!returnDetail.can_change_warehouse">Gudang terkunci karena sudah ada barang yang disetujui.</small>
                                     <small v-else>Barang retur yang disetujui akan diproses ke gudang ini.</small>
                                 </div>

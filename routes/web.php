@@ -1,7 +1,6 @@
 <?php
 
-use App\Http\Controllers\AIAnalytics\AIAnalyticsController;
-use App\Http\Controllers\AIAnalytics\AIAssistantController;
+use App\Http\Controllers\AI\AssistantController;
 // Controllers - Auth & Dashboard
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\BranchOperations\StoreLabelPrintRequestController;
@@ -61,6 +60,7 @@ use App\Http\Controllers\Monitoring\MonitoringVoucherRequestController;
 use App\Http\Controllers\Monitoring\MutasiStockWmsController;
 use App\Http\Controllers\Monitoring\OmsetCabangController;
 use App\Http\Controllers\Monitoring\OmsetKotorSalesController;
+use App\Http\Controllers\Monitoring\OrderHandledController;
 use App\Http\Controllers\Monitoring\PaymentIncomeRealtimeController;
 use App\Http\Controllers\Monitoring\PhysicalStockAccumulationController;
 use App\Http\Controllers\Monitoring\ProductAgingMonitoringController;
@@ -90,6 +90,7 @@ use App\Http\Controllers\Monitoring\WarehouseOutboundController;
 use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
 // Reports
 use App\Http\Controllers\NotificationStatusController;
+use App\Http\Controllers\Operations\CustomerDemographicsOperationsController;
 use App\Http\Controllers\Operations\CustomerVisitOperationsController;
 use App\Http\Controllers\Operations\InboundController;
 use App\Http\Controllers\Operations\OperationalStockController;
@@ -101,7 +102,9 @@ use App\Http\Controllers\Operations\StoreReturnApprovalController as OperationsS
 use App\Http\Controllers\Operations\StoreStockOperationsController;
 use App\Http\Controllers\OperationsHubController;
 use App\Http\Controllers\ReportExportController;
+use App\Http\Controllers\Reports\BusinessOverviewController;
 use App\Http\Controllers\Reports\CrmController;
+use App\Http\Controllers\Reports\CustomerPreferenceController;
 use App\Http\Controllers\Reports\HistoryCustomerController;
 use App\Http\Controllers\Reports\OrderCabangController;
 // Settings
@@ -165,6 +168,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/operations/inbound', InboundController::class)->name('operations.inbound.index');
     Route::get('/operations/outbound', OutboundController::class)->name('operations.outbound.index');
     Route::get('/operations/customers', CustomerVisitOperationsController::class)->name('operations.customers.index');
+    Route::get('/operations/customers/demographics', CustomerDemographicsOperationsController::class)
+        ->name('operations.customers.demographics');
+    Route::get('/operations/customers/demographics/export', [CustomerDemographicsOperationsController::class, 'export'])
+        ->name('operations.customers.demographics.export');
     Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
     Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
@@ -196,15 +203,11 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [Analytics::class, 'index'])->name('dashboard-analytics');
 
-    Route::prefix('ai-analytics')->name('ai-analytics.')->group(function () {
-        Route::get('/', [AIAnalyticsController::class, 'index'])->name('index');
-        Route::post('/run', [AIAnalyticsController::class, 'run'])->name('run');
-        Route::patch('/recommendations/{recommendation}/review', [AIAnalyticsController::class, 'review'])->name('recommendations.review');
-    });
-
-    Route::prefix('ai-assistant')->name('ai-assistant.')->middleware('permission:view ai-analytics')->group(function () {
-        Route::get('/', [AIAssistantController::class, 'index'])->name('index');
-        Route::post('/ask', [AIAssistantController::class, 'ask'])->name('ask')->middleware('throttle:ai-assistant');
+    Route::prefix('ai-assistant')->name('ai-assistant.')->middleware('permission:view ai-analytics|view ai-assistant')->group(function () {
+        Route::get('/', [AssistantController::class, 'index'])->name('index');
+        Route::get('/state', [AssistantController::class, 'state'])->name('state');
+        Route::post('/chat', [AssistantController::class, 'chat'])->name('chat')->middleware('throttle:ai-assistant');
+        Route::post('/reset', [AssistantController::class, 'reset'])->name('reset');
     });
 
     /*
@@ -517,6 +520,20 @@ Route::middleware('auth')->group(function () {
             ->name('payment-reconciliation.index');
         Route::get('fulfillment-control', [MonitoringCommandCenterController::class, 'fulfillmentControl'])
             ->name('fulfillment-control.index');
+
+        Route::prefix('order-handled')
+            ->name('order-handled.')
+            ->group(function () {
+                Route::get('/', [OrderHandledController::class, 'index'])
+                    ->name('index');
+
+                Route::get('/store-orders', [OrderHandledController::class, 'storeOrders'])
+                    ->name('store-orders');
+
+                Route::get('/store-returns', [OrderHandledController::class, 'storeReturns'])
+                    ->name('store-returns');
+            });
+
         Route::get('audit-center', [MonitoringCommandCenterController::class, 'auditCenter'])
             ->name('audit-center.index');
         Route::get('data-quality', [MonitoringCommandCenterController::class, 'dataQuality'])
@@ -847,6 +864,9 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('business-overview', [BusinessOverviewController::class, 'index'])
+            ->name('business-overview.index');
+
         Route::get('crm', [CrmController::class, 'index'])->name('crm.index');
 
         Route::get('crm/customer-profiles', [CrmController::class, 'customerProfiles'])
@@ -866,6 +886,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('crm/demographics/regions/villages', [CrmController::class, 'demographicVillages'])
             ->name('crm.demographics.villages');
+
+        Route::get('crm/customer-preference', [CustomerPreferenceController::class, 'index'])
+            ->name('crm.customer-preference.index');
+
+        Route::get('crm/customer-preference/export', [CustomerPreferenceController::class, 'export'])
+            ->name('crm.customer-preference.export');
 
         Route::get('crm/customers/{customerId}', [CrmController::class, 'customerProfile'])
             ->name('crm.customer-profile');

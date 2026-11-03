@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EcommerceOrder extends Model
 {
@@ -12,7 +13,9 @@ class EcommerceOrder extends Model
     protected $table = 'ecommerce_orders';
 
     protected $keyType = 'string';
+
     public $incrementing = false;
+
     public $timestamps = false;
 
     protected $fillable = [
@@ -21,7 +24,7 @@ class EcommerceOrder extends Model
         'status',
         'handled_by_store_id',
         'handled_by_warehouse_id',
-        'grand_total'
+        'grand_total',
     ];
 
     protected $casts = [
@@ -43,17 +46,17 @@ class EcommerceOrder extends Model
         return $this->belongsTo(Warehouse::class, 'handled_by_warehouse_id', 'id');
     }
 
-    public function payment()
+    public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id', 'id');
     }
 
     public function shippingAddress()
-{
-    return $this->belongsTo(
-        EcommerceOrderShippingAddress::class,
-        'shipping_address_snapshot_id',
-        'id'
-    );
-}
+    {
+        return $this->belongsTo(
+            EcommerceOrderShippingAddress::class,
+            'shipping_address_snapshot_id',
+            'id'
+        );
+    }
 }

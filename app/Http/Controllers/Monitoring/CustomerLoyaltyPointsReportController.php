@@ -298,7 +298,7 @@ class CustomerLoyaltyPointsReportController extends Controller
             'stores'
         ),
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.customer-loyalty-points-report.export')],
         ]);
     }
 

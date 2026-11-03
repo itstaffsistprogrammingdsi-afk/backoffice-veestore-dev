@@ -24,6 +24,7 @@ class OperationsHubController extends Controller
                 'stock' => route('operations.stock.index'),
                 'inbound' => route('operations.inbound.index'),
                 'outbound' => route('operations.outbound.index'),
+                'customer_demographics' => route('operations.customers.demographics'),
                 'store_orders' => route('operations.store-orders.index'),
                 'store_returns' => route('operations.store-returns.index'),
             ],

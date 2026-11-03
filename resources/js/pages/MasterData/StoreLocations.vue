@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -82,6 +83,12 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const storeOptions = computed(() => props.stores.map((row) => ({
+    value: row.id,
+    label: row.name,
+    hint: row.code ?? undefined,
+})));
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
@@ -215,6 +222,11 @@ const quickAddParentOptions = computed(() => {
     return [];
 });
 
+
+const quickAddParentSelectOptions = computed(() => quickAddParentOptions.value.map((option) => ({
+    value: option.id,
+    label: `${option.type_label} · ${option.name} (${option.code})`,
+})));
 const visibleRows = (group: StoreGroup) => {
     if (filtersActive.value) return group.rows;
 
@@ -608,10 +620,7 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="col-md-3 col-lg-2">
                         <label class="form-label">Store</label>
-                        <select v-model="filters.store_id" class="form-select form-select-sm">
-                            <option value="">Semua store</option>
-                            <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." />
                     </div>
                     <div class="col-md-3 col-lg-2">
                         <label class="form-label">Tipe</label>
@@ -645,10 +654,14 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Store</label>
-                        <select v-model="createForm.store_id" class="form-select form-select-sm" required>
-                            <option value="">Pilih store</option>
-                            <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }} ({{ store.code }})</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="createForm.store_id"
+                            :options="storeOptions"
+                            placeholder="Pilih store"
+                            search-placeholder="Cari store..."
+                            required
+                            :clearable="false"
+                        />
                         <div v-if="createForm.errors.store_id" class="text-danger small mt-1">{{ createForm.errors.store_id }}</div>
                     </div>
 
@@ -811,10 +824,14 @@ onBeforeUnmount(() => {
                         </div>
                         <div v-if="quickAddNeedsParent" class="mb-3">
                             <label class="form-label">Parent</label>
-                            <select v-model="quickAddForm.parent_id" class="form-select" :disabled="quickAddParentOptions.length === 0">
-                                <option value="">Pilih parent</option>
-                                <option v-for="option in quickAddParentOptions" :key="option.id" :value="option.id">{{ option.type_label }} &middot; {{ option.name }} ({{ option.code }})</option>
-                            </select>
+                            <SearchableSelect
+                                v-model="quickAddForm.parent_id"
+                                :options="quickAddParentSelectOptions"
+                                placeholder="Pilih parent"
+                                search-placeholder="Cari parent..."
+                                size="md"
+                                :disabled="quickAddParentOptions.length === 0"
+                            />
                             <div v-if="quickAddForm.errors.parent_id" class="text-danger small mt-1">{{ quickAddForm.errors.parent_id }}</div>
                             <div v-if="quickAddParentOptions.length === 0" class="alert alert-warning small mt-2 mb-0">
                                 Tambahkan Room atau Display terlebih dahulu.

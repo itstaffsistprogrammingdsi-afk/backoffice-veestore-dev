@@ -1,318 +1,495 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import AssistantChat from '@/components/assistant/AssistantChat.vue';
+import VeeMascot from '@/components/assistant/VeeMascot.vue';
+import { Head } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-
-interface ModelRun {
+interface ChatMessage {
     id: string;
-    model_name: string;
-    model_version: string;
-    training_from: string | null;
-    training_to: string | null;
-    completed_at: string | null;
-    metrics: Record<string, number | string> | null;
+    role: 'user' | 'assistant';
+    content: string;
+    tools?: Array<{ name: string; summary?: string }>;
+    created_at?: string;
 }
 
-interface Summary {
-    total: number;
-    critical: number;
-    high: number;
-    recommended_units: number;
+interface Feature {
+    key: string;
+    label: string;
+    menu: string;
+    description: string;
+    tables: number;
+    questions: string[];
+}
+
+interface Tool {
+    name: string;
+    description: string;
 }
 
 interface Props {
-    latestRun: ModelRun | null;
-    summary: Summary;
+    messages: ChatMessage[];
     suggestions: string[];
-    prompt: string | null;
-    answer: string | null;
-    error: string | null;
+    tools: Tool[];
+    features: Feature[];
+    coverage: Array<{ label: string; value: number }>;
+    model: string;
     urls: {
         index: string;
-        ask: string;
+        state: string;
+        chat: string;
+        reset: string;
+        mcp: string;
     };
 }
 
 const props = defineProps<Props>();
+const assistantBusy = ref(false);
 
-const form = useForm({
-    prompt: props.prompt ?? '',
-});
-
-const submit = () => {
-    form.post(props.urls.ask, {
-        preserveScroll: true,
-        preserveState: true,
-    });
+const capabilityLabels: Record<string, string> = {
+    system_map: 'Peta menu dan fitur',
+    data_schema: 'Struktur tabel',
+    master_data: 'Pencarian data master',
+    query_data: 'Query data read-only',
+    business_overview: 'Penjualan, pesanan, stok',
+    stock_health: 'Restock dan kedaluwarsa',
+    operations_pipeline: 'Order, retur, logistik',
+    promo_loyalty: 'Promo, voucher, loyalty',
+    customer_insight: 'Demografi dan preferensi',
 };
 
-const askSuggestion = (suggestion: string) => {
-    form.prompt = suggestion;
-    submit();
-};
-
-const metrics = computed(() => [
-    { label: 'Rekomendasi', value: props.summary.total },
-    { label: 'Risiko kritis', value: props.summary.critical },
-    { label: 'Risiko tinggi', value: props.summary.high },
-    { label: 'Saran restock', value: props.summary.recommended_units },
-]);
+const capabilities = props.tools
+    .filter((tool) => capabilityLabels[tool.name])
+    .map((tool) => ({ name: tool.name, label: capabilityLabels[tool.name] }));
 
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
-
-const formatDate = (value: string | null) => {
-    if (!value) {
-        return '-';
-    }
-
-    return new Intl.DateTimeFormat('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    }).format(new Date(value));
-};
-
-watch(
-    () => props.prompt,
-    (value) => {
-        if (value) {
-            form.prompt = value;
-        }
-    },
-);
 </script>
 
 <template>
-    <Head title="AI Assistant" />
+    <Head title="VEE Assistant" />
 
-    <div class="assistant-page">
-        <section class="assistant-hero">
-            <div>
-                <span class="assistant-eyebrow">Analis internal</span>
-                <h1>AI Assistant</h1>
-                <p>
-                    Tanya kondisi forecast, risiko stok, dan prioritas restock. Jawaban memakai data
-                    dari model terakhir yang selesai.
-                </p>
+    <div class="vee-page">
+        <section class="vee-hero">
+            <div class="vee-hero__mascot">
+                <VeeMascot :scale="0.72" animated decorative :priority="true" />
             </div>
-            <Link :href="props.urls.index" class="btn btn-light btn-sm">
-                <i class="mdi mdi-refresh me-1"></i>
-                Reset percakapan
-            </Link>
+            <div class="vee-hero__copy">
+                <span class="vee-hero__eyebrow">Asisten data internal</span>
+                <h1>Halo, saya VEE.</h1>
+                <p>
+                    Saya membaca data VeeStore langsung dari database operasional dan backoffice. Tanya kondisi
+                    penjualan, stok, pesanan, customer, promo, atau letak menu.
+                </p>
+                <div class="vee-hero__meta">
+                    <span class="vee-chip">
+                        <i class="mdi mdi-database-check-outline" aria-hidden="true"></i>
+                        {{ features.length }} domain data
+                    </span>
+                    <span class="vee-chip">
+                        <i class="mdi mdi-shield-lock-outline" aria-hidden="true"></i>
+                        Akses baca-only
+                    </span>
+                    <span class="vee-chip vee-chip--model">
+                        <i class="mdi mdi-chip" aria-hidden="true"></i>
+                        {{ props.model }}
+                    </span>
+                </div>
+            </div>
         </section>
 
-        <div class="row g-3 mb-3">
-            <div v-for="metric in metrics" :key="metric.label" class="col-6 col-xl-3">
-                <div class="card assistant-card h-100">
-                    <div class="card-body">
-                        <div class="assistant-label">{{ metric.label }}</div>
-                        <div class="assistant-value">{{ formatNumber(metric.value) }}</div>
+        <div class="vee-workspace">
+            <section class="vee-chat-card" aria-label="Percakapan dengan VEE">
+                <header class="vee-chat-card__header">
+                    <div>
+                        <h2>Percakapan</h2>
+                        <p>Jawaban memakai data terkini dan menyebutkan sumber datanya.</p>
                     </div>
-                </div>
-            </div>
-        </div>
+                    <span class="vee-status" role="status" aria-live="polite">
+                        <span class="vee-status__dot" :class="{ 'vee-status__dot--busy': assistantBusy }" aria-hidden="true"></span>
+                        {{ assistantBusy ? 'Sedang memproses' : 'Siap menerima pertanyaan' }}
+                    </span>
+                </header>
 
-        <div class="row g-3">
-            <div class="col-xl-4">
-                <div class="card assistant-card h-100">
-                    <div class="card-body">
-                        <h5 class="mb-3">Konteks model</h5>
-                        <template v-if="latestRun">
-                            <dl class="row mb-0 assistant-model">
-                                <dt class="col-5">Model</dt>
-                                <dd class="col-7">{{ latestRun.model_name }}</dd>
-                                <dt class="col-5">Versi</dt>
-                                <dd class="col-7">{{ latestRun.model_version }}</dd>
-                                <dt class="col-5">Training</dt>
-                                <dd class="col-7">
-                                    {{ formatDate(latestRun.training_from) }} - {{ formatDate(latestRun.training_to) }}
-                                </dd>
-                                <dt class="col-5">Selesai</dt>
-                                <dd class="col-7">{{ formatDate(latestRun.completed_at) }}</dd>
-                            </dl>
-                        </template>
-                        <p v-else class="text-muted mb-0">
-                            Belum ada model forecast yang selesai.
-                        </p>
+                <AssistantChat
+                    mode="page"
+                    :initial-messages="props.messages"
+                    :suggestions="props.suggestions"
+                    :urls="props.urls"
+                    :model="props.model"
+                    @activity-change="assistantBusy = $event"
+                />
+            </section>
 
-                        <hr />
-
-                        <h6 class="mb-2">Contoh pertanyaan</h6>
-                        <div class="d-grid gap-2">
-                            <button
-                                v-for="suggestion in suggestions"
-                                :key="suggestion"
-                                type="button"
-                                class="btn btn-outline-secondary btn-sm text-start"
-                                :disabled="form.processing"
-                                @click="askSuggestion(suggestion)"
-                            >
-                                {{ suggestion }}
-                            </button>
+            <aside class="vee-rail" aria-label="Informasi tentang VEE">
+                <section class="vee-card">
+                    <h2>Cakupan data</h2>
+                    <p class="vee-card__lead">Angka ini dihitung dari database saat halaman dibuka.</p>
+                    <div class="vee-coverage">
+                        <div v-for="item in coverage" :key="item.label" class="vee-coverage__item">
+                            <span>{{ item.label }}</span>
+                            <strong>{{ formatNumber(item.value) }}</strong>
                         </div>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <div class="col-xl-8">
-                <div class="card assistant-card">
-                    <div class="card-body">
-                        <form @submit.prevent="submit">
-                            <label class="form-label fw-semibold" for="assistant-prompt">
-                                Pertanyaan
-                            </label>
-                            <textarea
-                                id="assistant-prompt"
-                                v-model="form.prompt"
-                                class="form-control"
-                                :class="{ 'is-invalid': form.errors.prompt }"
-                                rows="4"
-                                maxlength="1000"
-                                placeholder="Contoh: Produk apa yang perlu restock paling banyak minggu ini?"
-                            ></textarea>
-                            <div v-if="form.errors.prompt" class="invalid-feedback d-block">
-                                {{ form.errors.prompt }}
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <small class="text-muted">
-                                    AI dapat membuat kesalahan. Verifikasi angka dengan dashboard.
-                                </small>
-                                <button class="btn btn-primary" type="submit" :disabled="form.processing">
-                                    <i class="mdi mdi-send me-1"></i>
-                                    {{ form.processing ? 'Menganalisis...' : 'Tanya AI' }}
-                                </button>
-                            </div>
-                        </form>
+                <section class="vee-card">
+                    <h2>Yang bisa VEE lakukan</h2>
+                    <ul class="vee-capabilities">
+                        <li v-for="capability in capabilities" :key="capability.name">
+                            <i class="mdi mdi-check-circle-outline" aria-hidden="true"></i>
+                            {{ capability.label }}
+                        </li>
+                    </ul>
+                </section>
 
-                        <div v-if="error" class="alert alert-danger mt-3 mb-0">
-                            {{ error }}
-                        </div>
-
-                        <div v-if="answer" class="assistant-answer mt-3">
-                            <div class="assistant-answer-header">
-                                <i class="mdi mdi-robot-outline me-1"></i>
-                                Jawaban
-                            </div>
-                            <div class="assistant-answer-body">{{ answer }}</div>
-                        </div>
-
-                        <div v-if="!answer && !error" class="assistant-empty mt-3">
-                            Belum ada jawaban. Pilih contoh pertanyaan atau tulis pertanyaan sendiri.
-                        </div>
-                    </div>
-                </div>
-            </div>
+                <section class="vee-card vee-card--muted">
+                    <h2>Contoh pertanyaan</h2>
+                    <ul class="vee-questions">
+                        <li v-for="feature in features.slice(0, 4)" :key="feature.key">
+                            <span>{{ feature.label }}</span>
+                            <p>{{ feature.questions[0] }}</p>
+                        </li>
+                    </ul>
+                </section>
+            </aside>
         </div>
     </div>
 </template>
 
 <style scoped>
-.assistant-page {
-    --assistant-ink: var(--app-ink);
-    --assistant-muted: var(--app-muted);
-    --assistant-border: var(--app-border);
-    --assistant-accent: #3b4cf0;
-    --assistant-accent-soft: #eef1ff;
-    color: var(--assistant-ink);
+.vee-page {
+    min-width: 0;
+    color: var(--app-ink);
 }
 
-.assistant-hero {
+.vee-hero {
+    position: relative;
     display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 1.5rem;
-    padding: 1.75rem;
+    align-items: center;
+    gap: 1.25rem;
+    overflow: hidden;
+    padding: 1.3rem 1.75rem;
     margin-bottom: 1rem;
     border-radius: 1rem;
-    background: var(--assistant-ink);
+    background: #142b59;
     color: #fff;
 }
 
-.assistant-eyebrow {
+.vee-hero__mascot {
+    flex: 0 0 auto;
+    margin: 0 0 0 -0.5rem;
+}
+
+.vee-hero__copy {
+    position: relative;
+    z-index: 1;
+    max-width: 46rem;
+}
+
+.vee-hero__eyebrow {
     display: inline-block;
-    margin-bottom: 0.5rem;
-    color: var(--app-hero-eyebrow);
-    font-size: 0.75rem;
-    font-weight: 700;
+    margin-bottom: 0.35rem;
+    color: #9cc9ff;
+    font-size: 0.68rem;
+    font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
 
-.assistant-hero h1 {
+.vee-hero h1 {
     margin: 0 0 0.35rem;
-    font-size: 1.75rem;
+    color: #fff !important;
+    font-size: clamp(1.55rem, 3vw, 2.1rem);
+    font-weight: 800;
+    line-height: 1.15;
 }
 
-.assistant-hero p {
+.vee-hero p {
+    max-width: 38rem;
     margin: 0;
-    color: var(--app-hero-muted);
-    max-width: 46rem;
+    color: #d4e3ff;
+    font-size: 0.88rem;
+    line-height: 1.62;
 }
 
-.assistant-card {
-    border: 1px solid var(--assistant-border);
-    border-radius: 0.9rem;
-    box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05);
+.vee-hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.85rem;
 }
 
-.assistant-label {
-    color: var(--assistant-muted);
-    font-size: 0.72rem;
+.vee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.22rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 0.45rem;
+    color: #e8f1ff;
+    font-size: 0.68rem;
     font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
 }
 
-.assistant-value {
-    margin-top: 0.25rem;
-    font-size: 1.5rem;
+.vee-chip i {
+    font-size: 0.82rem;
+}
+
+.vee-chip--model {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vee-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+}
+
+.vee-rail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.vee-card {
+    min-width: 0;
+    padding: 0.9rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.8rem;
+    background: var(--app-surface);
+}
+
+.vee-card h2 {
+    margin: 0 0 0.3rem;
+    font-size: 0.82rem;
     font-weight: 800;
 }
 
-.assistant-model dt {
-    color: var(--assistant-muted);
-    font-weight: 500;
+.vee-card__lead {
+    margin: 0 0 0.65rem;
+    color: var(--app-muted);
+    font-size: 0.7rem;
+    line-height: 1.45;
 }
 
-.assistant-model dd {
-    font-weight: 600;
+.vee-coverage {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
 }
 
-.assistant-answer {
-    border: 1px solid #dbe0ff;
-    border-radius: 0.75rem;
-    background: #f8f9ff;
+.vee-coverage__item {
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+    background: var(--app-surface-2);
+}
+
+.vee-coverage__item span {
+    display: block;
     overflow: hidden;
+    color: var(--app-muted);
+    font-size: 0.64rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.assistant-answer-header {
-    padding: 0.7rem 1rem;
-    background: #eef1ff;
-    color: #2f3dd1;
+.vee-coverage__item strong {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.vee-capabilities,
+.vee-questions {
+    display: grid;
+    gap: 0.28rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.vee-capabilities li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    color: var(--app-muted);
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.vee-capabilities i {
+    margin-top: 0.1rem;
+    color: #2468e8;
+    font-size: 0.82rem;
+}
+
+.vee-card--muted {
+    background: var(--app-surface-2);
+}
+
+.vee-questions li {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.vee-questions li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+.vee-questions span {
+    display: block;
+    color: var(--app-muted);
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.vee-questions p {
+    margin: 0.1rem 0 0;
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.vee-chat-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 680px;
+    height: min(960px, max(680px, 78dvh));
+    overflow: hidden;
+    border: 1px solid var(--app-border);
+    border-radius: 0.9rem;
+    background: var(--app-surface);
+    box-shadow: 0 0.35rem 1rem rgba(20, 43, 89, 0.06);
+}
+
+.vee-chat-card__header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--app-border);
+    background: var(--app-surface);
+}
+
+.vee-chat-card__header h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+.vee-chat-card__header > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.vee-chat-card__header p {
+    margin: 0.15rem 0 0;
+    color: var(--app-muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
+}
+
+.vee-status {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.22rem 0.45rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.45rem;
+    color: var(--app-muted);
+    font-size: 0.64rem;
     font-weight: 700;
+    white-space: nowrap;
 }
 
-.assistant-answer-body {
-    padding: 1rem;
-    white-space: pre-wrap;
-    line-height: 1.65;
+.vee-status__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #1c9e6b;
 }
 
-.assistant-empty {
-    padding: 2.5rem 1rem;
-    border: 1px dashed var(--assistant-border);
-    border-radius: 0.75rem;
-    color: var(--assistant-muted);
-    text-align: center;
+.vee-status__dot--busy {
+    background: #d97706;
+}
+
+@media (max-width: 1099.98px) {
+    .vee-rail {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .vee-chat-card {
+        min-height: 620px;
+        height: min(860px, max(620px, 78dvh));
+    }
 }
 
 @media (max-width: 767.98px) {
-    .assistant-hero {
+    .vee-hero {
         align-items: flex-start;
-        flex-direction: column;
+        padding: 1.1rem;
+    }
+
+    .vee-hero__mascot {
+        width: 92px;
+        height: 118px;
+        margin: 0 0 0 -0.45rem;
+        overflow: hidden;
+    }
+
+    .vee-hero__mascot :deep(.vee-mascot) {
+        transform: scale(0.52);
+        transform-origin: top left;
+    }
+
+    .vee-hero p {
+        font-size: 0.82rem;
+    }
+
+    .vee-rail {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .vee-chat-card {
+        min-height: 520px;
+        height: min(820px, max(520px, 78dvh));
+        border-radius: 0.75rem;
+    }
+
+    .vee-chat-card__header {
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 0.75rem 0.85rem;
+    }
+
+    .vee-chat-card__header p {
+        max-width: 32ch;
+    }
+
+    .vee-status {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.6rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vee-hero__mascot :deep(.vee-mascot__art) {
+        animation: none;
     }
 }
 </style>

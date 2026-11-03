@@ -20,14 +20,8 @@
       "slug": "ecommerce-orders"
     },
     {
-      "url": "ai-analytics",
-      "name": "AI Analytics",
-      "icon": "menu-icon tf-icons mdi mdi-robot-outline",
-      "slug": "ai-analytics"
-    },
-    {
       "url": "ai-assistant",
-      "name": "AI Assistant",
+      "name": "VEE Assistant",
       "icon": "menu-icon tf-icons mdi mdi-chat-processing-outline",
       "slug": "ai-assistant"
     },
@@ -260,15 +254,14 @@
           "name": "Penjualan",
           "slug": "monitoring-sales-payment",
           "submenu": [
-            {"url":"monitoring/payment-income-realtime","name":"Pemasukan Realtime","slug":"monitoring-payment-income-realtime"},
-            {"url":"monitoring/payment-reconciliation","name":"Rekonsiliasi Payment","slug":"monitoring.payment-reconciliation"},
-            {"url":"monitoring/store-payment-transactions","name":"Store Payment","slug":"monitoring-store-payment-transactions"},
-            {"url":"monitoring/ecommerce-payment","name":"Ecommerce Payment","slug":"monitoring-ecommerce-payment"},
-            {"url":"monitoring/omset-cabang","name":"Omset Cabang","slug":"monitoring-omset-cabang"},
-            {"url":"monitoring/omset-kotor","name":"Omset Kotor","slug":"monitoring-omset-kotor"},
+            {"url":"monitoring/payment-income-realtime","name":"Pemasukan & Pembayaran","slug":"monitoring-payment-income-realtime"},
+            {"url":"monitoring/payment-reconciliation","name":"Rekonsiliasi Pembayaran","slug":"monitoring.payment-reconciliation"},
+            {"url":"monitoring/store-payment-transactions","name":"Pembayaran Store","slug":"monitoring-store-payment-transactions"},
+            {"url":"monitoring/ecommerce-payment","name":"Pembayaran Ecommerce","slug":"monitoring-ecommerce-payment"},
+            {"url":"monitoring/omset-cabang","name":"Omset","slug":"monitoring-omset-cabang"},
             {"url":"monitoring/produk-terlaris","name":"Produk Terlaris","slug":"monitoring-produk-terlaris"},
-            {"url":"monitoring/cashier-shift-report","name":"Cashier Shift","slug":"monitoring-cashier-shift-report"},
-            {"url":"monitoring/void-cancel-customer","name":"Void Transaction","slug":"monitoring-void-cancel-customer"}
+            {"url":"monitoring/cashier-shift-report","name":"Shift Kasir","slug":"monitoring-cashier-shift-report"},
+            {"url":"monitoring/void-cancel-customer","name":"Void & Cancel","slug":"monitoring-void-cancel-customer"}
           ]
         },
         {
@@ -276,9 +269,7 @@
           "slug": "monitoring-orders",
           "submenu": [
             {"url":"monitoring/fulfillment-control","name":"Fulfillment & SLA","slug":"monitoring.fulfillment-control"},
-            {"url":"monitoring/ecommerce-order-fulfillment","name":"Ecommerce Handled","slug":"monitoring-ecommerce-order-fulfillment"},
-            {"url":"monitoring/store-order-requests","name":"Store Order","slug":"monitoring-store-order-requests"},
-            {"url":"monitoring/store-return-requests","name":"Store Return","slug":"monitoring-store-return-requests"}
+            {"url":"monitoring/order-handled","name":"Order Handled","slug":"monitoring-order-handled"}
           ]
         },
         {

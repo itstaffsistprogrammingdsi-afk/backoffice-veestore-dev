@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Exports\SupplierProductExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Maatwebsite\Excel\Facades\Excel;
 
 class SupplierProductController extends Controller
 {
@@ -143,57 +144,15 @@ class SupplierProductController extends Controller
         ]);
     }
 
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request)
     {
         $filters = $this->validatedFilters($request);
-        $filename = 'supplier-products-'.now()->format('Ymd-His').'.csv';
+        $filename = 'supplier-products-'.now()->format('Ymd-His').'.xlsx';
 
-        return response()->streamDownload(function () use ($filters): void {
-            $handle = fopen('php://output', 'wb');
-
-            // BOM agar karakter Indonesia terbaca baik di Microsoft Excel.
-            fwrite($handle, "\xEF\xBB\xBF");
-
-            fputcsv($handle, [
-                'No',
-                'Supplier',
-                'Negara',
-                'Telepon',
-                'Produk',
-                'Kode Produk',
-                'Total Qty Diterima',
-                'Stok Saat Ini',
-                'Terakhir Diterima',
-                'Jumlah Baris Inbound',
-            ], ';');
-
-            $number = 1;
-
-            $this->buildReportQuery($filters)
-                ->orderBy('supplier_name')
-                ->orderBy('product_name')
-                ->chunk(500, function ($rows) use ($handle, &$number): void {
-                    foreach ($rows as $row) {
-                        fputcsv($handle, [
-                            $number++,
-                            $row->supplier_name,
-                            $row->supplier_country,
-                            $row->supplier_phone,
-                            $row->product_name,
-                            $row->product_codes,
-                            (int) $row->qty_inbound,
-                            (int) $row->stok_now,
-                            $row->last_inbound_date,
-                            (int) $row->inbound_rows,
-                        ], ';');
-                    }
-                });
-
-            fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Cache-Control' => 'no-store, no-cache',
-        ]);
+        return Excel::download(
+            new SupplierProductExport($this->buildReportQuery($filters)),
+            $filename,
+        );
     }
 
     private function validatedFilters(Request $request): array

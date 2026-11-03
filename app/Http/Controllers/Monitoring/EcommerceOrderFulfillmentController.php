@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -18,19 +18,30 @@ class EcommerceOrderFulfillmentController extends Controller
 {
     public function index(Request $request)
     {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Ecommerce Order Fulfillment',
+            'description' => 'Laporan monitoring.',
+            'data' => $this->report($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.ecommerce-order-fulfillment.export')],
+        ]);
+    }
+
+    public function report(Request $request): array
+    {
         $filters = $this->filters($request);
 
         $query = $this->baseQuery($filters);
 
         $summary = DB::query()
             ->fromSub(clone $query, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(DISTINCT x.order_id)::int as total_order,
                 COUNT(*)::int as total_product_row,
                 COALESCE(SUM(x.ordered_qty), 0)::int as total_ordered_qty,
                 COALESCE(SUM(x.issued_qty), 0)::int as total_issued_qty,
                 COALESCE(SUM(x.remaining_qty), 0)::int as total_remaining_qty
-            ")
+            ')
             ->first();
 
         $rows = $query
@@ -65,20 +76,14 @@ class EcommerceOrderFulfillmentController extends Controller
             ->filter()
             ->values();
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Ecommerce Order Fulfillment',
-            'description' => 'Laporan monitoring.',
-            'data' => [
-            'rows'          => $rows,
-            'summary'       => $summary,
-            'filters'       => $filters,
-            'stores'        => $stores,
-            'warehouses'    => $warehouses,
+        return [
+            'rows' => $rows,
+            'summary' => $summary,
+            'filters' => $filters,
+            'stores' => $stores,
+            'warehouses' => $warehouses,
             'orderStatuses' => $orderStatuses,
-        ],
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
-        ]);
+        ];
     }
 
     public function export(Request $request)
@@ -97,15 +102,14 @@ class EcommerceOrderFulfillmentController extends Controller
             ->orderBy('order_number')
             ->get();
 
-        $filename = 'ecommerce-order-fulfillment-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'ecommerce-order-fulfillment-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
-            new class($rows) implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize {
+            new class($rows) implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
+            {
                 private int $no = 0;
 
-                public function __construct(private Collection $rows)
-                {
-                }
+                public function __construct(private Collection $rows) {}
 
                 public function collection()
                 {
@@ -177,7 +181,7 @@ class EcommerceOrderFulfillmentController extends Controller
 
         $perPage = (int) $request->query('per_page', 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
             $perPage = 10;
         }
 
@@ -189,31 +193,31 @@ class EcommerceOrderFulfillmentController extends Controller
         }
 
         return [
-            'order_number'  => trim((string) $request->query('order_number')),
+            'order_number' => trim((string) $request->query('order_number')),
             'customer_name' => trim((string) $request->query('customer_name')),
-            'wa_number'     => trim((string) $request->query('wa_number')),
-            'order_status'  => $this->normalizeNullableString($request->query('order_status')),
-            'handled_type'  => $this->normalizeHandledType($request->query('handled_type')),
-            'store_id'      => $this->normalizeNullableString($request->query('store_id')),
-            'warehouse_id'  => $this->normalizeNullableString($request->query('warehouse_id')),
-            'start_date'    => $startDate,
-            'end_date'      => $endDate,
-            'per_page'      => $perPage,
-            'today'         => $today,
+            'wa_number' => trim((string) $request->query('wa_number')),
+            'order_status' => $this->normalizeNullableString($request->query('order_status')),
+            'handled_type' => $this->normalizeHandledType($request->query('handled_type')),
+            'store_id' => $this->normalizeNullableString($request->query('store_id')),
+            'warehouse_id' => $this->normalizeNullableString($request->query('warehouse_id')),
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'per_page' => $perPage,
+            'today' => $today,
         ];
     }
 
     private function baseQuery(array $filters)
     {
-        $orderNumber  = $filters['order_number'] ?? '';
+        $orderNumber = $filters['order_number'] ?? '';
         $customerName = $filters['customer_name'] ?? '';
-        $waNumber     = $filters['wa_number'] ?? '';
-        $orderStatus  = $filters['order_status'] ?? null;
-        $handledType  = $filters['handled_type'] ?? null;
-        $storeId      = $filters['store_id'] ?? null;
-        $warehouseId  = $filters['warehouse_id'] ?? null;
-        $startDate    = $filters['start_date'] ?? null;
-        $endDate      = $filters['end_date'] ?? null;
+        $waNumber = $filters['wa_number'] ?? '';
+        $orderStatus = $filters['order_status'] ?? null;
+        $handledType = $filters['handled_type'] ?? null;
+        $storeId = $filters['store_id'] ?? null;
+        $warehouseId = $filters['warehouse_id'] ?? null;
+        $startDate = $filters['start_date'] ?? null;
+        $endDate = $filters['end_date'] ?? null;
 
         $handledTypeSql = "
             CASE
@@ -252,7 +256,7 @@ class EcommerceOrderFulfillmentController extends Controller
                 'eo.order_number',
                 'eo.status as order_status',
                 'eo.created_at as order_created_at',
-                DB::raw("DATE(eo.created_at) as order_date"),
+                DB::raw('DATE(eo.created_at) as order_date'),
                 DB::raw("TO_CHAR(eo.created_at, 'HH24:MI:SS') as order_time"),
 
                 DB::raw("COALESCE(c.name, '-') as customer_name"),
@@ -267,14 +271,14 @@ class EcommerceOrderFulfillmentController extends Controller
                 DB::raw("COALESCE(op.code, '-') as product_code"),
                 DB::raw("COALESCE(op.name, '-') as product_name"),
 
-                DB::raw("COALESCE(MAX(eod.quantity), 0)::int as ordered_qty"),
-                DB::raw("COUNT(DISTINCT i.id)::int as issued_qty"),
-                DB::raw("
+                DB::raw('COALESCE(MAX(eod.quantity), 0)::int as ordered_qty'),
+                DB::raw('COUNT(DISTINCT i.id)::int as issued_qty'),
+                DB::raw('
                     GREATEST(
                         COALESCE(MAX(eod.quantity), 0)::int - COUNT(DISTINCT i.id)::int,
                         0
                     ) as remaining_qty
-                "),
+                '),
 
                 DB::raw("COALESCE(STRING_AGG(DISTINCT NULLIF({$rfidColumn}, ''), ', '), '-') as rfid_tags"),
                 DB::raw("COALESCE(STRING_AGG(DISTINCT os.name, ', '), '-') as outbound_store_names"),
@@ -409,7 +413,7 @@ class EcommerceOrderFulfillmentController extends Controller
     {
         $value = $this->normalizeNullableString($value);
 
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

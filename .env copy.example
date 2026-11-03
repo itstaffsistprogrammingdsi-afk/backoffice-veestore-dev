@@ -4,18 +4,14 @@ APP_KEY=
 APP_DEBUG=true
 APP_URL=http://localhost
 
-AI_ANALYTICS_URL=http://127.0.0.1:8000
-AI_ANALYTICS_TOKEN=change-this-token
-AI_ANALYTICS_TIMEOUT=5
-AI_ANALYTICS_JOB_TIMEOUT=120
+# Laravel AI SDK — 9Router (OpenAI compatible)
+AI_PROVIDER=nine_router
+NINE_ROUTER_URL=https://your-9router-host/v1
+NINE_ROUTER_API_KEY=
+NINE_ROUTER_MODEL=ocg/deepseek-v4.1-flash
 
-# Laravel AI SDK
-AI_PROVIDER=openai
-AI_MODEL=gpt-6.1-sol
-OPENAI_API_KEY=
-# OPENAI_COMPATIBLE_URL=
-# OPENAI_COMPATIBLE_API_KEY=
-# OPENAI_COMPATIBLE model diatur lewat AI_MODEL
+# Token untuk MCP client (Authorization: Bearer ...)
+MCP_TOKEN=
 
 LOG_CHANNEL=stack
 LOG_DEPRECATIONS_CHANNEL=null

@@ -64,6 +64,12 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const customerPointOptions = computed(() => props.clps.map((clp) => ({
+    value: clp.id,
+    label: `${clp.customer?.name ?? '-'} · saldo ${new Intl.NumberFormat('id-ID').format(Number(clp.balance ?? 0))}`,
+    hint: clp.customer?.wa_number ?? undefined,
+})));
+
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
@@ -157,12 +163,12 @@ const formatDate = (value: string | null) => {
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Customer Point</label>
-                        <select v-model="form.clp" class="form-select form-select-sm">
-                            <option value="">Semua</option>
-                            <option v-for="clp in clps" :key="clp.id" :value="clp.id">
-                                {{ clp.customer?.name ?? '-' }} - saldo {{ formatNumber(clp.balance) }}
-                            </option>
-                        </select>
+                        <SearchableSelect
+                            v-model="form.clp"
+                            :options="customerPointOptions"
+                            placeholder="Semua customer"
+                            search-placeholder="Cari nama atau nomor customer..."
+                        />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Dari</label>

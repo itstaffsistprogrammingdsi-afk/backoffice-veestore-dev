@@ -8,7 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('notification_reads', function (Blueprint $table) {
+        $schema = Schema::connection('immostore_backoffice');
+
+        if ($schema->hasTable('notification_reads')) {
+            return;
+        }
+
+        $schema->create('notification_reads', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('user_id')->index();
             $table->string('notification_key', 100);
@@ -22,6 +28,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('notification_reads');
+        Schema::connection('immostore_backoffice')->dropIfExists('notification_reads');
     }
 };

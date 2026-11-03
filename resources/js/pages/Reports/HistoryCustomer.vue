@@ -5,6 +5,8 @@ defineOptions({ layout: AppLayout });
 
 import { computed, reactive } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import SearchableSelect from '@/components/SearchableSelect.vue';
+import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface Option { id: string; name: string }
 interface PosRow { visit_id: string; check_in_at: string | null; paid_at: string | null; store_name: string | null; customer_name: string | null; wa_number: string | null; product_name: string | null }
@@ -32,6 +34,11 @@ const form = reactive({
     q: props.search ?? '',
 });
 
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+})));
+
 const apply = () => {
     router.get(props.urls.index, {
         from: form.from || undefined,
@@ -55,17 +62,65 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 
 const rows = computed(() => form.channel === 'ecom' ? props.rowsEcom : props.rowsPos);
+
+const exportRows = () => {
+    if (form.channel === 'ecom') {
+        downloadExcelTable('History-Customer-Ecommerce', 'Transaksi Ecommerce', [
+            { key: 'cart_at', label: 'Tanggal Cart' },
+            { key: 'paid_at', label: 'Tanggal Pembayaran' },
+            { key: 'order_number', label: 'Nomor Order' },
+            { key: 'customer_name', label: 'Customer' },
+            { key: 'wa_number', label: 'Nomor WA' },
+            { key: 'product_name', label: 'Produk' },
+            { key: 'qty', label: 'Qty' },
+        ], props.rowsEcom, {
+            title: 'History Customer Ecommerce',
+            filters: [
+                { label: 'Customer', value: props.custId },
+                { label: 'Dari', value: props.from },
+                { label: 'Sampai', value: props.to },
+                { label: 'Channel', value: 'Ecommerce' },
+                { label: 'Store', value: storeOptions.value.find((option) => option.value === props.storeId)?.label },
+                { label: 'Pencarian', value: props.search },
+            ],
+        });
+
+        return;
+    }
+
+    downloadExcelTable('History-Customer-POS', 'Transaksi POS', [
+        { key: 'check_in_at', label: 'Check-in' },
+        { key: 'paid_at', label: 'Tanggal Pembayaran' },
+        { key: 'store_name', label: 'Store' },
+        { key: 'customer_name', label: 'Customer' },
+        { key: 'wa_number', label: 'Nomor WA' },
+        { key: 'product_name', label: 'Produk' },
+    ], props.rowsPos, {
+        title: 'History Customer POS',
+        filters: [
+            { label: 'Customer', value: props.custId },
+            { label: 'Dari', value: props.from },
+            { label: 'Sampai', value: props.to },
+            { label: 'Channel', value: 'POS' },
+            { label: 'Store', value: storeOptions.value.find((option) => option.value === props.storeId)?.label },
+            { label: 'Pencarian', value: props.search },
+        ],
+    });
+};
 </script>
 
 <template>
     <Head title="History Customer" />
     <div class="report-page">
-        <div class="report-header">
+        <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
                 <span class="report-eyebrow">Reports</span>
                 <h1>History Customer</h1>
                 <p>Riwayat transaksi dan kunjungan customer per channel.</p>
             </div>
+            <button class="btn btn-light btn-sm" type="button" @click="exportRows">
+                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+            </button>
         </div>
 
         <div class="card report-card mb-3">
@@ -74,7 +129,7 @@ const rows = computed(() => form.channel === 'ecom' ? props.rowsEcom : props.row
                     <div class="col-md-2"><label class="form-label">Dari</label><input v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Sampai</label><input v-model="form.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Channel</label><select v-model="form.channel" class="form-select form-select-sm"><option value="pos">POS</option><option value="ecom">Ecommerce</option></select></div>
-                    <div class="col-md-3"><label class="form-label">Store</label><select v-model="form.store_id" class="form-select form-select-sm"><option value="">Semua Store</option><option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                    <div class="col-md-3"><label class="form-label">Store</label><SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Store" search-placeholder="Cari store..." /></div>
                     <div class="col-md-3"><label class="form-label">Cari</label><input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama, WA, produk..." /></div>
                     <div class="col-12 d-flex gap-2 mt-2"><button class="btn btn-sm btn-primary" type="submit">Filter</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="reset">Reset</button></div>
                 </form>

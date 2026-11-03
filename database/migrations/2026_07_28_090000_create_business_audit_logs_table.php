@@ -8,13 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('business_audit_logs', function (Blueprint $table) {
+        $schema = Schema::connection('immostore_backoffice');
+
+        if ($schema->hasTable('business_audit_logs')) {
+            return;
+        }
+
+        $schema->create('business_audit_logs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('user_id')->nullable()->index();
             $table->string('user_name')->nullable();
             $table->string('app_type', 40)->default('backoffice')->index();
             $table->string('module')->nullable()->index();
-            $table->string('action', 20)->index();
+            $table->string('action', 20);
             $table->string('route_name')->nullable()->index();
             $table->text('url');
             $table->string('method', 10);
@@ -25,11 +31,13 @@ return new class extends Migration
             $table->jsonb('context')->nullable();
             $table->timestampTz('occurred_at')->index();
             $table->timestampsTz();
+
+            $table->index(['action', 'occurred_at'], 'audit_action_occurred_at_index');
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('business_audit_logs');
+        Schema::connection('immostore_backoffice')->dropIfExists('business_audit_logs');
     }
 };

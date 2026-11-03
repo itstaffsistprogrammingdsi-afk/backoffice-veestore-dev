@@ -318,7 +318,7 @@ class StoreStockOpnameReportController extends Controller
             'errorMessage' => $errorMessage,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.store-stock-opnames.export')],
         ]);
     }
 

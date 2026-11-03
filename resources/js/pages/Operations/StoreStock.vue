@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -152,6 +153,12 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
 
 const filters = reactive({
     q: props.filters.q ?? '',
@@ -280,10 +287,12 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                     </div>
                     <div class="col-md-4 col-lg-3">
                         <label class="form-label">Store</label>
-                        <select v-model="filters.store_id" class="form-select form-select-sm">
-                            <option value="">Semua store</option>
-                            <option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="filters.store_id"
+                            :options="storeOptions"
+                            placeholder="Semua store"
+                            search-placeholder="Cari store..."
+                        />
                     </div>
                     <div class="col-md-6 col-lg-3 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>

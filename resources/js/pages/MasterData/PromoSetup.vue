@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ModuleNav from '@/components/ModuleNav.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -23,6 +24,17 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
+const productOptions = computed(() => props.products.map((product) => ({
+    value: product.id,
+    label: `${product.code ? `${product.code} - ` : ''}${product.name}`,
+})));
+
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
@@ -88,9 +100,14 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                                 </div>
                                 <div v-if="!form.all_stores" class="col-12">
                                     <label class="form-label">Stores</label>
-                                    <select v-model="form.store_ids" class="form-select" multiple size="5">
-                                        <option v-for="store in stores" :key="store.id" :value="store.id">{{ store.name }}</option>
-                                    </select>
+                                    <SearchableSelect
+                                        v-model="form.store_ids"
+                                        :options="storeOptions"
+                                        placeholder="Pilih satu atau beberapa store"
+                                        search-placeholder="Cari store..."
+                                        multiple
+                                        size="md"
+                                    />
                                     <div v-if="form.errors.store_ids" class="text-danger small">{{ form.errors.store_ids }}</div>
                                 </div>
                             </div>
@@ -113,9 +130,14 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                                 </div>
                                 <div v-if="!form.all_products" class="col-12">
                                     <label class="form-label">Produk</label>
-                                    <select v-model="form.product_ids" class="form-select" multiple size="6">
-                                        <option v-for="product in products" :key="product.id" :value="product.id">{{ product.code ? `${product.code} - ` : '' }}{{ product.name }}</option>
-                                    </select>
+                                    <SearchableSelect
+                                        v-model="form.product_ids"
+                                        :options="productOptions"
+                                        placeholder="Pilih satu atau beberapa produk"
+                                        search-placeholder="Cari nama atau kode produk..."
+                                        multiple
+                                        size="md"
+                                    />
                                     <div v-if="form.errors.product_ids" class="text-danger small">{{ form.errors.product_ids }}</div>
                                 </div>
                             </div>

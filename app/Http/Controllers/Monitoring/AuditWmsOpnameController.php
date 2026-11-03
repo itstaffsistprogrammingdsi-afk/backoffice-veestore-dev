@@ -47,7 +47,7 @@ class AuditWmsOpnameController extends Controller
             'to'          => $to,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.audit-wms-opnames.export')],
         ]);
     }
 

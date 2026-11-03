@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { reactive } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface CustomerRow {
     id: string;
@@ -42,17 +43,30 @@ const reset = () => {
 };
 
 const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').format(Number(value ?? 0));
+
+const exportCustomers = () => downloadExcelTable('CRM-Customer-Profiles', 'Customer Profiles', [
+    { key: 'name', label: 'Customer' },
+    { key: 'email', label: 'Email' },
+    { key: 'wa_number', label: 'Nomor WA' },
+    { key: 'current_balance', label: 'Poin' },
+], props.customers.data, {
+    title: 'CRM Customer Profiles',
+    filters: [{ label: 'Pencarian', value: props.filters.q }],
+});
 </script>
 
 <template>
     <Head title="CRM Customer Profiles" />
     <div class="report-page">
-        <div class="report-header">
+        <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
                 <span class="report-eyebrow">Reports / CRM</span>
                 <h1>Customer Profiles</h1>
                 <p>Pilih customer untuk melihat profil dan riwayat transaksi.</p>
             </div>
+            <button class="btn btn-light btn-sm" type="button" @click="exportCustomers">
+                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+            </button>
         </div>
 
         <div class="card report-card mb-3">

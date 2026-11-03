@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, reactive } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface Option {
     id: string;
@@ -91,6 +92,16 @@ const form = reactive({
     per_page: props.filters.per_page ?? 25,
 });
 
+const supplierOptions = computed(() => props.suppliers.map((supplier) => ({
+    value: supplier.id,
+    label: supplier.name,
+})));
+
+const productOptions = computed(() => props.products.map((product) => ({
+    value: product.id,
+    label: `${product.code ? `${product.code} - ` : ''}${product.name}`,
+})));
+
 const query = computed(() => ({
     supplier_id: form.supplier_id || undefined,
     product_id: form.product_id || undefined,
@@ -172,7 +183,7 @@ const summaryCards = computed(() => [
             </div>
             <a :href="exportUrl" class="btn btn-light btn-sm">
                 <i class="mdi mdi-download me-1"></i>
-                Export CSV
+                Export Excel
             </a>
         </div>
 
@@ -192,19 +203,21 @@ const summaryCards = computed(() => [
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-3">
                         <label class="form-label">Supplier</label>
-                        <select v-model="form.supplier_id" class="form-select form-select-sm">
-                            <option value="">Semua Supplier</option>
-                            <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">{{ supplier.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="form.supplier_id"
+                            :options="supplierOptions"
+                            placeholder="Semua Supplier"
+                            search-placeholder="Cari supplier..."
+                        />
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Produk</label>
-                        <select v-model="form.product_id" class="form-select form-select-sm">
-                            <option value="">Semua Produk</option>
-                            <option v-for="product in products" :key="product.id" :value="product.id">
-                                {{ product.code ? `${product.code} - ` : '' }}{{ product.name }}
-                            </option>
-                        </select>
+                        <SearchableSelect
+                            v-model="form.product_id"
+                            :options="productOptions"
+                            placeholder="Semua Produk"
+                            search-placeholder="Cari nama atau kode produk..."
+                        />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Dari</label>

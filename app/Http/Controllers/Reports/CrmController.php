@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Domain\Analytics\Queries\CustomerDemographicsQuery;
 use App\Exports\CrmDashboardExport;
 use App\Exports\CrmDemographicsExport;
 use App\Exports\CustomerProfileExport;
@@ -27,6 +28,7 @@ class CrmController extends Controller
                 'export' => route('reports.crm.export'),
                 'customerProfiles' => route('reports.crm.customer-profiles'),
                 'demographics' => route('reports.crm.demographics'),
+                'preference' => route('reports.crm.customer-preference.index'),
             ],
         ]);
     }
@@ -111,284 +113,37 @@ class CrmController extends Controller
      * Ringkasan data demografi untuk segmentasi dan aktivitas CRM.
      * Semua angka serta tabel mengikuti filter yang dipilih pengguna.
      */
-    public function demographics(Request $request)
+    public function demographics(Request $request, CustomerDemographicsQuery $query)
     {
-        $q = trim((string) $request->query('q', ''));
-        $gender = strtolower(trim((string) $request->query('gender', '')));
-        $provinceCode = trim((string) $request->query('province_code', ''));
-        $regencyCode = trim((string) $request->query('regency_code', ''));
-        $districtCode = trim((string) $request->query('district_code', ''));
-        $villageCode = trim((string) $request->query('village_code', ''));
-        $registrationChannel = trim((string) $request->query('registration_channel', ''));
-        $birthMonth = (int) $request->query('birth_month', 0);
-        $birthMonth = $birthMonth >= 1 && $birthMonth <= 12 ? $birthMonth : 0;
-        $birthdayMonth = $birthMonth ?: now()->month;
-        $ageGroup = trim((string) $request->query('age_group', ''));
+        $data = $query->build($request->query());
 
-        $ageGroups = [
-            'under_18' => '< 18 tahun',
-            '18_24' => '18–24 tahun',
-            '25_34' => '25–34 tahun',
-            '35_44' => '35–44 tahun',
-            '45_54' => '45–54 tahun',
-            '55_plus' => '55+ tahun',
-            'unknown' => 'Usia belum diisi',
-        ];
-        if (! array_key_exists($ageGroup, $ageGroups)) {
-            $ageGroup = '';
-        }
-
-        $ageSql = 'EXTRACT(YEAR FROM AGE(CURRENT_DATE, customers.date_of_birth))';
-
-        $applyFilters = function ($query) use (
-            $q,
-            $gender,
-            $provinceCode,
-            $regencyCode,
-            $districtCode,
-            $villageCode,
-            $registrationChannel,
-            $birthMonth,
-            $ageGroup,
-            $ageSql
-        ) {
-            if ($q !== '') {
-                $like = "%{$q}%";
-                $query->where(function ($where) use ($like) {
-                    $where->where('customers.name', 'ILIKE', $like)
-                        ->orWhere('customers.email', 'ILIKE', $like)
-                        ->orWhere('customers.wa_number', 'ILIKE', $like);
-                });
-            }
-
-            if ($gender !== '') {
-                $query->whereRaw("LOWER(COALESCE(customers.gender::text, '')) = ?", [$gender]);
-            }
-
-            if ($provinceCode !== '') {
-                $query->where('customers.province_code', $provinceCode);
-            }
-
-            if ($regencyCode !== '') {
-                $query->where('customers.regency_code', $regencyCode);
-            }
-
-            if ($districtCode !== '') {
-                $query->where('customers.district_code', $districtCode);
-            }
-
-            if ($villageCode !== '') {
-                $query->where('customers.village_code', $villageCode);
-            }
-
-            if ($registrationChannel !== '') {
-                // Kolom registration_channel berupa enum PostgreSQL. Bandingkan
-                // sebagai text agar filter aman saat nilai query tidak valid.
-                $query->whereRaw('customers.registration_channel::text = ?', [$registrationChannel]);
-            }
-
-            if ($birthMonth > 0) {
-                $query->whereRaw('EXTRACT(MONTH FROM customers.date_of_birth) = ?', [$birthMonth]);
-            }
-
-            match ($ageGroup) {
-                'under_18' => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} < 18"),
-                '18_24' => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 18 AND 24"),
-                '25_34' => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 25 AND 34"),
-                '35_44' => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 35 AND 44"),
-                '45_54' => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 45 AND 54"),
-                '55_plus' => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} >= 55"),
-                'unknown' => $query->whereNull('customers.date_of_birth'),
-                default => null,
-            };
-
-            return $query;
-        };
-
-        $customerBase = Customer::query();
-        $applyFilters($customerBase);
-
-        $totalCustomers = (clone $customerBase)->count();
-        $withBirthDate = (clone $customerBase)->whereNotNull('customers.date_of_birth')->count();
-        $withLocation = (clone $customerBase)->whereNotNull('customers.province_code')->count();
-        $completeProfiles = (clone $customerBase)
-            ->whereNotNull('customers.date_of_birth')
-            ->whereNotNull('customers.gender')
-            ->whereNotNull('customers.province_code')
-            ->count();
-        $birthdayThisMonth = (clone $customerBase)
-            ->whereNotNull('customers.date_of_birth')
-            ->whereMonth('customers.date_of_birth', $birthdayMonth)
-            ->count();
-
-        $genderExpression = "CASE LOWER(COALESCE(customers.gender::text, ''))
-            WHEN 'male' THEN 'Laki-laki'
-            WHEN 'm' THEN 'Laki-laki'
-            WHEN 'laki-laki' THEN 'Laki-laki'
-            WHEN 'female' THEN 'Perempuan'
-            WHEN 'f' THEN 'Perempuan'
-            WHEN 'perempuan' THEN 'Perempuan'
-            ELSE 'Belum diisi'
-        END";
-        $genderRows = (clone $customerBase)
-            ->selectRaw("{$genderExpression} as label, COUNT(*) as total")
-            ->groupByRaw($genderExpression)
-            ->orderByDesc('total')
-            ->get();
-
-        $ageExpression = "CASE
-            WHEN customers.date_of_birth IS NULL THEN 'Belum diisi'
-            WHEN {$ageSql} < 18 THEN '< 18 tahun'
-            WHEN {$ageSql} BETWEEN 18 AND 24 THEN '18–24 tahun'
-            WHEN {$ageSql} BETWEEN 25 AND 34 THEN '25–34 tahun'
-            WHEN {$ageSql} BETWEEN 35 AND 44 THEN '35–44 tahun'
-            WHEN {$ageSql} BETWEEN 45 AND 54 THEN '45–54 tahun'
-            ELSE '55+ tahun'
-        END";
-        $ageRows = (clone $customerBase)
-            ->selectRaw("{$ageExpression} as label, COUNT(*) as total")
-            ->groupByRaw($ageExpression)
-            ->get()
-            ->sortBy(fn ($row) => array_search($row->label, [
-                '< 18 tahun', '18–24 tahun', '25–34 tahun', '35–44 tahun', '45–54 tahun', '55+ tahun', 'Belum diisi',
-            ], true))
-            ->values();
-
-        $channelExpression = "COALESCE(NULLIF(customers.registration_channel::text, ''), 'Belum diisi')";
-        $channelRows = (clone $customerBase)
-            ->selectRaw("{$channelExpression} as label, COUNT(*) as total")
-            ->groupByRaw($channelExpression)
-            ->orderByDesc('total')
-            ->get();
-
-        $provinceExpression = "COALESCE(NULLIF(provinces.name, ''), 'Belum diisi')";
-        $provinceRows = (clone $customerBase)
-            ->leftJoin('provinces', 'provinces.code', '=', 'customers.province_code')
-            ->selectRaw("{$provinceExpression} as label, COUNT(*) as total")
-            ->groupByRaw($provinceExpression)
-            ->orderByDesc('total')
-            ->limit(8)
-            ->get();
-
-        $regencyExpression = "COALESCE(NULLIF(regencies.name, ''), 'Belum diisi')";
-        $regencyRows = (clone $customerBase)
-            ->leftJoin('regencies', 'regencies.code', '=', 'customers.regency_code')
-            ->selectRaw("{$regencyExpression} as label, COUNT(*) as total")
-            ->groupByRaw($regencyExpression)
-            ->orderByDesc('total')
-            ->limit(8)
-            ->get();
-
-        $birthdayCustomers = (clone $customerBase)
-            ->leftJoin('provinces', 'provinces.code', '=', 'customers.province_code')
-            ->whereNotNull('customers.date_of_birth')
-            ->whereMonth('customers.date_of_birth', $birthdayMonth)
-            ->select('customers.id', 'customers.name', 'customers.wa_number', 'customers.date_of_birth', 'provinces.name as province_name')
-            ->orderByRaw('EXTRACT(DAY FROM customers.date_of_birth)')
-            ->limit(12)
-            ->get();
-
-        $customers = (clone $customerBase)
-            ->leftJoin('provinces', 'provinces.code', '=', 'customers.province_code')
-            ->leftJoin('regencies', 'regencies.code', '=', 'customers.regency_code')
-            ->leftJoin('districts', 'districts.code', '=', 'customers.district_code')
-            ->leftJoin('villages', 'villages.code', '=', 'customers.village_code')
-            ->select(
-                'customers.*',
-                'provinces.name as province_name',
-                'regencies.name as regency_name',
-                'districts.name as district_name',
-                'villages.name as village_name'
-            )
-            ->orderBy('customers.name')
-            ->paginate(20)
-            ->withQueryString();
-
-        $provinces = DB::table('provinces')->orderBy('name')->get(['code', 'name']);
-        $selectedRegency = $regencyCode
-            ? DB::table('regencies')->where('code', $regencyCode)->first(['code', 'name'])
-            : null;
-        $selectedDistrict = $districtCode
-            ? DB::table('districts')->where('code', $districtCode)->first(['code', 'name'])
-            : null;
-        $selectedVillage = $villageCode
-            ? DB::table('villages')->where('code', $villageCode)->first(['code', 'name'])
-            : null;
-        $registrationChannels = Customer::query()
-            ->whereRaw("NULLIF(registration_channel::text, '') IS NOT NULL")
-            ->selectRaw('DISTINCT registration_channel::text as registration_channel')
-            ->orderByRaw('registration_channel::text')
-            ->pluck('registration_channel');
-
-        $profileCompletion = $totalCustomers > 0
-            ? (int) round(($completeProfiles / $totalCustomers) * 100)
-            : 0;
-
-        return Inertia::render('Reports/CrmDemographics', compact(
-            'q',
-            'gender',
-            'provinceCode',
-            'regencyCode',
-            'districtCode',
-            'villageCode',
-            'registrationChannel',
-            'birthMonth',
-            'birthdayMonth',
-            'ageGroup',
-            'ageGroups',
-            'totalCustomers',
-            'withBirthDate',
-            'withLocation',
-            'birthdayThisMonth',
-            'completeProfiles',
-            'profileCompletion',
-            'genderRows',
-            'ageRows',
-            'channelRows',
-            'provinceRows',
-            'regencyRows',
-            'birthdayCustomers',
-            'customers',
-            'provinces',
-            'selectedRegency',
-            'selectedDistrict',
-            'selectedVillage',
-            'registrationChannels'
-        ) + [
+        return Inertia::render('Reports/CrmDemographics', $data + [
             'urls' => [
                 'index' => route('reports.crm.demographics'),
                 'export' => route('reports.crm.demographics.export'),
+                'crm' => route('reports.crm.index'),
+                'customerProfiles' => route('reports.crm.customer-profiles'),
+                'customerProfile' => route('reports.crm.customer-profile', ['customerId' => '__ID__']),
+                'preference' => route('reports.crm.customer-preference.index'),
+                'regions' => [
+                    'regencies' => route('reports.crm.demographics.regencies'),
+                    'districts' => route('reports.crm.demographics.districts'),
+                    'villages' => route('reports.crm.demographics.villages'),
+                ],
             ],
         ]);
     }
 
     /** Download seluruh baris demografi sesuai filter halaman. */
-    public function exportDemographics(Request $request)
+    public function exportDemographics(Request $request, CustomerDemographicsQuery $query)
     {
-        $customers = $this->demographicCustomerQuery($request)
-            ->leftJoin('provinces', 'provinces.code', '=', 'customers.province_code')
-            ->leftJoin('regencies', 'regencies.code', '=', 'customers.regency_code')
-            ->leftJoin('districts', 'districts.code', '=', 'customers.district_code')
-            ->leftJoin('villages', 'villages.code', '=', 'customers.village_code')
-            ->leftJoin('stores as registration_stores', DB::raw('registration_stores.id::text'), '=', 'customers.registration_source_id')
-            ->select(
-                'customers.*',
-                'provinces.name as province_name',
-                'regencies.name as regency_name',
-                'districts.name as district_name',
-                'villages.name as village_name',
-                'registration_stores.name as registration_source_name'
-            )
-            ->orderBy('customers.name')
-            ->get();
-
         return Excel::download(
-            new CrmDemographicsExport($customers),
+            new CrmDemographicsExport($query->exportRows($request->query())),
             'crm-demografi-customer-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
-    /** Data wilayah bertingkat untuk Select2 filter demografi. */
+    /** Data wilayah bertingkat untuk filter demografi. */
     public function demographicRegencies(Request $request)
     {
         return response()->json([
@@ -417,48 +172,6 @@ class CrmController extends Controller
                 ->orderBy('name')
                 ->get(['code as id', 'name as text']),
         ]);
-    }
-
-    /** Builder filter yang dipakai oleh ekspor demografi. */
-    private function demographicCustomerQuery(Request $request)
-    {
-        $q = trim((string) $request->query('q', ''));
-        $gender = strtolower(trim((string) $request->query('gender', '')));
-        $provinceCode = trim((string) $request->query('province_code', ''));
-        $regencyCode = trim((string) $request->query('regency_code', ''));
-        $districtCode = trim((string) $request->query('district_code', ''));
-        $villageCode = trim((string) $request->query('village_code', ''));
-        $registrationChannel = trim((string) $request->query('registration_channel', ''));
-        $birthMonth = (int) $request->query('birth_month', 0);
-        $birthMonth = $birthMonth >= 1 && $birthMonth <= 12 ? $birthMonth : 0;
-        $ageGroup = trim((string) $request->query('age_group', ''));
-        $allowedAgeGroups = ['under_18', '18_24', '25_34', '35_44', '45_54', '55_plus', 'unknown'];
-        $ageGroup = in_array($ageGroup, $allowedAgeGroups, true) ? $ageGroup : '';
-        $ageSql = 'EXTRACT(YEAR FROM AGE(CURRENT_DATE, customers.date_of_birth))';
-
-        return Customer::query()
-            ->when($q !== '', function ($query) use ($q) {
-                $like = "%{$q}%";
-                $query->where(function ($where) use ($like) {
-                    $where->where('customers.name', 'ILIKE', $like)
-                        ->orWhere('customers.email', 'ILIKE', $like)
-                        ->orWhere('customers.wa_number', 'ILIKE', $like);
-                });
-            })
-            ->when($gender !== '', fn ($query) => $query->whereRaw("LOWER(COALESCE(customers.gender::text, '')) = ?", [$gender]))
-            ->when($provinceCode !== '', fn ($query) => $query->where('customers.province_code', $provinceCode))
-            ->when($regencyCode !== '', fn ($query) => $query->where('customers.regency_code', $regencyCode))
-            ->when($districtCode !== '', fn ($query) => $query->where('customers.district_code', $districtCode))
-            ->when($villageCode !== '', fn ($query) => $query->where('customers.village_code', $villageCode))
-            ->when($registrationChannel !== '', fn ($query) => $query->whereRaw('customers.registration_channel::text = ?', [$registrationChannel]))
-            ->when($birthMonth > 0, fn ($query) => $query->whereRaw('EXTRACT(MONTH FROM customers.date_of_birth) = ?', [$birthMonth]))
-            ->when($ageGroup === 'under_18', fn ($query) => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} < 18"))
-            ->when($ageGroup === '18_24', fn ($query) => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 18 AND 24"))
-            ->when($ageGroup === '25_34', fn ($query) => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 25 AND 34"))
-            ->when($ageGroup === '35_44', fn ($query) => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 35 AND 44"))
-            ->when($ageGroup === '45_54', fn ($query) => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} BETWEEN 45 AND 54"))
-            ->when($ageGroup === '55_plus', fn ($query) => $query->whereNotNull('customers.date_of_birth')->whereRaw("{$ageSql} >= 55"))
-            ->when($ageGroup === 'unknown', fn ($query) => $query->whereNull('customers.date_of_birth'));
     }
 
     /**

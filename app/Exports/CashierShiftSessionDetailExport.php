@@ -8,12 +8,11 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class CashierShiftSessionDetailExport implements FromCollection, WithHeadings, ShouldAutoSize, WithTitle
+class CashierShiftSessionDetailExport implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     public function __construct(
         protected Collection $rows
-    ) {
-    }
+    ) {}
 
     public function collection(): Collection
     {
@@ -29,6 +28,11 @@ class CashierShiftSessionDetailExport implements FromCollection, WithHeadings, S
             'Close' => $row->closed_at,
             'Trx' => $row->total_transactions,
             'Omzet' => $row->omzet,
+            'Tunai' => $row->total_cash_amount ?? 0,
+            'Non-Tunai' => $row->total_non_cash_amount ?? 0,
+            'Trx Tunai' => $row->total_cash_transactions ?? 0,
+            'Trx Non-Tunai' => $row->total_non_cash_transactions ?? 0,
+            'Piutang' => $row->total_receivable_amount ?? 0,
             'Kembalian' => $row->total_change_amount,
             'Open Cash' => $row->opening_cash,
             'System Cash' => $row->closing_cash_system,
@@ -39,7 +43,7 @@ class CashierShiftSessionDetailExport implements FromCollection, WithHeadings, S
 
     public function headings(): array
     {
-        return ['Tanggal', 'Store', 'Kasir', 'Status', 'Shift Name', 'Kode Shift', 'Session', 'Open', 'Close', 'Trx', 'Omzet', 'Kembalian', 'Open Cash', 'System Cash', 'Physical Cash', 'Selisih'];
+        return ['Tanggal', 'Store', 'Kasir', 'Status', 'Shift Name', 'Kode Shift', 'Session', 'Open', 'Close', 'Trx', 'Omzet', 'Tunai', 'Non-Tunai', 'Trx Tunai', 'Trx Non-Tunai', 'Piutang', 'Kembalian', 'Open Cash', 'System Cash', 'Physical Cash', 'Selisih'];
     }
 
     public function title(): string

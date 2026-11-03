@@ -83,7 +83,7 @@ class PromoUsageController extends Controller
             'orderStatuses' => $orderStatuses,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.promo-usage.export')],
         ]);
     }
 

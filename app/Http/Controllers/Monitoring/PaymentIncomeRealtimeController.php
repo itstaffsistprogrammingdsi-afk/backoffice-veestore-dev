@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\PaymentIncomeRealtimeExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PaymentIncomeRealtimeController extends Controller
@@ -45,6 +45,12 @@ class PaymentIncomeRealtimeController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $paymentStatuses = DB::table('payments')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
+
         $methodLabels = $methodSummaries
             ->map(fn ($row) => $row->payment_method_name ?? '-')
             ->values();
@@ -70,40 +76,41 @@ class PaymentIncomeRealtimeController extends Controller
             ->values();
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Payment Income Realtime',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Pemasukan & Pembayaran',
+            'description' => 'Pemasukan dari pembayaran lunas POS dan ecommerce, termasuk status dan metode pembayaran.',
             'data' => [
-            'rows' => $rows,
-            'summary' => $summary,
-            'methodSummaries' => $methodSummaries,
-            'hourlyRows' => $hourlyRows,
-            'latestRows' => $latestRows,
+                'rows' => $rows,
+                'summary' => $summary,
+                'methodSummaries' => $methodSummaries,
+                'hourlyRows' => $hourlyRows,
+                'latestRows' => $latestRows,
 
-            'stores' => $stores,
-            'paymentMethods' => $paymentMethods,
+                'stores' => $stores,
+                'paymentMethods' => $paymentMethods,
+                'paymentStatuses' => $paymentStatuses,
 
-            'methodLabels' => $methodLabels,
-            'methodAmounts' => $methodAmounts,
-            'methodCounts' => $methodCounts,
+                'methodLabels' => $methodLabels,
+                'methodAmounts' => $methodAmounts,
+                'methodCounts' => $methodCounts,
 
-            'hourLabels' => $hourLabels,
-            'hourAmounts' => $hourAmounts,
-            'hourCounts' => $hourCounts,
+                'hourLabels' => $hourLabels,
+                'hourAmounts' => $hourAmounts,
+                'hourCounts' => $hourCounts,
 
-            'filters' => $filters,
-            'storeId' => $filters['store_id'],
-            'paymentMethodId' => $filters['payment_method_id'],
-            'paymentStatus' => $filters['payment_status'],
-            'keyword' => $filters['keyword'],
-            'startDate' => $filters['start_date'],
-            'endDate' => $filters['end_date'],
-            'perPage' => $filters['per_page'],
-            'autoRefresh' => $filters['auto_refresh'],
-            'today' => now()->toDateString(),
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'filters' => $filters,
+                'storeId' => $filters['store_id'],
+                'paymentMethodId' => $filters['payment_method_id'],
+                'paymentStatus' => $filters['payment_status'],
+                'keyword' => $filters['keyword'],
+                'startDate' => $filters['start_date'],
+                'endDate' => $filters['end_date'],
+                'perPage' => $filters['per_page'],
+                'autoRefresh' => $filters['auto_refresh'],
+                'today' => now()->toDateString(),
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.payment-income-realtime.export')],
         ]);
     }
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -44,6 +45,12 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: store.id,
+    label: store.name,
+    hint: store.code ?? undefined,
+})));
+
 const filters = reactive({ q: props.filters.q ?? '', store_id: props.filters.store_id ?? '', channel: props.filters.channel ?? '', status: props.filters.status ?? '', from: props.filters.from ?? '', to: props.filters.to ?? '' });
 const expanded = ref<Record<string, boolean>>({});
 const skuDocsModal = ref<{ sku: SkuRow } | null>(null);
@@ -97,7 +104,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6"><label class="form-label">Cari order atau SKU</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, store, atau SKU..." /></div>
-                    <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Store</label><select v-model="filters.store_id" class="form-select form-select-sm"><option value="">Semua store</option><option v-for="store in props.stores" :key="store.id" :value="store.id">{{ store.name }}</option></select></div>
+                    <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Store</label><SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
                     <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Channel</label><select v-model="filters.channel" class="form-select form-select-sm"><option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
                     <div class="col-12 col-md-4 col-lg-2">
                         <label class="form-label">Status</label><select v-model="filters.status" class="form-select form-select-sm"><option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>

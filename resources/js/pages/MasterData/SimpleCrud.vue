@@ -7,6 +7,7 @@ import { computed, defineAsyncComponent, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 const LocationPicker = defineAsyncComponent(() => import('../../components/LocationPicker.vue'));
 
@@ -316,16 +317,26 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
             <div class="d-flex flex-wrap gap-2">
                 <form class="d-flex flex-wrap gap-2" @submit.prevent="applySearch">
                     <input v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
-                    <select
-                        v-for="filter in (props.extraFilters ?? [])"
-                        :key="filter.key"
-                        v-model="extraSearch[filter.key]"
-                        class="form-select form-select-sm crud-filter-select"
-                        :aria-label="filter.label"
-                    >
-                        <option value="">Semua {{ filter.label.toLowerCase() }}</option>
-                        <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
-                    </select>
+                    <template v-for="filter in (props.extraFilters ?? [])" :key="filter.key">
+                        <div v-if="filter.options.length > 8" class="crud-filter-select">
+                            <SearchableSelect
+                                v-model="extraSearch[filter.key]"
+                                :options="filter.options"
+                                :placeholder="`Semua ${filter.label.toLowerCase()}`"
+                                :search-placeholder="`Cari ${filter.label.toLowerCase()}...`"
+                                :aria-label="filter.label"
+                            />
+                        </div>
+                        <select
+                            v-else
+                            v-model="extraSearch[filter.key]"
+                            class="form-select form-select-sm crud-filter-select"
+                            :aria-label="filter.label"
+                        >
+                            <option value="">Semua {{ filter.label.toLowerCase() }}</option>
+                            <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                        </select>
+                    </template>
                     <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="mdi mdi-magnify"></i></button>
                     <button class="btn btn-outline-secondary btn-sm" type="button" @click="resetSearch"><i class="mdi mdi-refresh"></i></button>
                 </form>
@@ -358,9 +369,26 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             :longitude="createForm[field.longitudeKey ?? 'lng']"
                             @update:coordinates="setCoordinates(false, field, $event)"
                         />
+                        <SearchableSelect
+                            v-else-if="field.type === 'multiselect' && (field.options?.length ?? 0) > 8"
+                            v-model="createForm[field.key]"
+                            :options="field.options ?? []"
+                            :placeholder="`Pilih ${field.label}`"
+                            :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            multiple
+                        />
                         <select v-else-if="field.type === 'multiselect'" v-model="createForm[field.key]" class="form-select form-select-sm" multiple>
                             <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
+                        <SearchableSelect
+                            v-else-if="field.type === 'select' && (field.options?.length ?? 0) > 8"
+                            v-model="createForm[field.key]"
+                            :options="field.options ?? []"
+                            :placeholder="`Pilih ${field.label}`"
+                            :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            :required="field.required"
+                            :clearable="!field.required"
+                        />
                         <select v-else-if="field.type === 'select'" v-model="createForm[field.key]" class="form-select form-select-sm" :required="field.required">
                             <option value="">Pilih {{ field.label }}</option>
                             <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -422,9 +450,26 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                                 :longitude="editForm[field.longitudeKey ?? 'lng']"
                                                 @update:coordinates="setCoordinates(true, field, $event)"
                                             />
+                                            <SearchableSelect
+                                                v-else-if="field.type === 'multiselect' && (field.options?.length ?? 0) > 8"
+                                                v-model="editForm[field.key]"
+                                                :options="field.options ?? []"
+                                                :placeholder="`Pilih ${field.label}`"
+                                                :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                                                multiple
+                                            />
                                             <select v-else-if="field.type === 'multiselect'" v-model="editForm[field.key]" class="form-select form-select-sm" multiple>
                                                 <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                                             </select>
+                                            <SearchableSelect
+                                                v-else-if="field.type === 'select' && (field.options?.length ?? 0) > 8"
+                                                v-model="editForm[field.key]"
+                                                :options="field.options ?? []"
+                                                :placeholder="`Pilih ${field.label}`"
+                                                :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                                                :required="field.required"
+                                                :clearable="!field.required"
+                                            />
                                             <select v-else-if="field.type === 'select'" v-model="editForm[field.key]" class="form-select form-select-sm" :required="field.required">
                                                 <option value="">Pilih {{ field.label }}</option>
                                                 <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>

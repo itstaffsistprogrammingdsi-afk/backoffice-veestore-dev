@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, reactive, ref } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 interface VoucherRow {
     id: string;
@@ -64,6 +65,11 @@ const form = reactive({
 const detailId = ref<string | null>(null);
 const detailRows = ref<DetailRow[]>([]);
 const detailLoading = ref(false);
+
+const voucherOptions = computed(() => props.voucherList.map((code) => ({
+    value: code,
+    label: code,
+})));
 
 const query = computed(() => ({
     voucher: form.voucher || undefined,
@@ -158,10 +164,12 @@ const formatDate = (value: string | null) => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-4">
                         <label class="form-label">Voucher</label>
-                        <select v-model="form.voucher" class="form-select form-select-sm">
-                            <option value="">Semua Voucher</option>
-                            <option v-for="code in voucherList" :key="code" :value="code">{{ code }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="form.voucher"
+                            :options="voucherOptions"
+                            placeholder="Semua Voucher"
+                            search-placeholder="Cari kode voucher..."
+                        />
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Dari</label>

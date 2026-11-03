@@ -119,7 +119,7 @@ class MonitoringVoucherRequestController extends Controller
             'autoRefresh' => $filters['auto_refresh'],
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.request-voucher.export')],
         ]);
     }
 

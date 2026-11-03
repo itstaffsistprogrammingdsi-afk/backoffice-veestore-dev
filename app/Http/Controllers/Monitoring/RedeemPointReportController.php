@@ -153,7 +153,7 @@ class RedeemPointReportController extends Controller
             'perPage' => $filters['per_page'],
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.redeem-point-report.export')],
         ]);
     }
 

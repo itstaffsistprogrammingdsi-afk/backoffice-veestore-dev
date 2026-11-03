@@ -73,7 +73,7 @@ class TrackingBarangController extends Controller
             'perPage' => $perPage,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.tracking-barang.export')],
         ]);
     }
 

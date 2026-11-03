@@ -5,6 +5,7 @@ namespace App\Domain\OperationalStock\Queries;
 use App\Services\StockReservationService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -427,7 +428,7 @@ class OperationalStockQuery
         ];
     }
 
-    private function stockRows(string $q, ?string $warehouseId): Collection
+    private function stockRows(string $q, ?string $warehouseId): LazyCollection
     {
         $hasUnits = Schema::hasTable('units') && Schema::hasColumn('products', 'unit_id');
 
@@ -493,10 +494,10 @@ class OperationalStockQuery
             ->orderBy('w.name')
             ->orderBy('p.name');
 
-        return $query->get();
+        return $query->cursor();
     }
 
-    private function barrierRows(string $q, ?string $warehouseId): Collection
+    private function barrierRows(string $q, ?string $warehouseId): LazyCollection
     {
         $hasUnits = Schema::hasTable('units') && Schema::hasColumn('products', 'unit_id');
 
@@ -529,7 +530,7 @@ class OperationalStockQuery
                 fn ($query) => $query->selectRaw("COALESCE(u.name, '') as unit_name"),
                 fn ($query) => $query->selectRaw("'' as unit_name")
             )
-            ->get();
+            ->cursor();
     }
 
     private function key(string $warehouseId, string $productId): string

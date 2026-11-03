@@ -89,10 +89,15 @@ class PhysicalStockAccumulationController extends Controller
             'chartByLocation' => $chartByLocation,
             'chartByProduct'  => $chartByProduct,
             'mode'            => $mode,
+            'modeOptions'     => [
+                ['value' => 'all', 'label' => 'Semua lokasi'],
+                ['value' => 'store', 'label' => 'Store'],
+                ['value' => 'warehouse', 'label' => 'Warehouse'],
+            ],
             'lastUpdate'      => now()->format('d-m-Y H:i:s'),
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.physical-stocks.export')],
         ]);
     }
 

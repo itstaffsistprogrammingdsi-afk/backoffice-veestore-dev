@@ -4,6 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -35,6 +36,11 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const productOptions = computed(() => props.products.map((product) => ({
+    value: product.id,
+    label: `${product.code ? `${product.code} - ` : ''}${product.name}`,
+})));
+
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
@@ -147,10 +153,14 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
                 <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
                     <div class="col-md-4">
                         <label class="form-label">Produk</label>
-                        <select v-model="createForm.product_id" class="form-select form-select-sm" required>
-                            <option value="">Pilih produk</option>
-                            <option v-for="product in products" :key="product.id" :value="product.id">{{ product.code ? `${product.code} - ` : '' }}{{ product.name }}</option>
-                        </select>
+                        <SearchableSelect
+                            v-model="createForm.product_id"
+                            :options="productOptions"
+                            placeholder="Pilih produk"
+                            search-placeholder="Cari nama atau kode produk..."
+                            required
+                            :clearable="false"
+                        />
                         <div v-if="createForm.errors.product_id" class="text-danger small">{{ createForm.errors.product_id }}</div>
                     </div>
                     <div class="col-md-2"><label class="form-label">Berlaku Dari</label><input v-model="createForm.valid_from" class="form-control form-control-sm" type="date" required /></div>

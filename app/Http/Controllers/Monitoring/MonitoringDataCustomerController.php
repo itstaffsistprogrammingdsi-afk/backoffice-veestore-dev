@@ -439,7 +439,7 @@ class MonitoringDataCustomerController extends Controller
             ],
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.data-customer.export')],
         ]);
     }
 
