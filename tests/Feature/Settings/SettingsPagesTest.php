@@ -20,22 +20,34 @@ class SettingsPagesTest extends TestCase
         $this->actingAs($admin)
             ->get(route('settings.points.edit'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Settings/Points'));
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Settings/Points')
+                ->where('loyaltyModule.current', 'point-rate')
+                ->has('loyaltyModule.items', 8));
 
         $this->actingAs($admin)
             ->get(route('settings.app.affiliate-points.inviter.edit'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Settings/AffiliatePoints'));
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Settings/AffiliatePoints')
+                ->where('loyaltyModule.current', 'affiliate-inviter')
+                ->has('loyaltyModule.items', 8));
 
         $this->actingAs($admin)
             ->get(route('settings.app.affiliate-points.invitee.edit'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Settings/AffiliatePoints'));
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Settings/AffiliatePoints')
+                ->where('loyaltyModule.current', 'affiliate-invitee')
+                ->has('loyaltyModule.items', 8));
 
         $this->actingAs($admin)
             ->get(route('settings.app.customer-loyalty-point-transaction-reward.edit'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->component('Settings/TransactionReward'));
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Settings/TransactionReward')
+                ->where('loyaltyModule.current', 'loyalty-reward')
+                ->has('loyaltyModule.items', 8));
     }
 
     public function test_affiliate_points_can_be_updated(): void

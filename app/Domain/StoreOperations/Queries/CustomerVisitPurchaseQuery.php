@@ -14,8 +14,9 @@ class CustomerVisitPurchaseQuery
         $visits = $this->visitRows($q, $storeId);
         $payments = $this->paymentRows($q, $storeId)->keyBy(fn (object $row) => $row->customer_id.'|'.$row->store_id);
         $items = $this->itemRows($q, $storeId)->groupBy(fn (object $row) => $row->customer_id.'|'.$row->store_id);
+        $visitDetails = $this->visitDetailRows($q, $storeId);
 
-        $rows = $visits->map(function (object $visit) use ($payments, $items) {
+        $rows = $visits->map(function (object $visit) use ($payments, $items, $visitDetails) {
             $key = $visit->customer_id.'|'.$visit->store_id;
             $payment = $payments->get($key);
             $products = collect($items->get($key, []));
@@ -31,6 +32,17 @@ class CustomerVisitPurchaseQuery
                 'store_name' => $visit->store_name,
                 'visit_count' => (int) $visit->visit_count,
                 'last_visit_at' => $visit->last_visit_at,
+                'visits' => collect($visitDetails->get($key, []))
+                    ->map(fn (object $row) => [
+                        'id' => $row->id,
+                        'visit_code' => $row->visit_code,
+                        'visit_at' => $row->visit_at,
+                        'check_in_at' => $row->check_in_at,
+                        'check_out_at' => $row->check_out_at,
+                        'status' => $row->status,
+                    ])
+                    ->values()
+                    ->all(),
                 'purchase_count' => (int) ($payment->purchase_count ?? 0),
                 'total_spending' => (float) ($payment->total_spending ?? 0),
                 'item_qty' => (int) $products->sum('qty'),
@@ -62,7 +74,7 @@ class CustomerVisitPurchaseQuery
             'summary' => [
                 'total_customers' => $rows->count(),
                 'total_visits' => (int) $rows->sum('visit_count'),
-                'purchasing_customers' => $rows->where('purchase_count', '>', 0)->count(),
+                'paid_transactions' => (int) $rows->sum('purchase_count'),
                 'total_spending' => (float) $rows->sum('total_spending'),
             ],
         ];
@@ -81,7 +93,8 @@ class CustomerVisitPurchaseQuery
                     $sub->where('c.name', 'ILIKE', "%{$q}%")
                         ->orWhere('c.email', 'ILIKE', "%{$q}%")
                         ->orWhere('c.wa_number', 'ILIKE', "%{$q}%")
-                        ->orWhere('s.name', 'ILIKE', "%{$q}%");
+                        ->orWhere('s.name', 'ILIKE', "%{$q}%")
+                        ->orWhere('v.visit_code', 'ILIKE', "%{$q}%");
                 });
             })
             ->selectRaw('
@@ -112,6 +125,39 @@ class CustomerVisitPurchaseQuery
             ')
             ->groupBy('c.id', 'c.name', 'c.wa_number', 'c.email', 's.id', 's.name')
             ->get();
+    }
+
+    private function visitDetailRows(string $q, ?string $storeId): Collection
+    {
+        return DB::table('store_customer_visits as v')
+            ->join('customers as c', 'c.id', '=', 'v.customer_id')
+            ->join('stores as s', 's.id', '=', 'v.store_id')
+            ->whereNull('c.deleted_at')
+            ->whereNull('s.deleted_at')
+            ->when($storeId, fn ($query) => $query->where('v.store_id', $storeId))
+            ->when($q !== '', function ($query) use ($q) {
+                $query->where(function ($sub) use ($q) {
+                    $sub->where('c.name', 'ILIKE', "%{$q}%")
+                        ->orWhere('c.email', 'ILIKE', "%{$q}%")
+                        ->orWhere('c.wa_number', 'ILIKE', "%{$q}%")
+                        ->orWhere('s.name', 'ILIKE', "%{$q}%")
+                        ->orWhere('v.visit_code', 'ILIKE', "%{$q}%");
+                });
+            })
+            ->select([
+                'v.id',
+                'v.visit_code',
+                'v.check_in_at',
+                'v.check_out_at',
+                'v.status',
+                'c.id as customer_id',
+                's.id as store_id',
+                DB::raw('COALESCE(v.check_in_at, v.created_at) as visit_at'),
+            ])
+            ->orderByDesc(DB::raw('COALESCE(v.check_in_at, v.created_at)'))
+            ->get()
+            ->groupBy(fn (object $row) => $row->customer_id.'|'.$row->store_id)
+            ->map(fn (Collection $group) => $group->take(20)->values());
     }
 
     private function paymentRows(string $q, ?string $storeId): Collection

@@ -11,7 +11,6 @@ use App\Http\Controllers\Ecommerce\EcommerceOrderController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointMutationController;
 // Master Data
-use App\Http\Controllers\Loyalty\CustomerVisitController;
 use App\Http\Controllers\Management\BackofficeRoleController;
 use App\Http\Controllers\Management\LabelPrintRequestApprovalController;
 use App\Http\Controllers\Management\RolePermissionController;
@@ -448,7 +447,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('loyalty')->name('loyalty.')->group(function () {
         Route::get('customer-loyalty-points', [CustomerLoyaltyPointController::class, 'index'])->name('customer-loyalty-points.index');
         Route::get('customer-loyalty-point-mutations', [CustomerLoyaltyPointMutationController::class, 'index'])->name('customer-loyalty-point-mutations.index');
-        Route::get('customer-visits', [CustomerVisitController::class, 'index'])->name('customer-visits.index');
+        Route::get('customer-visits', fn () => redirect()->route('operations.customers.index'))->name('customer-visits.index');
     });
 
     /*

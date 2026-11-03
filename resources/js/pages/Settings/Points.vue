@@ -5,6 +5,7 @@ defineOptions({ layout: AppLayout });
 
 import { computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 interface PointRate {
     idr_base: number;
@@ -74,10 +75,12 @@ const formatNumber = (value: number, digits = 0) =>
 
     <div class="settings-page">
         <div class="settings-header">
-            <span class="settings-eyebrow">Settings</span>
+            <span class="settings-eyebrow">Loyalty / Point Rate</span>
             <h1>Kurs Point</h1>
             <p>Atur nilai poin masuk dari transaksi dan nilai tukar poin saat redeem.</p>
         </div>
+
+        <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

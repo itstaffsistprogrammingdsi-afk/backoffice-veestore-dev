@@ -10,17 +10,23 @@ class LoyaltyModuleNavigation
     private const CURRENT_BY_ROUTE = [
         'loyalty.customer-loyalty-points.index' => 'points',
         'loyalty.customer-loyalty-point-mutations.index' => 'mutations',
-        'loyalty.customer-visits.index' => 'visits',
         'master-data.memberships.index' => 'tiers',
         'master-data.membership-benefits.index' => 'benefits',
+        'settings.points.edit' => 'point-rate',
+        'settings.app.customer-loyalty-point-transaction-reward.edit' => 'loyalty-reward',
+        'settings.app.affiliate-points.inviter.edit' => 'affiliate-inviter',
+        'settings.app.affiliate-points.invitee.edit' => 'affiliate-invitee',
     ];
 
     private const ITEMS = [
         'points' => ['label' => 'Loyalty Points', 'icon' => 'mdi-star-circle-outline', 'route' => 'loyalty.customer-loyalty-points.index', 'permission' => 'view loyalty-customer-loyalty-points'],
         'mutations' => ['label' => 'Point Mutations', 'icon' => 'mdi-swap-horizontal', 'route' => 'loyalty.customer-loyalty-point-mutations.index', 'permission' => 'view loyalty-customer-loyalty-point-mutations'],
-        'visits' => ['label' => 'Customer Visits', 'icon' => 'mdi-map-marker-check-outline', 'route' => 'loyalty.customer-visits.index', 'permission' => 'view loyalty-customer-visits'],
         'tiers' => ['label' => 'Membership Tiers', 'icon' => 'mdi-crown-outline', 'route' => 'master-data.memberships.index', 'permission' => 'view master-data-memberships'],
         'benefits' => ['label' => 'Membership Benefits', 'icon' => 'mdi-gift-outline', 'route' => 'master-data.membership-benefits.index', 'permission' => 'view master-data-membership-benefits'],
+        'point-rate' => ['label' => 'Point Rate', 'icon' => 'mdi-currency-usd', 'route' => 'settings.points.edit', 'permission' => null],
+        'loyalty-reward' => ['label' => 'Loyalty Reward', 'icon' => 'mdi-star-circle-outline', 'route' => 'settings.app.customer-loyalty-point-transaction-reward.edit', 'permission' => null],
+        'affiliate-inviter' => ['label' => 'Affiliate Inviter', 'icon' => 'mdi-account-plus-outline', 'route' => 'settings.app.affiliate-points.inviter.edit', 'permission' => null],
+        'affiliate-invitee' => ['label' => 'Affiliate Invitee', 'icon' => 'mdi-account-multiple-plus-outline', 'route' => 'settings.app.affiliate-points.invitee.edit', 'permission' => null],
     ];
 
     public static function forRequest(Request $request): ?array
@@ -36,7 +42,11 @@ class LoyaltyModuleNavigation
         $items = [];
 
         foreach (self::ITEMS as $key => $item) {
-            if (! Route::has($item['route']) || ! $user->can($item['permission'])) {
+            if (! Route::has($item['route'])) {
+                continue;
+            }
+
+            if ($item['permission'] !== null && ! $user->can($item['permission'])) {
                 continue;
             }
 

@@ -25,7 +25,7 @@ class LoyaltyPagesTest extends TestCase
                 ->has('rows')
                 ->has('summary')
                 ->where('loyaltyModule.current', 'points')
-                ->has('loyaltyModule.items', 5)
+                ->has('loyaltyModule.items', 8)
                 ->has('filters')
                 ->has('urls'));
 
@@ -43,14 +43,7 @@ class LoyaltyPagesTest extends TestCase
 
         $this->actingAs($admin)
             ->get(route('loyalty.customer-visits.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Loyalty/Visits')
-                ->has('visits')
-                ->has('stores')
-                ->where('loyaltyModule.current', 'visits')
-                ->has('filters')
-                ->has('urls'));
+            ->assertRedirect(route('operations.customers.index'));
     }
 
     public function test_loyalty_navigation_groups_all_loyalty_modules(): void
@@ -63,9 +56,12 @@ class LoyaltyPagesTest extends TestCase
         $this->assertEqualsCanonicalizing([
             'loyalty.customer-loyalty-points.index',
             'loyalty.customer-loyalty-point-mutations.index',
-            'loyalty.customer-visits.index',
             'master-data.memberships.index',
             'master-data.membership-benefits.index',
+            'settings.points.edit',
+            'settings.app.customer-loyalty-point-transaction-reward.edit',
+            'settings.app.affiliate-points.inviter.edit',
+            'settings.app.affiliate-points.invitee.edit',
         ], collect($loyaltyGroup['items'])->pluck('route')->all());
     }
 

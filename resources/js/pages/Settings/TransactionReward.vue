@@ -5,6 +5,7 @@ defineOptions({ layout: AppLayout });
 
 import { computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import ModuleNav from '../../components/ModuleNav.vue';
 
 interface Props {
     reward: number;
@@ -33,10 +34,12 @@ const submit = () => {
 
     <div class="settings-page">
         <div class="settings-header">
-            <span class="settings-eyebrow">Settings</span>
+            <span class="settings-eyebrow">Loyalty / Loyalty Reward</span>
             <h1>Customer Loyalty Point Reward</h1>
             <p>Jumlah poin otomatis yang diberikan setiap transaksi pelanggan.</p>
         </div>
+
+        <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>

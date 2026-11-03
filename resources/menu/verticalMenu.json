@@ -195,11 +195,6 @@
           "url": "loyalty/customer-loyalty-point-mutations",
           "name": "Mutations",
           "slug": "loyalty-customer-loyalty-point-mutations"
-        },
-        {
-          "url": "loyalty/customer-visits",
-          "name": "Visits",
-          "slug": "loyalty-customer-visits"
         }
       ]
     },

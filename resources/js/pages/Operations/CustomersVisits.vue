@@ -7,6 +7,14 @@ import PaginationLinks from '@/components/PaginationLinks.vue';
 defineOptions({ layout: AppLayout });
 
 interface ProductRow { product_id: string; product_code: string; product_name: string; qty: number; spending: number }
+interface VisitDetail {
+    id: string;
+    visit_code: string | null;
+    visit_at: string | null;
+    check_in_at: string | null;
+    check_out_at: string | null;
+    status: string | null;
+}
 interface CustomerRow {
     customer_id: string;
     customer_name: string;
@@ -18,6 +26,7 @@ interface CustomerRow {
     store_name: string;
     visit_count: number;
     last_visit_at: string | null;
+    visits: VisitDetail[];
     purchase_count: number;
     total_spending: number;
     item_qty: number;
@@ -35,7 +44,7 @@ interface Props {
     summary: {
         total_customers: number;
         total_visits: number;
-        purchasing_customers: number;
+        paid_transactions: number;
         total_spending: number;
     };
     stores: Array<{ id: string; name: string; code: string | null }>;
@@ -55,6 +64,11 @@ const tierClass = (tier: string | null) => ({
     Silver: 'bg-label-info',
     Platinum: 'bg-label-primary',
 }[tier ?? ''] ?? 'bg-label-secondary');
+const visitStatusClass = (status: string | null) => ({
+    completed: 'bg-label-success',
+    active: 'bg-label-info',
+    cancelled: 'bg-label-danger',
+}[status ?? ''] ?? 'bg-label-secondary');
 
 const applyFilters = () => {
     router.get(props.urls.index, { q: filters.q || undefined, store_id: filters.store_id || undefined }, { preserveState: true, preserveScroll: true, replace: true });
@@ -81,7 +95,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
         <div class="row g-3 mb-3">
             <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-account-group-outline"></i></span><div><span>Total Customer</span><strong>{{ formatNumber(props.summary.total_customers) }}</strong></div></div></div>
             <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-account-clock-outline"></i></span><div><span>Total Kunjungan</span><strong>{{ formatNumber(props.summary.total_visits) }}</strong></div></div></div>
-            <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-cart-check"></i></span><div><span>Customer Membeli</span><strong>{{ formatNumber(props.summary.purchasing_customers) }}</strong></div></div></div>
+            <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-cart-check"></i></span><div><span>Transaksi Lunas</span><strong>{{ formatNumber(props.summary.paid_transactions) }}</strong></div></div></div>
             <div class="col-6 col-xl-3"><div class="customer-summary customer-summary-accent"><span class="customer-summary-icon"><i class="mdi mdi-cash-multiple"></i></span><div><span>Total Spending</span><strong>{{ formatCurrency(props.summary.total_spending) }}</strong></div></div></div>
         </div>
 
@@ -100,7 +114,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
             <div v-if="props.rows.data.length === 0" class="customer-empty"><i class="mdi mdi-account-off-outline"></i><strong>Tidak ada customer</strong><span>Coba ubah kata kunci atau filter store.</span></div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 customer-table">
-                    <thead><tr><th>Customer</th><th>Store</th><th>Tier</th><th class="text-end">Poin</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Pembelian</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th>Customer</th><th>Store</th><th>Tier</th><th class="text-end">Poin</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Transaksi Lunas</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in props.rows.data" :key="`${row.customer_id}-${row.store_id}`">
                             <tr>
@@ -116,7 +130,34 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
                                 <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggle(`${row.customer_id}-${row.store_id}`)"><i class="mdi" :class="expanded[`${row.customer_id}-${row.store_id}`] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[`${row.customer_id}-${row.store_id}`] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
                             <tr v-if="expanded[`${row.customer_id}-${row.store_id}`]" class="customer-detail-row">
-                                <td colspan="10"><div class="customer-detail-wrap"><p class="mb-2"><strong>Barang yang sudah dibeli:</strong> {{ row.item_qty }} item dari {{ row.products.length }} SKU</p><table class="table table-sm mb-0 customer-detail-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Nilai</th></tr></thead><tbody><tr v-for="product in row.products" :key="product.product_id"><td><strong>{{ product.product_name }}</strong><small>{{ product.product_code }}</small></td><td class="text-end">{{ formatNumber(product.qty) }}</td><td class="text-end">{{ formatCurrency(product.spending) }}</td></tr><tr v-if="row.products.length === 0"><td colspan="3" class="text-center text-muted py-3">Belum ada pembelian.</td></tr></tbody></table></div></td>
+                                <td colspan="10">
+                                    <div class="customer-detail-wrap">
+                                        <p class="mb-2"><strong>Riwayat kunjungan:</strong> {{ row.visits.length }} kunjungan terakhir</p>
+                                        <div class="table-responsive mb-3">
+                                            <table class="table table-sm mb-0 customer-detail-table">
+                                                <thead><tr><th>Tanggal</th><th>Kode Visit</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr></thead>
+                                                <tbody>
+                                                    <tr v-for="visit in row.visits" :key="visit.id">
+                                                        <td>{{ formatDate(visit.visit_at) }}</td>
+                                                        <td>{{ visit.visit_code || '-' }}</td>
+                                                        <td>{{ formatDate(visit.check_in_at) }}</td>
+                                                        <td>{{ formatDate(visit.check_out_at) }}</td>
+                                                        <td><span class="badge" :class="visitStatusClass(visit.status)">{{ visit.status || '-' }}</span></td>
+                                                    </tr>
+                                                    <tr v-if="row.visits.length === 0"><td colspan="5" class="text-center text-muted py-3">Belum ada riwayat kunjungan.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="mb-2"><strong>Barang yang sudah dibeli:</strong> {{ row.item_qty }} item dari {{ row.products.length }} SKU</p>
+                                        <table class="table table-sm mb-0 customer-detail-table">
+                                            <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Nilai</th></tr></thead>
+                                            <tbody>
+                                                <tr v-for="product in row.products" :key="product.product_id"><td><strong>{{ product.product_name }}</strong><small>{{ product.product_code }}</small></td><td class="text-end">{{ formatNumber(product.qty) }}</td><td class="text-end">{{ formatCurrency(product.spending) }}</td></tr>
+                                                <tr v-if="row.products.length === 0"><td colspan="3" class="text-center text-muted py-3">Belum ada pembelian.</td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
                             </tr>
                         </template>
                     </tbody>

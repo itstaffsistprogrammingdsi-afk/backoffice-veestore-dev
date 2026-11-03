@@ -102,9 +102,12 @@ class Navigation
                 'items' => self::items($user, [
                     ['Loyalty Points', 'loyalty.customer-loyalty-points.index', 'mdi-star-circle-outline', 'view loyalty-customer-loyalty-points'],
                     ['Point Mutations', 'loyalty.customer-loyalty-point-mutations.index', 'mdi-swap-horizontal', 'view loyalty-customer-loyalty-point-mutations'],
-                    ['Customer Visits', 'loyalty.customer-visits.index', 'mdi-map-marker-check-outline', 'view loyalty-customer-visits'],
                     ['Membership Tiers', 'master-data.memberships.index', 'mdi-crown-outline', 'view master-data-memberships'],
                     ['Membership Benefits', 'master-data.membership-benefits.index', 'mdi-gift-outline', 'view master-data-membership-benefits'],
+                    ['Point Rate', 'settings.points.edit', 'mdi-currency-usd', null],
+                    ['Loyalty Reward', 'settings.app.customer-loyalty-point-transaction-reward.edit', 'mdi-star-circle-outline', null],
+                    ['Affiliate Inviter', 'settings.app.affiliate-points.inviter.edit', 'mdi-account-plus-outline', null],
+                    ['Affiliate Invitee', 'settings.app.affiliate-points.invitee.edit', 'mdi-account-multiple-plus-outline', null],
                 ]),
             ],
             [
@@ -129,7 +132,6 @@ class Navigation
                     ['Role Permissions', 'management.role-permissions.index', 'mdi-shield-key-outline', null],
                     ['User Roles', 'management.user-roles.index', 'mdi-account-key-outline', null],
                     ['Users', 'master-data.users.index', 'mdi-account-multiple-outline', null],
-                    ['Settings', 'settings.points.edit', 'mdi-cog-outline', null],
                 ]),
             ],
         ];
