@@ -25,6 +25,29 @@ class Courier extends Model
         'status'
     ];
 
+    protected $appends = ['status_label', 'service_type_label'];
+
+    public const STATUS_LABELS = [
+        'active' => 'Aktif',
+        'non_active' => 'Nonaktif',
+    ];
+
+    public const SERVICE_TYPE_LABELS = [
+        'regular' => 'Regular',
+        'express' => 'Express',
+        'cargo' => 'Cargo',
+    ];
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? '-';
+    }
+
+    public function getServiceTypeLabelAttribute(): string
+    {
+        return self::SERVICE_TYPE_LABELS[$this->service_type] ?? '-';
+    }
+
     protected static function boot()
     {
         parent::boot();

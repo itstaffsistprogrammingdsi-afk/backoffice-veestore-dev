@@ -82,9 +82,18 @@ class Navigation
                 'icon' => 'mdi-cart-outline',
                 'items' => self::items($user, [
                     ['Orders', 'ecommerce.orders.index', 'mdi-cart-arrow-right', null],
+                    ['Payments', 'ecommerce.payments.index', 'mdi-credit-card-check-outline', null],
                     ['Payment Methods', 'master-data.payment-methods.index', 'mdi-credit-card-outline', 'view master-data-payment-methods'],
-                    ['Ecommerce Payments', 'monitoring.ecommerce-payment.index', 'mdi-receipt-text-outline', 'view monitoring-ecommerce-payment'],
                     ['Banners', 'master-data.ecommerce-banners.index', 'mdi-image-multiple-outline', 'view master-data-ecommerce-banners'],
+                ]),
+            ],
+            [
+                'label' => 'Mitra',
+                'icon' => 'mdi-handshake-outline',
+                'items' => self::items($user, [
+                    ['Couriers', 'master-data.couriers.index', 'mdi-truck-fast-outline', 'view master-data-couriers'],
+                    ['Suppliers', 'master-data.suppliers.index', 'mdi-truck-delivery-outline', 'view master-data-suppliers'],
+                    ['Partners', 'master-data.partners.index', 'mdi-handshake-outline', 'view master-data-partners'],
                 ]),
             ],
             [
@@ -122,7 +131,6 @@ class Navigation
                     ['Category Groups', 'master-data.product-category-groups.index', 'mdi-layers-outline', 'view master-data-product-categories'],
                     ['Brands', 'master-data.brands.index', 'mdi-tag-outline', 'view master-data-brands'],
                     ['Units', 'master-data.units.index', 'mdi-ruler', 'view master-data-units'],
-                    ['Suppliers', 'master-data.suppliers.index', 'mdi-truck-delivery-outline', 'view master-data-suppliers'],
                     ['Item Conditions', 'master-data.item-conditions.index', 'mdi-clipboard-check-outline', 'view master-data-item-conditions'],
                 ]),
             ],
@@ -162,6 +170,7 @@ class Navigation
                     ['Tracking Barang', 'monitoring.tracking-barang.index', 'mdi-map-marker-path', 'view monitoring-tracking-barang'],
                     ['Slow Moving', 'monitoring.product-slowmoving.index', 'mdi-timer-sand', 'view monitoring-product-slowmoving'],
                     ['Product Aging', 'monitoring.product-aging.index', 'mdi-calendar-clock', null],
+                    ['Ecommerce Payment', 'monitoring.ecommerce-payment.index', 'mdi-receipt-text-outline', 'view monitoring-ecommerce-payment'],
                     ['Audit Opname WMS', 'monitoring.audit-wms-opnames.index', 'mdi-clipboard-text-clock-outline', null],
                 ]),
             ],
