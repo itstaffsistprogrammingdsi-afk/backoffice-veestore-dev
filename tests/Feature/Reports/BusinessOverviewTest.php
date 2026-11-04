@@ -30,7 +30,7 @@ class BusinessOverviewTest extends TestCase
                 ->has('inventory.summary')
                 ->has('inventory.low_stock')
                 ->has('inventory.logistics')
-                ->has('inventory.pending_queues')
+                ->has('inventory.pending_queues.store_transfer_not_recorded')
                 ->has('urls')
                 ->where('urls.index', route('reports.business-overview.index')));
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use App\Domain\WarehouseOperations\Queries\StoreTransferReconciliationQuery;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -12,13 +13,17 @@ use Inertia\Inertia;
 
 class MonitoringCommandCenterController extends Controller
 {
-    public function index()
+    public function index(StoreTransferReconciliationQuery $storeTransfers)
     {
         $monitoringGroups = $this->monitoringGroups();
 
         return Inertia::render('Monitoring/Index', [
             'monitoringGroups' => $monitoringGroups,
             'overviewUrl' => route('reports.business-overview.index'),
+            'storeTransferReconciliation' => $storeTransfers->build(null, null, 'unresolved', 5),
+            'storeTransferReportUrl' => route('monitoring.warehouse-outbound.index', [
+                'reconciliation_status' => 'not_recorded',
+            ]),
         ]);
     }
 

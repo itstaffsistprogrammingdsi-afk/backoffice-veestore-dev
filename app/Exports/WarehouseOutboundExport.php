@@ -44,14 +44,16 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
             ['Tanggal Export', ': '.now(self::APP_TIMEZONE)->format('d-m-Y H:i:s')],
             ['Periode', ': '.$this->formatPeriod()],
             ['Warehouse', ': '.($this->filters['warehouse_name'] ?? 'Semua Warehouse')],
+            ['Cabang Tujuan', ': '.($this->filters['store_name'] ?? 'Semua Cabang')],
             ['Kurir', ': '.($this->filters['courier_name'] ?? 'Semua Kurir')],
             ['Tipe Outbound', ': '.($this->filters['outbound_type'] ?? 'Semua Tipe')],
             ['Status Release', ': '.($this->filters['release_status'] ?? 'Semua Status')],
             ['Status QC', ': '.($this->filters['qc_status'] ?? 'Semua Status QC')],
+            ['Status Stok Toko', ': '.($this->filters['reconciliation_status'] ?? 'Semua Status Stok Toko')],
             ['Keyword', ': '.(($this->filters['q'] ?? null) ?: '-')],
             [''],
             ['RINGKASAN'],
-            ['Total Outbound', 'Total SKU', 'Total Item', 'Sudah Release', 'QC Lolos', 'Tanpa Resi'],
+            ['Total Outbound', 'Total SKU', 'Total Item', 'Sudah Release', 'QC Lolos', 'Tanpa Resi', 'Transfer ke Toko', 'Belum Tercatat Toko'],
             [
                 $this->rows->count(),
                 (int) $this->rows->sum('total_sku'),
@@ -59,6 +61,8 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
                 $this->rows->filter(fn ($row) => $row->released_at)->count(),
                 $this->rows->filter(fn ($row) => $row->qc_passed_at)->count(),
                 $this->rows->filter(fn ($row) => trim((string) ($row->shipping_number ?? '')) === '')->count(),
+                $this->rows->filter(fn ($row) => ($row->destination_store_id ?? null) !== null)->count(),
+                $this->rows->filter(fn ($row) => ($row->store_recording_status ?? null) === 'not_recorded')->count(),
             ],
             [''],
             [
@@ -89,6 +93,12 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
                 'Bad',
                 'Other',
                 'Ringkasan Kondisi',
+                'Cabang Tujuan',
+                'Kode Cabang',
+                'Qty Diterima Cabang',
+                'Selisih Qty',
+                'Status Stok Cabang',
+                'Diterima Pada',
             ],
         ];
 
@@ -111,33 +121,34 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
 
     public function styles(Worksheet $sheet): array
     {
-        $lastColumn = 'AA';
-        $headerRow = 16;
+        $lastColumn = 'AG';
+        $headerRow = 18;
         $lastRow = $sheet->getHighestRow();
 
         $sheet->mergeCells("A1:{$lastColumn}1");
-        $sheet->mergeCells("A12:{$lastColumn}12");
+        $sheet->mergeCells("A14:{$lastColumn}14");
         $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'font' => ['bold' => true, 'size' => 16],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
-        $sheet->getStyle('A3:A10')->getFont()->setBold(true);
-        $sheet->getStyle("A12:{$lastColumn}12")->applyFromArray([
+        $sheet->getStyle('A3:A12')->getFont()->setBold(true);
+        $sheet->getStyle("A14:{$lastColumn}14")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F766E']],
         ]);
-        $sheet->getStyle('A13:F13')->applyFromArray($this->headerStyle('115E59'));
-        $sheet->getStyle('A13:F14')->applyFromArray($this->borderStyle());
-        $sheet->getStyle('A14:F14')->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('A15:H15')->applyFromArray($this->headerStyle('115E59'));
+        $sheet->getStyle('A15:H16')->applyFromArray($this->borderStyle());
+        $sheet->getStyle('A16:H16')->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->applyFromArray($this->headerStyle('1E293B'));
         $sheet->getStyle("A{$headerRow}:{$lastColumn}{$lastRow}")->applyFromArray($this->borderStyle());
 
         if ($lastRow > $headerRow) {
             $sheet->getStyle('L'.($headerRow + 1).":N{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('W'.($headerRow + 1).":Z{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('AD'.($headerRow + 1).":AE{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
         }
 
-        $sheet->freezePane('A17');
+        $sheet->freezePane('A19');
         $sheet->setAutoFilter("A{$headerRow}:{$lastColumn}{$lastRow}");
         $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
@@ -174,6 +185,12 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
             (int) ($detail->qty_bad ?? 0),
             (int) ($detail->qty_other ?? 0),
             $this->safeText($detail->condition_summary ?? '-'),
+            $first ? $this->safeText($row->destination_store_name ?? '-') : '',
+            $first ? $this->safeText($row->destination_store_code ?? '-') : '',
+            $first ? (int) ($row->store_received_qty ?? 0) : '',
+            $first ? (int) ($row->store_variance_qty ?? 0) : '',
+            $first ? $this->safeText($row->store_recording_status_label ?? '-') : '',
+            $first ? $this->formatDateTime($row->store_received_at ?? null) : '',
         ];
     }
 

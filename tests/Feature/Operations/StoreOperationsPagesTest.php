@@ -24,7 +24,8 @@ class StoreOperationsPagesTest extends TestCase
                 ->has('missingStock')
                 ->has('storeThresholds')
                 ->has('summary')
-                ->has('urls'));
+                ->has('transferReconciliation.summary')
+                ->has('urls.outbound_report'));
     }
 
     public function test_store_inbound_operations_page_uses_inertia(): void

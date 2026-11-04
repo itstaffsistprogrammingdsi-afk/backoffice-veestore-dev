@@ -27,6 +27,7 @@ class StoreStockOperationsController extends Controller
                 'stock_barriers' => route('monitoring.stok-barier-cabang.index'),
                 'store_inbound' => route('operations.store-inbound.index'),
                 'store_outbound' => route('operations.store-outbound.index'),
+                'outbound_report' => route('monitoring.warehouse-outbound.index'),
             ],
         ]);
     }

@@ -124,6 +124,7 @@ interface PendingQueues {
     warehouse_outbound_unreleased: number;
     store_inbound_pending_qc: number;
     store_inbound_partial_qc: number;
+    store_transfer_not_recorded: number;
 }
 
 interface Props {
@@ -328,6 +329,7 @@ const pendingItems = computed(() => [
     { label: 'Outbound gudang belum dirilis', value: props.inventory.pending_queues.warehouse_outbound_unreleased, url: props.urls.warehouse_outbound },
     { label: 'Inbound cabang belum lolos QC', value: props.inventory.pending_queues.store_inbound_pending_qc, url: props.urls.store_inbound },
     { label: 'Inbound cabang lolos QC sebagian', value: props.inventory.pending_queues.store_inbound_partial_qc, url: props.urls.store_inbound },
+    { label: 'Outbound gudang ke toko belum tercatat', value: props.inventory.pending_queues.store_transfer_not_recorded, url: `${props.urls.warehouse_outbound}?reconciliation_status=not_recorded` },
 ]);
 
 const visibleTrend = computed(() => props.sales.trend.slice(-14));

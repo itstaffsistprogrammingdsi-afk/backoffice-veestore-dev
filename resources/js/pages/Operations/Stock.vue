@@ -3,6 +3,8 @@ import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import StoreTransferReconciliationPanel from '@/components/StoreTransferReconciliationPanel.vue';
+import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
 defineOptions({ layout: AppLayout });
 
@@ -125,6 +127,7 @@ interface Props {
     missingStock: MissingStockRow[];
     showThreshold: boolean;
     summary: Summary;
+    transferReconciliation: StoreTransferReconciliation;
     filters: {
         q: string;
         warehouse_id: string | null;
@@ -135,6 +138,7 @@ interface Props {
         ecommerce_orders: string;
         stock_wms: string;
         stock_barriers: string;
+        outbound_report: string;
     };
 }
 
@@ -382,6 +386,13 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
         </div>
 
 
+
+        <StoreTransferReconciliationPanel
+            :reconciliation="props.transferReconciliation"
+            :index-url="props.urls.outbound_report"
+            :warehouse-id="filters.warehouse_id || null"
+            scope-label="stok gudang"
+        />
 
         <div class="stock-tabs" role="tablist" aria-label="Tampilan stok operasional">
             <button

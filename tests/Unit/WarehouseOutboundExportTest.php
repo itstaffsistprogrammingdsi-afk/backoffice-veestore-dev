@@ -30,6 +30,14 @@ class WarehouseOutboundExportTest extends TestCase
                 'qc_passed_at' => '2026-10-27 09:45:00+07',
                 'outbound_by_name' => 'Operator WMS',
                 'qc_passed_by_name' => 'Petugas QC',
+                'destination_store_id' => 'store-1',
+                'destination_store_name' => 'Toko Jakarta',
+                'destination_store_code' => 'ST-JKT',
+                'store_received_qty' => 0,
+                'store_variance_qty' => 2,
+                'store_recording_status' => 'not_recorded',
+                'store_recording_status_label' => 'Belum tercatat',
+                'store_received_at' => null,
             ],
         ]);
 
@@ -59,23 +67,28 @@ class WarehouseOutboundExportTest extends TestCase
         ]);
 
         $data = $export->array();
-        $detail = $data[16];
+        $detail = $data[18];
 
         $this->assertSame('Warehouse Outbound', $export->title());
         $this->assertSame(': 27-10-2026 s/d 27-10-2026', $data[3][1]);
-        $this->assertSame([1, 1, 2, 1, 1, 0], $data[13]);
+        $this->assertSame([1, 1, 2, 1, 1, 0, 1, 1], $data[15]);
         $this->assertSame('Ecommerce', $detail[4]);
         $this->assertSame('Sudah release', $detail[15]);
         $this->assertSame('QC lolos', $detail[17]);
         $this->assertSame("'=HYPERLINK(\"https://example.test\")", $detail[21]);
         $this->assertSame(2, $detail[23]);
+        $this->assertSame('Toko Jakarta', $detail[27]);
+        $this->assertSame('ST-JKT', $detail[28]);
+        $this->assertSame(0, $detail[29]);
+        $this->assertSame(2, $detail[30]);
+        $this->assertSame('Belum tercatat', $detail[31]);
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray($data);
         $export->styles($sheet);
 
-        $this->assertSame('A16:AA17', $sheet->getAutoFilter()->getRange());
-        $this->assertSame('A17', $sheet->getFreezePane());
+        $this->assertSame('A18:AG19', $sheet->getAutoFilter()->getRange());
+        $this->assertSame('A19', $sheet->getFreezePane());
     }
 }

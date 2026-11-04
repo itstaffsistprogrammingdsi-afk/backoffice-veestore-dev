@@ -470,6 +470,11 @@ const PRESET_OPTIONS: Record<string, FilterOption[]> = {
         { value: 'with_shipping', label: 'Punya nomor resi' },
         { value: 'without_shipping', label: 'Tanpa nomor resi' },
     ],
+    reconciliation_status: [
+        { value: 'not_recorded', label: 'Belum tercatat di stok toko' },
+        { value: 'partial', label: 'Tercatat sebagian' },
+        { value: 'recorded', label: 'Sudah tercatat' },
+    ],
     source: [
         { value: 'ecommerce', label: 'Ecommerce' },
         { value: 'store_cart', label: 'Store cart' },
@@ -842,6 +847,13 @@ const COLUMN_LABELS: Record<string, string> = {
     tolerance_percentage: 'Toleransi (%)',
     order_ref: 'Referensi Order',
     outbound_type_label: 'Tipe Outbound',
+    destination_store_name: 'Cabang Tujuan',
+    destination_store_code: 'Kode Cabang Tujuan',
+    store_received_qty: 'Qty Diterima Cabang',
+    store_variance_qty: 'Selisih Qty Cabang',
+    store_received_at: 'Diterima Cabang Pada',
+    store_recording_status: 'Status Stok Cabang',
+    store_recording_status_label: 'Status Stok Cabang',
     inbound_type_label: 'Tipe Inbound',
     shipping_status: 'Status Pengiriman',
     source_label: 'Sumber',
@@ -1593,13 +1605,17 @@ const summaryLabel = (key: string): string => {
         total_returns: 'Total Retur',
         total_damaged: 'Total Rusak',
         total_orders: 'Total Pesanan',
+        total_store_transfers: 'Transfer ke Toko',
+        store_not_recorded: 'Belum Tercatat di Toko',
+        store_partial: 'Tercatat Sebagian',
+        store_recorded: 'Sudah Tercatat',
     };
 
     return labels[key] ?? humanize(key);
 };
 
 const summaryTone = (key: string): string => {
-    if (/reject|fail|bad|danger|expired|over_24h|damage|missing|void|cancel|open_fraud|dead|high_risk/i.test(key)) return 'danger';
+    if (/reject|fail|bad|danger|expired|over_24h|damage|missing|void|cancel|open_fraud|dead|high_risk|not_recorded/i.test(key)) return 'danger';
     if (/pending|unpaid|without|warning|slow|urgent|expiring|upcoming|late|not_clock|partial|anomaly|mismatch|unassigned|risk/i.test(key)) return 'warning';
     if (/paid|success|complete|active|good|matched|approved|released/i.test(key)) return 'success';
     if (/amount|nominal|value|revenue|omset|total_transactions|balance/i.test(key)) return 'accent';
@@ -1832,6 +1848,7 @@ const SUPERSEDED_COLUMNS: Record<string, string[]> = {
     source: ['source_label'],
     inbound_type: ['inbound_type_label'],
     outbound_type: ['outbound_type_label'],
+    store_recording_status: ['store_recording_status_label'],
 };
 
 const columnKeys = computed(() => {

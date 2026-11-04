@@ -650,7 +650,7 @@ class BusinessOverviewQuery
                 'threshold' => (int) $row->threshold,
                 'shortfall' => (int) $row->shortfall,
             ])
-            ->all(),
+                ->all(),
         ];
     }
 
@@ -683,6 +683,17 @@ class BusinessOverviewQuery
 
     private function pendingQueues(): array
     {
+        $storeTransferOutbound = DB::table('warehouse_outbound_details')
+            ->selectRaw('warehouse_outbound_id, COUNT(*)::int as outbound_qty')
+            ->groupBy('warehouse_outbound_id');
+
+        $storeTransferReceived = DB::table('store_inbounds as si')
+            ->join('store_inbound_details as sid', 'sid.store_inbound_id', '=', 'si.id')
+            ->whereNotNull('si.order_id')
+            ->whereNotNull('si.received_date')
+            ->selectRaw('si.order_id, COUNT(sid.id)::int as received_qty')
+            ->groupBy('si.order_id');
+
         return [
             'warehouse_outbound_unreleased' => DB::table('warehouse_outbounds')->whereNull('released_at')->count(),
             'store_inbound_pending_qc' => DB::table('store_inbounds')
@@ -690,6 +701,14 @@ class BusinessOverviewQuery
                 ->count(),
             'store_inbound_partial_qc' => DB::table('store_inbounds')
                 ->whereRaw('LOWER(qc_status::text) = ?', ['partial_passed'])
+                ->count(),
+            'store_transfer_not_recorded' => DB::table('warehouse_outbounds as wo')
+                ->join('store_orders as so', 'so.id', '=', 'wo.order_id')
+                ->leftJoinSub($storeTransferOutbound, 'outbound', 'outbound.warehouse_outbound_id', '=', 'wo.id')
+                ->leftJoinSub($storeTransferReceived, 'received', 'received.order_id', '=', 'so.id')
+                ->whereRaw("(LOWER(wo.outbound_type::text) = 'store' OR LOWER(wo.order_ref::text) = 'store')")
+                ->whereNotNull('wo.released_at')
+                ->whereRaw('COALESCE(received.received_qty, 0) < COALESCE(outbound.outbound_qty, 0)')
                 ->count(),
         ];
     }

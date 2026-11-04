@@ -2,15 +2,28 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
 defineOptions({ layout: AppLayout });
 
 interface MonitoringItem { name: string; url: string; icon?: string | null }
 interface MonitoringGroup { name: string; description?: string; icon?: string; items: MonitoringItem[] }
 
-const props = defineProps<{ monitoringGroups: MonitoringGroup[]; overviewUrl: string }>();
+const props = defineProps<{
+    monitoringGroups: MonitoringGroup[];
+    overviewUrl: string;
+    storeTransferReconciliation: StoreTransferReconciliation;
+    storeTransferReportUrl: string;
+}>();
 
 const search = ref('');
+
+const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
+const formatDate = (value: string | null) => {
+    if (!value) return '-';
+
+    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
+};
 
 const normalizedSearch = computed(() => search.value.trim().toLowerCase());
 
@@ -73,6 +86,74 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
                 </div>
             </div>
         </header>
+
+        <section
+            v-if="props.storeTransferReconciliation.summary.unresolved_count > 0"
+            class="monitoring-transfer-alert"
+            aria-labelledby="monitoring-transfer-title"
+        >
+            <div class="monitoring-transfer-head">
+                <div class="monitoring-transfer-icon"><i class="mdi mdi-truck-alert-outline" aria-hidden="true"></i></div>
+                <div>
+                    <h2 id="monitoring-transfer-title">
+                        {{ formatNumber(props.storeTransferReconciliation.summary.unresolved_count) }} outbound gudang ke toko belum tercatat
+                    </h2>
+                    <p>
+                        {{ formatNumber(props.storeTransferReconciliation.summary.affected_store_count) }} toko terdampak,
+                        {{ formatNumber(props.storeTransferReconciliation.summary.outstanding_qty) }} unit belum masuk stok toko.
+                        Terlama {{ formatNumber(props.storeTransferReconciliation.summary.oldest_days) }} hari.
+                    </p>
+                </div>
+                <Link :href="props.storeTransferReportUrl" class="monitoring-transfer-link">
+                    Buka laporan
+                    <i class="mdi mdi-arrow-right" aria-hidden="true"></i>
+                </Link>
+            </div>
+
+            <div v-if="props.storeTransferReconciliation.rows.length" class="table-responsive">
+                <table class="table table-sm align-middle mb-0 monitoring-transfer-table">
+                    <thead>
+                        <tr>
+                            <th>Toko</th>
+                            <th>Order</th>
+                            <th>Gudang</th>
+                            <th class="text-end">Keluar</th>
+                            <th class="text-end">Diterima</th>
+                            <th class="text-end">Selisih</th>
+                            <th>Status</th>
+                            <th>Umur</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="row in props.storeTransferReconciliation.rows" :key="row.id">
+                            <td>
+                                <strong>{{ row.store_name }}</strong>
+                                <small>{{ row.store_code || '-' }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ row.order_number }}</strong>
+                                <small>{{ row.invoice_number || row.shipping_number || '-' }}</small>
+                            </td>
+                            <td>{{ row.warehouse_name }}</td>
+                            <td class="text-end">{{ formatNumber(row.outbound_qty) }}</td>
+                            <td class="text-end">{{ formatNumber(row.received_qty) }}</td>
+                            <td class="text-end"><strong>{{ formatNumber(row.outstanding_qty) }}</strong></td>
+                            <td>
+                                <span class="badge" :class="row.status === 'not_recorded' ? 'bg-label-danger' : 'bg-label-warning'">
+                                    {{ row.status_label }}
+                                </span>
+                            </td>
+                            <td>
+                                <span :class="{ 'monitoring-transfer-overdue': row.is_overdue }">
+                                    {{ formatNumber(row.age_days) }} hari
+                                </span>
+                                <small>{{ formatDate(row.released_at) }}</small>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         <div class="monitoring-meta">
             <span>{{ totalItems }} submenu monitoring</span>
@@ -137,6 +218,19 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
 .monitoring-search-clear { position: absolute; top: 50%; right: 0.45rem; display: grid; place-items: center; width: 2rem; height: 2rem; transform: translateY(-50%); border: 0; border-radius: 0.4rem; background: transparent; color: var(--app-accent-ink); }
 .monitoring-search-clear:hover { background: var(--app-accent-soft); color: var(--app-accent-strong); }
 .monitoring-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 1rem; color: var(--app-muted); font-size: 0.8rem; }
+.monitoring-transfer-alert { margin-bottom: 1rem; overflow: hidden; border: 1px solid color-mix(in srgb, var(--app-warning-ink) 28%, var(--app-border)); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
+.monitoring-transfer-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 1rem 1.1rem; background: var(--app-warning-bg); }
+.monitoring-transfer-icon { display: grid; flex: 0 0 auto; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 0.65rem; background: var(--app-surface); color: var(--app-warning-ink); font-size: 1.3rem; }
+.monitoring-transfer-head > div:nth-child(2) { flex: 1 1 20rem; }
+.monitoring-transfer-head h2 { margin: 0 0 0.15rem; font-size: 1rem; }
+.monitoring-transfer-head p { margin: 0; color: var(--app-muted); font-size: 0.82rem; }
+.monitoring-transfer-link { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2.4rem; padding: 0.45rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface); color: var(--app-accent-ink); font-size: 0.8rem; font-weight: 700; text-decoration: none; }
+.monitoring-transfer-link:hover { background: var(--app-accent-soft); }
+.monitoring-transfer-table { font-size: 0.8rem; }
+.monitoring-transfer-table th { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--app-border); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.monitoring-transfer-table td { padding: 0.6rem 0.75rem; border-color: var(--app-border); vertical-align: middle; }
+.monitoring-transfer-table td small { display: block; color: var(--app-muted); font-size: 0.7rem; }
+.monitoring-transfer-overdue { color: var(--app-danger-ink); font-weight: 700; }
 .monitoring-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .monitoring-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
 .monitoring-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 0.8rem; border-radius: 0.7rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.4rem; }
