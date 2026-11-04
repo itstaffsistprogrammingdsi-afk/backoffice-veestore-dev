@@ -45,6 +45,27 @@ class OutboundOperationsQuery
                 $row->status_label = 'Selesai';
             }
 
+            $row->store_received_qty = (int) ($row->store_received_qty ?? 0);
+            $row->store_variance_qty = $row->destination_store_id
+                ? max(0, $row->total_items - $row->store_received_qty)
+                : 0;
+
+            if ($row->destination_store_id && $row->released_at) {
+                if ($row->store_received_qty <= 0) {
+                    $row->store_recording_status = 'not_recorded';
+                    $row->store_recording_status_label = 'Belum tercatat';
+                } elseif ($row->store_received_qty >= $row->total_items) {
+                    $row->store_recording_status = 'recorded';
+                    $row->store_recording_status_label = 'Sudah tercatat';
+                } else {
+                    $row->store_recording_status = 'partial';
+                    $row->store_recording_status_label = 'Tercatat sebagian';
+                }
+            } else {
+                $row->store_recording_status = null;
+                $row->store_recording_status_label = '-';
+            }
+
             $row->product_details = collect($details->get($row->id, []))
                 ->map(fn (object $detail) => [
                     'product_code' => $detail->product_code,
@@ -87,8 +108,21 @@ class OutboundOperationsQuery
         $hasUsers = Schema::hasTable('users');
         $hasCouriers = Schema::hasTable('couriers');
 
+        $storeInbound = DB::table('store_inbounds as si')
+            ->leftJoin('store_inbound_details as sid', 'sid.store_inbound_id', '=', 'si.id')
+            ->whereNotNull('si.order_id')
+            ->selectRaw('
+                si.order_id,
+                COUNT(sid.id) FILTER (WHERE si.received_date IS NOT NULL)::int as received_qty,
+                MIN(si.received_date) as received_at
+            ')
+            ->groupBy('si.order_id');
+
         return DB::table('warehouse_outbounds as wo')
             ->join('warehouses as w', 'w.id', '=', 'wo.warehouse_id')
+            ->leftJoin('store_orders as store_order', 'store_order.id', '=', 'wo.order_id')
+            ->leftJoin('stores as destination_store', 'destination_store.id', '=', 'store_order.store_id')
+            ->leftJoinSub($storeInbound, 'store_inbound', 'store_inbound.order_id', '=', 'store_order.id')
             ->when($hasCouriers, fn ($query) => $query->leftJoin('couriers as c', 'c.id', '=', 'wo.courier_id'))
             ->when($hasUsers, fn ($query) => $query->leftJoin('users as u', 'u.id', '=', 'wo.user_id'))
             ->when($hasUsers, fn ($query) => $query->leftJoin('users as qc', 'qc.id', '=', 'wo.qc_passed_by'))
@@ -118,6 +152,8 @@ class OutboundOperationsQuery
                         ->orWhere('wo.outbound_type', 'ILIKE', "%{$q}%")
                         ->orWhere('w.name', 'ILIKE', "%{$q}%")
                         ->orWhere('w.code', 'ILIKE', "%{$q}%")
+                        ->orWhere('destination_store.name', 'ILIKE', "%{$q}%")
+                        ->orWhere('destination_store.code', 'ILIKE', "%{$q}%")
                         ->orWhereExists(function ($exists) use ($q) {
                             $exists->selectRaw('1')
                                 ->from('warehouse_outbound_details as wod_search')
@@ -148,6 +184,11 @@ class OutboundOperationsQuery
                 wo.shipping_number,
                 wo.qc_passed_at,
                 wo.qc_passed_by,
+                store_order.store_id as destination_store_id,
+                destination_store.name as destination_store_name,
+                destination_store.code as destination_store_code,
+                COALESCE(store_inbound.received_qty, 0)::int as store_received_qty,
+                store_inbound.received_at as store_received_at,
                 (SELECT COUNT(*)::int FROM warehouse_outbound_details wod_count WHERE wod_count.warehouse_outbound_id = wo.id) as total_items,
                 (SELECT COUNT(DISTINCT i_count.product_id)::int
                     FROM warehouse_outbound_details wod_count
@@ -172,7 +213,10 @@ class OutboundOperationsQuery
                 COUNT(*) FILTER (WHERE qc_passed_at IS NULL)::int as qc_pending,
                 COUNT(*) FILTER (WHERE qc_passed_at IS NOT NULL AND released_at IS NULL)::int as release_pending,
                 COUNT(*) FILTER (WHERE qc_passed_at IS NOT NULL AND released_at IS NOT NULL AND NULLIF(TRIM(shipping_number), \'\') IS NULL)::int as missing_awb,
-                COUNT(*) FILTER (WHERE COALESCE(shipment_date, released_at, created_at)::date = CURRENT_DATE)::int as today_outbounds
+                COUNT(*) FILTER (WHERE COALESCE(shipment_date, released_at, created_at)::date = CURRENT_DATE)::int as today_outbounds,
+                COUNT(*) FILTER (WHERE destination_store_id IS NOT NULL AND released_at IS NOT NULL)::int as store_transfers,
+                COUNT(*) FILTER (WHERE destination_store_id IS NOT NULL AND released_at IS NOT NULL AND store_received_qty <= 0)::int as store_not_recorded,
+                COUNT(*) FILTER (WHERE destination_store_id IS NOT NULL AND released_at IS NOT NULL AND store_received_qty > 0 AND store_received_qty < total_items)::int as store_partial
             ')
             ->first();
     }

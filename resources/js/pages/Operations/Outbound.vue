@@ -37,6 +37,14 @@ interface OutboundRow {
     outbound_by_name: string;
     total_items: number;
     total_sku: number;
+    destination_store_id: string | null;
+    destination_store_name: string | null;
+    destination_store_code: string | null;
+    store_received_qty: number;
+    store_variance_qty: number;
+    store_received_at: string | null;
+    store_recording_status: 'not_recorded' | 'partial' | 'recorded' | null;
+    store_recording_status_label: string;
     status: 'qc_pending' | 'release_pending' | 'missing_awb' | 'completed';
     status_label: string;
     event_date: string | null;
@@ -81,6 +89,9 @@ interface Props {
         release_pending: number;
         missing_awb: number;
         today_outbounds: number;
+        store_transfers: number;
+        store_not_recorded: number;
+        store_partial: number;
     };
     warehouses: Array<{ id: string; name: string; code: string | null }>;
     movementSummary: {
@@ -292,6 +303,17 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
+        <div v-if="props.summary.store_not_recorded + props.summary.store_partial > 0" class="outbound-alert">
+            <i class="mdi mdi-store-alert-outline" aria-hidden="true"></i>
+            <div>
+                <strong>{{ formatNumber(props.summary.store_not_recorded + props.summary.store_partial) }} outbound ke toko belum tercatat di stok toko.</strong>
+                <span>{{ formatNumber(props.summary.store_not_recorded) }} belum diterima, {{ formatNumber(props.summary.store_partial) }} baru diterima sebagian. Cek laporan untuk melihat toko tujuan.</span>
+            </div>
+            <Link :href="`${props.urls.monitoring}?reconciliation_status=not_recorded`" class="btn btn-sm btn-outline-danger">
+                Buka laporan
+            </Link>
+        </div>
+
         <div class="card outbound-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
@@ -380,6 +402,7 @@ onBeforeUnmount(() => {
                                 </td>
                                 <td>
                                     <strong>{{ row.outbound_type_label }}</strong>
+                                    <small v-if="row.destination_store_name" class="outbound-subvalue">Tujuan: {{ row.destination_store_name }}</small>
                                     <small class="outbound-subvalue">{{ row.courier_name || 'Tanpa kurir' }}</small>
                                 </td>
                                 <td class="text-end">
@@ -393,6 +416,13 @@ onBeforeUnmount(() => {
                                 <td>
                                     <span class="badge" :class="statusClass(row.status)">{{ row.status_label }}</span>
                                     <small v-if="row.has_awb" class="outbound-subvalue">Resi tersedia</small>
+                                    <span
+                                        v-if="row.store_recording_status"
+                                        class="badge d-block mt-1"
+                                        :class="row.store_recording_status === 'recorded' ? 'bg-label-success' : (row.store_recording_status === 'partial' ? 'bg-label-warning' : 'bg-label-danger')"
+                                    >
+                                        Stok toko: {{ row.store_recording_status_label }}
+                                    </span>
                                 </td>
                                 <td class="text-end">
                                     <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
@@ -408,6 +438,8 @@ onBeforeUnmount(() => {
                                             <span><b>QC oleh:</b> {{ row.qc_passed_by_name || '-' }}</span>
                                             <span><b>Outbound oleh:</b> {{ row.outbound_by_name || '-' }}</span>
                                             <span><b>Release:</b> {{ formatDate(row.released_at) }}</span>
+                                            <span v-if="row.destination_store_name"><b>Toko tujuan:</b> {{ row.destination_store_name }} ({{ row.destination_store_code || '-' }})</span>
+                                            <span v-if="row.store_recording_status"><b>Stok toko:</b> {{ row.store_recording_status_label }} · {{ formatNumber(row.store_received_qty) }}/{{ formatNumber(row.total_items) }} diterima</span>
                                         </div>
                                         <table class="table table-sm mb-0 outbound-detail-table">
                                             <thead>
@@ -539,6 +571,11 @@ onBeforeUnmount(() => {
 .outbound-summary-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.68rem; }
 .outbound-summary-warning .outbound-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .outbound-summary-danger .outbound-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
+.outbound-alert { display: flex; align-items: center; gap: 0.8rem; padding: 0.9rem 1rem; margin-bottom: 1rem; border: 1px solid color-mix(in srgb, var(--app-danger-ink) 25%, var(--app-border)); border-radius: 0.8rem; background: var(--app-danger-bg); color: var(--app-danger-ink); }
+.outbound-alert > i { font-size: 1.3rem; }
+.outbound-alert > div { flex: 1 1 320px; }
+.outbound-alert strong { display: block; }
+.outbound-alert span { font-size: 0.82rem; }
 .outbound-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .outbound-card-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-bottom: 1px solid var(--app-border); }
 .outbound-card-header h2 { margin: 0 0 0.2rem; font-size: 1rem; }

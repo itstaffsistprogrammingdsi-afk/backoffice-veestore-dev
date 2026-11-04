@@ -25,8 +25,9 @@ class OperationalStockTest extends TestCase
                 ->has('summary')
                 ->has('summary.reconciliation')
                 ->has('summary.aging_buckets')
+                ->has('transferReconciliation.summary')
                 ->has('warehouses')
-                ->has('urls'));
+                ->has('urls.outbound_report'));
     }
 
     public function test_items_below_warehouse_barrier_appear_in_import_needs(): void

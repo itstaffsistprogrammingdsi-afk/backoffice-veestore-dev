@@ -2,12 +2,13 @@
 
 namespace App\Domain\OperationalStock\Queries;
 
+use App\Domain\WarehouseOperations\Queries\StoreTransferReconciliationQuery;
 use App\Services\StockReservationService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\LazyCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\LazyCollection;
 
 class OperationalStockQuery
 {
@@ -218,6 +219,8 @@ class OperationalStockQuery
             'importNeeds' => $importNeeds->all(),
             'missingStock' => $missingStock->all(),
             'showThreshold' => $showThreshold,
+            'transferReconciliation' => app(StoreTransferReconciliationQuery::class)
+                ->build(null, $warehouseId, 'unresolved', 10),
             'summary' => [
                 'sku_total' => $products->count(),
                 'warehouse_stock_count' => $flatRows

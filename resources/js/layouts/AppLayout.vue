@@ -716,7 +716,7 @@ onBeforeUnmount(() => {
                                     <Link
                                         v-for="groupItem in activeGroup.items"
                                         :key="groupItem.route"
-                                        :href="groupItem.url"
+                                        :href="groupItem.url ?? undefined"
                                         class="app-breadcrumb-menu-item"
                                         :class="{ 'is-active': isActive(groupItem) }"
                                         role="menuitem"

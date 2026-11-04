@@ -21,6 +21,9 @@ class MonitoringIndexTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Monitoring/Index')
                 ->has('monitoringGroups')
+                ->has('storeTransferReconciliation.summary')
+                ->has('storeTransferReconciliation.rows')
+                ->where('storeTransferReportUrl', route('monitoring.warehouse-outbound.index', ['reconciliation_status' => 'not_recorded']))
                 ->where('overviewUrl', route('reports.business-overview.index'))
                 ->where('monitoringGroups', fn ($groups) => collect($groups)->pluck('name')->contains('Pembayaran & Pemasukan')
                     && collect($groups)->pluck('name')->contains('Omzet & Kasir')));
@@ -29,6 +32,7 @@ class MonitoringIndexTest extends TestCase
             'monitoring.stok-wms',
             'monitoring.omset-kotor.index',
             'monitoring.store-inbound.index',
+            'monitoring.warehouse-outbound.index',
             'monitoring.supplier-insight.index',
             'monitoring.cashier-shift-report.index',
             'monitoring.tracking-barang.index',
