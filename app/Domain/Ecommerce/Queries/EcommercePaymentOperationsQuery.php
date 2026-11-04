@@ -2,6 +2,7 @@
 
 namespace App\Domain\Ecommerce\Queries;
 
+use App\Domain\Ecommerce\Support\DokuPaymentChannelResolver;
 use Illuminate\Support\Facades\DB;
 
 class EcommercePaymentOperationsQuery
@@ -31,7 +32,19 @@ class EcommercePaymentOperationsQuery
         $rows = $base
             ->orderByDesc('order_created_at')
             ->paginate(15)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function ($row) {
+                $row->payment_channel_name = DokuPaymentChannelResolver::resolve(
+                    $row->payment_method_code,
+                    $row->payment_method_name,
+                    $row->detail_method_name,
+                    $row->detail_payload
+                ) ?? '-';
+
+                unset($row->detail_method_name, $row->detail_payload);
+
+                return $row;
+            });
 
         $paymentMethods = DB::table('ecommerce_orders')
             ->select('payment_method_code', 'payment_method_name')
@@ -55,6 +68,18 @@ class EcommercePaymentOperationsQuery
         ];
     }
 
+    private function paymentDetailQuery()
+    {
+        return DB::table('payment_details as pd')
+            ->leftJoin('payment_methods as pm', 'pm.id', '=', 'pd.payment_method_id')
+            ->selectRaw('
+                pd.payment_id,
+                MAX(pm.name) as detail_method_name,
+                MAX(pd.detail) as detail_payload
+            ')
+            ->groupBy('pd.payment_id');
+    }
+
     private function baseQuery(
         string $q,
         ?string $paymentStatus,
@@ -76,6 +101,7 @@ class EcommercePaymentOperationsQuery
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->leftJoin('payments as p', 'p.id', '=', 'eo.payment_id')
             ->leftJoinSub($items, 'ia', 'ia.ecommerce_order_id', '=', 'eo.id')
+            ->leftJoinSub($this->paymentDetailQuery(), 'pch', 'pch.payment_id', '=', 'eo.payment_id')
             ->select([
                 'eo.id',
                 'eo.order_number',
@@ -85,6 +111,8 @@ class EcommercePaymentOperationsQuery
                 'eo.payment_method_code',
                 'eo.payment_method_name',
                 'eo.payment_fee',
+                'pch.detail_method_name',
+                'pch.detail_payload',
                 DB::raw("COALESCE(c.name, '-') as customer_name"),
                 DB::raw("COALESCE(c.email, '-') as customer_email"),
                 DB::raw("COALESCE(c.wa_number, '-') as customer_wa"),

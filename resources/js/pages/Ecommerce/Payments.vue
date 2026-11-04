@@ -14,6 +14,7 @@ interface PaymentRow {
     grand_total: string | number;
     payment_method_code: string | null;
     payment_method_name: string | null;
+    payment_channel_name: string | null;
     payment_fee: string | number;
     customer_name: string;
     customer_email: string;
@@ -118,6 +119,36 @@ const orderStatusClass = (status: string) => ({
 }[status] ?? 'bg-label-warning');
 
 const remainingAmount = (row: PaymentRow) => Math.max(Number(row.grand_total ?? 0) - Number(row.paid_amount ?? 0), 0);
+
+const formatDokuExpired = (value: unknown) => {
+    if (typeof value !== 'string' || value.length < 12) return null;
+
+    const year = value.slice(0, 4);
+    const month = value.slice(4, 6);
+    const day = value.slice(6, 8);
+    const hour = value.slice(8, 10);
+    const minute = value.slice(10, 12);
+
+    return `${day}/${month}/${year} ${hour}:${minute}`;
+};
+
+const paymentNoteLabel = (note: string | null) => {
+    if (!note) return '-';
+
+    try {
+        const parsed = JSON.parse(note);
+
+        if (parsed && typeof parsed === 'object' && String(parsed.provider).toLowerCase() === 'doku') {
+            const expired = formatDokuExpired(parsed.expired_date);
+
+            return expired ? `DOKU Checkout, kedaluwarsa ${expired}` : 'DOKU Checkout';
+        }
+    } catch {
+        return note;
+    }
+
+    return note;
+};
 
 const applyFilters = () => {
     router.get(props.urls.index, {
@@ -306,8 +337,9 @@ const orderUrl = (row: PaymentRow) => {
                                 </td>
                                 <td>
                                     <div class="payment-main">
-                                        <strong>{{ row.payment_method_name || row.payment_method_code || '-' }}</strong>
-                                        <small v-if="row.payment_method_code">{{ row.payment_method_code }}</small>
+                                        <strong>{{ row.payment_channel_name || row.payment_method_name || row.payment_method_code || '-' }}</strong>
+                                        <small v-if="row.payment_channel_name && row.payment_channel_name !== row.payment_method_name && row.payment_method_name">{{ row.payment_method_name }}</small>
+                                        <small v-else-if="!row.payment_channel_name && row.payment_method_code">{{ row.payment_method_code }}</small>
                                     </div>
                                 </td>
                                 <td><span class="badge" :class="paymentStatusClass(row.payment_status)">{{ paymentStatusLabel(row.payment_status) }}</span></td>
@@ -333,7 +365,7 @@ const orderUrl = (row: PaymentRow) => {
                                             <div class="payment-detail-wide"><span>Produk</span><strong>{{ row.product_names }}</strong></div>
                                             <div><span>Email</span><strong>{{ row.customer_email }}</strong></div>
                                             <div><span>WhatsApp</span><strong>{{ row.customer_wa }}</strong></div>
-                                            <div class="payment-detail-wide"><span>Catatan Pembayaran</span><strong>{{ row.payment_note || '-' }}</strong></div>
+                                            <div class="payment-detail-wide"><span>Catatan Pembayaran</span><strong>{{ paymentNoteLabel(row.payment_note) }}</strong></div>
                                         </div>
                                         <div class="payment-detail-actions">
                                             <Link :href="orderUrl(row)" class="btn btn-sm btn-outline-primary">
