@@ -50,7 +50,7 @@ class MasterDataModuleNavigation
 
             $items[] = [
                 'key' => $key,
-                'label' => __($item['label']),
+                'label' => $item['label'],
                 'icon' => $item['icon'],
                 'url' => route($item['route']),
             ];
