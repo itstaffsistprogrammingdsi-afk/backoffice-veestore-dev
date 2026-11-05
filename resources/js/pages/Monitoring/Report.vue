@@ -761,9 +761,9 @@ const COLUMN_LABELS: Record<string, string> = {
     last_mutation_at: 'Mutasi Terakhir',
     grand_total: 'Grand Total',
     total_amount: 'Total Pembayaran',
-    gross_sales: 'Omset Kotor',
+    gross_sales: 'Omzet Kotor',
     net_after_product_discount: 'Setelah Diskon Produk',
-    final_paid_amount: 'Omset Bersih',
+    final_paid_amount: 'Omzet Bersih',
     product_discount_amount: 'Diskon Produk',
     allocated_order_discount: 'Voucher / Poin',
     total_discount_amount: 'Total Potongan',
@@ -849,9 +849,9 @@ const COLUMN_LABELS: Record<string, string> = {
     latest_history_location_name: 'Lokasi Riwayat Terakhir',
     status_label: 'Status',
     opname_status: 'Status Opname',
-    qty_pending: 'Qty Pending',
+    qty_pending: 'Qty Tertunda',
     qty_system: 'Qty Sistem',
-    qty_scanned: 'Qty Scan',
+    qty_scanned: 'Qty Pindai',
     qty_match: 'Qty Sesuai',
     qty_missing: 'Qty Hilang',
     qty_extra: 'Qty Lebih',
@@ -882,7 +882,7 @@ const COLUMN_LABELS: Record<string, string> = {
     unit_name: 'Satuan',
     qty_store: 'Qty Cabang',
     qty_display: 'Qty Display',
-    qty_real: 'Qty Real',
+    qty_real: 'Qty Nyata',
     qty_reserved: 'Qty Reservasi',
     qty_available: 'Qty Tersedia',
     qty_good: 'Qty Baik',
@@ -1736,9 +1736,9 @@ const summaryLabel = (key: string): string => {
         total_cash_transactions: 'Transaksi Tunai',
         total_non_cash_transactions: 'Transaksi Non-Tunai',
         total_receivable_amount: 'Piutang Rekanan',
-        total_gross_sales: 'Omset Kotor',
+        total_gross_sales: 'Omzet Kotor',
         total_net_after_product_discount: 'Setelah Diskon Produk',
-        total_final_paid: 'Omset Bersih',
+        total_final_paid: 'Omzet Bersih',
         total_product_discount: 'Diskon Produk',
         total_voucher_discount: 'Voucher / Poin',
         total_discount_amount: 'Total Potongan',
@@ -1750,7 +1750,7 @@ const summaryLabel = (key: string): string => {
         total_product: 'Total Produk',
         total_location: 'Total Lokasi',
         total_quantity: 'Total Qty',
-        total_store_stock: 'Qty Store Stock',
+        total_store_stock: 'Qty Stok Toko',
         total_store_display: 'Qty Store Display',
         total_warehouse_stock: 'Qty Warehouse',
         total_qc_checked_items: 'Item Sudah QC',
@@ -2573,7 +2573,7 @@ const selectDataset = (key: string) => {
         <nav
             v-if="props.data?.omsetTab && props.data?.omsetUrls"
             class="monitor-omset-tabs"
-            aria-label="Jenis laporan omset"
+            aria-label="Jenis laporan omzet"
         >
             <Link
                 :href="props.data.omsetUrls.cabang"
@@ -2582,7 +2582,7 @@ const selectDataset = (key: string) => {
                 :aria-current="props.data.omsetTab === 'cabang' ? 'page' : undefined"
             >
                 <i class="mdi mdi-chart-bar" aria-hidden="true"></i>
-                Omset per Cabang
+                Omzet per Cabang
             </Link>
             <Link
                 :href="props.data.omsetUrls.kotor"
@@ -2591,7 +2591,7 @@ const selectDataset = (key: string) => {
                 :aria-current="props.data.omsetTab === 'kotor' ? 'page' : undefined"
             >
                 <i class="mdi mdi-chart-areaspline" aria-hidden="true"></i>
-                Omset Kotor &amp; Bersih
+                Omzet Kotor &amp; Bersih
             </Link>
         </nav>
 
@@ -2753,11 +2753,11 @@ const selectDataset = (key: string) => {
                     </button>
                     <a v-if="exportUrl" :href="exportUrl" class="btn btn-sm btn-outline-primary">
                         <i class="mdi mdi-download" aria-hidden="true"></i>
-                        Export Excel
+                        Ekspor Excel
                     </a>
                     <button v-else type="button" class="btn btn-sm btn-outline-primary" @click="exportCurrentTable">
                         <i class="mdi mdi-file-excel-outline" aria-hidden="true"></i>
-                        Export Excel
+                        Ekspor Excel
                     </button>
                 </div>
             </div>

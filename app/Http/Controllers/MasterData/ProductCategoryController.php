@@ -46,7 +46,7 @@ class ProductCategoryController extends Controller
             ->get(['id', 'name']);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Product Categories',
+            'title' => 'Kategori Produk',
             'eyebrow' => 'Master Produk / Kategori',
             'description' => 'Kelola grup kategori, kategori produk, dan gambar kategori.',
             'searchPlaceholder' => 'Cari kategori...',

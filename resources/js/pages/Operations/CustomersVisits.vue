@@ -93,7 +93,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
                 <p>Riwayat kunjungan dan pembelian customer per store, termasuk item yang dibeli dan total spending.</p>
             </div>
             <div class="customer-hero-actions">
-                <Link :href="props.urls.store_stock" class="customer-hero-button"><i class="mdi mdi-clipboard-list-outline me-1"></i>Store Stock Operations</Link>
+                <Link :href="props.urls.store_stock" class="customer-hero-button"><i class="mdi mdi-clipboard-list-outline me-1"></i>Operasional Stok Toko</Link>
                 <Link :href="props.urls.manage_customers" class="customer-hero-button"><i class="mdi mdi-account-cog-outline me-1"></i>Manage Customers</Link>
             </div>
         </section>

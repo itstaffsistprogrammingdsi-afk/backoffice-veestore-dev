@@ -91,7 +91,7 @@ class StoreController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Stores',
+            'title' => 'Toko',
             'description' => 'Kelola toko, kontak, dan lokasi.',
             'searchPlaceholder' => 'Cari store...',
             'items' => $stores,

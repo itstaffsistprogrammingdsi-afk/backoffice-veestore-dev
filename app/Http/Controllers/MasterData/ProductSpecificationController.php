@@ -30,7 +30,7 @@ class ProductSpecificationController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Product Specifications',
+            'title' => 'Spesifikasi Produk',
             'eyebrow' => 'Master Produk / Spesifikasi',
             'description' => 'Kelola nilai spesifikasi yang dipakai pada produk.',
             'searchPlaceholder' => 'Cari spesifikasi...',
@@ -69,7 +69,7 @@ class ProductSpecificationController extends Controller
 
         return redirect()
             ->route('master-data.product-specifications.index')
-            ->with('success', 'Product specification berhasil ditambahkan.');
+            ->with('success', 'Spesifikasi produk berhasil ditambahkan.');
     }
 
     public function update(Request $request, ProductSpecification $productSpecification)
@@ -89,13 +89,13 @@ class ProductSpecificationController extends Controller
 
         return redirect()
             ->route('master-data.product-specifications.index')
-            ->with('success', 'Product specification berhasil diperbarui.');
+            ->with('success', 'Spesifikasi produk berhasil diperbarui.');
     }
 
     public function destroy(ProductSpecification $productSpecification)
     {
         $productSpecification->delete(); // kalau model pakai SoftDeletes, ini soft delete
 
-        return back()->with('success', 'Product specification berhasil dihapus.');
+        return back()->with('success', 'Spesifikasi produk berhasil dihapus.');
     }
 }

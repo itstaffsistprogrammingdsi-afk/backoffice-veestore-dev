@@ -132,12 +132,12 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
 </script>
 
 <template>
-    <Head title="Product Prices" />
+    <Head title="Harga Produk" />
     <div class="price-page">
         <div class="price-header">
             <div>
                 <span class="price-eyebrow">Master Produk / Harga</span>
-                <h1>Product Prices</h1>
+                <h1>Harga Produk</h1>
                 <p>Kelola harga base, store, dan ecommerce per produk.</p>
             </div>
         </div>

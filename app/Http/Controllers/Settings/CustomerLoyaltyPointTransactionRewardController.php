@@ -30,6 +30,6 @@ class CustomerLoyaltyPointTransactionRewardController extends Controller
 
         return redirect()
             ->route('settings.app.customer-loyalty-point-transaction-reward.edit')
-            ->with('success', 'Pengaturan reward loyalty point berhasil diperbarui.');
+            ->with('success', 'Pengaturan hadiah poin loyalitas berhasil diperbarui.');
     }
 }

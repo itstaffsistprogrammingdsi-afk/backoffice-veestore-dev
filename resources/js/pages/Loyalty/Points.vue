@@ -83,13 +83,13 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Customer Loyalty Points" />
+    <Head title="Poin Loyalitas Pelanggan" />
 
     <div class="loyalty-page">
         <div class="loyalty-header">
             <div>
                 <span class="loyalty-eyebrow">Loyalty / Points</span>
-                <h1>Customer Loyalty Points</h1>
+                <h1>Poin Loyalitas Pelanggan</h1>
                 <p>Pantau saldo poin pelanggan dan riwayat mutasinya.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applyFilters">

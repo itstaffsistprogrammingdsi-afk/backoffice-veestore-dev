@@ -232,18 +232,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Inbound Operations" />
+    <Head title="Operasional Barang Masuk" />
     <div class="inbound-page">
         <section class="report-header inbound-header">
             <div>
                 <span class="inbound-eyebrow">Operations / Warehouse</span>
-                <h1>Inbound Operations</h1>
+                <h1>Operasional Barang Masuk</h1>
                 <p>Pantau dokumen masuk, status penerimaan, dan detail barang yang diterima gudang.</p>
             </div>
             <div class="inbound-hero-actions">
                 <Link :href="props.urls.stock" class="inbound-hero-button">
                     <i class="mdi mdi-clipboard-list-outline me-1"></i>
-                    Stock Operations
+                    Operasional Stok
                 </Link>
                 <Link :href="props.urls.outbound" class="inbound-hero-button">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
@@ -251,7 +251,7 @@ onBeforeUnmount(() => {
                 </Link>
                 <Link :href="props.urls.monitoring" class="inbound-hero-button inbound-hero-button-outline">
                     <i class="mdi mdi-chart-box-outline me-1"></i>
-                    Monitoring Inbound
+                    Pemantauan Barang Masuk
                 </Link>
             </div>
         </section>

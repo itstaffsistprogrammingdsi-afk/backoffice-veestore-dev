@@ -63,7 +63,7 @@ class PartnerController extends Controller
             ->all();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Partners',
+            'title' => 'Mitra',
             'eyebrow' => 'Mitra / Partner',
             'description' => 'Kelola partner, limit kredit, siklus tagihan, dan status kerja sama.',
             'searchPlaceholder' => 'Cari partner...',
@@ -106,7 +106,7 @@ class PartnerController extends Controller
 
         return redirect()
             ->route('master-data.partners.index')
-            ->with('success', 'Partner berhasil ditambahkan.');
+            ->with('success', 'Mitra berhasil ditambahkan.');
     }
 
     public function update(Request $request, Partner $partner)
@@ -117,7 +117,7 @@ class PartnerController extends Controller
 
         return redirect()
             ->route('master-data.partners.index')
-            ->with('success', 'Partner berhasil diperbarui.');
+            ->with('success', 'Mitra berhasil diperbarui.');
     }
 
     public function destroy(Partner $partner)
@@ -126,7 +126,7 @@ class PartnerController extends Controller
 
         return redirect()
             ->route('master-data.partners.index')
-            ->with('success', 'Partner berhasil dihapus.');
+            ->with('success', 'Mitra berhasil dihapus.');
     }
 
     private function validatePartner(Request $request, ?Partner $partner = null): array

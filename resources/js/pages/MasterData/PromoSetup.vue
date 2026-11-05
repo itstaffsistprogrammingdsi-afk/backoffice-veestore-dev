@@ -68,12 +68,12 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
 </script>
 
 <template>
-    <Head title="Promo Setup" />
+    <Head title="Pengaturan Promo" />
     <div class="promo-page">
         <div class="promo-header">
             <div>
                 <span class="promo-eyebrow">Promo / Setup</span>
-                <h1>Promo Setup</h1>
+                <h1>Pengaturan Promo</h1>
                 <p>Buat promo, diskon, dan target produk dalam satu alur.</p>
             </div>
         </div>

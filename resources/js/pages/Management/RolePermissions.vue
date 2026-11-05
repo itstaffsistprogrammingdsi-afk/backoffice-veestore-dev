@@ -52,18 +52,18 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Role Permissions" />
+    <Head title="Hak Akses Peran" />
 
     <div class="management-page">
         <div class="management-header">
             <div>
                 <span class="management-eyebrow">Management</span>
-                <h1>Role Permissions</h1>
-                <p>Atur permission untuk setiap role. Perubahan disimpan per role.</p>
+                <h1>Hak Akses Peran</h1>
+                <p>Atur hak akses untuk setiap peran. Perubahan disimpan per peran.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" :disabled="processing" @click="submit">
                 <i class="mdi mdi-content-save-outline me-1"></i>
-                {{ processing ? 'Menyimpan...' : 'Simpan Permission' }}
+                {{ processing ? 'Menyimpan...' : 'Simpan Hak Akses' }}
             </button>
         </div>
 
@@ -75,7 +75,7 @@ const submit = () => {
                 <table class="table align-middle mb-0 permission-table">
                     <thead>
                         <tr>
-                            <th style="min-width: 260px;">Permission</th>
+                            <th style="min-width: 260px;">Hak Akses</th>
                             <th v-for="role in roles" :key="role.id" class="text-center">
                                 {{ role.name }}
                             </th>

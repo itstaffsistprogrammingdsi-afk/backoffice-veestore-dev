@@ -158,7 +158,7 @@ class StoreReturnApprovalController extends Controller
 
         $number = $result['return_number'] ?? $returnId;
 
-        return back()->with('success', "Retur {$number} ditolak. Seluruh barang pada retur ditandai rejected.");
+        return back()->with('success', "Retur {$number} ditolak. Seluruh barang pada retur ditandai ditolak.");
     }
 
     private function normalizeDate(mixed $value): ?string

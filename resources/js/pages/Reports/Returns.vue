@@ -182,7 +182,7 @@ const exportReturns = () => downloadExcelTable('Retur-Cabang', 'Retur Cabang', [
                 <p>Permintaan retur dari toko ke gudang.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportReturns">
-                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
             </button>
         </div>
 

@@ -154,7 +154,7 @@ class EcommerceOrderController extends Controller
         if (strtolower((string) $order->status) !== 'paid') {
             return redirect()
                 ->route('ecommerce.orders.index')
-                ->with('error', 'Order hanya dapat diedit jika statusnya Paid.');
+                ->with('error', 'Pesanan hanya dapat diubah jika statusnya sudah dibayar.');
         }
 
         $validated = $request->validate([
@@ -222,7 +222,7 @@ class EcommerceOrderController extends Controller
 
         return redirect()
             ->route('ecommerce.orders.index')
-            ->with('success', "Order berhasil diupdate dan ditangani oleh {$locationName}.");
+            ->with('success', "Pesanan berhasil diperbarui dan ditangani oleh {$locationName}.");
     }
 
     /*

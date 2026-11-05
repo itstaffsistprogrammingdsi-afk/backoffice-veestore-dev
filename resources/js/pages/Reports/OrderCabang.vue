@@ -208,7 +208,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                 <p>Permintaan order dari toko ke gudang.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportOrders">
-                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
             </button>
         </div>
 

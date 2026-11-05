@@ -183,7 +183,7 @@ const summaryCards = computed(() => [
             </div>
             <a :href="exportUrl" class="btn btn-light btn-sm">
                 <i class="mdi mdi-download me-1"></i>
-                Export Excel
+                Ekspor Excel
             </a>
         </div>
 

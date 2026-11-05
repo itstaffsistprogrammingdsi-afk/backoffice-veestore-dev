@@ -197,7 +197,7 @@ class OrderCabangController extends Controller
             'requested_at' => now(),
         ]);
 
-        return back()->with('success', 'Order dikirim untuk approval.');
+        return back()->with('success', 'Pesanan dikirim untuk persetujuan.');
     }
 
     public function stockByWarehouse(Request $request)
@@ -493,7 +493,7 @@ class OrderCabangController extends Controller
             }
         });
 
-        return back()->with('success', 'Order telah di-approve dan displit per warehouse.');
+        return back()->with('success', 'Pesanan telah disetujui dan dipecah per gudang.');
     }
 
     public function reject(StoreOrder $order)
@@ -525,7 +525,7 @@ class OrderCabangController extends Controller
             }
         });
 
-        return back()->with('success', 'Order ditolak dan stok yang dipesan sudah dilepaskan.');
+        return back()->with('success', 'Pesanan ditolak dan stok yang dipesan sudah dilepaskan.');
     }
 
     public function receive(Request $request, StoreOrder $order, StockReservationService $reservations)
@@ -600,7 +600,7 @@ class OrderCabangController extends Controller
             $order->delete();
         });
 
-        return back()->with('success', 'Order cabang berhasil dihapus.');
+        return back()->with('success', 'Pesanan cabang berhasil dihapus.');
     }
 
     private function getStocksMapByProduct(string $warehouseId, array $productIds = []): array

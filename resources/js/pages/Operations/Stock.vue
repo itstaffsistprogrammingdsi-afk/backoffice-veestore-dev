@@ -263,12 +263,12 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 </script>
 
 <template>
-    <Head title="Stock Operations" />
+    <Head title="Operasional Stok" />
     <div class="stock-page">
         <section class="stock-hero">
             <div>
                 <span class="stock-eyebrow">Operations / Warehouse</span>
-                <h1>Stock Operations</h1>
+                <h1>Operasional Stok</h1>
                 <p>Cek ketersediaan stok per gudang untuk request store dan ecommerce, serta pantau barrier untuk kebutuhan import purchasing.</p>
             </div>
             <div class="stock-hero-actions">
@@ -524,7 +524,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                         <table class="table table-sm mb-0 stock-detail-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Warehouse</th>
+                                                    <th>Gudang</th>
                                                     <th class="text-end">On Hand</th>
                                                     <th class="text-end">Reserved</th>
                                                     <th class="text-end">Available</th>
@@ -610,7 +610,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                     <thead>
                         <tr>
                             <th>Produk</th>
-                            <th>Warehouse</th>
+                            <th>Gudang</th>
                             <th class="text-end">Available</th>
                             <th class="text-end">Barrier</th>
                             <th v-if="props.showThreshold" class="text-end">Threshold</th>
@@ -712,7 +712,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             </summary>
             <div class="table-responsive">
                 <table class="table table-sm mb-0 stock-detail-table">
-                    <thead><tr><th>Warehouse</th><th>Produk</th><th class="text-end">Qty Hilang</th><th>Terakhir Update</th></tr></thead>
+                    <thead><tr><th>Gudang</th><th>Produk</th><th class="text-end">Qty Hilang</th><th>Terakhir Diperbarui</th></tr></thead>
                     <tbody>
                         <tr v-for="row in props.missingStock" :key="`${row.warehouse_id}-${row.product_id}`">
                             <td><strong>{{ row.warehouse_name }}</strong><small>{{ row.warehouse_code || '-' }}</small></td>

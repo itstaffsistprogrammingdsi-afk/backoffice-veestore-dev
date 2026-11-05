@@ -60,7 +60,7 @@ class DiscountController extends Controller
             ->get(['id', 'name', 'code']);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Discounts',
+            'title' => 'Diskon',
             'eyebrow' => 'Promo / Diskon',
             'description' => 'Kelola diskon dan aturan dasarnya.',
             'searchPlaceholder' => 'Cari diskon...',

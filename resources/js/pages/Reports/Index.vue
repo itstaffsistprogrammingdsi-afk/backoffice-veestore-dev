@@ -49,11 +49,11 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
 const modules = [
     { title: 'Dashboard Analitik', description: 'Ringkasan performa penjualan dan operasional.', icon: 'mdi-view-dashboard-outline', url: 'dashboard', action: 'Buka Dashboard' },
     { title: 'VEE Assistant', description: 'Tanya data operasional dengan bahasa natural dan jawaban dari data terkini.', icon: 'mdi-chat-processing-outline', url: 'assistant', action: 'Buka VEE' },
-    { title: 'Monitoring', description: 'Command center, stok, omset, dan audit operasional.', icon: 'mdi-monitor-dashboard', url: 'monitoring', action: 'Buka Monitoring' },
+    { title: 'Monitoring', description: 'Pusat komando, stok, omzet, dan audit operasional.', icon: 'mdi-monitor-dashboard', url: 'monitoring', action: 'Buka Monitoring' },
     { title: 'CRM', description: 'Profil customer dan aktivitas pelanggan.', icon: 'mdi-account-heart-outline', url: 'crm', action: 'Buka CRM' },
     { title: 'Customer Demographics', description: 'Segmentasi gender, usia, wilayah, tier, dan kanal registrasi.', icon: 'mdi-account-details-outline', url: 'demographics', action: 'Buka Demografi' },
     { title: 'Customer Preference', description: 'Hubungkan usia, gender, wilayah, dan tier dengan produk yang dibeli.', icon: 'mdi-account-star-outline', url: 'preference', action: 'Buka Preferensi' },
-    { title: 'Export Saya', description: 'Unduh laporan yang sudah diproses.', icon: 'mdi-file-export-outline', url: 'exports', action: 'Lihat Export' },
+    { title: 'Ekspor Saya', description: 'Unduh laporan yang sudah diproses.', icon: 'mdi-file-export-outline', url: 'exports', action: 'Lihat Ekspor' },
 ];
 </script>
 

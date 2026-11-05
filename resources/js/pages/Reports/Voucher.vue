@@ -192,7 +192,7 @@ const formatDate = (value: string | null) => {
                 <h5 class="mb-0">Voucher Usage Report</h5>
                 <a :href="exportUrl" class="btn btn-sm btn-success">
                     <i class="mdi mdi-download me-1"></i>
-                    Export Excel
+                    Ekspor Excel
                 </a>
             </div>
             <div class="table-responsive">

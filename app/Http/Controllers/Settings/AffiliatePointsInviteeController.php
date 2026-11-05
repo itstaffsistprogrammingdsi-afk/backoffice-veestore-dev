@@ -16,7 +16,7 @@ class AffiliatePointsInviteeController extends Controller
         $data = AppSetting::getValue(self::KEY, ['points' => 10]);
 
         return Inertia::render('Settings/AffiliatePoints', [
-            'title' => 'Affiliate Points - Invitee',
+            'title' => 'Poin Afiliasi - Undangan',
             'description' => 'Jumlah poin yang diterima invitee setelah referral berhasil.',
             'fieldLabel' => 'Reward untuk Invitee (LP)',
             'points' => (int) ($data['points'] ?? 10),
@@ -33,6 +33,6 @@ class AffiliatePointsInviteeController extends Controller
 
         return redirect()
             ->route('settings.app.affiliate-points.invitee.edit')
-            ->with('success', 'Pengaturan reward affiliate (invitee) berhasil diperbarui.');
+            ->with('success', 'Pengaturan hadiah afiliasi (undangan) berhasil diperbarui.');
     }
 }

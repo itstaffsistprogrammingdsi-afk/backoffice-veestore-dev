@@ -65,7 +65,7 @@ const exportCustomers = () => downloadExcelTable('CRM-Customer-Profiles', 'Custo
                 <p>Pilih customer untuk melihat profil dan riwayat transaksi.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportCustomers">
-                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
             </button>
         </div>
 

@@ -224,18 +224,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Outbound Operations" />
+    <Head title="Operasional Barang Keluar" />
     <div class="outbound-page">
         <section class="report-header outbound-header">
             <div>
                 <span class="outbound-eyebrow">Operations / Warehouse</span>
-                <h1>Outbound Operations</h1>
+                <h1>Operasional Barang Keluar</h1>
                 <p>Pantau antrean QC, release, resi ecommerce, surat jalan store, dan detail barang yang keluar dari gudang.</p>
             </div>
             <div class="outbound-hero-actions">
                 <Link :href="props.urls.stock" class="outbound-hero-button">
                     <i class="mdi mdi-clipboard-list-outline me-1"></i>
-                    Stock Operations
+                    Operasional Stok
                 </Link>
                 <Link :href="props.urls.inbound" class="outbound-hero-button">
                     <i class="mdi mdi-tray-arrow-down me-1"></i>
@@ -243,7 +243,7 @@ onBeforeUnmount(() => {
                 </Link>
                 <Link :href="props.urls.monitoring" class="outbound-hero-button outbound-hero-button-outline">
                     <i class="mdi mdi-chart-box-outline me-1"></i>
-                    Monitoring Outbound
+                    Pemantauan Barang Keluar
                 </Link>
             </div>
         </section>

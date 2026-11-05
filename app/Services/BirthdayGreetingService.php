@@ -61,7 +61,7 @@ class BirthdayGreetingService
         return str_replace(
             ['{nama}', '{email}', '{bulan}'],
             [
-                $customer->name ?: 'Customer',
+                $customer->name ?: 'Pelanggan',
                 $customer->email ?: '',
                 $this->monthLabel($customer->date_of_birth?->month ?? (int) now()->month),
             ],
@@ -82,7 +82,7 @@ class BirthdayGreetingService
         }
 
         if ($result['skipped'] > 0) {
-            $parts[] = "{$result['skipped']} customer tanpa email dilewati";
+            $parts[] = "{$result['skipped']} pelanggan tanpa email dilewati";
         }
 
         return $parts === []

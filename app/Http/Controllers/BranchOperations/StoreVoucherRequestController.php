@@ -186,13 +186,13 @@ class StoreVoucherRequestController extends Controller
         if (! $requestRow) {
             return redirect()
                 ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Data request voucher tidak ditemukan.');
+                ->with('error', 'Data permintaan voucher tidak ditemukan.');
         }
 
         if ((string) $requestRow->status !== 'pending') {
             return redirect()
                 ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Hanya request dengan status pending yang dapat di-approve.');
+                ->with('error', 'Hanya permintaan berstatus menunggu yang dapat disetujui.');
         }
 
         DB::table('store_voucher_requests')
@@ -206,7 +206,7 @@ class StoreVoucherRequestController extends Controller
 
         return redirect()
             ->route('branch-operations.request-voucher.index')
-            ->with('success', 'Request voucher berhasil di-approve tanpa membuat voucher baru.');
+            ->with('success', 'Permintaan voucher berhasil disetujui tanpa membuat voucher baru.');
     }
 
     public function reject(Request $request, string $id)
@@ -218,13 +218,13 @@ class StoreVoucherRequestController extends Controller
         if (! $requestRow) {
             return redirect()
                 ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Data request voucher tidak ditemukan.');
+                ->with('error', 'Data permintaan voucher tidak ditemukan.');
         }
 
         if ((string) $requestRow->status !== 'pending') {
             return redirect()
                 ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Hanya request dengan status pending yang dapat di-reject.');
+                ->with('error', 'Hanya permintaan berstatus menunggu yang dapat ditolak.');
         }
 
         DB::table('store_voucher_requests')
@@ -238,6 +238,6 @@ class StoreVoucherRequestController extends Controller
 
         return redirect()
             ->route('branch-operations.request-voucher.index')
-            ->with('success', 'Request voucher berhasil di-reject.');
+            ->with('success', 'Permintaan voucher berhasil ditolak.');
     }
 }

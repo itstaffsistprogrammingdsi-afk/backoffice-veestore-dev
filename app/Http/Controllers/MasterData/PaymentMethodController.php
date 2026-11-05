@@ -40,7 +40,7 @@ class PaymentMethodController extends Controller
             ->all();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Payment Methods',
+            'title' => 'Metode Pembayaran',
             'description' => 'Kelola metode pembayaran yang dipakai transaksi store dan ecommerce.',
             'searchPlaceholder' => 'Cari metode pembayaran...',
             'items' => $methods,
@@ -75,7 +75,7 @@ class PaymentMethodController extends Controller
         PaymentMethod::create($data);
 
         return redirect()->route('master-data.payment-methods.index')
-            ->with('success', 'Payment Method berhasil ditambahkan.');
+            ->with('success', 'Metode pembayaran berhasil ditambahkan.');
     }
 
     public function update(Request $request, PaymentMethod $payment_method)
@@ -93,13 +93,13 @@ class PaymentMethodController extends Controller
         $payment_method->update($data);
 
         return redirect()->route('master-data.payment-methods.index')
-            ->with('success', 'Payment Method berhasil diperbarui.');
+            ->with('success', 'Metode pembayaran berhasil diperbarui.');
     }
 
     public function destroy(PaymentMethod $payment_method)
     {
         $payment_method->delete();
 
-        return back()->with('success', 'Payment Method berhasil dihapus.');
+        return back()->with('success', 'Metode pembayaran berhasil dihapus.');
     }
 }

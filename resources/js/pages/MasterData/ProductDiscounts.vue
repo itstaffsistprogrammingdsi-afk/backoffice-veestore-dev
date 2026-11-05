@@ -145,12 +145,12 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
 </script>
 
 <template>
-    <Head title="Product Discounts" />
+    <Head title="Diskon Produk" />
     <div class="pd-page">
         <div class="pd-header">
             <div>
                 <span class="pd-eyebrow">Promo / Produk Diskon</span>
-                <h1>Product Discounts</h1>
+                <h1>Diskon Produk</h1>
                 <p>Atur produk yang mengikuti diskon dan cakupannya.</p>
             </div>
         </div>

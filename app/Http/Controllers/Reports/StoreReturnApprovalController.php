@@ -202,7 +202,7 @@ class StoreReturnApprovalController extends Controller
 
         $nowStatus = strtolower((string) $row->status);
         if (! in_array($nowStatus, ['pending_approval', 'requested'], true)) {
-            return back()->withErrors(['status' => 'Retur bukan status pending_approval/requested.']);
+            return back()->withErrors(['status' => 'Retur tidak berada pada status menunggu persetujuan.']);
         }
 
         // Wajib pilih warehouse & valid (hanya warehouse aktif, samakan dengan master data)
@@ -261,7 +261,7 @@ class StoreReturnApprovalController extends Controller
                 ]);
         });
 
-        return back()->with('success', 'Retur telah di-approve.');
+        return back()->with('success', 'Retur telah disetujui.');
     }
 
     public function reject(string $returnId)

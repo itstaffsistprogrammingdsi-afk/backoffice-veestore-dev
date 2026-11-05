@@ -129,13 +129,13 @@ const statusClass = (status: string) => {
 </script>
 
 <template>
-    <Head title="Request Labels" />
+    <Head title="Permintaan Label" />
 
     <div class="management-page">
         <div class="management-header">
             <div>
                 <span class="management-eyebrow">Management</span>
-                <h1>Request Labels</h1>
+                <h1>Permintaan Label</h1>
                 <p>Tinjau dan proses permintaan cetak label dari toko.</p>
             </div>
         </div>

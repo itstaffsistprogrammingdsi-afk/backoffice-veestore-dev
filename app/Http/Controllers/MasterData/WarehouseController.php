@@ -90,7 +90,7 @@ class WarehouseController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Warehouses',
+            'title' => 'Gudang',
             'description' => 'Kelola gudang, kontak, dan lokasi operasional.',
             'searchPlaceholder' => 'Cari warehouse...',
             'items' => $warehouses,

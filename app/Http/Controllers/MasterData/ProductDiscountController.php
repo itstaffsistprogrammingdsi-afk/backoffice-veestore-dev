@@ -338,7 +338,7 @@ class ProductDiscountController extends Controller
         }
 
         return redirect()->route('master-data.products-diskons.index')
-            ->with('success', 'Produk diskon berhasil diupdate.');
+            ->with('success', 'Produk diskon berhasil diperbarui.');
     }
 
     public function destroy(Request $request)

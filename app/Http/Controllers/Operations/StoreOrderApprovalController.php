@@ -281,8 +281,8 @@ class StoreOrderApprovalController extends Controller
         $total = number_format($result['total_allocated'], 0, ',', '.');
         $orderCount = count($result['order_ids']);
         $message = $orderCount > 1
-            ? "Order disetujui dan dipecah menjadi {$orderCount} order gudang. Total {$total} pcs dialokasikan."
-            : "Order disetujui. Total {$total} pcs dialokasikan ke gudang terpilih.";
+            ? "Pesanan disetujui dan dipecah menjadi {$orderCount} pesanan gudang. Total {$total} pcs dialokasikan."
+            : "Pesanan disetujui. Total {$total} pcs dialokasikan ke gudang terpilih.";
 
         return back()->with('success', $message);
     }
@@ -291,7 +291,7 @@ class StoreOrderApprovalController extends Controller
     {
         if (strtolower((string) $order->status) !== 'requested') {
             return back()->withErrors([
-                'allocations' => 'Hanya order berstatus menunggu approval yang dapat ditolak.',
+                'allocations' => 'Hanya pesanan berstatus menunggu persetujuan yang dapat ditolak.',
             ]);
         }
 
@@ -316,7 +316,7 @@ class StoreOrderApprovalController extends Controller
             }
         });
 
-        return back()->with('success', 'Order ditolak. Stok yang sempat dipesan sudah dilepaskan.');
+        return back()->with('success', 'Pesanan ditolak. Stok yang sempat dipesan sudah dilepaskan.');
     }
 
     private function stats(): array

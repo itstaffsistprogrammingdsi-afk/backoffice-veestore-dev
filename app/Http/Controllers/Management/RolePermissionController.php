@@ -90,7 +90,7 @@ class RolePermissionController extends Controller
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        return back()->with('success', 'Permissions berhasil diperbarui.');
+        return back()->with('success', 'Hak akses berhasil diperbarui.');
     }
 
     private function actionLabel(string $action): string

@@ -20,15 +20,15 @@ class MasterDataModuleNavigation
     ];
 
     private const ITEMS = [
-        'products' => ['label' => 'Products', 'icon' => 'mdi-package-variant', 'route' => 'master-data.products.index', 'permission' => 'view master-data-products'],
-        'product-prices' => ['label' => 'Product Prices', 'icon' => 'mdi-currency-usd', 'route' => 'master-data.product-prices.index', 'permission' => 'view master-data-product-prices'],
-        'product-specifications' => ['label' => 'Product Specifications', 'icon' => 'mdi-format-list-bulleted', 'route' => 'master-data.product-specifications.index', 'permission' => 'view master-data-product-specifications'],
-        'categories' => ['label' => 'Categories', 'icon' => 'mdi-shape-outline', 'route' => 'master-data.product-categories.index', 'permission' => 'view master-data-product-categories'],
-        'category-groups' => ['label' => 'Category Groups', 'icon' => 'mdi-layers-outline', 'route' => 'master-data.product-category-groups.index', 'permission' => 'view master-data-product-categories'],
-        'brands' => ['label' => 'Brands', 'icon' => 'mdi-tag-outline', 'route' => 'master-data.brands.index', 'permission' => 'view master-data-brands'],
-        'units' => ['label' => 'Units', 'icon' => 'mdi-ruler', 'route' => 'master-data.units.index', 'permission' => 'view master-data-units'],
-        'suppliers' => ['label' => 'Suppliers', 'icon' => 'mdi-truck-delivery-outline', 'route' => 'master-data.suppliers.index', 'permission' => 'view master-data-suppliers'],
-        'item-conditions' => ['label' => 'Item Conditions', 'icon' => 'mdi-clipboard-check-outline', 'route' => 'master-data.item-conditions.index', 'permission' => 'view master-data-item-conditions'],
+        'products' => ['label' => 'Produk', 'icon' => 'mdi-package-variant', 'route' => 'master-data.products.index', 'permission' => 'view master-data-products'],
+        'product-prices' => ['label' => 'Harga Produk', 'icon' => 'mdi-currency-usd', 'route' => 'master-data.product-prices.index', 'permission' => 'view master-data-product-prices'],
+        'product-specifications' => ['label' => 'Spesifikasi Produk', 'icon' => 'mdi-format-list-bulleted', 'route' => 'master-data.product-specifications.index', 'permission' => 'view master-data-product-specifications'],
+        'categories' => ['label' => 'Kategori', 'icon' => 'mdi-shape-outline', 'route' => 'master-data.product-categories.index', 'permission' => 'view master-data-product-categories'],
+        'category-groups' => ['label' => 'Grup Kategori', 'icon' => 'mdi-layers-outline', 'route' => 'master-data.product-category-groups.index', 'permission' => 'view master-data-product-categories'],
+        'brands' => ['label' => 'Merek', 'icon' => 'mdi-tag-outline', 'route' => 'master-data.brands.index', 'permission' => 'view master-data-brands'],
+        'units' => ['label' => 'Satuan', 'icon' => 'mdi-ruler', 'route' => 'master-data.units.index', 'permission' => 'view master-data-units'],
+        'suppliers' => ['label' => 'Pemasok', 'icon' => 'mdi-truck-delivery-outline', 'route' => 'master-data.suppliers.index', 'permission' => 'view master-data-suppliers'],
+        'item-conditions' => ['label' => 'Kondisi Barang', 'icon' => 'mdi-clipboard-check-outline', 'route' => 'master-data.item-conditions.index', 'permission' => 'view master-data-item-conditions'],
     ];
 
     public static function forRequest(Request $request): ?array

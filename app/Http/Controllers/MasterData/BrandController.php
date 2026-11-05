@@ -25,7 +25,7 @@ class BrandController extends Controller
         $brands = $query->paginate($q);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Brands',
+            'title' => 'Merek',
             'eyebrow' => 'Master Produk / Brand',
             'description' => 'Kelola brand produk dan logo.',
             'searchPlaceholder' => 'Cari brand...',
@@ -57,13 +57,13 @@ class BrandController extends Controller
 
             return redirect()
                 ->route('master-data.brands.index')
-                ->with('success', 'Brand berhasil ditambahkan.');
+                ->with('success', 'Merek berhasil ditambahkan.');
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withInput()
-                ->with('error', 'Brand gagal disimpan. Silakan coba kembali.');
+                ->with('error', 'Merek gagal disimpan. Silakan coba kembali.');
         }
     }
 
@@ -78,13 +78,13 @@ class BrandController extends Controller
 
             return redirect()
                 ->route('master-data.brands.index')
-                ->with('success', 'Brand berhasil diperbarui.');
+                ->with('success', 'Merek berhasil diperbarui.');
         } catch (Throwable $exception) {
             report($exception);
 
             return back()
                 ->withInput()
-                ->with('error', 'Brand gagal diperbarui. Silakan coba kembali.');
+                ->with('error', 'Merek gagal diperbarui. Silakan coba kembali.');
         }
     }
 
@@ -95,7 +95,7 @@ class BrandController extends Controller
         try {
             $action->handle($brand);
 
-            return back()->with('success', 'Brand berhasil dihapus.');
+            return back()->with('success', 'Merek berhasil dihapus.');
         } catch (BrandInUseException $exception) {
             return back()->with('error', $exception->getMessage());
         } catch (Throwable $exception) {

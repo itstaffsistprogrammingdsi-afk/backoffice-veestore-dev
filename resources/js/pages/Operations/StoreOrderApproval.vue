@@ -634,11 +634,11 @@ onBeforeUnmount(() => {
             <div class="approval-hero-actions">
                 <Link :href="props.urls.stock" class="approval-hero-button">
                     <i class="mdi mdi-clipboard-list-outline me-1"></i>
-                    Store Stock
+                    Stok Toko
                 </Link>
                 <Link :href="props.urls.inbound" class="approval-hero-button approval-hero-button-outline">
                     <i class="mdi mdi-tray-arrow-down me-1"></i>
-                    Store Inbound
+                    Barang Masuk Toko
                 </Link>
             </div>
         </section>

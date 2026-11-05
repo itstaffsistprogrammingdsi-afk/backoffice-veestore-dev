@@ -167,7 +167,7 @@ const formatDate = (value: string | null) => {
         <div class="branch-header">
             <div>
                 <span class="branch-eyebrow">Branch Operations</span>
-                <h1>Request Label</h1>
+                <h1>Permintaan Label</h1>
                 <p>Riwayat permintaan cetak label dari toko.</p>
             </div>
         </div>
@@ -187,8 +187,8 @@ const formatDate = (value: string | null) => {
                         <input v-model="form.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Store</label>
-                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Store" search-placeholder="Cari store..." />
+                        <label class="form-label">Toko</label>
+                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Status</label>
@@ -199,11 +199,11 @@ const formatDate = (value: string | null) => {
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Peminta</label>
-                        <SearchableSelect v-model="form.requested_by" :options="userOptions" placeholder="Semua User" search-placeholder="Cari user..." />
+                        <SearchableSelect v-model="form.requested_by" :options="userOptions" placeholder="Semua Pengguna" search-placeholder="Cari pengguna..." />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label">Cari</label>
-                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Request, store..." />
+                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko..." />
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Filter</button>
@@ -219,13 +219,13 @@ const formatDate = (value: string | null) => {
                     <thead>
                         <tr>
                             <th>Tanggal</th>
-                            <th>Request</th>
-                            <th>Store</th>
+                            <th>Permintaan</th>
+                            <th>Toko</th>
                             <th>Peminta</th>
                             <th>Alasan</th>
                             <th>Status</th>
-                            <th class="text-end">Item</th>
-                            <th class="text-end">Printed</th>
+                            <th class="text-end">Barang</th>
+                            <th class="text-end">Dicetak</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>

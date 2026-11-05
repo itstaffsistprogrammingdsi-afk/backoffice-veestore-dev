@@ -25,7 +25,7 @@ class RfidTagController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'RFID Tags',
+            'title' => 'Tag RFID',
             'description' => 'Kelola serial number dan UID RFID.',
             'searchPlaceholder' => 'Cari serial atau UID...',
             'items' => $tags,

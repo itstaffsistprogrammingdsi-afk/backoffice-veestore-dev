@@ -59,7 +59,7 @@ class WarehouseStockBarrierController extends Controller
 
         return redirect()
             ->route('monitoring.stok-barier-gudang.index')
-            ->with('success', 'Stok barier warehouse dibuat.');
+            ->with('success', 'Stok barier gudang dibuat.');
     }
 
     public function update(Request $request, WarehouseStockBarrier $stok_barier_gudang)
@@ -69,7 +69,7 @@ class WarehouseStockBarrierController extends Controller
 
         return redirect()
             ->route('monitoring.stok-barier-gudang.index')
-            ->with('success', 'Stok barier warehouse diupdate.');
+            ->with('success', 'Stok barier gudang diperbarui.');
     }
 
     public function destroy(WarehouseStockBarrier $stok_barier_gudang)
@@ -78,7 +78,7 @@ class WarehouseStockBarrierController extends Controller
 
         return redirect()
             ->route('monitoring.stok-barier-gudang.index')
-            ->with('success', 'Stok barier warehouse dihapus.');
+            ->with('success', 'Stok barier gudang dihapus.');
     }
 
     protected function validated(Request $request, $ignoreId = null): array

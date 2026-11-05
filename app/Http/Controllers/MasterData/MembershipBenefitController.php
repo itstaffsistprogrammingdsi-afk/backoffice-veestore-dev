@@ -39,7 +39,7 @@ class MembershipBenefitController extends Controller
         $memberships = Membership::orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Membership Benefits',
+            'title' => 'Manfaat Keanggotaan',
             'eyebrow' => 'Loyalty / Benefit',
             'description' => 'Kelola benefit setiap tier membership.',
             'searchPlaceholder' => 'Cari benefit...',
@@ -78,7 +78,7 @@ class MembershipBenefitController extends Controller
         MembershipBenefit::create($data);
 
         return redirect()->route('master-data.membership-benefits.index')
-            ->with('success', 'Benefit berhasil ditambahkan.');
+            ->with('success', 'Manfaat berhasil ditambahkan.');
     }
 
     public function update(Request $request, MembershipBenefit $membership_benefit)
@@ -93,13 +93,13 @@ class MembershipBenefitController extends Controller
         $membership_benefit->update($data);
 
         return redirect()->route('master-data.membership-benefits.index')
-            ->with('success', 'Benefit berhasil diperbarui.');
+            ->with('success', 'Manfaat berhasil diperbarui.');
     }
 
     public function destroy(MembershipBenefit $membership_benefit)
     {
         $membership_benefit->delete();
 
-        return back()->with('success', 'Benefit berhasil dihapus.');
+        return back()->with('success', 'Manfaat berhasil dihapus.');
     }
 }

@@ -71,7 +71,7 @@ class StoreStockBarrierController extends Controller
 
         return redirect()
             ->route('monitoring.stok-barier-cabang.index')
-            ->with('success', 'Stok barier berhasil diupdate.');
+            ->with('success', 'Stok barier berhasil diperbarui.');
     }
 
     public function destroy(StoreStockBarrier $barrier)

@@ -31,7 +31,7 @@ class MembershipController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Memberships',
+            'title' => 'Keanggotaan',
             'eyebrow' => 'Loyalty / Membership',
             'description' => 'Kelola tier membership pelanggan.',
             'searchPlaceholder' => 'Cari membership...',
@@ -62,7 +62,7 @@ class MembershipController extends Controller
 
         return redirect()
             ->route('master-data.memberships.index')
-            ->with('success', 'Membership berhasil ditambahkan.');
+            ->with('success', 'Keanggotaan berhasil ditambahkan.');
     }
 
     public function update(Request $request, Membership $membership)
@@ -80,13 +80,13 @@ class MembershipController extends Controller
 
         return redirect()
             ->route('master-data.memberships.index')
-            ->with('success', 'Membership berhasil diperbarui.');
+            ->with('success', 'Keanggotaan berhasil diperbarui.');
     }
 
     public function destroy(Membership $membership)
     {
         $membership->delete();
 
-        return back()->with('success', 'Membership berhasil dihapus.');
+        return back()->with('success', 'Keanggotaan berhasil dihapus.');
     }
 }

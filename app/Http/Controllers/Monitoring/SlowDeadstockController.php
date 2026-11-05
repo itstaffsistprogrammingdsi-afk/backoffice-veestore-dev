@@ -89,7 +89,7 @@ class SlowDeadstockController extends Controller
         }
 
         if (!$warehouseId) {
-            return back()->with('error', 'Warehouse harus dipilih terlebih dahulu.');
+            return back()->with('error', 'Gudang harus dipilih terlebih dahulu.');
         }
 
         $rows = $this->slowMoving($warehouseId, $startDate, $endDate);
@@ -127,7 +127,7 @@ class SlowDeadstockController extends Controller
         }
 
         if (!$warehouseId) {
-            return back()->with('error', 'Warehouse harus dipilih terlebih dahulu.');
+            return back()->with('error', 'Gudang harus dipilih terlebih dahulu.');
         }
 
         $rows = $this->deadStock($warehouseId, $startDate);

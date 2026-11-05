@@ -258,22 +258,22 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 </script>
 
 <template>
-    <Head title="Store Stock Operations" />
+    <Head title="Operasional Stok Toko" />
     <div class="stock-page">
         <section class="stock-hero">
             <div>
                 <span class="stock-eyebrow">Operations / Store</span>
-                <h1>Store Stock Operations</h1>
+                <h1>Operasional Stok Toko</h1>
                 <p>Cek ketersediaan stok per toko, pantau barrier, aging, movement, dan FEFO/FIFO untuk kebutuhan replenishment store.</p>
             </div>
             <div class="stock-hero-actions">
                 <Link :href="props.urls.store_inbound" class="stock-hero-button">
                     <i class="mdi mdi-tray-arrow-down me-1"></i>
-                    Store Inbound
+                    Barang Masuk Toko
                 </Link>
                 <Link :href="props.urls.store_outbound" class="stock-hero-button">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
-                    Store Outbound
+                    Barang Keluar Toko
                 </Link>
                 <Link :href="props.urls.stock_barriers" class="stock-hero-button stock-hero-button-outline">
                     <i class="mdi mdi-tune-variant me-1"></i>
@@ -510,7 +510,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                         <table class="table table-sm mb-0 stock-detail-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Store</th>
+                                                    <th>Toko</th>
                                                     <th class="text-end">On Hand</th>
                                                     <th class="text-end">Reserved</th>
                                                     <th class="text-end">Available</th>
@@ -583,7 +583,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                     <thead>
                         <tr>
                             <th>Produk</th>
-                            <th>Store</th>
+                            <th>Toko</th>
                             <th class="text-end">Available</th>
                             <th class="text-end">Barrier</th>
                             <th v-if="props.showThreshold" class="text-end">Threshold</th>
@@ -651,7 +651,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div class="stock-recon-body">
                 <div class="table-responsive">
                     <table class="table table-sm mb-0 stock-detail-table">
-                        <thead><tr><th>Store</th><th class="text-end">Inventory Qty</th><th class="text-end">Inventory Threshold</th><th class="text-end">Display Qty</th><th class="text-end">Display Threshold</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Toko</th><th class="text-end">Qty Inventaris</th><th class="text-end">Ambang Inventaris</th><th class="text-end">Qty Display</th><th class="text-end">Ambang Display</th><th>Status</th></tr></thead>
                         <tbody>
                             <tr v-for="row in props.storeThresholds" :key="row.store_id">
                                 <td><strong>{{ row.store_name }}</strong><small>{{ row.store_code || '-' }}</small></td>
@@ -715,7 +715,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             </summary>
             <div class="table-responsive">
                 <table class="table table-sm mb-0 stock-detail-table">
-                    <thead><tr><th>Store</th><th>Produk</th><th class="text-end">Qty Hilang</th><th>Terakhir Update</th></tr></thead>
+                    <thead><tr><th>Toko</th><th>Produk</th><th class="text-end">Qty Hilang</th><th>Terakhir Diperbarui</th></tr></thead>
                     <tbody>
                         <tr v-for="row in props.missingStock" :key="`${row.store_id}-${row.product_id}`">
                             <td><strong>{{ row.store_name }}</strong><small>{{ row.store_code || '-' }}</small></td>

@@ -109,12 +109,12 @@ class LabelPrintRequestApprovalController extends Controller
 
         if (! $labelRequest) {
             return $this->redirectAfterDecision($request)
-                ->with('error', 'Request label tidak ditemukan.');
+                ->with('error', 'Permintaan label tidak ditemukan.');
         }
 
         if ((string) $labelRequest->status !== 'pending') {
             return $this->redirectAfterDecision($request)
-                ->with('error', 'Hanya request label berstatus pending yang dapat diproses.');
+                ->with('error', 'Hanya permintaan label berstatus menunggu yang dapat diproses.');
         }
 
         DB::table('store_label_print_requests')
@@ -129,8 +129,8 @@ class LabelPrintRequestApprovalController extends Controller
 
         return $this->redirectAfterDecision($request)
             ->with('success', $status === 'approved'
-                ? 'Request label berhasil disetujui.'
-                : 'Request label berhasil ditolak.');
+                ? 'Permintaan label berhasil disetujui.'
+                : 'Permintaan label berhasil ditolak.');
     }
 
     private function redirectAfterDecision(Request $request)

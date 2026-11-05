@@ -213,14 +213,14 @@ const paymentStatusClass = (status: string | null | undefined) => {
 </script>
 
 <template>
-    <Head title="Ecommerce Orders" />
+    <Head title="Pesanan E-commerce" />
 
     <div class="ecommerce-page">
         <div class="ecommerce-header">
             <div>
                 <span class="ecommerce-eyebrow">Ecommerce</span>
-                <h1>Orders</h1>
-                <p>Kelola order ecommerce dan lokasi pemenuhan stok.</p>
+                <h1>Pesanan</h1>
+                <p>Kelola pesanan e-commerce dan lokasi pemenuhan stok.</p>
             </div>
         </div>
 
@@ -232,7 +232,7 @@ const paymentStatusClass = (status: string | null | undefined) => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label class="form-label">Cari</label>
-                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Order number, produk..." />
+                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, produk..." />
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label">Status</label>
@@ -242,20 +242,20 @@ const paymentStatusClass = (status: string | null | undefined) => {
                         </select>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Handler</label>
+                        <label class="form-label">Penanganan</label>
                         <select v-model="form.handler_type" class="form-select form-select-sm">
                             <option value="">Semua</option>
-                            <option value="store">Store</option>
-                            <option value="warehouse">Warehouse</option>
+                            <option value="store">Toko</option>
+                            <option value="warehouse">Gudang</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Store</label>
-                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." />
+                        <label class="form-label">Toko</label>
+                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label">Warehouse</label>
-                        <SearchableSelect v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
+                        <label class="form-label">Gudang</label>
+                        <SearchableSelect v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua gudang" search-placeholder="Cari gudang..." />
                     </div>
                     <div class="col-12 col-md-4 col-lg-3">
                         <label class="form-label">Metode Pembayaran</label>
@@ -289,13 +289,13 @@ const paymentStatusClass = (status: string | null | undefined) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Order</th>
+                            <th>Pesanan</th>
                             <th>Tanggal</th>
                             <th>Status</th>
                             <th>Pembayaran</th>
-                            <th>Store</th>
-                            <th>Warehouse</th>
-                            <th class="text-end">Item</th>
+                            <th>Toko</th>
+                            <th>Gudang</th>
+                            <th class="text-end">Barang</th>
                             <th class="text-end">Total</th>
                             <th>Aksi</th>
                         </tr>
@@ -311,8 +311,8 @@ const paymentStatusClass = (status: string | null | undefined) => {
                                 <td><span class="badge" :class="statusClass(order.status)">{{ order.status }}</span></td>
                                 <td>
                                     <div class="fw-semibold">{{ order.payment_method_name || order.payment_method_code || '-' }}</div>
-                                    <span class="badge" :class="paymentStatusClass(order.payment?.status)">{{ order.payment?.status ?? 'tanpa payment' }}</span>
-                                    <small v-if="Number(order.payment_fee) > 0" class="text-muted d-block">Fee {{ formatCurrency(order.payment_fee) }}</small>
+                                    <span class="badge" :class="paymentStatusClass(order.payment?.status)">{{ order.payment?.status ?? 'tanpa pembayaran' }}</span>
+                                    <small v-if="Number(order.payment_fee) > 0" class="text-muted d-block">Biaya {{ formatCurrency(order.payment_fee) }}</small>
                                 </td>
                                 <td>{{ order.store?.name ?? '-' }}</td>
                                 <td>{{ order.warehouse?.name ?? '-' }}</td>
@@ -325,7 +325,7 @@ const paymentStatusClass = (status: string | null | undefined) => {
                                         type="button"
                                         @click="startEdit(order)"
                                     >
-                                        Edit
+                                        Ubah
                                     </button>
                                     <span v-else class="text-muted small">-</span>
                                 </td>
@@ -340,19 +340,19 @@ const paymentStatusClass = (status: string | null | undefined) => {
                                             </select>
                                         </div>
                                         <div class="col-md-2">
-                                            <label class="form-label">Handler</label>
+                                            <label class="form-label">Penanganan</label>
                                             <select v-model="editForm.handler_type" class="form-select form-select-sm">
-                                                <option value="store">Store</option>
-                                                <option value="warehouse">Warehouse</option>
+                                                <option value="store">Toko</option>
+                                                <option value="warehouse">Gudang</option>
                                             </select>
                                         </div>
                                         <div v-if="editForm.handler_type === 'store'" class="col-md-3">
-                                            <label class="form-label">Store</label>
-                                            <SearchableSelect v-model="editForm.store_id" :options="storeOptions" placeholder="Pilih store" search-placeholder="Cari store..." />
+                                            <label class="form-label">Toko</label>
+                                            <SearchableSelect v-model="editForm.store_id" :options="storeOptions" placeholder="Pilih toko" search-placeholder="Cari toko..." />
                                         </div>
                                         <div v-else class="col-md-3">
-                                            <label class="form-label">Warehouse</label>
-                                            <SearchableSelect v-model="editForm.warehouse_id" :options="warehouseOptions" placeholder="Pilih warehouse" search-placeholder="Cari warehouse..." />
+                                            <label class="form-label">Gudang</label>
+                                            <SearchableSelect v-model="editForm.warehouse_id" :options="warehouseOptions" placeholder="Pilih gudang" search-placeholder="Cari gudang..." />
                                         </div>
                                         <div class="col-md-3 d-flex gap-2">
                                             <button class="btn btn-sm btn-primary" type="button" @click="save(order)">Simpan</button>

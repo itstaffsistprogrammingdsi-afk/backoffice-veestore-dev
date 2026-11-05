@@ -131,13 +131,13 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Loyalty Point Mutations" />
+    <Head title="Mutasi Poin Loyalitas" />
 
     <div class="loyalty-page">
         <div class="loyalty-header">
             <div>
                 <span class="loyalty-eyebrow">Loyalty / Mutations</span>
-                <h1>Loyalty Point Mutations</h1>
+                <h1>Mutasi Poin Loyalitas</h1>
                 <p>Riwayat penambahan, redeem, expire, dan penyesuaian poin pelanggan.</p>
             </div>
         </div>

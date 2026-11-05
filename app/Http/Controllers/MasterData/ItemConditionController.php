@@ -56,7 +56,7 @@ class ItemConditionController extends Controller
         $statuses = $this->getAllowedStatuses();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Item Conditions',
+            'title' => 'Kondisi Barang',
             'eyebrow' => 'Master Produk / Kondisi Barang',
             'description' => 'Kelola kondisi item.',
             'searchPlaceholder' => 'Cari kondisi...',
@@ -172,7 +172,7 @@ class ItemConditionController extends Controller
 
             return redirect()
                 ->route('master-data.item-conditions.index')
-                ->with('success', 'Item Condition berhasil ditambahkan.');
+                ->with('success', 'Kondisi barang berhasil ditambahkan.');
         } catch (ValidationException $exception) {
             if ($exception->errorBag === 'default') {
                 $exception->errorBag = 'createCondition';
@@ -327,7 +327,7 @@ class ItemConditionController extends Controller
 
             return redirect()
                 ->route('master-data.item-conditions.index')
-                ->with('success', 'Item Condition berhasil diperbarui.');
+                ->with('success', 'Kondisi barang berhasil diperbarui.');
         } catch (ValidationException $exception) {
             if ($exception->errorBag === 'default') {
                 $exception->errorBag = 'editCondition';

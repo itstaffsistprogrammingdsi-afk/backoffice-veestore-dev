@@ -34,7 +34,7 @@ class ProductCategoryGroupController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Product Category Groups',
+            'title' => 'Grup Kategori Produk',
             'eyebrow' => 'Master Produk / Kategori',
             'description' => 'Kelompokkan kategori produk agar katalog lebih terstruktur.',
             'searchPlaceholder' => 'Cari grup kategori...',

@@ -88,6 +88,6 @@ class UserRoleController extends Controller
             }
         });
 
-        return back()->with('success', 'Role user berhasil diperbarui.');
+        return back()->with('success', 'Peran pengguna berhasil diperbarui.');
     }
 }

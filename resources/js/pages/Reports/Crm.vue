@@ -94,13 +94,13 @@ function topValue(row: Record<string, any>, keys: string[]) {
             <div>
                 <span class="report-eyebrow">Reports</span>
                 <h1>CRM Dashboard</h1>
-                <p>Ringkasan pelanggan, transaksi, kunjungan, dan omset cabang.</p>
+                <p>Ringkasan pelanggan, transaksi, kunjungan, dan omzet cabang.</p>
             </div>
             <div class="d-flex gap-2">
                 <a :href="props.urls.customerProfiles" class="btn btn-light btn-sm">Customer Profile</a>
                 <a :href="props.urls.demographics" class="btn btn-light btn-sm">Demografi</a>
                 <a :href="props.urls.preference" class="btn btn-light btn-sm">Preferensi</a>
-                <a :href="exportUrl" class="btn btn-light btn-sm"><i class="mdi mdi-download me-1"></i>Export</a>
+                <a :href="exportUrl" class="btn btn-light btn-sm"><i class="mdi mdi-download me-1"></i>Ekspor</a>
             </div>
         </div>
 
@@ -143,8 +143,8 @@ function topValue(row: Record<string, any>, keys: string[]) {
             </div>
             <div class="col-12">
                 <div class="card report-card">
-                    <div class="card-header"><h6 class="mb-0">Omset Cabang</h6></div>
-                    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Store</th><th class="text-end">Store Omset</th><th class="text-end">Ecommerce Omset</th><th class="text-end">Total</th></tr></thead><tbody>
+                    <div class="card-header"><h6 class="mb-0">Omzet Cabang</h6></div>
+                    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Toko</th><th class="text-end">Omzet Toko</th><th class="text-end">Omzet E-commerce</th><th class="text-end">Total</th></tr></thead><tbody>
                         <tr v-for="row in branchOmsetRows" :key="row.store_id ?? row.store_name"><td>{{ row.store_name ?? '-' }}</td><td class="text-end">{{ formatCurrency(row.store_omset ?? 0) }}</td><td class="text-end">{{ formatCurrency(row.ecommerce_omset ?? 0) }}</td><td class="text-end fw-bold">{{ formatCurrency(row.total_omset ?? 0) }}</td></tr>
                         <tr v-if="branchOmsetRows.length === 0"><td colspan="4" class="report-empty">Belum ada data.</td></tr>
                     </tbody></table></div>

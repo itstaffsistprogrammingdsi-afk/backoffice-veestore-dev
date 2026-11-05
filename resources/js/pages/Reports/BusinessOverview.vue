@@ -423,7 +423,7 @@ const exportOverview = () => {
             <div class="overview-hero-actions">
                 <button type="button" class="overview-hero-button overview-hero-button-accent" @click="exportOverview">
                     <i class="mdi mdi-file-excel-outline me-1"></i>
-                    Export Excel
+                    Ekspor Excel
                 </button>
                 <Link :href="props.urls.monitoring" class="overview-hero-button">
                     <i class="mdi mdi-monitor-dashboard me-1"></i>
@@ -506,7 +506,7 @@ const exportOverview = () => {
                 </div>
                 <div class="overview-section-links">
                     <Link :href="props.urls.sales">Pemasukan Realtime</Link>
-                    <Link :href="props.urls.sales_omset">Omset Cabang</Link>
+                    <Link :href="props.urls.sales_omset">Omzet Cabang</Link>
                     <Link :href="props.urls.top_products">Produk Terlaris</Link>
                 </div>
             </div>

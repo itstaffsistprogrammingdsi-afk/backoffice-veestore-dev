@@ -119,7 +119,7 @@ const exportRows = () => {
                 <p>Riwayat transaksi dan kunjungan customer per channel.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportRows">
-                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
             </button>
         </div>
 

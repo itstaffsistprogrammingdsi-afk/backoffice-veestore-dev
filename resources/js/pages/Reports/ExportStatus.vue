@@ -33,7 +33,7 @@ const statusLabel = (status: string) => {
         queued: 'Permintaan export masuk antrean.',
         processing: 'Laporan sedang disiapkan.',
         completed: 'Laporan siap diunduh.',
-        failed: 'Export gagal.',
+        failed: 'Ekspor gagal.',
     };
 
     return labels[status] ?? status;
@@ -41,13 +41,13 @@ const statusLabel = (status: string) => {
 </script>
 
 <template>
-    <Head title="Status Export" />
+    <Head title="Status Ekspor" />
 
     <div class="report-page">
         <div class="report-header">
             <div>
                 <span class="report-eyebrow">Reports</span>
-                <h1>Export Laporan</h1>
+                <h1>Ekspor Laporan</h1>
                 <p>{{ props.export.filename }}</p>
             </div>
         </div>
@@ -79,7 +79,7 @@ const statusLabel = (status: string) => {
                         Periksa Status
                     </Link>
                     <Link :href="props.urls.index" class="btn btn-outline-secondary">
-                        Export Saya
+                        Ekspor Saya
                     </Link>
                 </div>
 

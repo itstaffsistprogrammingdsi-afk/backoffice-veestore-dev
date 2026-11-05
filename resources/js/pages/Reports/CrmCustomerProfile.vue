@@ -80,7 +80,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             </div>
             <div class="d-flex gap-2">
                 <Link :href="props.urls.index" class="btn btn-light btn-sm">Kembali</Link>
-                <a :href="props.urls.export" class="btn btn-light btn-sm"><i class="mdi mdi-download me-1"></i>Export</a>
+                <a :href="props.urls.export" class="btn btn-light btn-sm"><i class="mdi mdi-download me-1"></i>Ekspor</a>
             </div>
         </div>
 

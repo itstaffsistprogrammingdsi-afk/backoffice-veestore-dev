@@ -44,7 +44,7 @@ class UserManageController extends Controller
         ]);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Users',
+            'title' => 'Pengguna',
             'description' => 'Kelola user backoffice dan aksesnya.',
             'searchPlaceholder' => 'Cari user...',
             'items' => $users,
@@ -109,7 +109,7 @@ class UserManageController extends Controller
         $user->stores()->sync($data['store_access'] ? ($request->store_ids ?? []) : []); // ← simpan stores
 
         return redirect()->route('master-data.users.index')
-            ->with('success', 'User berhasil ditambahkan.');
+            ->with('success', 'Pengguna berhasil ditambahkan.');
     }
 
     public function update(Request $request, User $user)
@@ -145,7 +145,7 @@ class UserManageController extends Controller
         $user->stores()->sync($data['store_access'] ? ($request->store_ids ?? []) : []); // ← update stores
 
         return redirect()->route('master-data.users.index')
-            ->with('success', 'User berhasil diperbarui.');
+            ->with('success', 'Pengguna berhasil diperbarui.');
     }
 
     public function destroy(User $user)
@@ -155,6 +155,6 @@ class UserManageController extends Controller
         $user->stores()->detach(); // ← lepas relasi stores
         $user->delete();
 
-        return back()->with('success', 'User berhasil dihapus.');
+        return back()->with('success', 'Pengguna berhasil dihapus.');
     }
 }

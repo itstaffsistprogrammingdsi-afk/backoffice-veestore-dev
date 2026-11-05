@@ -269,7 +269,7 @@ const visitUrl = (row: CustomerRow) => `${props.urls.customers}?q=${encodeURICom
                 </Link>
                 <a :href="exportUrl" class="demo-hero-button demo-hero-button-accent">
                     <i class="mdi mdi-download me-1"></i>
-                    Export Excel
+                    Ekspor Excel
                 </a>
             </div>
         </section>

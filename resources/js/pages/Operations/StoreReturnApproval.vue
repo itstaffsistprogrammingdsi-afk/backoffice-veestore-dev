@@ -467,11 +467,11 @@ onBeforeUnmount(() => {
             <div class="return-hero-actions">
                 <Link :href="props.urls.store_outbound" class="return-hero-button">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
-                    Store Outbound
+                    Barang Keluar Toko
                 </Link>
                 <Link :href="props.urls.store_inbound" class="return-hero-button return-hero-button-outline">
                     <i class="mdi mdi-tray-arrow-down me-1"></i>
-                    Store Inbound
+                    Barang Masuk Toko
                 </Link>
             </div>
         </section>
@@ -856,7 +856,7 @@ onBeforeUnmount(() => {
                         <span v-else> Seluruh barang pada retur akan disetujui.</span>
                     </template>
                     <template v-else>
-                        Retur akan ditolak dan seluruh barang pada retur ini ditandai rejected.
+                        Retur akan ditolak dan seluruh barang pada retur ini ditandai ditolak.
                     </template>
                 </p>
                 <div class="return-confirm-summary">

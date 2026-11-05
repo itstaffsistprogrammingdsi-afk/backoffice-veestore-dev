@@ -24,11 +24,11 @@ class BirthdayGreetingRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'customer_ids.required' => 'Pilih minimal satu customer penerima.',
-            'customer_ids.array' => 'Daftar customer penerima tidak valid.',
-            'customer_ids.min' => 'Pilih minimal satu customer penerima.',
-            'customer_ids.*.uuid' => 'ID customer tidak valid.',
-            'customer_ids.*.exists' => 'Customer penerima tidak ditemukan.',
+            'customer_ids.required' => 'Pilih minimal satu pelanggan penerima.',
+            'customer_ids.array' => 'Daftar pelanggan penerima tidak valid.',
+            'customer_ids.min' => 'Pilih minimal satu pelanggan penerima.',
+            'customer_ids.*.uuid' => 'ID pelanggan tidak valid.',
+            'customer_ids.*.exists' => 'Pelanggan penerima tidak ditemukan.',
             'subject.required' => 'Subjek email wajib diisi.',
             'subject.max' => 'Subjek email maksimal 150 karakter.',
             'message.required' => 'Isi sapaan wajib diisi.',

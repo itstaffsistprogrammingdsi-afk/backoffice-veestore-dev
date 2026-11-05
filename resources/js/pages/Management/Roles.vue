@@ -106,17 +106,17 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Backoffice Roles" />
+    <Head title="Peran Backoffice" />
 
     <div class="management-page">
         <div class="management-header">
             <div>
                 <span class="management-eyebrow">Management</span>
-                <h1>Backoffice Roles</h1>
-                <p>Kelola role yang dapat diberikan ke user backoffice.</p>
+                <h1>Peran Backoffice</h1>
+                <p>Kelola peran yang dapat diberikan ke pengguna backoffice.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applySearch">
-                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari role..." />
+                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari peran..." />
                 <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="mdi mdi-magnify"></i></button>
                 <button class="btn btn-outline-secondary btn-sm" type="button" @click="resetSearch"><i class="mdi mdi-refresh"></i></button>
             </form>
@@ -129,12 +129,12 @@ const formatDate = (value: string | null) => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="createRole">
                     <div class="col-md-5">
-                        <label class="form-label">Role baru</label>
+                        <label class="form-label">Peran baru</label>
                         <input
                             v-model="createForm.name"
                             class="form-control"
                             :class="{ 'is-invalid': createForm.errors.name }"
-                            placeholder="Nama role"
+                            placeholder="Nama peran"
                             required
                         />
                         <div v-if="createForm.errors.name" class="invalid-feedback d-block">
@@ -144,7 +144,7 @@ const formatDate = (value: string | null) => {
                     <div class="col-md-3">
                         <button class="btn btn-primary" type="submit" :disabled="createForm.processing">
                             <i class="mdi mdi-plus me-1"></i>
-                            Tambah Role
+                            Tambah Peran
                         </button>
                     </div>
                 </form>
@@ -156,7 +156,7 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Nama Role</th>
+                            <th>Nama Peran</th>
                             <th>Guard</th>
                             <th>Dibuat</th>
                             <th class="text-end">Aksi</th>

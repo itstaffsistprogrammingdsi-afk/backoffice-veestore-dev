@@ -66,7 +66,7 @@ class EcommerceBannerController extends Controller
         $sizes = $this->labelsFromValues($sizeValues);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Ecommerce Banners',
+            'title' => 'Banner E-commerce',
             'description' => 'Kelola banner ecommerce.',
             'searchPlaceholder' => 'Cari banner...',
             'items' => $banners,

@@ -192,19 +192,19 @@ const orderUrl = (row: PaymentRow) => {
 </script>
 
 <template>
-    <Head title="Ecommerce Payments" />
+    <Head title="Pembayaran E-commerce" />
 
     <div class="payment-page">
         <section class="payment-header">
             <div>
                 <span class="payment-eyebrow">Ecommerce / Operasional</span>
-                <h1>Payments</h1>
-                <p>Pantau status pembayaran order ecommerce, metode, nominal, dan sisa tagihan.</p>
+                <h1>Pembayaran</h1>
+                <p>Pantau status pembayaran pesanan e-commerce, metode, nominal, dan sisa tagihan.</p>
             </div>
             <div class="payment-hero-actions">
                 <Link :href="props.urls.report" class="payment-hero-button">
                     <i class="mdi mdi-chart-box-outline me-1"></i>
-                    Payment Report
+Laporan Pembayaran
                 </Link>
             </div>
         </section>
@@ -213,7 +213,7 @@ const orderUrl = (row: PaymentRow) => {
             <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
                 <div class="payment-summary">
                     <span class="payment-summary-icon"><i class="mdi mdi-receipt-text-outline"></i></span>
-                    <div><span>Total Order</span><strong>{{ formatNumber(props.summary.total_orders) }}</strong></div>
+                    <div><span>Total Pesanan</span><strong>{{ formatNumber(props.summary.total_orders) }}</strong></div>
                 </div>
             </div>
             <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
@@ -243,7 +243,7 @@ const orderUrl = (row: PaymentRow) => {
             <div class="col-6 col-md-4 col-xl-3 col-xxl-2">
                 <div class="payment-summary payment-summary-danger">
                     <span class="payment-summary-icon"><i class="mdi mdi-cash-clock"></i></span>
-                    <div><span>Outstanding</span><strong>{{ formatCurrency(props.summary.outstanding_amount) }}</strong></div>
+                    <div><span>Sisa Tagihan</span><strong>{{ formatCurrency(props.summary.outstanding_amount) }}</strong></div>
                 </div>
             </div>
         </div>
@@ -253,7 +253,7 @@ const orderUrl = (row: PaymentRow) => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
                         <label class="form-label">Cari order, transaksi, atau customer</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Order number, transaction number, customer..." />
+                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, nomor transaksi, pelanggan..." />
                     </div>
                     <div class="col-6 col-md-3 col-lg-3">
                         <label class="form-label">Status Pembayaran</label>
@@ -304,9 +304,9 @@ const orderUrl = (row: PaymentRow) => {
                 <table class="table align-middle mb-0 payment-table">
                     <thead>
                         <tr>
-                            <th>Order</th>
+                            <th>Pesanan</th>
                             <th>Tanggal</th>
-                            <th>Customer</th>
+                            <th>Pelanggan</th>
                             <th>Metode</th>
                             <th>Status</th>
                             <th class="text-end">Total</th>
@@ -357,11 +357,11 @@ const orderUrl = (row: PaymentRow) => {
                                 <td colspan="9">
                                     <div class="payment-detail">
                                         <div class="payment-detail-grid">
-                                            <div><span>Status Order</span><strong>{{ row.order_status }}</strong></div>
-                                            <div><span>Payment Selesai</span><strong>{{ formatDate(row.payment_completed_at) }}</strong></div>
+                                            <div><span>Status Pesanan</span><strong>{{ row.order_status }}</strong></div>
+                                            <div><span>Pembayaran Selesai</span><strong>{{ formatDate(row.payment_completed_at) }}</strong></div>
                                             <div><span>Transaksi</span><strong>{{ row.transaction_number }}</strong></div>
-                                            <div><span>Payment Fee</span><strong>{{ formatCurrency(row.payment_fee) }}</strong></div>
-                                            <div><span>Item</span><strong>{{ formatNumber(row.total_items) }} item / {{ formatNumber(row.total_qty) }} qty</strong></div>
+                                            <div><span>Biaya Pembayaran</span><strong>{{ formatCurrency(row.payment_fee) }}</strong></div>
+                                            <div><span>Barang</span><strong>{{ formatNumber(row.total_items) }} barang / {{ formatNumber(row.total_qty) }} qty</strong></div>
                                             <div class="payment-detail-wide"><span>Produk</span><strong>{{ row.product_names }}</strong></div>
                                             <div><span>Email</span><strong>{{ row.customer_email }}</strong></div>
                                             <div><span>WhatsApp</span><strong>{{ row.customer_wa }}</strong></div>

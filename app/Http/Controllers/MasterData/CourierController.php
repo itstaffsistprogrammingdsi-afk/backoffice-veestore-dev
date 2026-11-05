@@ -70,7 +70,7 @@ class CourierController extends Controller
             ->all();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Couriers',
+            'title' => 'Kurir',
             'eyebrow' => 'Mitra / Pengiriman',
             'description' => 'Kelola kurir, kontak, dan layanan pengiriman.',
             'searchPlaceholder' => 'Cari courier...',
@@ -162,7 +162,7 @@ class CourierController extends Controller
 
             return redirect()
                 ->route('master-data.couriers.index')
-                ->with('success', 'Courier berhasil ditambahkan.');
+                ->with('success', 'Kurir berhasil ditambahkan.');
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (QueryException $exception) {
@@ -279,7 +279,7 @@ class CourierController extends Controller
 
             return redirect()
                 ->route('master-data.couriers.index')
-                ->with('success', 'Courier berhasil diperbarui.');
+                ->with('success', 'Kurir berhasil diperbarui.');
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (QueryException $exception) {

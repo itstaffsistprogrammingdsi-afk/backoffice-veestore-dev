@@ -58,7 +58,7 @@ class SupplierController extends Controller
             ->get();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Suppliers',
+            'title' => 'Pemasok',
             'eyebrow' => 'Master Produk / Supplier',
             'description' => 'Kelola data supplier dan kontak.',
             'searchPlaceholder' => 'Cari supplier...',
@@ -193,7 +193,7 @@ class SupplierController extends Controller
             });
 
             return $this->redirectIndex()
-                ->with('success', 'Supplier berhasil ditambahkan.');
+                ->with('success', 'Pemasok berhasil ditambahkan.');
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (QueryException $exception) {
@@ -359,7 +359,7 @@ class SupplierController extends Controller
             });
 
             return $this->redirectIndex()
-                ->with('success', 'Supplier berhasil diperbarui.');
+                ->with('success', 'Pemasok berhasil diperbarui.');
         } catch (ValidationException $exception) {
             throw $exception;
         } catch (QueryException $exception) {

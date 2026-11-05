@@ -66,7 +66,7 @@ class UnitController extends Controller
             ->withQueryString();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Units',
+            'title' => 'Satuan',
             'eyebrow' => 'Master Produk / Unit',
             'description' => 'Kelola satuan produk.',
             'searchPlaceholder' => 'Cari unit...',

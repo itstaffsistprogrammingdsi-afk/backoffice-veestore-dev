@@ -299,7 +299,7 @@ const resetFilters = () => {
                 </Link>
                 <a :href="exportUrl" class="pref-hero-button pref-hero-button-accent">
                     <i class="mdi mdi-download me-1"></i>
-                    Export Excel
+                    Ekspor Excel
                 </a>
             </div>
         </section>

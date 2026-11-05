@@ -32,7 +32,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
     title: 'Ulang Tahun',
-    subtitle: 'Customer yang bisa disapa pada momen ulang tahunnya.',
+    subtitle: 'Pelanggan yang dapat disapa pada momen ulang tahunnya.',
 });
 
 const page = usePage();
@@ -52,7 +52,7 @@ const previewCustomer = computed(() => selectedCustomer.value ?? emailRecipients
 
 const personalize = (text: string, customer: BirthdayCustomer | null) =>
     text
-        .replaceAll('{nama}', customer?.name || 'Customer')
+        .replaceAll('{nama}', customer?.name || 'Pelanggan')
         .replaceAll('{email}', customer?.email || '')
         .replaceAll('{bulan}', props.monthLabel);
 
@@ -61,16 +61,16 @@ const previewMessage = computed(() => personalize(message.value, previewCustomer
 
 const recipientLabel = computed(() => {
     if (mode.value === 'single' && selectedCustomer.value) {
-        return selectedCustomer.value.name || 'Customer';
+        return selectedCustomer.value.name || 'Pelanggan';
     }
 
-    return `${formatNumber(emailRecipients.value.length)} customer`;
+    return `${formatNumber(emailRecipients.value.length)} pelanggan`;
 });
 
 const submitLabel = computed(() => {
     if (processing.value) return 'Mengirim...';
 
-    return mode.value === 'bulk' ? `Kirim ke ${emailRecipients.value.length} Customer` : 'Kirim Email';
+    return mode.value === 'bulk' ? `Kirim ke ${emailRecipients.value.length} Pelanggan` : 'Kirim Email';
 });
 
 const openGreeting = (customer: BirthdayCustomer) => {
@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div class="birthday-actions">
-                <span class="birthday-count">{{ formatNumber(props.total) }} customer</span>
+                <span class="birthday-count">{{ formatNumber(props.total) }} pelanggan</span>
                 <button
                     class="btn btn-sm btn-outline-primary"
                     type="button"
@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
             <table class="table table-sm align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Customer</th>
+                        <th>Pelanggan</th>
                         <th>Kontak</th>
                         <th>Ulang Tahun</th>
                         <th>Wilayah</th>
@@ -207,7 +207,7 @@ onBeforeUnmount(() => {
                         <td>{{ [customer.regency_name, customer.province_name].filter(Boolean).join(', ') || '-' }}</td>
                         <td>
                             <span class="badge" :class="tierBadgeClass(customer.membership_name)">
-                                {{ customer.membership_name ?? 'Non-member' }}
+                                {{ customer.membership_name ?? 'Bukan anggota' }}
                             </span>
                         </td>
                         <td class="text-end">
@@ -215,7 +215,7 @@ onBeforeUnmount(() => {
                                 class="btn btn-sm btn-light"
                                 type="button"
                                 :disabled="!customer.email"
-                                :title="customer.email ? 'Kirim sapaan ulang tahun' : 'Email customer belum diisi'"
+                                :title="customer.email ? 'Kirim sapaan ulang tahun' : 'Email pelanggan belum diisi'"
                                 @click="openGreeting(customer)"
                             >
                                 <i class="mdi mdi-email-outline me-1"></i>
@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
 
         <p v-else class="birthday-empty">
             <i class="mdi mdi-calendar-blank-outline"></i>
-            Tidak ada customer yang berulang tahun pada bulan ini.
+            Tidak ada pelanggan yang berulang tahun pada bulan ini.
         </p>
     </article>
 
@@ -283,7 +283,7 @@ onBeforeUnmount(() => {
 
                     <div v-if="previewCustomer" class="birthday-preview">
                         <span class="birthday-preview-label">
-                            Pratinjau untuk {{ previewCustomer.name ?? 'Customer' }}
+                            Pratinjau untuk {{ previewCustomer.name ?? 'Pelanggan' }}
                             <template v-if="mode === 'bulk'">(setiap penerima memakai nama masing-masing)</template>
                         </span>
                         <strong>{{ previewSubject }}</strong>

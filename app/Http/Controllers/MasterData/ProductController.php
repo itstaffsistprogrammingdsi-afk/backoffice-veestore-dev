@@ -77,7 +77,7 @@ class ProductController extends Controller
         $brands = Brand::orderBy('name')->get();
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Products',
+            'title' => 'Produk',
             'eyebrow' => 'Master Produk',
             'description' => 'Kelola katalog produk.',
             'searchPlaceholder' => 'Cari produk...',

@@ -48,7 +48,7 @@ class BackofficeRoleController extends Controller
             'guard_name' => 'web',
         ]);
 
-        return back()->with('success', 'Role berhasil ditambahkan.');
+        return back()->with('success', 'Peran berhasil ditambahkan.');
     }
 
     public function update(Request $request, Role $role)
@@ -62,13 +62,13 @@ class BackofficeRoleController extends Controller
 
         $role->update(['name' => $data['name']]);
 
-        return back()->with('success', 'Role berhasil diperbarui.');
+        return back()->with('success', 'Peran berhasil diperbarui.');
     }
 
     public function destroy(Role $role)
     {
         $role->delete();
 
-        return back()->with('success', 'Role berhasil dihapus.');
+        return back()->with('success', 'Peran berhasil dihapus.');
     }
 }

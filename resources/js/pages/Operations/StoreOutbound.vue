@@ -83,18 +83,18 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
 </script>
 
 <template>
-    <Head title="Store Outbound Operations" />
+    <Head title="Operasional Barang Keluar Toko" />
     <div class="outbound-page">
         <section class="report-header outbound-header">
             <div>
                 <span class="outbound-eyebrow">Operations / Store</span>
-                <h1>Store Outbound Operations</h1>
+                <h1>Operasional Barang Keluar Toko</h1>
                 <p>Pantau barang keluar dari store, pembagian store/ecommerce, resi ecommerce, dan referensi transaksi atau surat jalan untuk tipe non-ecommerce.</p>
             </div>
             <div class="outbound-hero-actions">
-                <Link :href="props.urls.stock" class="outbound-hero-button"><i class="mdi mdi-clipboard-list-outline me-1"></i>Store Stock Operations</Link>
-                <Link :href="props.urls.inbound" class="outbound-hero-button"><i class="mdi mdi-tray-arrow-down me-1"></i>Store Inbound</Link>
-                <Link :href="props.urls.monitoring" class="outbound-hero-button outbound-hero-button-outline"><i class="mdi mdi-chart-box-outline me-1"></i>Monitoring Store Outbound</Link>
+                <Link :href="props.urls.stock" class="outbound-hero-button"><i class="mdi mdi-clipboard-list-outline me-1"></i>Operasional Stok Toko</Link>
+                <Link :href="props.urls.inbound" class="outbound-hero-button"><i class="mdi mdi-tray-arrow-down me-1"></i>Barang Masuk Toko</Link>
+                <Link :href="props.urls.monitoring" class="outbound-hero-button outbound-hero-button-outline"><i class="mdi mdi-chart-box-outline me-1"></i>Pemantauan Barang Keluar Toko</Link>
             </div>
         </section>
 

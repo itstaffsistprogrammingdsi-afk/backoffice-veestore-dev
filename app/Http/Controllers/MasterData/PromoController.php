@@ -75,7 +75,7 @@ class PromoController extends Controller
             ->get(['id', 'name']);
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Promos',
+            'title' => 'Promo',
             'eyebrow' => 'Promo',
             'description' => 'Kelola promo dan cabang yang berlaku.',
             'searchPlaceholder' => 'Cari promo...',

@@ -63,7 +63,7 @@ class SimpleMasterDataPagesTest extends TestCase
                 ->component('MasterData/SimpleCrud')
                 ->where('masterDataModule.current', 'product-specifications')
                 ->has('masterDataModule.items', 9)
-                ->where('masterDataModule.items.2.label', 'Product Specifications')
+                ->where('masterDataModule.items.2.label', 'Spesifikasi Produk')
                 ->has('items.data'));
     }
 
@@ -77,7 +77,7 @@ class SimpleMasterDataPagesTest extends TestCase
         $this->assertTrue(
             collect($masterProduct['items'])
                 ->pluck('label')
-                ->contains('Product Specifications')
+                ->contains('Spesifikasi Produk')
         );
     }
 }

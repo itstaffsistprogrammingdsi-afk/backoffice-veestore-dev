@@ -208,26 +208,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Store Inbound Operations" />
+    <Head title="Operasional Barang Masuk Toko" />
     <div class="inbound-page">
         <section class="report-header inbound-header">
             <div>
                 <span class="inbound-eyebrow">Operations / Store</span>
-                <h1>Store Inbound Operations</h1>
+                <h1>Operasional Barang Masuk Toko</h1>
                 <p>Pantau dokumen masuk dari warehouse ke store, status QC, dan detail barang yang diterima.</p>
             </div>
             <div class="inbound-hero-actions">
                 <Link :href="props.urls.stock" class="inbound-hero-button">
                     <i class="mdi mdi-clipboard-list-outline me-1"></i>
-                    Store Stock Operations
+                    Operasional Stok Toko
                 </Link>
                 <Link :href="props.urls.outbound" class="inbound-hero-button">
                     <i class="mdi mdi-tray-arrow-up me-1"></i>
-                    Store Outbound
+                    Barang Keluar Toko
                 </Link>
                 <Link :href="props.urls.monitoring" class="inbound-hero-button inbound-hero-button-outline">
                     <i class="mdi mdi-chart-box-outline me-1"></i>
-                    Monitoring Store Inbound
+                    Pemantauan Barang Masuk Toko
                 </Link>
             </div>
         </section>
@@ -320,7 +320,7 @@ onBeforeUnmount(() => {
 
         <div class="card inbound-card">
             <div class="inbound-card-header">
-                <div><h2>Dokumen Store Inbound</h2><p>Data operasional inbound toko. Detail laporan tetap ada di Monitoring.</p></div>
+                <div><h2>Dokumen Barang Masuk Toko</h2><p>Data operasional barang masuk toko. Detail laporan tetap ada di Monitoring.</p></div>
                 <span class="inbound-card-meta">{{ formatNumber(props.rows.total) }} dokumen</span>
             </div>
             <div v-if="props.rows.data.length === 0" class="inbound-empty">

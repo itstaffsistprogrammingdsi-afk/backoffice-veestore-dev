@@ -96,7 +96,7 @@ class CustomerController extends Controller
         ];
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Customers',
+            'title' => 'Pelanggan',
             'description' => 'Kelola data pelanggan.',
             'searchPlaceholder' => 'Cari customer...',
             'items' => $customers,
@@ -228,7 +228,7 @@ class CustomerController extends Controller
 
             return redirect()
                 ->route('master-data.customers.index')
-                ->with('success', 'Customer berhasil ditambahkan.');
+                ->with('success', 'Pelanggan berhasil ditambahkan.');
         } catch (Throwable $exception) {
             report($exception);
 
@@ -300,7 +300,7 @@ class CustomerController extends Controller
 
             return redirect()
                 ->route('master-data.customers.index')
-                ->with('success', 'Customer berhasil diperbarui.');
+                ->with('success', 'Pelanggan berhasil diperbarui.');
         } catch (Throwable $exception) {
             report($exception);
 

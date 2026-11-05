@@ -291,7 +291,7 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
                 </Link>
                 <a :href="exportUrl" class="demo-hero-button demo-hero-button-accent">
                     <i class="mdi mdi-download me-1"></i>
-                    Export Excel
+                    Ekspor Excel
                 </a>
             </div>
         </section>

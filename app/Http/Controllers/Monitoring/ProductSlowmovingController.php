@@ -162,11 +162,11 @@ class ProductSlowmovingController extends Controller
         $warehouseId = $request->query('warehouse_id', $user->warehouse_id ?? null);
 
         if ($mode === 'store' && !$storeId) {
-            return back()->with('error', 'Store harus dipilih terlebih dahulu.');
+            return back()->with('error', 'Toko harus dipilih terlebih dahulu.');
         }
 
         if ($mode === 'warehouse' && !$warehouseId) {
-            return back()->with('error', 'Warehouse harus dipilih terlebih dahulu.');
+            return back()->with('error', 'Gudang harus dipilih terlebih dahulu.');
         }
 
         if ($mode === 'store') {

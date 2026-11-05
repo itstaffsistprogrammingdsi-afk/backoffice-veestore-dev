@@ -46,7 +46,7 @@ const exportOrders = () => downloadExcelTable('History-Customer-Order-Ecommerce'
             </div>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-light btn-sm" @click="exportOrders">
-                    <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                    <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
                 </button>
                 <Link :href="props.urls.index" class="btn btn-light btn-sm">Kembali</Link>
             </div>

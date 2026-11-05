@@ -70,7 +70,7 @@ const formatDate = (value: string | null) => {
     }).format(new Date(value));
 };
 
-const exportHistory = () => downloadExcelTable('Export-Saya', 'Export Saya', [
+const exportHistory = () => downloadExcelTable('Export-Saya', 'Ekspor Saya', [
     { key: 'filename', label: 'Nama File' },
     { key: 'status', label: 'Status' },
     { key: 'created_at', label: 'Dibuat' },
@@ -78,17 +78,17 @@ const exportHistory = () => downloadExcelTable('Export-Saya', 'Export Saya', [
 </script>
 
 <template>
-    <Head title="Export Saya" />
+    <Head title="Ekspor Saya" />
 
     <div class="report-page">
         <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
                 <span class="report-eyebrow">Reports</span>
-                <h1>Export Saya</h1>
+                <h1>Ekspor Saya</h1>
                 <p>Daftar permintaan export laporan yang Anda buat.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportHistory">
-                <i class="mdi mdi-file-excel-outline me-1"></i>Export Excel
+                <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
             </button>
         </div>
 

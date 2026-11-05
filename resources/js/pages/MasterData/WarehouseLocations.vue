@@ -203,7 +203,7 @@ const typeClass = (type: string) => ({
 const quickAddTitle = computed(() => {
     const type = quickAddTypes.find((item) => item.value === quickAdd.value?.type);
 
-    return type ? `Add ${type.label}` : 'Add Layout';
+    return type ? `Tambah ${type.label}` : 'Tambah Tata Letak';
 });
 
 const quickAddNeedsParent = computed(() => Boolean(quickAdd.value && ['staging', 'rack', 'layer'].includes(quickAdd.value.type)));
@@ -595,16 +595,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Warehouse Layout" />
+    <Head title="Tata Letak Gudang" />
     <div class="location-page">
         <div class="location-header">
             <div>
                 <span class="location-eyebrow">Master Data</span>
-                <h1>Warehouse Layout</h1>
-                <p>Room, Staging, Rack, dan Layer per warehouse. Kode dan QR dibuat otomatis untuk setiap bagian.</p>
+                <h1>Tata Letak Gudang</h1>
+                <p>Room, staging, rack, dan layer per gudang. Kode dan QR dibuat otomatis untuk setiap bagian.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="openCreate">
-                <i class="mdi mdi-plus me-1"></i>Add Layout
+                <i class="mdi mdi-plus me-1"></i>Tambah Tata Letak
             </button>
         </div>
 
@@ -640,7 +640,7 @@ onBeforeUnmount(() => {
         <div v-if="showCreate" class="card location-card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="mb-0">Add Layout</h6>
+                    <h6 class="mb-0">Tambah Tata Letak</h6>
                     <small class="text-muted">Buat Room, Display, Staging, Rack, dan Layer sekaligus. Kode dan QR dibuat otomatis.</small>
                 </div>
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeCreate">Tutup</button>
@@ -653,12 +653,12 @@ onBeforeUnmount(() => {
                         <div v-if="createForm.errors.name" class="text-danger small mt-1">{{ createForm.errors.name }}</div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Warehouse</label>
+                        <label class="form-label">Gudang</label>
                         <SearchableSelect
                             v-model="createForm.warehouse_id"
                             :options="warehouseOptions"
-                            placeholder="Pilih warehouse"
-                            search-placeholder="Cari warehouse..."
+                            placeholder="Pilih gudang"
+                            search-placeholder="Cari gudang..."
                             required
                             :clearable="false"
                         />
@@ -695,14 +695,14 @@ onBeforeUnmount(() => {
                             <div class="location-preview-codes">
                                 <span v-for="code in previewCode" :key="code"><code>{{ code }}</code></span>
                             </div>
-                            <small class="text-muted">Contoh pola kode. Nomor urut menyesuaikan data yang sudah ada di warehouse.</small>
+                            <small class="text-muted">Contoh pola kode. Nomor urut menyesuaikan data yang sudah ada di gudang.</small>
                         </div>
                     </div>
 
                     <div class="col-12 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit" :disabled="createForm.processing">
                             <i class="mdi mdi-auto-fix me-1"></i>
-                            {{ createForm.processing ? 'Creating layout...' : 'Create Layout + QR' }}
+                            {{ createForm.processing ? 'Membuat tata letak...' : 'Buat Tata Letak + QR' }}
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeCreate">Batal</button>
                     </div>
@@ -734,17 +734,17 @@ onBeforeUnmount(() => {
                     <span><b>{{ formatCount(group.stats.layers) }}</b> Layer</span>
                     <span class="location-total">{{ formatCount(group.stats.total) }} lokasi</span>
                 </div>
-                <button v-if="props.canUpdate" class="location-edit-button" type="button" title="Edit nama warehouse" aria-label="Edit nama warehouse" @click.stop.prevent="openRename(group)">
+                <button v-if="props.canUpdate" class="location-edit-button" type="button" title="Ubah nama gudang" aria-label="Ubah nama gudang" @click.stop.prevent="openRename(group)">
                     <i class="mdi mdi-pencil"></i>
                 </button>
                 <div class="location-add-wrap">
                     <button class="location-add-button" type="button" :aria-expanded="quickAddOpen === group.id" aria-haspopup="menu" @click.stop.prevent="toggleQuickAddMenu(group.id)">
                         <i class="mdi mdi-plus"></i>
-                        Add
+                        Tambah
                     </button>
                     <div v-if="quickAddOpen === group.id" class="location-add-menu" role="menu" @click.stop.prevent>
                         <button v-for="type in quickAddTypes" :key="type.value" type="button" role="menuitem" @click="openQuickAdd(group, type.value)">
-                            Add {{ type.label }}
+                            Tambah {{ type.label }}
                         </button>
                     </div>
                 </div>
@@ -784,12 +784,12 @@ onBeforeUnmount(() => {
                             </td>
                             <td><code class="location-code">{{ row.code }}</code></td>
                             <td><span class="badge" :class="typeClass(row.type)">{{ row.type_label }}</span></td>
-                            <td class="text-muted">{{ row.parent_name || 'â€”' }}</td>
+                            <td class="text-muted">{{ row.parent_name || '-' }}</td>
                             <td class="text-end location-actions">
                                 <button class="btn btn-sm btn-outline-secondary" type="button" :aria-label="`Buka QR ${row.name}`" title="Buka QR" @click="openQr(row, group)">
                                     <i class="mdi mdi-qrcode"></i>
                                 </button>
-                                <button class="btn btn-sm btn-outline-primary" type="button" :aria-label="`Edit ${row.name}`" title="Edit" @click="startEdit(row, group)">
+                                <button class="btn btn-sm btn-outline-primary" type="button" :aria-label="`Ubah ${row.name}`" title="Ubah" @click="startEdit(row, group)">
                                     <i class="mdi mdi-pencil"></i>
                                 </button>
                                 <button class="btn btn-sm btn-outline-danger" type="button" :aria-label="`Hapus ${row.name}`" title="Hapus" @click="destroy(row)">
@@ -841,12 +841,12 @@ onBeforeUnmount(() => {
                             Parent: {{ quickAdd.group.name }}
                         </div>
                         <p class="location-quick-hint mb-0">
-                            Code and QR will be generated automatically.
+                            Kode dan QR akan dibuat otomatis.
                         </p>
                     </div>
                     <div class="location-modal-footer">
                         <button class="btn btn-sm btn-primary" type="submit" :disabled="quickAddForm.processing || !quickAddForm.name.trim() || (quickAddNeedsParent && !quickAddForm.parent_id)">
-                            Create
+                            Buat
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeQuickAdd">Batal</button>
                     </div>
@@ -861,10 +861,10 @@ onBeforeUnmount(() => {
                 <form @submit.prevent="submitRename">
                     <div class="location-modal-header">
                         <div>
-                            <h5 id="rename-warehouse-title" class="mb-0">Edit Nama Warehouse</h5>
+                            <h5 id="rename-warehouse-title" class="mb-0">Ubah Nama Gudang</h5>
                             <small class="text-muted">{{ renamingGroup.code || '-' }}</small>
                         </div>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup modal edit nama warehouse" @click="closeRename">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup modal ubah nama gudang" @click="closeRename">
                             <i class="mdi mdi-close"></i>
                         </button>
                     </div>
@@ -890,7 +890,7 @@ onBeforeUnmount(() => {
                 <form @submit.prevent="submitEdit">
                     <div class="location-modal-header">
                         <div>
-                            <h5 id="edit-location-title" class="mb-0">Edit {{ editing.type_label }}</h5>
+                            <h5 id="edit-location-title" class="mb-0">Ubah {{ editing.type_label }}</h5>
                             <small class="text-muted">{{ editing.path }}</small>
                         </div>
                         <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup modal edit" @click="cancelEdit">

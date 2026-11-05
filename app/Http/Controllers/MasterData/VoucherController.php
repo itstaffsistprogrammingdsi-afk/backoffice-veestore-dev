@@ -49,7 +49,7 @@ class VoucherController extends Controller
         $voucherContextsMap = $this->getVoucherContextsMap($vouchers->pluck('id')->all());
 
         return Inertia::render('MasterData/SimpleCrud', [
-            'title' => 'Vouchers',
+            'title' => 'Voucher',
             'eyebrow' => 'Promo / Voucher',
             'description' => 'Kelola voucher dan konteks pemakaiannya.',
             'searchPlaceholder' => 'Cari voucher...',
@@ -229,7 +229,7 @@ class VoucherController extends Controller
             ->firstOrFail()
             ->update(['is_active' => (bool) $payload['is_active']]);
 
-        return back()->with('success', 'Status kode voucher berhasil diupdate.');
+        return back()->with('success', 'Status kode voucher berhasil diperbarui.');
     }
 
     public function update(Request $request, string $key)
@@ -291,7 +291,7 @@ class VoucherController extends Controller
         });
 
         return redirect()->route('master-data.vouchers.index')
-            ->with('success', 'Voucher berhasil diupdate.');
+            ->with('success', 'Voucher berhasil diperbarui.');
     }
 
     public function destroy(string $key)

@@ -87,7 +87,7 @@ class StoreSlowstockController extends Controller
         }
 
         if (!$storeId) {
-            return back()->with('error', 'Store harus dipilih terlebih dahulu.');
+            return back()->with('error', 'Toko harus dipilih terlebih dahulu.');
         }
 
         $rows = $this->slowMoving($storeId, $startDate, $endDate);
@@ -125,7 +125,7 @@ class StoreSlowstockController extends Controller
         }
 
         if (!$storeId) {
-            return back()->with('error', 'Store harus dipilih terlebih dahulu.');
+            return back()->with('error', 'Toko harus dipilih terlebih dahulu.');
         }
 
         $rows = $this->deadStock($storeId, $startDate);
