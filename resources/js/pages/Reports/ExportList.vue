@@ -6,7 +6,6 @@ defineOptions({ layout: AppLayout });
 import { Head, Link } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import { downloadExcelTable } from '@/composables/useExcelExport';
-import { translate } from '@/composables/i18n';
 
 interface ExportRow {
     id: string;
@@ -38,7 +37,7 @@ const statusLabel = (status: string) => {
         failed: 'Gagal',
     };
 
-    return translate(labels[status] ?? status);
+    return labels[status] ?? status;
 };
 
 const statusClass = (status: string) => {

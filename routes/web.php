@@ -3,7 +3,6 @@
 use App\Http\Controllers\AI\AssistantController;
 // Controllers - Auth & Dashboard
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\BranchOperations\StoreLabelPrintRequestController;
 use App\Http\Controllers\BranchOperations\StoreVoucherRequestController;
 use App\Http\Controllers\dashboard\Analytics;
@@ -148,7 +147,6 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::post('/language', [LocaleController::class, 'update'])->name('language.update');
 
 /*
 |--------------------------------------------------------------------------
