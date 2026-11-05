@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { translate } from '@/composables/i18n';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
@@ -1914,16 +1915,16 @@ const buildCell = (row: Row, key: string): TableCell => {
 
     if (typeof value === 'boolean') {
         return {
-            text: value ? 'Ya' : 'Tidak',
+            text: translate(value ? 'Ya' : 'Tidak'),
             kind: 'badge',
             tone: booleanTone(key, value),
-            title: value ? 'Ya' : 'Tidak',
+            title: translate(value ? 'Ya' : 'Tidak'),
             wrap: false,
         };
     }
 
     if (Array.isArray(value)) {
-        const text = value.length === 0 ? '-' : `${value.length} item`;
+        const text = value.length === 0 ? '-' : `${value.length} ${translate(value.length === 1 ? 'item' : 'items')}`;
 
         return { text, kind: 'text', tone: 'neutral', title: text, wrap: false };
     }
@@ -1982,11 +1983,13 @@ const buildCell = (row: Row, key: string): TableCell => {
     }
 
     if (isStatusKey(key)) {
+        const text = translate(String(value));
+
         return {
-            text: String(value),
+            text,
             kind: 'badge',
             tone: statusTone(value, key),
-            title: String(value),
+            title: text,
             wrap: false,
         };
     }

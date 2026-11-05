@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue';
 import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
 
 interface NavItem {
@@ -672,6 +673,7 @@ onBeforeUnmount(() => {
                     </button>
 
                     <div v-show="userMenuOpen" id="app-user-menu" class="app-user-menu" role="group" aria-label="Menu akun">
+                        <LanguageSwitcher variant="app" />
                         <button type="button" :disabled="isLoggingOut" @click="logout">
                             <i class="mdi mdi-logout me-1" aria-hidden="true"></i>
                             {{ isLoggingOut ? 'Keluar...' : 'Keluar' }}

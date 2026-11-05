@@ -4,6 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 defineOptions({ layout: AppLayout });
 
 import { Head, Link } from '@inertiajs/vue3';
+import { translate } from '@/composables/i18n';
 
 interface ExportRow {
     id: string;
@@ -36,7 +37,7 @@ const statusLabel = (status: string) => {
         failed: 'Export gagal.',
     };
 
-    return labels[status] ?? status;
+    return translate(labels[status] ?? status);
 };
 </script>
 
