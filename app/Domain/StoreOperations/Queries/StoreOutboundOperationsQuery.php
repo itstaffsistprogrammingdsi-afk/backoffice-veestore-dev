@@ -25,11 +25,18 @@ class StoreOutboundOperationsQuery
         $rows->getCollection()->transform(function (object $row) use ($details) {
             $row->total_items = (int) $row->total_items;
             $row->total_sku = (int) $row->total_sku;
+            $row->total_rfid = (int) $row->total_rfid;
+            $row->item_quantity = (int) ($row->item_quantity ?? 0);
             $row->outbound_type_label = self::TYPE_LABELS[$row->outbound_type] ?? ($row->outbound_type ?: 'Lainnya');
             $row->event_date = $row->shipment_date ?? $row->created_at;
-            $row->has_shipping = trim((string) $row->shipping_number) !== '';
-            $row->status = $row->has_shipping ? 'completed' : 'missing_shipping';
-            $row->status_label = $row->has_shipping ? 'Selesai' : 'Belum Ada Resi';
+            $row->requires_shipping = $row->outbound_type === 'ecommerce' || $row->source_label === 'Ecommerce';
+            $row->has_shipping = $row->shipping_number !== '-';
+            $row->status = $row->requires_shipping && ! $row->has_shipping ? 'missing_shipping' : 'completed';
+            $row->status_label = $row->status === 'missing_shipping' ? 'Belum Ada Resi' : 'Selesai';
+            $row->nota_print_count = (int) ($row->nota_print_count ?? 0);
+            $row->nota_printed = $row->nota_print_count > 0;
+            $row->nota_print_method = $row->outbound_type === 'ecommerce' ? 'email' : 'direct';
+            $row->nota_print_method_label = $row->nota_print_method === 'email' ? 'Via Email' : 'Langsung';
             $row->product_details = collect($details->get($row->id, []))
                 ->map(fn (object $detail) => [
                     'product_code' => $detail->product_code,
@@ -56,7 +63,7 @@ class StoreOutboundOperationsQuery
             'skuRows' => $skuBreakdown['rows'],
             'statusOptions' => [
                 ['value' => '', 'label' => 'Semua status'],
-                ['value' => 'missing_shipping', 'label' => 'Belum Ada Resi'],
+                ['value' => 'missing_shipping', 'label' => 'Belum Ada Resi (Ecommerce)'],
                 ['value' => 'completed', 'label' => 'Selesai'],
             ],
         ];
@@ -79,9 +86,10 @@ class StoreOutboundOperationsQuery
             ->when($storeId, fn ($query) => $query->where('so.store_id', $storeId))
             ->when($channel, fn ($query) => $query->where('so.outbound_type', $channel))
             ->when($applyStatus && $status === 'missing_shipping', fn ($query) => $query
-                ->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, '')), '') IS NULL"))
+                ->whereRaw("(so.ecommerce_order_id IS NOT NULL OR COALESCE(so.outbound_type::text, '') = 'ecommerce')")
+                ->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, eo.shipping_number, '')), '') IS NULL"))
             ->when($applyStatus && $status === 'completed', fn ($query) => $query
-                ->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, '')), '') IS NOT NULL"))
+                ->whereRaw("NOT ((so.ecommerce_order_id IS NOT NULL OR COALESCE(so.outbound_type::text, '') = 'ecommerce') AND NULLIF(BTRIM(COALESCE(so.shipping_number, eo.shipping_number, '')), '') IS NULL)"))
             ->when($from, fn ($query) => $query->whereRaw('COALESCE(so.shipment_date, so.created_at)::date >= ?', [$from]))
             ->when($to, fn ($query) => $query->whereRaw('COALESCE(so.shipment_date, so.created_at)::date <= ?', [$to]))
             ->when($q !== '', function ($query) use ($q) {
@@ -106,18 +114,26 @@ class StoreOutboundOperationsQuery
                 so.shipment_date,
                 so.created_at,
                 so.item_quantity,
-                COALESCE(NULLIF(BTRIM(so.shipping_number), \'\'), \'-\') as shipping_number,
+                COALESCE(NULLIF(BTRIM(so.shipping_number), \'\'), NULLIF(BTRIM(eo.shipping_number), \'\'), \'-\') as shipping_number,
                 COALESCE(eo.order_number, \'-\') as ecommerce_order_number,
                 COALESCE(pay.transaction_number, \'-\') as payment_number,
+                COALESCE(pay.print_count, 0)::int as nota_print_count,
                 COALESCE(sr.return_number, \'-\') as store_return_number,
+                CASE
+                    WHEN so.ecommerce_order_id IS NOT NULL THEN \'Ecommerce\'
+                    WHEN so.store_cart_id IS NOT NULL THEN \'Store Cart\'
+                    WHEN so.store_return_id IS NOT NULL THEN \'Store Return\'
+                    ELSE \'Lainnya\'
+                END as source_label,
                 COUNT(DISTINCT sod.id)::int as total_items,
-                COUNT(DISTINCT i.product_id)::int as total_sku
+                COUNT(DISTINCT i.product_id)::int as total_sku,
+                COUNT(DISTINCT sod.rfid_tag_id)::int as total_rfid
             ')
             ->when($hasCouriers, fn ($query) => $query->selectRaw("COALESCE(c.name, '') as courier_name"), fn ($query) => $query->selectRaw("'' as courier_name"))
             ->groupBy(
                 'so.id', 'so.store_id', 's.name', 's.code', 'so.outbound_type', 'so.shipment_date',
-                'so.created_at', 'so.item_quantity', 'so.shipping_number', 'eo.order_number',
-                'pay.transaction_number', 'sr.return_number',
+                'so.created_at', 'so.item_quantity', 'so.shipping_number', 'eo.shipping_number', 'eo.order_number',
+                'pay.transaction_number', 'pay.print_count', 'sr.return_number', 'so.ecommerce_order_id', 'so.store_cart_id', 'so.store_return_id',
                 ...($hasCouriers ? ['c.name'] : [])
             )
             ->orderByRaw('COALESCE(so.shipment_date, so.created_at) DESC')
@@ -136,7 +152,10 @@ class StoreOutboundOperationsQuery
                 COALESCE(SUM(total_sku), 0)::int as total_sku,
                 COALESCE(SUM(CASE WHEN outbound_type = \'store\' THEN total_items ELSE 0 END), 0)::int as store_qty,
                 COALESCE(SUM(CASE WHEN outbound_type = \'ecommerce\' THEN total_items ELSE 0 END), 0)::int as ecommerce_qty,
-                COUNT(*) FILTER (WHERE shipping_number = \'-\')::int as missing_shipping
+                COUNT(*) FILTER (WHERE (outbound_type::text = \'ecommerce\' OR source_label = \'Ecommerce\') AND shipping_number = \'-\')::int as missing_shipping,
+                COALESCE(SUM(total_rfid), 0)::int as total_rfid,
+                COUNT(*) FILTER (WHERE source_label = \'Ecommerce\')::int as total_ecommerce,
+                COUNT(*) FILTER (WHERE source_label = \'Store Return\')::int as total_returns
             ')
             ->first();
     }
@@ -147,16 +166,23 @@ class StoreOutboundOperationsQuery
             return collect();
         }
 
+        $hasUsers = Schema::hasTable('users');
+
         return DB::table('store_outbound_details as sod')
             ->join('items as i', 'i.id', '=', 'sod.item_id')
             ->join('products as p', 'p.id', '=', 'i.product_id')
+            ->leftJoin('rfid_tags as rt', 'rt.id', '=', 'sod.rfid_tag_id')
+            ->when($hasUsers, fn ($query) => $query->leftJoin('users as u', 'u.id', '=', 'sod.rfid_releaser_user_id'))
             ->whereIn('sod.store_outbound_id', $outboundIds)
             ->selectRaw('
                 sod.store_outbound_id,
                 p.code as product_code,
                 p.name as product_name,
-                COUNT(sod.id)::int as qty
+                COUNT(sod.id)::int as qty,
+                COUNT(DISTINCT sod.rfid_tag_id)::int as rfid_count,
+                COALESCE(STRING_AGG(DISTINCT NULLIF(COALESCE(rt.serial_number::text, rt.value), \'\'), \', \'), \'-\') as rfid_summary
             ')
+            ->when($hasUsers, fn ($query) => $query->selectRaw("COALESCE(STRING_AGG(DISTINCT NULLIF(u.name, ''), ', '), '-') as released_by_summary"), fn ($query) => $query->selectRaw("'-' as released_by_summary"))
             ->groupBy('sod.store_outbound_id', 'p.id', 'p.code', 'p.name')
             ->orderBy('p.name')
             ->get()

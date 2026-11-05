@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\StokPercabangExport;
 use App\Http\Controllers\Controller;
 use App\Models\Store;
@@ -10,6 +9,7 @@ use App\Services\StockReservationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StokPercabangController extends Controller
@@ -18,8 +18,8 @@ class StokPercabangController extends Controller
     {
         $filters = [
             'store_id' => trim((string) $request->input('store_id', '')),
-            'q'        => trim((string) $request->input('q', '')),
-            'min'      => (int) $request->input('min', 0),
+            'q' => trim((string) $request->input('q', '')),
+            'min' => (int) $request->input('min', 0),
         ];
 
         $rows = $this->buildFilteredQuery($filters)
@@ -32,15 +32,19 @@ class StokPercabangController extends Controller
             ->get(['id', 'name', 'code']);
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Stok Percabang',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Stok per Cabang',
+            'description' => 'Posisi stok fisik, reservasi aktif, dan stok tersedia per cabang. Klik angka Qty Reservasi untuk melihat order dan pihak yang menahan stok.',
             'data' => [
-            'rows'    => $rows,
-            'stores'  => $stores,
-            'filters' => $filters,
-        ],
+                'rows' => $rows,
+                'stores' => $stores,
+                'filters' => $filters,
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.stok-percabang.export')],
+            'urls' => [
+                'index' => url()->current(),
+                'export' => route('monitoring.stok-percabang.export'),
+                'reservations' => route('monitoring.stok-percabang.reservations'),
+            ],
         ]);
     }
 
@@ -48,25 +52,25 @@ class StokPercabangController extends Controller
     {
         $filters = [
             'store_id' => trim((string) $request->input('store_id', '')),
-            'q'        => trim((string) $request->input('q', '')),
-            'min'      => (int) $request->input('min', 0),
+            'q' => trim((string) $request->input('q', '')),
+            'min' => (int) $request->input('min', 0),
         ];
 
         $rows = $this->buildFilteredQuery($filters)->get()->map(function ($r) {
-            $r->qty_store             = (int) $r->qty_store;
-            $r->qty_display           = (int) $r->qty_display;
-            $r->qty_real              = (int) $r->qty_real;
-            $r->qty_reserved          = (int) $r->qty_reserved;
-            $r->qty_available         = (int) $r->qty_available;
-            $r->qty_good              = (int) $r->qty_good;
+            $r->qty_store = (int) $r->qty_store;
+            $r->qty_display = (int) $r->qty_display;
+            $r->qty_real = (int) $r->qty_real;
+            $r->qty_reserved = (int) $r->qty_reserved;
+            $r->qty_available = (int) $r->qty_available;
+            $r->qty_good = (int) $r->qty_good;
             $r->qty_good_after_repair = (int) $r->qty_good_after_repair;
-            $r->qty_bad               = (int) $r->qty_bad;
-            $r->total_qty             = (int) $r->total_qty;
+            $r->qty_bad = (int) $r->qty_bad;
+            $r->total_qty = (int) $r->total_qty;
 
             return $r;
         });
 
-        $filename = 'laporan-stok-per-cabang-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'laporan-stok-per-cabang-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
             new StokPercabangExport($rows, $filters),
@@ -76,8 +80,8 @@ class StokPercabangController extends Controller
 
     private function buildFilteredQuery(array $filters)
     {
-        $storeId  = $filters['store_id'] ?? '';
-        $q        = $filters['q'] ?? '';
+        $storeId = $filters['store_id'] ?? '';
+        $q = $filters['q'] ?? '';
         $minStock = (int) ($filters['min'] ?? 0);
 
         $hasUnits = Schema::hasTable('units') && Schema::hasColumn('products', 'unit_id');
@@ -105,8 +109,8 @@ class StokPercabangController extends Controller
             ->when($q !== '', function ($q2) use ($q) {
                 $q2->where(function ($w) use ($q) {
                     $w->where('p.code', 'ILIKE', "%{$q}%")
-                      ->orWhere('p.name', 'ILIKE', "%{$q}%")
-                      ->orWhere('s.name', 'ILIKE', "%{$q}%");
+                        ->orWhere('p.name', 'ILIKE', "%{$q}%")
+                        ->orWhere('s.name', 'ILIKE', "%{$q}%");
                 });
             })
             ->selectRaw('

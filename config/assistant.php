@@ -4,6 +4,21 @@ return [
 
     'name' => 'VEE',
 
+    'default_mode' => env('AI_ASSISTANT_MODE', 'auto'),
+
+    'modes' => [
+        'auto' => [
+            'label' => 'Auto',
+            'description' => 'Luna untuk jawaban cepat, DeepSeek V4.1 Flash sebagai cadangan.',
+            'models' => ['auto', 'auto_fallback'],
+        ],
+        'expert' => [
+            'label' => 'Expert',
+            'description' => 'GPT 5.6 Sol untuk analisis yang lebih dalam.',
+            'models' => ['expert'],
+        ],
+    ],
+
     'mcp' => [
         'token' => env('MCP_TOKEN'),
         'server_name' => 'veestore-backoffice',

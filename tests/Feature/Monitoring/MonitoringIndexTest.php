@@ -2,7 +2,10 @@
 
 namespace Tests\Feature\Monitoring;
 
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\InteractsWithBackofficeAdmin;
 use Tests\TestCase;
@@ -44,6 +47,124 @@ class MonitoringIndexTest extends TestCase
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page->component('Monitoring/Report'));
         }
+    }
+
+    public function test_stock_warehouse_page_exposes_reservation_detail_url(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.stok-wms'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('urls.reservations', route('monitoring.stok-wms.reservations'))
+                ->has('data.rows'));
+    }
+
+    public function test_stok_wms_reservation_details_explain_the_reserving_party(): void
+    {
+        $warehouse = DB::table('warehouses')->whereNull('deleted_at')->first();
+        $product = DB::table('products')->first();
+
+        $this->assertNotNull($warehouse);
+        $this->assertNotNull($product);
+
+        $reservationId = (string) Str::uuid();
+
+        DB::table('stock_reservations')->insert([
+            'id' => $reservationId,
+            'product_id' => $product->id,
+            'reference_type' => 'store_order',
+            'reference_id' => (string) Str::uuid(),
+            'handler_type' => 'warehouse',
+            'handler_id' => $warehouse->id,
+            'quantity' => 3,
+            'status' => 'active',
+            'reserved_at' => now(),
+            'expires_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($this->admin())->getJson(route('monitoring.stok-wms.reservations', [
+            'warehouse_id' => $warehouse->id,
+            'product_id' => $product->id,
+        ]))->assertOk();
+
+        $row = collect($response->json('rows'))->firstWhere('id', $reservationId);
+
+        $this->assertNotNull($row);
+        $this->assertSame(3, $row['remaining_quantity']);
+        $this->assertSame('store_order', $row['reference_type']);
+        $this->assertArrayHasKey('reserved_by_name', $row);
+        $this->assertArrayHasKey('reserved_by_role', $row);
+        $this->assertArrayHasKey('reserved_for_name', $row);
+        $this->assertFalse($row['is_expired']);
+    }
+
+    public function test_inbound_outbound_monitoring_links_back_to_operations(): void
+    {
+        $admin = $this->admin();
+
+        $routes = [
+            'monitoring.warehouse-inbound' => 'operations.inbound.index',
+            'monitoring.warehouse-outbound.index' => 'operations.outbound.index',
+            'monitoring.store-inbound.index' => 'operations.store-inbound.index',
+            'monitoring.store-outbound.index' => 'operations.store-outbound.index',
+        ];
+
+        foreach ($routes as $monitoringRoute => $operationsRoute) {
+            $this->actingAs($admin)
+                ->get(route($monitoringRoute))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('Monitoring/Report')
+                    ->where('urls.operations', route($operationsRoute))
+                    ->has('data.rows'));
+        }
+    }
+
+    public function test_outbound_reports_use_document_status_instead_of_generic_resi_status(): void
+    {
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->get(route('monitoring.warehouse-outbound.index', ['document_status' => 'missing_delivery_order']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('data.filters.document_status', 'missing_delivery_order')
+                ->has('data.documentStatuses'));
+
+        $this->actingAs($admin)
+            ->get(route('monitoring.store-outbound.index', ['document_status' => 'missing_awb']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('data.filters.document_status', 'missing_awb')
+                ->has('data.documentStatuses'));
+    }
+
+    public function test_warehouse_outbound_report_exposes_destination_store(): void
+    {
+        if (! DB::table('warehouse_outbounds')->exists()) {
+            $this->markTestSkipped('Belum ada data warehouse outbound.');
+        }
+
+        $response = $this->actingAs($this->admin())
+            ->get(route('monitoring.warehouse-outbound.index', ['reconciliation_status' => 'not_recorded']));
+
+        $response->assertOk();
+
+        $rows = $response->viewData('page')['props']['data']['rows']['data'] ?? [];
+
+        if ($rows === []) {
+            $this->markTestSkipped('Belum ada outbound ke toko yang belum tercatat.');
+        }
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Monitoring/Report')
+            ->has('data.rows.data.0.destination_store_name')
+            ->has('data.rows.data.0.destination_store_code'));
     }
 
     public function test_monitoring_sales_pages_load_and_expose_clear_metrics(): void
@@ -213,5 +334,69 @@ class MonitoringIndexTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('data.filters.action', 'create'));
+    }
+
+    public function test_payment_income_realtime_supports_period_filters(): void
+    {
+        Carbon::setTestNow('2026-11-05 10:00:00');
+
+        try {
+            $admin = $this->admin();
+
+            $this->actingAs($admin)
+                ->get(route('monitoring.payment-income-realtime.index'))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('Monitoring/Report')
+                    ->where('data.filters.period', 'today')
+                    ->where('data.filters.start_date', '2026-11-05')
+                    ->where('data.filters.end_date', '2026-11-05')
+                    ->where('data.periodFilter.value', 'today')
+                    ->has('data.periodFilter.options', 4)
+                    ->has('data.periodFilter.years'));
+
+            $this->actingAs($admin)
+                ->get(route('monitoring.payment-income-realtime.index', ['period' => 'week']))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->where('data.filters.period', 'week')
+                    ->where('data.filters.start_date', '2026-11-02')
+                    ->where('data.filters.end_date', '2026-11-08')
+                    ->where('data.periodFilter.rangeLabel', '2 - 8 Nov 2026'));
+
+            $this->actingAs($admin)
+                ->get(route('monitoring.payment-income-realtime.index', ['period' => 'month']))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->where('data.filters.period', 'month')
+                    ->where('data.filters.start_date', '2026-11-01')
+                    ->where('data.filters.end_date', '2026-11-30')
+                    ->where('data.periodFilter.rangeLabel', '1 - 30 Nov 2026'));
+
+            $this->actingAs($admin)
+                ->get(route('monitoring.payment-income-realtime.index', ['period' => 'year', 'year' => 2025]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->where('data.filters.period', 'year')
+                    ->where('data.filters.year', 2025)
+                    ->where('data.filters.start_date', '2025-01-01')
+                    ->where('data.filters.end_date', '2025-12-31')
+                    ->where('data.periodFilter.year', '2025')
+                    ->where('data.periodFilter.rangeLabel', '1 Jan - 31 Des 2025'));
+
+            $this->actingAs($admin)
+                ->get(route('monitoring.payment-income-realtime.index', [
+                    'start_date' => '2026-10-01',
+                    'end_date' => '2026-10-31',
+                ]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->where('data.filters.period', 'custom')
+                    ->where('data.filters.start_date', '2026-10-01')
+                    ->where('data.filters.end_date', '2026-10-31')
+                    ->where('data.periodFilter.value', 'custom'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 }

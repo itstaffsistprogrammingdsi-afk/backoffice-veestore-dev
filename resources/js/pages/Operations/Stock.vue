@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import StockReservationDetailModal from '@/components/StockReservationDetailModal.vue';
 import StoreTransferReconciliationPanel from '@/components/StoreTransferReconciliationPanel.vue';
 import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
@@ -139,6 +140,7 @@ interface Props {
         stock_wms: string;
         stock_barriers: string;
         outbound_report: string;
+        reservations: string;
     };
 }
 
@@ -157,6 +159,23 @@ const filters = reactive({
 
 const activeTab = ref<'availability' | 'import'>('availability');
 const expanded = ref<Record<string, boolean>>({});
+
+interface ReservationTarget {
+    product: ProductGroup;
+    warehouse: StockRow;
+}
+
+const reservationTarget = ref<ReservationTarget | null>(null);
+
+const openReservationDetail = (product: ProductGroup, warehouse: StockRow) => {
+    if (warehouse.reserved <= 0) return;
+
+    reservationTarget.value = { product, warehouse };
+};
+
+const closeReservationDetail = () => {
+    reservationTarget.value = null;
+};
 
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 const formatDate = (value: string | null) => {
@@ -428,7 +447,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div class="stock-card-header">
                 <div>
                     <h2>Ketersediaan Stok</h2>
-                    <p>Stok available sudah dikurangi reservasi aktif. Klik detail untuk melihat posisi per gudang.</p>
+                    <p>Stok available sudah dikurangi reservasi aktif. Klik Detail untuk melihat posisi per gudang, lalu klik angka Reserved untuk melihat order yang menahannya.</p>
                 </div>
                 <span class="stock-card-meta">{{ formatNumber(props.products.length) }} produk</span>
             </div>
@@ -527,7 +546,20 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                                         <small>{{ warehouse.warehouse_code || '—' }}</small>
                                                     </td>
                                                     <td class="text-end">{{ formatNumber(warehouse.on_hand) }}</td>
-                                                    <td class="text-end">{{ formatNumber(warehouse.reserved) }}</td>
+                                                    <td class="text-end">
+                                                        <button
+                                                            v-if="warehouse.reserved > 0"
+                                                            type="button"
+                                                            class="stock-reserved-trigger"
+                                                            :aria-label="`Lihat siapa yang mereservasi ${formatNumber(warehouse.reserved)} stok ${product.product_name} di ${warehouse.warehouse_name}`"
+                                                            title="Lihat order dan pihak yang mereservasi stok"
+                                                            @click="openReservationDetail(product, warehouse)"
+                                                        >
+                                                            {{ formatNumber(warehouse.reserved) }}
+                                                            <i class="mdi mdi-account-search-outline" aria-hidden="true"></i>
+                                                        </button>
+                                                        <template v-else>{{ formatNumber(warehouse.reserved) }}</template>
+                                                    </td>
                                                     <td class="text-end"><strong>{{ formatNumber(warehouse.available) }}</strong></td>
                                                     <td class="text-end">{{ warehouse.stock_barrier === null ? '—' : formatNumber(warehouse.stock_barrier) }}</td>
                                                     <td v-if="props.showThreshold" class="text-end">{{ warehouse.threshold === null ? '—' : formatNumber(warehouse.threshold) }}</td>
@@ -693,6 +725,20 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             </div>
         </details>
 
+        <StockReservationDetailModal
+            :open="reservationTarget !== null"
+            :url="props.urls.reservations"
+            handler-type="warehouse"
+            :handler-id="reservationTarget?.warehouse.warehouse_id ?? null"
+            :product-id="reservationTarget?.product.product_id ?? null"
+            :product-name="reservationTarget?.product.product_name"
+            :product-code="reservationTarget?.product.product_code"
+            :location-name="reservationTarget?.warehouse.warehouse_name"
+            :location-code="reservationTarget?.warehouse.warehouse_code ?? ''"
+            :unit-name="reservationTarget?.product.unit_name"
+            :reserved-qty="reservationTarget?.warehouse.reserved ?? 0"
+            @close="closeReservationDetail"
+        />
     </div>
 </template>
 
@@ -762,6 +808,9 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 .stock-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .stock-detail-table td strong, .stock-detail-table td small { display: block; }
 .stock-detail-table td small { color: var(--app-muted); font-size: 0.7rem; }
+.stock-reserved-trigger { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.35rem; border: 1px solid transparent; border-radius: 0.35rem; background: transparent; color: var(--app-accent-ink); font-size: 0.78rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stock-reserved-trigger:hover { border-color: var(--app-border); background: var(--app-accent-soft); }
+.stock-reserved-trigger:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 1px; }
 .stock-import-qty { color: var(--app-danger-ink); }
 .stock-empty { display: grid; place-items: center; gap: 0.3rem; padding: 3rem 1rem; color: var(--app-muted); text-align: center; }
 .stock-empty i { font-size: 1.8rem; color: var(--app-accent-ink); }

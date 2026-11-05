@@ -9,6 +9,10 @@ AI_PROVIDER=nine_router
 NINE_ROUTER_URL=https://your-9router-host/v1
 NINE_ROUTER_API_KEY=
 NINE_ROUTER_MODEL=ocg/deepseek-v4.1-flash
+NINE_ROUTER_AUTO_MODEL=cx/gpt-5.6-luna
+NINE_ROUTER_AUTO_FALLBACK_MODEL=ocg/deepseek-v4.1-flash
+NINE_ROUTER_EXPERT_MODEL=cx/gpt-5.6-sol
+AI_ASSISTANT_MODE=auto
 
 # Token untuk MCP client (Authorization: Bearer ...)
 MCP_TOKEN=

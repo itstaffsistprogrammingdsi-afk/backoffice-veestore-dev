@@ -28,6 +28,7 @@ class OperationalStockController extends Controller
                 'stock_wms' => route('monitoring.stok-wms'),
                 'stock_barriers' => route('monitoring.stok-barier-gudang.index'),
                 'outbound_report' => route('monitoring.warehouse-outbound.index'),
+                'reservations' => route('monitoring.stok-wms.reservations'),
             ],
         ]);
     }

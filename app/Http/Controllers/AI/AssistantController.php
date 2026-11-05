@@ -9,8 +9,10 @@ use App\Http\Requests\AI\ChatRequest;
 use App\Services\Assistant\AssistantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use RuntimeException;
 use Throwable;
 
 class AssistantController extends Controller
@@ -30,12 +32,40 @@ class AssistantController extends Controller
     public function chat(ChatRequest $request, AssistantContext $context): JsonResponse
     {
         $message = trim($request->validated('message'));
+        $mode = (string) ($request->validated('mode') ?? $context->defaultMode());
         $history = $this->history($request);
         $logger = app(ToolCallLogger::class);
-        $logger->reset();
 
         try {
-            $response = (new VeeAssistant)->withMessages($history)->prompt($message, timeout: 120);
+            $models = $context->modelsFor($mode);
+            $response = null;
+            $usedModel = null;
+            $lastException = null;
+
+            foreach ($models as $index => $model) {
+                $logger->reset();
+
+                try {
+                    $response = (new VeeAssistant($model))->withMessages($history)->prompt($message, timeout: 120);
+                    $usedModel = $model;
+
+                    break;
+                } catch (Throwable $exception) {
+                    $lastException = $exception;
+
+                    if ($index < count($models) - 1) {
+                        Log::warning('VEE beralih ke model cadangan.', [
+                            'model' => $model,
+                            'exception' => $exception::class,
+                        ]);
+                    }
+                }
+            }
+
+            if ($response === null) {
+                throw $lastException ?? new RuntimeException('Tidak ada model asisten yang tersedia.');
+            }
+
             $answer = trim((string) $response);
             $toolCalls = $logger->calls();
             $answer = $this->appendSources($answer, $toolCalls);
@@ -54,7 +84,8 @@ class AssistantController extends Controller
                 'answer' => $answer,
                 'messages' => array_slice($messages, -30),
                 'tool_calls' => $toolCalls,
-                'model' => $context->model(),
+                'model' => $usedModel,
+                'mode' => $mode,
                 'usage' => $usage,
             ]);
         } catch (Throwable $exception) {
@@ -87,6 +118,8 @@ class AssistantController extends Controller
             'features' => $context->features(),
             'coverage' => $context->coverage(),
             'model' => $context->model(),
+            'modes' => $context->modes(),
+            'default_mode' => $context->defaultMode(),
             'urls' => [
                 'index' => route('ai-assistant.index'),
                 'state' => route('ai-assistant.state'),

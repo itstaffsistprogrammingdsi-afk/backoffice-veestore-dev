@@ -27,7 +27,8 @@ class OperationalStockTest extends TestCase
                 ->has('summary.aging_buckets')
                 ->has('transferReconciliation.summary')
                 ->has('warehouses')
-                ->has('urls.outbound_report'));
+                ->has('urls.outbound_report')
+                ->where('urls.reservations', route('monitoring.stok-wms.reservations')));
     }
 
     public function test_items_below_warehouse_barrier_appear_in_import_needs(): void

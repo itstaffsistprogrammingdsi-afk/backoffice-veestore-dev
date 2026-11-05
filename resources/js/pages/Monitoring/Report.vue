@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import StockReservationDetailModal from '@/components/StockReservationDetailModal.vue';
 import { downloadExcelTable } from '@/composables/useExcelExport';
 
 defineOptions({ layout: AppLayout });
@@ -32,7 +33,13 @@ interface Props {
     description?: string;
     data: Record<string, any>;
     filters: Record<string, any> | any[];
-    urls: { index: string; export?: string; exports?: Record<string, string> };
+    urls: {
+        index: string;
+        export?: string;
+        exports?: Record<string, string>;
+        operations?: string;
+        reservations?: string;
+    };
 }
 
 interface FilterOption {
@@ -49,6 +56,17 @@ interface FilterField {
     options: FilterOption[];
     placeholder: string;
     wide: boolean;
+}
+
+interface PeriodFilter {
+    value: string;
+    label: string;
+    year: string;
+    currentYear: string;
+    options: FilterOption[];
+    years: string[];
+    rangeLabel: string;
+    autoRefresh: boolean;
 }
 
 interface Dataset {
@@ -94,6 +112,29 @@ const isObject = (value: unknown): value is Record<string, any> =>
 
 const isPaginator = (value: unknown): value is Paginator =>
     isObject(value) && Array.isArray(value.data) && Array.isArray(value.links);
+
+const periodFilter = computed<PeriodFilter | null>(() => {
+    const value = props.data?.periodFilter;
+
+    if (!isObject(value) || !Array.isArray(value.options) || !Array.isArray(value.years)) return null;
+
+    return value as PeriodFilter;
+});
+
+const periodOptions = computed<FilterOption[]>(() => {
+    const filter = periodFilter.value;
+
+    if (!filter) return [];
+
+    return filter.options.map((option) => {
+        if (option.value !== 'year') return option;
+
+        return {
+            ...option,
+            label: filter.year && filter.year !== filter.currentYear ? `Tahun ${filter.year}` : 'Tahun ini',
+        };
+    });
+});
 
 const FILTER_ALIASES: Record<string, string> = {
     storeId: 'store_id',
@@ -217,6 +258,7 @@ const ALLOWED_FILTERS = new Set([
     'item_qc_status',
     'release_status',
     'shipping_status',
+    'document_status',
     'source',
     'action',
     'type',
@@ -319,6 +361,7 @@ const FILTER_LABELS: Record<string, string> = {
     item_qc_status: 'Status QC Item',
     release_status: 'Status Rilis',
     shipping_status: 'Status Pengiriman',
+    document_status: 'Status Dokumen',
     source: 'Sumber',
     action: 'Aksi',
     type: 'Tipe',
@@ -440,6 +483,7 @@ const OPTION_SOURCES: Record<string, { keys: string[]; labels?: string[] }> = {
     item_qc_status: { keys: [] },
     release_status: { keys: [] },
     shipping_status: { keys: [] },
+    document_status: { keys: ['documentStatuses'] },
     source: { keys: ['sources'] },
     attendance_type: { keys: [] },
     tracking_status: { keys: [] },
@@ -846,6 +890,10 @@ const COLUMN_LABELS: Record<string, string> = {
     qty_bad: 'Qty Rusak',
     tolerance_percentage: 'Toleransi (%)',
     order_ref: 'Referensi Order',
+    store_order_number: 'Order Store',
+    item_quantity: 'Qty Header',
+    quantity_item: 'Qty Header',
+    total_header_qty: 'Qty Header',
     outbound_type_label: 'Tipe Outbound',
     destination_store_name: 'Cabang Tujuan',
     destination_store_code: 'Kode Cabang Tujuan',
@@ -854,6 +902,8 @@ const COLUMN_LABELS: Record<string, string> = {
     store_received_at: 'Diterima Cabang Pada',
     store_recording_status: 'Status Stok Cabang',
     store_recording_status_label: 'Status Stok Cabang',
+    document_status: 'Status Dokumen',
+    document_status_label: 'Status Dokumen',
     inbound_type_label: 'Tipe Inbound',
     shipping_status: 'Status Pengiriman',
     source_label: 'Sumber',
@@ -1454,6 +1504,112 @@ watch(
 const activeDatasetDescription = computed(() => activeDataset.value?.description ?? '');
 
 const rows = computed<Row[]>(() => activeDataset.value?.rows ?? []);
+
+const selectedRow = ref<Row | null>(null);
+const operationsUrl = computed(() => typeof props.urls?.operations === 'string' ? props.urls.operations : '');
+const rowHasDetails = (row: Row): boolean => {
+    const details = row.product_details ?? row.details;
+
+    return Array.isArray(details) && details.length > 0;
+};
+const hasRowDetails = computed(() => rows.value.some(rowHasDetails));
+
+const reservationRow = ref<Row | null>(null);
+const reservationUrl = computed(() => typeof props.urls?.reservations === 'string' ? props.urls.reservations : '');
+
+const reservationHandler = (row: Row): { type: 'warehouse' | 'store'; id: string } | null => {
+    if (row.warehouse_id) {
+        return { type: 'warehouse', id: String(row.warehouse_id) };
+    }
+
+    if (row.store_id) {
+        return { type: 'store', id: String(row.store_id) };
+    }
+
+    return null;
+};
+
+const canOpenReservations = (row: Row): boolean => {
+    if (!reservationUrl.value) return false;
+    if (!columnKeys.value.includes('qty_reserved')) return false;
+    if (!row.product_id) return false;
+    if (Number(row.qty_reserved ?? 0) <= 0) return false;
+
+    return reservationHandler(row) !== null;
+};
+
+const reservationContext = computed(() => {
+    const row = reservationRow.value;
+
+    if (!row) return null;
+
+    const handler = reservationHandler(row);
+
+    return {
+        handlerType: handler?.type ?? 'warehouse',
+        handlerId: handler?.id ?? null,
+        productId: row.product_id ? String(row.product_id) : null,
+        productName: String(row.product_name ?? ''),
+        productCode: String(row.product_code ?? ''),
+        locationName: String(row.warehouse_name ?? row.store_name ?? ''),
+        locationCode: String(row.warehouse_code ?? row.store_code ?? ''),
+        unitName: String(row.unit_name ?? ''),
+        reservedQty: Number(row.qty_reserved ?? 0),
+    };
+});
+
+const openReservations = (row: Row) => {
+    if (!canOpenReservations(row)) return;
+
+    reservationRow.value = row;
+};
+
+const closeReservations = () => {
+    reservationRow.value = null;
+};
+
+const detailRows = computed<Row[]>(() => {
+    const details = selectedRow.value?.product_details ?? selectedRow.value?.details;
+
+    return Array.isArray(details) ? details as Row[] : [];
+});
+const detailColumns = computed<TableColumn[]>(() => {
+    const keys = new Set<string>();
+
+    for (const row of detailRows.value.slice(0, 5)) {
+        for (const key of Object.keys(row)) {
+            if (!isHiddenColumn(key, row[key])) keys.add(key);
+        }
+    }
+
+    return Array.from(keys).map((key) => ({
+        key,
+        label: humanize(key),
+        align: isNumberKey(key) || isCurrencyKey(key) ? 'text-end' : 'text-start',
+        wrap: isLongTextKey(key),
+    }));
+});
+const openRowDetail = (row: Row) => {
+    if (!rowHasDetails(row)) return;
+
+    selectedRow.value = row;
+};
+const closeRowDetail = () => {
+    selectedRow.value = null;
+};
+const onDetailKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && selectedRow.value) closeRowDetail();
+};
+
+watch(selectedRow, (value) => {
+    document.body.style.overflow = value ? 'hidden' : '';
+});
+onMounted(() => window.addEventListener('keydown', onDetailKeydown));
+onBeforeUnmount(() => {
+    window.removeEventListener('keydown', onDetailKeydown);
+    document.body.style.overflow = '';
+});
+
 const paginator = computed<Paginator | null>(() => activeDataset.value?.paginator ?? null);
 const supportsPerPage = computed(() => rawFilterEntries.value.has('per_page'));
 const perPageValue = computed(() => filterValues.per_page ?? (paginator.value?.per_page ? String(paginator.value.per_page) : ''));
@@ -1502,6 +1658,8 @@ const summaryLabel = (key: string): string => {
         total_items: 'Total Item',
         total_sku: 'Total SKU',
         total_qty: 'Total Qty',
+        total_header_qty: 'Qty Header',
+        received_today: 'Diterima Hari Ini',
         total_value: 'Total Nilai',
         total_nominal: 'Total Nilai',
         total_amount: 'Total Nominal',
@@ -1605,6 +1763,10 @@ const summaryLabel = (key: string): string => {
         total_returns: 'Total Retur',
         total_damaged: 'Total Rusak',
         total_orders: 'Total Pesanan',
+        total_with_shipping: 'Resi Ecommerce Tersedia',
+        total_missing_awb: 'Belum Ada Resi Ecommerce',
+        total_without_shipping: 'Belum Ada Resi Ecommerce',
+        total_without_delivery_order: 'Belum Ada Surat Jalan Store',
         total_store_transfers: 'Transfer ke Toko',
         store_not_recorded: 'Belum Tercatat di Toko',
         store_partial: 'Tercatat Sebagian',
@@ -1849,6 +2011,7 @@ const SUPERSEDED_COLUMNS: Record<string, string[]> = {
     inbound_type: ['inbound_type_label'],
     outbound_type: ['outbound_type_label'],
     store_recording_status: ['store_recording_status_label'],
+    document_status: ['document_status_label'],
 };
 
 const columnKeys = computed(() => {
@@ -1884,6 +2047,8 @@ const COLUMN_PRIORITY: Record<string, number> = {
     product_name: 0,
     customer_name: 0,
     store_name: 0,
+    destination_store_name: 0,
+    destination_store_code: 0,
     warehouse_name: 0,
     supplier_name: 0,
     location_name: 0,
@@ -2005,6 +2170,120 @@ const recordCount = computed(() => paginator.value?.total ?? rows.value.length);
 const rowStart = computed(() => paginator.value?.from ?? (rows.value.length > 0 ? 1 : 0));
 const lastUpdate = computed(() => String(props.data?.lastUpdate ?? '').trim());
 
+const AUTO_REFRESH_INTERVAL = 30_000;
+const autoRefreshEnabled = ref(false);
+const isRefreshing = ref(false);
+let autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+const appliedFilterPayload = (): Record<string, string> => {
+    const payload: Record<string, string> = {};
+
+    if (isObject(props.filters)) {
+        for (const [key, value] of Object.entries(props.filters)) {
+            if (key === 'page' || key === 'theme') continue;
+            if (value === null || value === undefined || value === '') continue;
+            if (typeof value === 'object') continue;
+
+            payload[key] = String(value);
+        }
+    }
+
+    const filter = periodFilter.value;
+
+    if (filter) {
+        payload.period = filter.value;
+        payload.year = filter.year;
+
+        if (autoRefreshEnabled.value) {
+            payload.auto_refresh = '1';
+        }
+    }
+
+    return payload;
+};
+
+const stopAutoRefresh = () => {
+    if (autoRefreshTimer !== null) {
+        window.clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+    }
+};
+
+const refreshData = () => {
+    if (!autoRefreshEnabled.value || document.hidden || isRefreshing.value || loading.value) return;
+
+    isRefreshing.value = true;
+
+    router.get(props.urls.index, appliedFilterPayload(), {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isRefreshing.value = false;
+        },
+    });
+};
+
+const startAutoRefresh = () => {
+    stopAutoRefresh();
+
+    if (!autoRefreshEnabled.value) return;
+
+    autoRefreshTimer = window.setInterval(refreshData, AUTO_REFRESH_INTERVAL);
+};
+
+const setAutoRefresh = (enabled: boolean) => {
+    autoRefreshEnabled.value = enabled;
+    startAutoRefresh();
+
+    if (!periodFilter.value) return;
+
+    isRefreshing.value = true;
+
+    router.get(props.urls.index, {
+        ...appliedFilterPayload(),
+        auto_refresh: enabled ? '1' : '0',
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onFinish: () => {
+            isRefreshing.value = false;
+        },
+    });
+};
+
+const toggleAutoRefresh = (event: Event) => {
+    setAutoRefresh((event.target as HTMLInputElement).checked);
+};
+
+const handleVisibilityChange = () => {
+    if (!document.hidden && autoRefreshEnabled.value) refreshData();
+};
+
+watch(
+    () => periodFilter.value?.autoRefresh,
+    (value) => {
+        const enabled = Boolean(value);
+
+        if (enabled === autoRefreshEnabled.value) return;
+
+        autoRefreshEnabled.value = enabled;
+        startAutoRefresh();
+    },
+    { immediate: true },
+);
+
+onMounted(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startAutoRefresh();
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    stopAutoRefresh();
+});
+
 const buildPayload = (): Record<string, string> => {
     const payload: Record<string, string> = {};
 
@@ -2059,17 +2338,82 @@ const exportCurrentTable = () => {
     );
 };
 
-const applyFilters = () => {
+const visitWithPayload = (payload: Record<string, string>) => {
     loading.value = true;
 
-    router.get(props.urls.index, buildPayload(), {
+    router.get(props.urls.index, payload, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
         onFinish: () => {
             loading.value = false;
+            isRefreshing.value = false;
         },
     });
+};
+
+const applyFilters = () => {
+    const payload = buildPayload();
+    const filter = periodFilter.value;
+
+    if (filter) {
+        const currentStart = String(props.data?.filters?.start_date ?? '');
+        const currentEnd = String(props.data?.filters?.end_date ?? '');
+        const start = payload.start_date ?? '';
+        const end = payload.end_date ?? '';
+
+        if (!start && !end) {
+            payload.period = 'today';
+        } else if (start !== currentStart || end !== currentEnd) {
+            payload.period = 'custom';
+        } else {
+            payload.period = filter.value;
+        }
+
+        payload.year = filter.year;
+
+        if (autoRefreshEnabled.value) {
+            payload.auto_refresh = '1';
+        }
+    }
+
+    visitWithPayload(payload);
+};
+
+const applyPeriod = (period: string) => {
+    const filter = periodFilter.value;
+
+    if (!filter) return;
+
+    const payload = buildPayload();
+    delete payload.start_date;
+    delete payload.end_date;
+    payload.period = period;
+    payload.year = filter.year;
+
+    if (autoRefreshEnabled.value) {
+        payload.auto_refresh = '1';
+    }
+
+    visitWithPayload(payload);
+};
+
+const changePeriodYear = (event: Event) => {
+    const filter = periodFilter.value;
+
+    if (!filter) return;
+
+    const payload = buildPayload();
+    delete payload.start_date;
+    delete payload.end_date;
+    payload.period = 'year';
+    payload.year = (event.target as HTMLSelectElement).value;
+
+    if (autoRefreshEnabled.value) {
+        payload.auto_refresh = '1';
+    }
+
+    visitWithPayload(payload);
 };
 
 const resetFilters = () => {
@@ -2148,6 +2492,84 @@ const selectDataset = (key: string) => {
             </div>
         </div>
 
+        <section
+            v-if="periodFilter"
+            class="card monitor-card monitor-period-card"
+            aria-labelledby="monitor-period-title"
+        >
+            <div class="card-body">
+                <div class="monitor-period-head">
+                    <div>
+                        <h2 id="monitor-period-title" class="monitor-section-title">
+                            <i class="mdi mdi-calendar-range" aria-hidden="true"></i>
+                            Periode pemasukan
+                        </h2>
+                        <p>
+                            <strong>{{ periodFilter.rangeLabel }}</strong>
+                            <span class="monitor-period-separator" aria-hidden="true">·</span>
+                            {{ periodFilter.label }}
+                        </p>
+                    </div>
+
+                    <div class="monitor-period-controls">
+                        <div class="monitor-period-options" role="group" aria-label="Pilih periode pemasukan">
+                            <button
+                                v-for="option in periodOptions"
+                                :key="option.value"
+                                type="button"
+                                class="monitor-period-option"
+                                :class="{ 'is-active': periodFilter.value === option.value }"
+                                :aria-pressed="periodFilter.value === option.value"
+                                :disabled="loading"
+                                @click="applyPeriod(option.value)"
+                            >
+                                {{ option.label }}
+                            </button>
+                        </div>
+
+                        <div v-if="periodFilter.value === 'year'" class="monitor-period-year">
+                            <label for="monitor-period-year" class="form-label">Pilih tahun</label>
+                            <select
+                                id="monitor-period-year"
+                                class="form-select form-select-sm"
+                                :value="periodFilter.year"
+                                :disabled="loading"
+                                @change="changePeriodYear"
+                            >
+                                <option v-for="year in periodFilter.years" :key="year" :value="year">
+                                    {{ year }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="monitor-period-foot">
+                    <p class="monitor-period-hint">
+                        <i class="mdi mdi-information-outline" aria-hidden="true"></i>
+                        Pilih periode cepat, atau ubah tanggal pada filter di bawah untuk rentang kustom.
+                    </p>
+
+                    <div class="monitor-refresh">
+                        <label class="monitor-refresh-toggle">
+                            <input
+                                type="checkbox"
+                                role="switch"
+                                :checked="autoRefreshEnabled"
+                                :disabled="loading"
+                                @change="toggleAutoRefresh"
+                            />
+                            <span>Perbarui otomatis setiap 30 detik</span>
+                        </label>
+                        <span v-if="isRefreshing" class="monitor-refresh-state" role="status">
+                            <i class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
+                            Memperbarui data
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <nav
             v-if="props.data?.omsetTab && props.data?.omsetUrls"
             class="monitor-omset-tabs"
@@ -2197,7 +2619,7 @@ const selectDataset = (key: string) => {
                     <div>
                         <h2 id="monitor-filter-title" class="monitor-section-title">
                             <i class="mdi mdi-filter-variant" aria-hidden="true"></i>
-                            Filter audit
+                            {{ periodFilter ? 'Filter data' : 'Filter audit' }}
                         </h2>
                         <p>Persempit data berdasarkan periode, status, lokasi, atau kata kunci.</p>
                     </div>
@@ -2316,6 +2738,10 @@ const selectDataset = (key: string) => {
                 </div>
 
                 <div class="monitor-data-tools">
+                    <Link v-if="operationsUrl" :href="operationsUrl" class="btn btn-sm btn-outline-secondary">
+                        <i class="mdi mdi-open-in-app" aria-hidden="true"></i>
+                        Buka Operasional
+                    </Link>
                     <button
                         v-if="hasMoreColumns"
                         type="button"
@@ -2391,6 +2817,7 @@ const selectDataset = (key: string) => {
                             >
                                 {{ column.label }}
                             </th>
+                            <th v-if="hasRowDetails" scope="col" class="text-end">Detail</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2401,7 +2828,19 @@ const selectDataset = (key: string) => {
                                 :key="column.key"
                                 :class="[column.align, { 'monitor-cell-wrap': column.wrap }]"
                             >
-                                <template v-if="cellFor(row, column.key).kind === 'badge'">
+                                <template v-if="column.key === 'qty_reserved' && canOpenReservations(row)">
+                                    <button
+                                        type="button"
+                                        class="monitor-reservation-link"
+                                        :aria-label="`Lihat ${cellFor(row, column.key).text} reservasi untuk ${row.product_name ?? 'produk'} di ${row.warehouse_name ?? row.store_name ?? 'lokasi ini'}`"
+                                        title="Lihat order dan pihak yang mereservasi stok"
+                                        @click="openReservations(row)"
+                                    >
+                                        {{ cellFor(row, column.key).text }}
+                                        <i class="mdi mdi-account-search-outline" aria-hidden="true"></i>
+                                    </button>
+                                </template>
+                                <template v-else-if="cellFor(row, column.key).kind === 'badge'">
                                     <span
                                         class="monitor-badge"
                                         :class="`is-${cellFor(row, column.key).tone}`"
@@ -2413,6 +2852,19 @@ const selectDataset = (key: string) => {
                                 <template v-else>
                                     <span :title="cellFor(row, column.key).title">{{ cellFor(row, column.key).text }}</span>
                                 </template>
+                            </td>
+                            <td v-if="hasRowDetails" class="text-end">
+                                <button
+                                    v-if="rowHasDetails(row)"
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary"
+                                    :aria-label="`Buka detail dokumen baris ${rowStart + index}`"
+                                    @click="openRowDetail(row)"
+                                >
+                                    <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
+                                    Detail
+                                </button>
+                                <span v-else class="text-muted">-</span>
                             </td>
                         </tr>
                     </tbody>
@@ -2435,6 +2887,79 @@ const selectDataset = (key: string) => {
                 <PaginationLinks v-if="paginator && paginator.links.length > 3" :links="paginator.links" />
             </div>
         </section>
+
+        <Teleport to="body">
+            <div v-if="selectedRow" class="monitor-modal-backdrop" @click.self="closeRowDetail">
+                <div class="monitor-modal" role="dialog" aria-modal="true" aria-labelledby="monitor-detail-title">
+                    <header class="monitor-modal-header">
+                        <div>
+                            <h2 id="monitor-detail-title">{{ props.title }}</h2>
+                            <p>Detail dokumen dan seluruh baris produk pada data ini.</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Tutup detail dokumen" @click="closeRowDetail">
+                            <i class="mdi mdi-close" aria-hidden="true"></i>
+                        </button>
+                    </header>
+
+                    <div class="monitor-modal-body">
+                        <dl class="monitor-detail-grid">
+                            <div v-for="column in allColumns" :key="`detail-${column.key}`">
+                                <dt>{{ column.label }}</dt>
+                                <dd>
+                                    <span v-if="cellFor(selectedRow, column.key).kind === 'badge'" class="monitor-badge" :class="`is-${cellFor(selectedRow, column.key).tone}`">
+                                        {{ cellFor(selectedRow, column.key).text }}
+                                    </span>
+                                    <template v-else>{{ cellFor(selectedRow, column.key).text }}</template>
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <section v-if="detailRows.length" class="monitor-detail-products" aria-labelledby="monitor-detail-products-title">
+                            <h3 id="monitor-detail-products-title">Detail Produk</h3>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle monitor-detail-table mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th v-for="column in detailColumns" :key="`product-${column.key}`" :class="column.align">{{ column.label }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(detail, index) in detailRows" :key="`detail-row-${index}`">
+                                            <td v-for="column in detailColumns" :key="`${index}-${column.key}`" :class="[column.align, { 'monitor-cell-wrap': column.wrap }]">
+                                                <span v-if="cellFor(detail, column.key).kind === 'badge'" class="monitor-badge" :class="`is-${cellFor(detail, column.key).tone}`">
+                                                    {{ cellFor(detail, column.key).text }}
+                                                </span>
+                                                <template v-else>{{ cellFor(detail, column.key).text }}</template>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                        <p v-else class="text-muted small mb-0">Tidak ada detail produk pada dokumen ini.</p>
+                    </div>
+
+                    <footer class="monitor-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="closeRowDetail">Tutup</button>
+                    </footer>
+                </div>
+            </div>
+        </Teleport>
+
+        <StockReservationDetailModal
+            :open="reservationRow !== null"
+            :url="reservationUrl"
+            :handler-type="reservationContext?.handlerType ?? 'warehouse'"
+            :handler-id="reservationContext?.handlerId ?? null"
+            :product-id="reservationContext?.productId ?? null"
+            :product-name="reservationContext?.productName"
+            :product-code="reservationContext?.productCode"
+            :location-name="reservationContext?.locationName"
+            :location-code="reservationContext?.locationCode"
+            :unit-name="reservationContext?.unitName"
+            :reserved-qty="reservationContext?.reservedQty ?? 0"
+            @close="closeReservations"
+        />
     </div>
 </template>
 
@@ -2571,6 +3096,200 @@ const selectDataset = (key: string) => {
 .monitor-omset-tab.is-active {
     background: var(--app-accent-soft);
     color: var(--app-accent-ink);
+}
+
+.monitor-period-card {
+    margin-bottom: 1rem;
+}
+
+.monitor-period-card .card-body {
+    padding: 1rem;
+}
+
+.monitor-period-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.9rem;
+}
+
+.monitor-period-head > div:first-child {
+    min-width: 0;
+}
+
+.monitor-period-head p {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin: 0;
+    color: var(--app-muted);
+    font-size: 0.82rem;
+}
+
+.monitor-period-head strong {
+    color: var(--app-ink);
+    font-size: 0.95rem;
+}
+
+.monitor-period-separator {
+    color: var(--app-border);
+}
+
+.monitor-period-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.6rem;
+}
+
+.monitor-period-options {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0.25rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.7rem;
+    background: var(--app-surface-2);
+}
+
+.monitor-period-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    padding: 0.4rem 0.8rem;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--app-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.monitor-period-option:hover {
+    background: var(--app-surface);
+    color: var(--app-ink);
+}
+
+.monitor-period-option.is-active {
+    background: var(--app-surface);
+    color: var(--app-accent-ink);
+    box-shadow: 0 1px 2px rgba(15, 36, 54, 0.12);
+}
+
+.monitor-period-option:disabled {
+    opacity: 0.65;
+}
+
+.monitor-period-year {
+    min-width: 8rem;
+}
+
+.monitor-period-year .form-label {
+    margin-bottom: 0.3rem;
+    color: var(--app-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.monitor-period-year .form-select {
+    min-height: 2.5rem;
+    border-radius: var(--monitor-radius-sm);
+    font-size: 0.82rem;
+}
+
+.monitor-period-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+    margin-top: 0.9rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.monitor-period-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    margin: 0;
+    color: var(--app-muted);
+    font-size: 0.75rem;
+}
+
+.monitor-refresh {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.9rem;
+}
+
+.monitor-refresh-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    margin: 0;
+    color: var(--app-ink);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.monitor-refresh-toggle input {
+    appearance: none;
+    position: relative;
+    flex: 0 0 auto;
+    width: 2.3rem;
+    height: 1.25rem;
+    margin: 0;
+    border: 1px solid var(--app-muted);
+    border-radius: 999px;
+    background: var(--app-surface-3);
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.monitor-refresh-toggle input::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0.15rem;
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 50%;
+    background: var(--app-ink);
+    box-shadow: 0 1px 2px rgba(15, 36, 54, 0.25);
+    transform: translateY(-50%);
+    transition: left 160ms ease;
+}
+
+.monitor-refresh-toggle input:checked {
+    border-color: var(--app-accent);
+    background: var(--app-accent);
+}
+
+.monitor-refresh-toggle input:checked::after {
+    left: calc(100% - 1.05rem);
+    background: var(--app-on-accent);
+}
+
+.monitor-refresh-toggle input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.monitor-refresh-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--app-accent-ink);
+    font-size: 0.75rem;
+    font-weight: 700;
 }
 
 .monitor-filter-card {
@@ -2916,6 +3635,30 @@ const selectDataset = (key: string) => {
     text-align: right;
 }
 
+.monitor-reservation-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid transparent;
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--app-accent-ink);
+    font-size: 0.8rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.monitor-reservation-link:hover {
+    border-color: var(--app-border);
+    background: var(--app-accent-soft);
+}
+
+.monitor-reservation-link:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 1px;
+}
+
 .monitor-cell-wrap {
     min-width: 15rem;
     max-width: 24rem;
@@ -3108,11 +3851,69 @@ const selectDataset = (key: string) => {
     .monitor-per-page .form-select {
         min-height: 2.75rem;
     }
+
+    .monitor-period-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .monitor-period-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .monitor-period-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .monitor-period-option {
+        min-height: 2.75rem;
+    }
+
+    .monitor-period-year {
+        width: 100%;
+    }
+
+    .monitor-period-year .form-select {
+        min-height: 2.75rem;
+    }
+
+    .monitor-period-foot {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .monitor-refresh {
+        width: 100%;
+        justify-content: space-between;
+    }
 }
 
 @media (max-width: 359.98px) {
     .monitor-summary {
         grid-template-columns: 1fr;
     }
+}
+
+.monitor-modal-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(6vh, 3rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.64); }
+.monitor-modal { width: min(1080px, 100%); overflow: hidden; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.3); color: var(--app-ink); }
+.monitor-modal-header, .monitor-modal-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; }
+.monitor-modal-header { border-bottom: 1px solid var(--app-border); }
+.monitor-modal-header h2 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+.monitor-modal-header p { margin: 0; color: var(--app-muted); font-size: 0.8rem; }
+.monitor-modal-body { padding: 1rem 1.1rem; }
+.monitor-modal-footer { justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface-2); }
+.monitor-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; margin: 0 0 1rem; }
+.monitor-detail-grid > div { padding: 0.55rem 0.65rem; border: 1px solid var(--app-border); border-radius: 0.55rem; background: var(--app-surface-2); }
+.monitor-detail-grid dt { color: var(--app-muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.monitor-detail-grid dd { margin: 0.15rem 0 0; font-size: 0.8rem; overflow-wrap: anywhere; }
+.monitor-detail-products h3 { margin: 0 0 0.5rem; font-size: 0.9rem; }
+.monitor-detail-table th { padding: 0.5rem 0.55rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.monitor-detail-table td { padding: 0.5rem 0.55rem; font-size: 0.78rem; vertical-align: middle; }
+@media (max-width: 767.98px) {
+    .monitor-detail-grid { grid-template-columns: 1fr; }
+    .monitor-modal-backdrop { padding: 0.5rem; }
 }
 </style>

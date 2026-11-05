@@ -14,6 +14,13 @@ class VeeAssistant implements Agent, HasTools
 {
     use Promptable;
 
+    public function __construct(private readonly ?string $model = null) {}
+
+    public function model(): string
+    {
+        return $this->model ?? (string) config('ai.providers.nine_router.models.text.default', 'ocg/deepseek-v4.1-flash');
+    }
+
     public function maxSteps(): int
     {
         return (int) config('assistant.limits.max_steps', 4);

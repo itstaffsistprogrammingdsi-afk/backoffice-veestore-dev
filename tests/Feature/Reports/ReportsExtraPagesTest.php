@@ -71,9 +71,11 @@ class ReportsExtraPagesTest extends TestCase
                 ->has('provinceRows')
                 ->has('registrationTrend')
                 ->has('birthdayCustomers')
+                ->has('birthdayGreeting.template')
                 ->has('rows')
                 ->where('urls.index', route('reports.crm.demographics'))
-                ->where('urls.export', route('reports.crm.demographics.export')));
+                ->where('urls.export', route('reports.crm.demographics.export'))
+                ->where('urls.birthdayGreeting', route('reports.crm.demographics.birthday-greeting')));
     }
 
     public function test_reports_crm_demographics_accepts_complete_filters(): void

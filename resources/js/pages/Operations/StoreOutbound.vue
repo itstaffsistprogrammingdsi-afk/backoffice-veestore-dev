@@ -7,7 +7,7 @@ import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
-interface ProductDetail { product_code: string; product_name: string; qty: number; }
+interface ProductDetail { product_code: string; product_name: string; qty: number; rfid_count: number; rfid_summary: string; released_by_summary: string; }
 interface SkuDocument { id: string; reference: string; type_label: string; warehouse_name: string; shipping_number: string | null; date: string | null; }
 interface SkuRow { product_id: string; product_code: string; product_name: string; qty: number; document_count: number; store_qty: number; ecommerce_qty: number; other_qty: number; documents: SkuDocument[]; }
 interface OutboundRow {
@@ -21,21 +21,28 @@ interface OutboundRow {
     ecommerce_order_number: string;
     payment_number: string;
     store_return_number: string;
+    source_label: string;
     shipping_number: string;
     shipment_date: string | null;
     created_at: string;
     event_date: string | null;
+    item_quantity: number;
     total_items: number;
     total_sku: number;
+    total_rfid: number;
     has_shipping: boolean;
     status: 'completed' | 'missing_shipping';
     status_label: string;
+    nota_print_count: number;
+    nota_printed: boolean;
+    nota_print_method: 'direct' | 'email';
+    nota_print_method_label: string;
     product_details: ProductDetail[];
 }
 interface Paginator<T> { data: T[]; links: Array<{ url: string | null; label: string; active: boolean }>; from: number | null; to: number | null; total: number; }
 interface Props {
     rows: Paginator<OutboundRow>;
-    summary: { total_outbounds: number; total_qty: number; total_sku: number; store_qty: number; ecommerce_qty: number; missing_shipping: number };
+    summary: { total_outbounds: number; total_qty: number; total_sku: number; store_qty: number; ecommerce_qty: number; missing_shipping: number; total_rfid: number; total_ecommerce: number; total_returns: number };
     movementSummary: { total_qty: number; total_sku: number; store_qty: number; ecommerce_qty: number; other_qty: number };
     skuRows: SkuRow[];
     stores: Array<{ id: string; name: string; code: string | null }>;
@@ -82,7 +89,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
             <div>
                 <span class="outbound-eyebrow">Operations / Store</span>
                 <h1>Store Outbound Operations</h1>
-                <p>Pantau barang keluar dari store, pembagian store/ecommerce, dan kelengkapan nomor resi.</p>
+                <p>Pantau barang keluar dari store, pembagian store/ecommerce, resi ecommerce, dan referensi transaksi atau surat jalan untuk tipe non-ecommerce.</p>
             </div>
             <div class="outbound-hero-actions">
                 <Link :href="props.urls.stock" class="outbound-hero-button"><i class="mdi mdi-clipboard-list-outline me-1"></i>Store Stock Operations</Link>
@@ -93,11 +100,11 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
 
         <div class="row g-3 mb-3">
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-tray-arrow-up"></i></span><div><span>Total Outbound</span><strong>{{ formatNumber(props.summary.total_outbounds) }}</strong></div></div></div>
-            <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-package-variant-closed"></i></span><div><span>Total Qty Keluar</span><strong>{{ formatNumber(props.movementSummary.total_qty) }}</strong></div></div></div>
+            <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-package-variant-closed"></i></span><div><span>Total Qty Keluar</span><strong>{{ formatNumber(props.movementSummary.total_qty) }}</strong><small class="outbound-summary-note">{{ formatNumber(props.summary.total_rfid) }} RFID terikat</small></div></div></div>
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-barcode"></i></span><div><span>Total SKU Keluar</span><strong>{{ formatNumber(props.movementSummary.total_sku) }}</strong></div></div></div>
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-store"></i></span><div><span>Qty Store</span><strong>{{ formatNumber(props.movementSummary.store_qty) }}</strong></div></div></div>
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-cart-outline"></i></span><div><span>Qty Ecommerce</span><strong>{{ formatNumber(props.movementSummary.ecommerce_qty) }}</strong></div></div></div>
-            <div class="col-6 col-xl-2"><div class="outbound-summary outbound-summary-danger"><span class="outbound-summary-icon"><i class="mdi mdi-barcode-off"></i></span><div><span>Belum Ada Resi</span><strong>{{ formatNumber(props.summary.missing_shipping) }}</strong></div></div></div>
+            <div class="col-6 col-xl-2"><div class="outbound-summary outbound-summary-danger"><span class="outbound-summary-icon"><i class="mdi mdi-barcode-off"></i></span><div><span>Belum Ada Resi (Ecommerce)</span><strong>{{ formatNumber(props.summary.missing_shipping) }}</strong></div></div></div>
         </div>
 
         <div class="card outbound-card mb-3">
@@ -124,15 +131,15 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
                     <tbody>
                         <template v-for="row in props.rows.data" :key="row.id">
                             <tr>
-                                <td><div class="outbound-main"><strong>{{ documentReference(row) }}</strong><small>{{ row.ecommerce_order_number !== '-' ? row.ecommerce_order_number : row.payment_number !== '-' ? row.payment_number : row.store_return_number !== '-' ? row.store_return_number : 'Tanpa referensi' }}</small><small v-if="row.shipping_number !== '-'" class="outbound-awb">Resi: {{ row.shipping_number }}</small></div></td>
+                                <td><div class="outbound-main"><strong>{{ documentReference(row) }}</strong><small>{{ row.ecommerce_order_number !== '-' ? row.ecommerce_order_number : row.payment_number !== '-' ? row.payment_number : row.store_return_number !== '-' ? row.store_return_number : 'Tanpa referensi' }}</small><small class="outbound-subvalue">{{ row.source_label }}</small><small v-if="row.shipping_number !== '-'" class="outbound-awb">Resi: {{ row.shipping_number }}</small></div></td>
                                 <td><strong>{{ row.store_name }}</strong><small class="outbound-subvalue">{{ row.store_code }}</small></td>
                                 <td><strong>{{ row.outbound_type_label }}</strong><small class="outbound-subvalue">{{ row.courier_name || 'Tanpa kurir' }}</small></td>
-                                <td class="text-end"><strong>{{ formatNumber(row.total_items) }}</strong><small class="outbound-subvalue">{{ formatNumber(row.total_sku) }} SKU</small></td>
+                                <td class="text-end"><strong>{{ formatNumber(row.total_items) }}</strong><small class="outbound-subvalue">{{ formatNumber(row.total_sku) }} SKU &middot; {{ formatNumber(row.total_rfid) }} RFID</small></td>
                                 <td><strong>{{ formatDate(row.event_date || row.created_at) }}</strong><small class="outbound-subvalue">{{ row.shipment_date ? 'Shipment' : 'Dibuat' }}</small></td>
                                 <td><span class="badge" :class="statusClass(row.status)">{{ row.status_label }}</span></td>
                                 <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)"><i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[row.id] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
-                            <tr v-if="expanded[row.id]" class="outbound-detail-row"><td colspan="7"><div class="outbound-detail-wrap"><div class="outbound-detail-meta"><span><b>Referensi:</b> {{ documentReference(row) }}</span><span><b>Resi:</b> {{ row.shipping_number }}</span><span><b>Tipe:</b> {{ row.outbound_type_label }}</span></div><table class="table table-sm mb-0 outbound-detail-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th></tr></thead><tbody><tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`"><td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td><td class="text-end">{{ formatNumber(detail.qty) }}</td></tr><tr v-if="row.product_details.length === 0"><td colspan="2" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr></tbody></table></div></td></tr>
+                            <tr v-if="expanded[row.id]" class="outbound-detail-row"><td colspan="7"><div class="outbound-detail-wrap"><div class="outbound-detail-meta"><span><b>Referensi:</b> {{ documentReference(row) }}</span><span><b>Source:</b> {{ row.source_label }}</span><span v-if="row.outbound_type === 'ecommerce'"><b>Resi:</b> {{ row.shipping_number }}</span><span v-else><b>Dokumen:</b> {{ documentReference(row) }}</span><span><b>Tipe:</b> {{ row.outbound_type_label }}</span><span><b>Kurir:</b> {{ row.courier_name || '-' }}</span><span><b>Qty header:</b> {{ formatNumber(row.item_quantity) }}</span><span><b>RFID:</b> {{ formatNumber(row.total_rfid) }}</span><span><b>Shipment:</b> {{ formatDate(row.shipment_date) }}</span><span><b>Dibuat:</b> {{ formatDate(row.created_at) }}</span><span><b>Nota:</b> {{ row.nota_printed ? 'Sudah dicetak' : 'Belum dicetak' }}</span><span><b>Jumlah cetak:</b> {{ row.nota_print_count > 0 ? `${formatNumber(row.nota_print_count)}x` : '-' }}</span><span><b>Metode nota:</b> {{ row.nota_print_method_label }}</span></div><div class="table-responsive"><table class="table table-sm mb-0 outbound-detail-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">RFID</th><th>Serial RFID</th><th>Releaser</th></tr></thead><tbody><tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`"><td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td><td class="text-end">{{ formatNumber(detail.qty) }}</td><td class="text-end">{{ formatNumber(detail.rfid_count) }}</td><td>{{ detail.rfid_summary }}</td><td>{{ detail.released_by_summary }}</td></tr><tr v-if="row.product_details.length === 0"><td colspan="5" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr></tbody></table></div></div></td></tr>
                         </template>
                     </tbody>
                 </table>
@@ -141,7 +148,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
         </div>
 
         <details class="card outbound-card outbound-sku-card mt-3">
-            <summary class="outbound-card-header outbound-sku-summary"><div><h2>SKU Keluar</h2><p>Rincian qty per SKU. Klik angka referensi untuk melihat order, invoice, atau nomor resi yang memuat SKU tersebut.</p></div><span class="outbound-card-meta">{{ formatNumber(props.skuRows.length) }} SKU <i class="mdi mdi-chevron-down outbound-sku-chevron"></i></span></summary>
+            <summary class="outbound-card-header outbound-sku-summary"><div><h2>SKU Keluar</h2><p>Rincian qty per SKU. Klik angka referensi untuk melihat order, transaksi, surat jalan, atau resi yang memuat SKU tersebut.</p></div><span class="outbound-card-meta">{{ formatNumber(props.skuRows.length) }} SKU <i class="mdi mdi-chevron-down outbound-sku-chevron"></i></span></summary>
             <div v-if="props.skuRows.length === 0" class="outbound-empty"><i class="mdi mdi-barcode-off"></i><strong>Tidak ada SKU keluar</strong><span>Coba ubah kata kunci atau filter.</span></div>
             <div v-else class="table-responsive"><table class="table align-middle mb-0 outbound-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Store</th><th class="text-end">Ecommerce</th><th class="text-end">Lainnya</th><th class="text-end">Referensi</th></tr></thead><tbody><tr v-for="sku in props.skuRows" :key="sku.product_id"><td><div class="outbound-main"><strong>{{ sku.product_name }}</strong><small>{{ sku.product_code }}</small></div></td><td class="text-end"><strong>{{ formatNumber(sku.qty) }}</strong></td><td class="text-end">{{ formatNumber(sku.store_qty) }}</td><td class="text-end">{{ formatNumber(sku.ecommerce_qty) }}</td><td class="text-end">{{ formatNumber(sku.other_qty) }}</td><td class="text-end"><button class="stock-doc-link" type="button" @click="openSkuDocs(sku)">{{ formatNumber(sku.document_count) }}</button></td></tr></tbody></table></div>
         </details>
@@ -151,7 +158,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
             <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header"><div><h5 id="sku-docs-title" class="mb-0">Referensi SKU Keluar</h5><small>{{ skuDocsModal.sku.product_name }} &middot; {{ skuDocsModal.sku.product_code }}</small></div><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button></div>
-                <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan order, invoice, atau nomor resi yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 outbound-detail-table"><thead><tr><th>Referensi</th><th>Tipe</th><th>Store</th><th>Resi</th><th>Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ document.shipping_number || '-' }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
+                <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan order, transaksi, surat jalan, atau resi yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 outbound-detail-table"><thead><tr><th>Referensi</th><th>Tipe</th><th>Store</th><th>Resi (Ecommerce)</th><th>Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ document.shipping_number || '-' }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
                 <div class="sku-docs-footer"><button class="btn btn-sm btn-outline-secondary" type="button" @click="closeSkuDocs">Tutup</button></div>
             </div>
         </div>

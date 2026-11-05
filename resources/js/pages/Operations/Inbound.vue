@@ -12,6 +12,17 @@ interface ProductDetail {
     product_name: string;
     quantity: number;
     expired_date: string | null;
+    price_idr: number;
+    exchange_currency: string | null;
+    exchange_rate: number | null;
+    exchange_amount: number | null;
+    item_count: number;
+    qty_good: number;
+    qty_bad: number;
+    qty_other: number;
+    last_qc_at: string | null;
+    condition_summary: string;
+    note: string | null;
 }
 
 interface InboundRow {
@@ -19,20 +30,35 @@ interface InboundRow {
     warehouse_id: string;
     warehouse_name: string;
     warehouse_code: string;
+    source_warehouse_id: string | null;
+    source_warehouse_name: string;
+    source_warehouse_code: string;
+    supplier_id: string | null;
+    supplier_name: string;
+    store_return_id: string | null;
+    store_return_number: string;
+    return_store_name: string;
     inbound_type: string | null;
     inbound_type_label: string;
     invoice_number: string | null;
     delivery_order_number: string | null;
     batch_number: string | null;
     outbound_reference_number: string | null;
+    quantity_item: number;
     grand_total: number;
     received_date: string | null;
     created_at: string;
-    supplier_name: string;
+    received_by_name: string;
+    created_by_name: string;
     origin_name: string;
     origin_reference: string;
     total_sku: number;
     total_qty: number;
+    item_count: number;
+    qty_good: number;
+    qty_bad: number;
+    qty_other: number;
+    last_qc_at: string | null;
     status: 'pending' | 'received';
     status_label: string;
     product_details: ProductDetail[];
@@ -72,16 +98,26 @@ interface Props {
         received_today: number;
         total_qty: number;
         total_sku: number;
+        total_items: number;
+        total_good: number;
+        total_bad: number;
+        total_other: number;
+        total_value: number;
+        total_warehouses: number;
+        total_origins: number;
     };
     warehouses: Array<{ id: string; name: string; code: string | null }>;
     suppliers: Array<{ id: string; name: string }>;
+    inboundTypes: Array<{ value: string; label: string }>;
     skuRows: SkuRow[];
     statusOptions: Array<{ value: string; label: string }>;
     filters: {
         q: string;
         warehouse_id: string | null;
+        source_warehouse_id: string | null;
         status: string | null;
         supplier_id: string | null;
+        inbound_type: string | null;
         from: string | null;
         to: string | null;
     };
@@ -109,8 +145,10 @@ const supplierOptions = computed(() => props.suppliers.map((supplier) => ({
 const filters = reactive({
     q: props.filters.q ?? '',
     warehouse_id: props.filters.warehouse_id ?? '',
+    source_warehouse_id: props.filters.source_warehouse_id ?? '',
     status: props.filters.status ?? '',
     supplier_id: props.filters.supplier_id ?? '',
+    inbound_type: props.filters.inbound_type ?? '',
     from: props.filters.from ?? '',
     to: props.filters.to ?? '',
 });
@@ -119,6 +157,7 @@ const expanded = ref<Record<string, boolean>>({});
 const skuDocsModal = ref<{ sku: SkuRow } | null>(null);
 
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
+const formatCurrency = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value ?? 0);
 const formatDate = (value: string | null) => {
     if (!value) return '-';
 
@@ -137,8 +176,10 @@ const applyFilters = () => {
     router.get(props.urls.index, {
         q: filters.q || undefined,
         warehouse_id: filters.warehouse_id || undefined,
+        source_warehouse_id: filters.source_warehouse_id || undefined,
         status: filters.status || undefined,
         supplier_id: filters.supplier_id || undefined,
+        inbound_type: filters.inbound_type || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
     }, {
@@ -151,8 +192,10 @@ const applyFilters = () => {
 const resetFilters = () => {
     filters.q = '';
     filters.warehouse_id = '';
+    filters.source_warehouse_id = '';
     filters.status = '';
     filters.supplier_id = '';
+    filters.inbound_type = '';
     filters.from = '';
     filters.to = '';
     applyFilters();
@@ -246,46 +289,74 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-3">
+                <div class="inbound-summary">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-cash-multiple"></i></span>
+                    <div><span>Total Nilai Inbound</span><strong class="inbound-summary-currency">{{ formatCurrency(props.summary.total_value) }}</strong></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="inbound-summary inbound-summary-success">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
+                    <div><span>Barang Baik</span><strong>{{ formatNumber(props.summary.total_good) }}</strong><small class="inbound-summary-note">{{ formatNumber(props.summary.total_items) }} unit tercatat</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="inbound-summary inbound-summary-danger">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-alert-octagon-outline"></i></span>
+                    <div><span>Barang Rusak</span><strong>{{ formatNumber(props.summary.total_bad) }}</strong><small class="inbound-summary-note">{{ formatNumber(props.summary.total_other) }} kondisi lain</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-3">
+                <div class="inbound-summary">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-source-branch"></i></span>
+                    <div><span>Sumber & Tujuan</span><strong>{{ formatNumber(props.summary.total_origins) }} / {{ formatNumber(props.summary.total_warehouses) }}</strong><small class="inbound-summary-note">sumber / warehouse</small></div>
+                </div>
+            </div>
+        </div>
+
         <div class="card inbound-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-12 col-lg-6">
+                    <div class="col-12 col-lg-4">
                         <label class="form-label">Cari dokumen atau SKU</label>
                         <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, batch, supplier, atau SKU..." />
                     </div>
-                    <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Warehouse</label>
-                        <SearchableSelect
-                            v-model="filters.warehouse_id"
-                            :options="warehouseOptions"
-                            placeholder="Semua warehouse"
-                            search-placeholder="Cari warehouse..."
-                        />
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label">Warehouse Tujuan</label>
+                        <SearchableSelect v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
                     </div>
-                    <div class="col-6 col-md-4 col-lg-2">
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label">Warehouse Asal</label>
+                        <SearchableSelect v-model="filters.source_warehouse_id" :options="warehouseOptions" placeholder="Semua asal" search-placeholder="Cari warehouse asal..." />
+                    </div>
+                    <div class="col-6 col-lg-2">
                         <label class="form-label">Supplier</label>
-                        <SearchableSelect
-                            v-model="filters.supplier_id"
-                            :options="supplierOptions"
-                            placeholder="Semua supplier"
-                            search-placeholder="Cari supplier..."
-                        />
+                        <SearchableSelect v-model="filters.supplier_id" :options="supplierOptions" placeholder="Semua supplier" search-placeholder="Cari supplier..." />
                     </div>
-                    <div class="col-12 col-md-4 col-lg-2">
+                    <div class="col-6 col-lg-2">
+                        <label class="form-label">Tipe Inbound</label>
+                        <select v-model="filters.inbound_type" class="form-select form-select-sm">
+                            <option value="">Semua tipe</option>
+                            <option v-for="option in props.inboundTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-lg-2">
                         <label class="form-label">Status</label>
                         <select v-model="filters.status" class="form-select form-select-sm">
                             <option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
-                    <div class="col-6 col-md-4 col-lg-3">
+                    <div class="col-6 col-lg-2">
                         <label class="form-label">Dari Tanggal</label>
                         <input v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
-                    <div class="col-6 col-md-4 col-lg-3">
+                    <div class="col-6 col-lg-2">
                         <label class="form-label">Sampai Tanggal</label>
                         <input v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
-                    <div class="col-12 col-md-4 col-lg-6 d-flex gap-2">
+                    <div class="col-12 col-lg-4 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button>
                     </div>
@@ -313,9 +384,10 @@ onBeforeUnmount(() => {
                     <thead>
                         <tr>
                             <th>Referensi Inbound</th>
-                            <th>Warehouse</th>
-                            <th>Supplier</th>
-                            <th class="text-end">Item</th>
+                            <th>Asal Inbound</th>
+                            <th>Warehouse Tujuan</th>
+                            <th class="text-end">Qty / Nilai</th>
+                            <th>PIC Penerima</th>
                             <th>Tanggal</th>
                             <th>Status</th>
                             <th class="text-end">Aksi</th>
@@ -328,26 +400,34 @@ onBeforeUnmount(() => {
                                     <div class="inbound-main">
                                         <strong>{{ row.invoice_number || row.delivery_order_number || row.origin_reference }}</strong>
                                         <small>{{ row.inbound_type_label }}<template v-if="row.batch_number"> &middot; Batch {{ row.batch_number }}</template></small>
+                                        <small v-if="row.delivery_order_number" class="inbound-subvalue">DO: {{ row.delivery_order_number }}</small>
                                     </div>
+                                </td>
+                                <td>
+                                    <strong>{{ row.origin_name }}</strong>
+                                    <small class="inbound-subvalue">{{ row.origin_reference }}</small>
+                                    <small v-if="row.store_return_number !== '-'" class="inbound-subvalue">Retur: {{ row.store_return_number }}</small>
                                 </td>
                                 <td>
                                     <strong>{{ row.warehouse_name }}</strong>
                                     <small class="inbound-subvalue">{{ row.warehouse_code }}</small>
                                 </td>
-                                <td>
-                                    <strong>{{ row.supplier_name }}</strong>
-                                    <small v-if="row.supplier_name === '-'" class="inbound-subvalue">{{ row.inbound_type_label }}: {{ row.origin_name }}</small>
-                                    <small v-else class="inbound-subvalue">{{ row.origin_reference }}</small>
-                                </td>
                                 <td class="text-end">
                                     <strong>{{ formatNumber(row.total_qty) }}</strong>
-                                    <small class="inbound-subvalue">{{ formatNumber(row.total_sku) }} SKU</small>
+                                    <small class="inbound-subvalue">{{ formatNumber(row.total_sku) }} SKU &middot; {{ formatCurrency(row.grand_total) }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ row.received_by_name || '-' }}</strong>
+                                    <small class="inbound-subvalue">Dibuat: {{ row.created_by_name || '-' }}</small>
                                 </td>
                                 <td>
                                     <strong>{{ formatDate(row.received_date || row.created_at) }}</strong>
                                     <small class="inbound-subvalue">{{ row.received_date ? 'Diterima' : 'Dibuat' }}</small>
                                 </td>
-                                <td><span class="badge" :class="statusClass(row.status)">{{ row.status_label }}</span></td>
+                                <td>
+                                    <span class="badge" :class="statusClass(row.status)">{{ row.status_label }}</span>
+                                    <small class="inbound-subvalue">{{ formatNumber(row.qty_good) }} baik / {{ formatNumber(row.qty_bad) }} rusak</small>
+                                </td>
                                 <td class="text-end">
                                     <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
                                         <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
@@ -356,21 +436,55 @@ onBeforeUnmount(() => {
                                 </td>
                             </tr>
                             <tr v-if="expanded[row.id]" class="inbound-detail-row">
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="inbound-detail-wrap">
-                                        <table class="table table-sm mb-0 inbound-detail-table">
-                                            <thead>
-                                                <tr><th>Produk</th><th class="text-end">Qty</th><th>Expired</th></tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`">
-                                                    <td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td>
-                                                    <td class="text-end">{{ formatNumber(detail.quantity) }}</td>
-                                                    <td>{{ detail.expired_date ? formatDate(detail.expired_date) : '-' }}</td>
-                                                </tr>
-                                                <tr v-if="row.product_details.length === 0"><td colspan="3" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr>
-                                            </tbody>
-                                        </table>
+                                        <div class="inbound-detail-meta">
+                                            <span><b>Supplier:</b> {{ row.supplier_name }}</span>
+                                            <span><b>Warehouse asal:</b> {{ row.source_warehouse_name }}</span>
+                                            <span><b>Retur store:</b> {{ row.store_return_number }}</span>
+                                            <span><b>Invoice:</b> {{ row.invoice_number || '-' }}</span>
+                                            <span><b>DO:</b> {{ row.delivery_order_number || '-' }}</span>
+                                            <span><b>Batch:</b> {{ row.batch_number || '-' }}</span>
+                                            <span><b>Referensi keluar:</b> {{ row.outbound_reference_number || '-' }}</span>
+                                            <span><b>Qty header:</b> {{ formatNumber(row.quantity_item) }}</span>
+                                            <span><b>Nilai:</b> {{ formatCurrency(row.grand_total) }}</span>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0 inbound-detail-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Produk</th>
+                                                        <th class="text-end">Qty</th>
+                                                        <th class="text-end">Item</th>
+                                                        <th class="text-end">Good</th>
+                                                        <th class="text-end">Bad</th>
+                                                        <th class="text-end">Lain</th>
+                                                        <th>Expired</th>
+                                                        <th class="text-end">Harga IDR</th>
+                                                        <th>Kondisi</th>
+                                                        <th>Catatan</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`">
+                                                        <td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td>
+                                                        <td class="text-end">{{ formatNumber(detail.quantity) }}</td>
+                                                        <td class="text-end">{{ formatNumber(detail.item_count) }}</td>
+                                                        <td class="text-end">{{ formatNumber(detail.qty_good) }}</td>
+                                                        <td class="text-end">{{ formatNumber(detail.qty_bad) }}</td>
+                                                        <td class="text-end">{{ formatNumber(detail.qty_other) }}</td>
+                                                        <td>{{ detail.expired_date ? formatDate(detail.expired_date) : '-' }}</td>
+                                                        <td class="text-end">{{ formatCurrency(detail.price_idr) }}</td>
+                                                        <td>
+                                                            <span>{{ detail.condition_summary }}</span>
+                                                            <small v-if="detail.last_qc_at">QC {{ formatDate(detail.last_qc_at) }}</small>
+                                                        </td>
+                                                        <td>{{ detail.note || '-' }}</td>
+                                                    </tr>
+                                                    <tr v-if="row.product_details.length === 0"><td colspan="10" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
@@ -479,6 +593,10 @@ onBeforeUnmount(() => {
 .inbound-summary span:not(.inbound-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .inbound-summary strong { display: block; margin-top: 0.15rem; font-size: 1.35rem; }
 .inbound-summary-warning .inbound-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
+.inbound-summary-success .inbound-summary-icon { background: var(--app-success-bg); color: var(--app-success-ink); }
+.inbound-summary-danger .inbound-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
+.inbound-summary-currency { font-size: 1rem !important; line-height: 1.35; }
+.inbound-summary-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.68rem; }
 .inbound-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .inbound-card-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-bottom: 1px solid var(--app-border); }
 .inbound-card-header h2 { margin: 0 0 0.2rem; font-size: 1rem; }
@@ -490,7 +608,8 @@ onBeforeUnmount(() => {
 .inbound-main strong { font-size: 0.86rem; }
 .inbound-main small, .inbound-subvalue { color: var(--app-muted); font-size: 0.73rem; }
 .inbound-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.inbound-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; }
+.inbound-detail-wrap { padding: 0.75rem 1rem 1rem 2.2rem; }
+.inbound-detail-meta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; margin-bottom: 0.75rem; color: var(--app-muted); font-size: 0.74rem; }
 .inbound-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .inbound-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .inbound-detail-table td strong, .inbound-detail-table td small { display: block; }

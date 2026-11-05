@@ -3,6 +3,7 @@
 namespace App\Domain\StoreOperations\Queries;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class StoreInboundOperationsQuery
 {
@@ -28,6 +29,8 @@ class StoreInboundOperationsQuery
             $row->qc_pending_items = (int) $row->qc_pending_items;
             $row->qty_good = (int) $row->qty_good;
             $row->qty_bad = (int) $row->qty_bad;
+            $row->quantity_item = (int) ($row->quantity_item ?? 0);
+            $row->grand_total = (float) ($row->grand_total ?? 0);
             $row->status_label = self::QC_LABELS[$row->qc_status] ?? ($row->qc_status ?: 'Menunggu QC');
             $row->product_details = collect($details->get($row->id, []))
                 ->map(fn (object $detail) => [
@@ -61,13 +64,17 @@ class StoreInboundOperationsQuery
 
     private function baseQuery(string $q, ?string $storeId, ?string $warehouseId, ?string $status, bool $applyStatus = true, ?string $from = null, ?string $to = null)
     {
+        $hasUsers = Schema::hasTable('users');
+
         return DB::table('store_inbounds as si')
             ->join('stores as s', 's.id', '=', 'si.store_id')
             ->leftJoin('warehouses as w', 'w.id', '=', 'si.warehouse_source_id')
+            ->leftJoin('store_orders as sto', 'sto.id', '=', 'si.order_id')
             ->leftJoin('store_inbound_details as sid', 'sid.store_inbound_id', '=', 'si.id')
             ->leftJoin('items as i', 'i.id', '=', 'sid.item_id')
             ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
             ->leftJoin('item_conditions as ic', 'ic.id', '=', 'i.current_condition_id')
+            ->when($hasUsers, fn ($query) => $query->leftJoin('users as u_received', 'u_received.id', '=', 'si.received_by'))
             ->whereNull('s.deleted_at')
             ->when($storeId, fn ($query) => $query->where('si.store_id', $storeId))
             ->when($warehouseId, fn ($query) => $query->where('si.warehouse_source_id', $warehouseId))
@@ -80,6 +87,7 @@ class StoreInboundOperationsQuery
                         ->orWhere('si.delivery_order_number', 'ILIKE', "%{$q}%")
                         ->orWhere('si.note', 'ILIKE', "%{$q}%")
                         ->orWhereRaw('si.order_id::text ILIKE ?', ["%{$q}%"])
+                        ->orWhere('sto.order_number', 'ILIKE', "%{$q}%")
                         ->orWhere('s.name', 'ILIKE', "%{$q}%")
                         ->orWhere('s.code', 'ILIKE', "%{$q}%")
                         ->orWhere('w.name', 'ILIKE', "%{$q}%")
@@ -103,6 +111,8 @@ class StoreInboundOperationsQuery
                 si.received_date,
                 si.created_at,
                 si.note,
+                si.order_id,
+                COALESCE(sto.order_number, \'-\') as store_order_number,
                 si.qc_status,
                 COUNT(DISTINCT sid.id)::int as total_items,
                 COUNT(DISTINCT i.product_id)::int as total_sku,
@@ -111,10 +121,12 @@ class StoreInboundOperationsQuery
                 COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
                 COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad
             ')
+            ->when($hasUsers, fn ($query) => $query->selectRaw("COALESCE(u_received.name, '') as received_by_name"), fn ($query) => $query->selectRaw("'' as received_by_name"))
             ->groupBy(
                 'si.id', 'si.store_id', 's.name', 's.code', 'si.warehouse_source_id', 'w.name', 'w.code',
                 'si.invoice_number', 'si.delivery_order_number', 'si.quantity_item', 'si.grand_total',
-                'si.received_date', 'si.created_at', 'si.note', 'si.qc_status'
+                'si.received_date', 'si.created_at', 'si.note', 'si.order_id', 'sto.order_number', 'si.qc_status',
+                ...($hasUsers ? ['u_received.name'] : [])
             )
             ->orderByRaw('COALESCE(si.received_date, si.created_at) DESC')
             ->orderByDesc('total_items');
@@ -131,7 +143,11 @@ class StoreInboundOperationsQuery
                 COUNT(*) FILTER (WHERE qc_status IS NULL OR qc_status = \'pending\')::int as pending_qc,
                 COUNT(*) FILTER (WHERE received_date IS NOT NULL AND received_date::date = CURRENT_DATE)::int as received_today,
                 COALESCE(SUM(total_items), 0)::int as total_qty,
-                COALESCE(SUM(total_sku), 0)::int as total_sku
+                COALESCE(SUM(total_sku), 0)::int as total_sku,
+                COALESCE(SUM(quantity_item), 0)::int as total_header_qty,
+                COALESCE(SUM(qty_good), 0)::int as total_good,
+                COALESCE(SUM(qty_bad), 0)::int as total_bad,
+                COALESCE(SUM(grand_total), 0)::numeric as total_value
             ')
             ->first();
 

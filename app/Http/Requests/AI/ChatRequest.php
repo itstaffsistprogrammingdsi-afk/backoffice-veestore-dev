@@ -3,6 +3,7 @@
 namespace App\Http\Requests\AI;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ChatRequest extends FormRequest
 {
@@ -19,6 +20,11 @@ class ChatRequest extends FormRequest
                 'string',
                 'max:'.config('assistant.limits.max_message_length', 2000),
             ],
+            'mode' => [
+                'nullable',
+                'string',
+                Rule::in(array_keys((array) config('assistant.modes', []))),
+            ],
         ];
     }
 
@@ -27,6 +33,7 @@ class ChatRequest extends FormRequest
         return [
             'message.required' => 'Pertanyaan wajib diisi.',
             'message.max' => 'Pertanyaan terlalu panjang.',
+            'mode.in' => 'Mode asisten tidak dikenal.',
         ];
     }
 }

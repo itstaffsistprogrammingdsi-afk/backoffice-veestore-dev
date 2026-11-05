@@ -41,6 +41,9 @@ class StoreOperationsPagesTest extends TestCase
                 ->has('stores')
                 ->has('warehouses')
                 ->has('statusOptions')
+                ->has('summary.total_good')
+                ->has('summary.total_bad')
+                ->has('summary.total_value')
                 ->has('urls'));
     }
 
@@ -57,6 +60,10 @@ class StoreOperationsPagesTest extends TestCase
                 ->has('skuRows')
                 ->has('stores')
                 ->has('statusOptions')
+                ->has('summary.total_rfid')
+                ->where('rows.data', fn ($rows) => collect($rows)->every(fn ($row) => array_key_exists('nota_print_count', $row)
+                    && array_key_exists('nota_printed', $row)
+                    && array_key_exists('nota_print_method', $row)))
                 ->has('urls'));
     }
 
@@ -91,8 +98,10 @@ class StoreOperationsPagesTest extends TestCase
                 ->has('villageRows')
                 ->has('registrationTrend')
                 ->has('birthdayCustomers')
+                ->has('birthdayGreeting.template')
                 ->has('rows')
                 ->where('urls.index', route('operations.customers.demographics'))
-                ->where('urls.export', route('operations.customers.demographics.export')));
+                ->where('urls.export', route('operations.customers.demographics.export'))
+                ->where('urls.birthday_greeting', route('operations.customers.demographics.birthday-greeting')));
     }
 }

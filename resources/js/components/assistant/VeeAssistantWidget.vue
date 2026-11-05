@@ -12,10 +12,19 @@ interface ChatMessage {
     created_at?: string;
 }
 
+interface AssistantMode {
+    key: string;
+    label: string;
+    description?: string;
+    models: string[];
+}
+
 interface AssistantState {
     messages: ChatMessage[];
     suggestions: string[];
     model: string;
+    modes: AssistantMode[];
+    default_mode: string;
     urls: {
         chat: string;
         reset: string;
@@ -41,7 +50,9 @@ const defaults: AssistantState = {
         'Stok apa yang perlu segera diisi ulang?',
         'Pesanan ecommerce mana yang terlambat diproses?',
     ],
-    model: 'ocg/deepseek-v4.1-flash',
+    model: 'cx/gpt-5.6-luna',
+    modes: [],
+    default_mode: 'auto',
     urls: {
         chat: '/ai-assistant/chat',
         reset: '/ai-assistant/reset',
@@ -146,6 +157,8 @@ const onKeydown = (event: KeyboardEvent) => {
                         :suggestions="state.suggestions"
                         :urls="state.urls"
                         :model="state.model"
+                        :modes="state.modes"
+                        :default-mode="state.default_mode"
                     />
                 </div>
             </section>

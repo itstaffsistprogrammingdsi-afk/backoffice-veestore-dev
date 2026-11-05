@@ -65,7 +65,7 @@ class StoreInboundController extends Controller
             'filters' => $filters,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'operations' => route('operations.store-inbound.index')],
         ]);
     }
 
@@ -96,6 +96,7 @@ class StoreInboundController extends Controller
         $query = DB::table('store_inbounds as si')
             ->join('stores as s', 's.id', '=', 'si.store_id')
             ->leftJoin('warehouses as w', 'w.id', '=', 'si.warehouse_source_id')
+            ->leftJoin('store_orders as so', 'so.id', '=', 'si.order_id')
             ->leftJoin('store_inbound_details as sid', 'sid.store_inbound_id', '=', 'si.id')
             ->leftJoin('items as i', 'i.id', '=', 'sid.item_id')
             ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
@@ -118,6 +119,7 @@ class StoreInboundController extends Controller
                         ->orWhere('si.delivery_order_number', 'ILIKE', $keyword)
                         ->orWhere('si.note', 'ILIKE', $keyword)
                         ->orWhereRaw('si.order_id::text ILIKE ?', [$keyword])
+                        ->orWhere('so.order_number', 'ILIKE', $keyword)
                         ->orWhere('s.name', 'ILIKE', $keyword)
                         ->orWhere('s.code', 'ILIKE', $keyword)
                         ->orWhere('w.name', 'ILIKE', $keyword)
@@ -146,6 +148,7 @@ class StoreInboundController extends Controller
                 si.created_at,
                 si.note,
                 si.order_id,
+                COALESCE(so.order_number, \'-\') as store_order_number,
                 si.qc_status
             ')
             ->when($hasUsers, fn ($query) => $query->selectRaw("COALESCE(u.name, '') as received_by_name"), fn ($query) => $query->selectRaw("'' as received_by_name"))
@@ -156,7 +159,7 @@ class StoreInboundController extends Controller
             ->groupBy(
                 'si.id', 'si.store_id', 's.name', 's.code', 'si.warehouse_source_id', 'w.name', 'w.code',
                 'si.invoice_number', 'si.delivery_order_number', 'si.quantity_item', 'si.grand_total',
-                'si.received_date', 'si.created_at', 'si.note', 'si.order_id', 'si.qc_status',
+                'si.received_date', 'si.created_at', 'si.note', 'si.order_id', 'so.order_number', 'si.qc_status',
                 ...($hasUsers ? ['u.name'] : [])
             )
             ->orderByDesc('si.received_date')
@@ -174,6 +177,8 @@ class StoreInboundController extends Controller
 
         return DB::query()->fromSub($query, 'store_inbound_rows')->selectRaw('
             COUNT(*)::int as total_inbounds,
+            COUNT(*) FILTER (WHERE store_inbound_rows.received_date IS NULL)::int as total_pending,
+            COUNT(*) FILTER (WHERE store_inbound_rows.received_date IS NOT NULL AND store_inbound_rows.received_date::date = CURRENT_DATE)::int as received_today,
             COALESCE(SUM(store_inbound_rows.total_sku), 0)::int as total_sku,
             COALESCE(SUM(store_inbound_rows.total_items), 0)::int as total_items,
             COALESCE(SUM(store_inbound_rows.grand_total), 0)::numeric as total_value,

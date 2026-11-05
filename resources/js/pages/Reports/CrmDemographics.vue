@@ -5,6 +5,7 @@ defineOptions({ layout: AppLayout });
 
 import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import BirthdayGreetingCard from '@/components/BirthdayGreetingCard.vue';
 import CustomerDemographicsFilters from '@/components/CustomerDemographicsFilters.vue';
 import DemographicsDistributionCard from '@/components/DemographicsDistributionCard.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
@@ -100,6 +101,12 @@ interface BirthdayRow {
     membership_name: string | null;
 }
 
+interface GreetingTemplate {
+    subject: string;
+    message: string;
+    placeholders: string[];
+}
+
 interface Summary {
     totalCustomers: number;
     registeredCustomers: number;
@@ -153,6 +160,9 @@ interface Props {
     sourceRows: DistributionRow[];
     registrationTrend: Array<{ period: string; label: string; total: number }>;
     birthdayCustomers: BirthdayRow[];
+    birthdayGreeting: {
+        template: GreetingTemplate;
+    };
     rows: Paginator<CustomerRow>;
     urls: {
         index: string;
@@ -161,6 +171,7 @@ interface Props {
         customerProfiles: string;
         customerProfile: string;
         preference: string;
+        birthdayGreeting: string;
         regions: {
             regencies: string;
             districts: string;
@@ -354,44 +365,15 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
 
         <div class="row g-3 mb-3">
             <div class="col-12">
-                <article class="demo-birthday">
-                    <header>
-                        <div class="demo-birthday-title">
-                            <span class="demo-birthday-icon"><i class="mdi mdi-cake-variant-outline"></i></span>
-                            <div>
-                                <h2>Customer Ulang Tahun {{ props.birthdayMonthLabel }}</h2>
-                                <p>Daftar customer yang dapat menjadi target komunikasi dan program loyalitas.</p>
-                            </div>
-                        </div>
-                        <span class="demo-birthday-count">{{ formatNumber(props.summary.birthdayThisMonth) }} customer</span>
-                    </header>
-                    <div v-if="props.birthdayCustomers.length > 0" class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Customer</th>
-                                    <th>Kontak</th>
-                                    <th>Tanggal Lahir</th>
-                                    <th>Wilayah</th>
-                                    <th>Tier</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="customer in props.birthdayCustomers" :key="customer.id">
-                                    <td><strong>{{ customer.name ?? '-' }}</strong></td>
-                                    <td>{{ customer.wa_number ?? customer.email ?? '-' }}</td>
-                                    <td>{{ formatDate(customer.date_of_birth) }}</td>
-                                    <td>{{ [customer.regency_name, customer.province_name].filter(Boolean).join(', ') || '-' }}</td>
-                                    <td><span class="badge" :class="tierBadgeClass(customer.membership_name)">{{ customer.membership_name ?? 'Non-member' }}</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p v-else class="demo-empty-inline">
-                        <i class="mdi mdi-calendar-blank-outline"></i>
-                        Tidak ada customer yang berulang tahun pada bulan ini.
-                    </p>
-                </article>
+                <BirthdayGreetingCard
+                    :customers="props.birthdayCustomers"
+                    :total="props.summary.birthdayThisMonth"
+                    :month-label="props.birthdayMonthLabel"
+                    :template="props.birthdayGreeting.template"
+                    :send-url="props.urls.birthdayGreeting"
+                    title="Customer Ulang Tahun"
+                    subtitle="Daftar customer yang dapat menjadi target komunikasi dan program loyalitas."
+                />
             </div>
         </div>
 
@@ -505,16 +487,6 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
 .demo-summary-warning .demo-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .demo-summary-danger .demo-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
 .demo-summary-info .demo-summary-icon { background: var(--app-info-bg); color: var(--app-info-ink); }
-.demo-birthday { padding: 1rem 1.05rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
-.demo-birthday header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
-.demo-birthday-title { display: flex; align-items: flex-start; gap: 0.65rem; }
-.demo-birthday-icon { display: grid; flex: 0 0 auto; width: 2rem; height: 2rem; place-items: center; border-radius: 0.55rem; background: var(--app-warning-bg); color: var(--app-warning-ink); font-size: 1.05rem; }
-.demo-birthday h2 { margin: 0; font-size: 0.9rem; }
-.demo-birthday p { margin: 0.15rem 0 0; color: var(--app-muted); font-size: 0.74rem; }
-.demo-birthday-count { color: var(--app-muted); font-size: 0.75rem; font-weight: 700; white-space: nowrap; }
-.demo-birthday th { color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.03em; text-transform: uppercase; }
-.demo-birthday td { font-size: 0.8rem; }
-.demo-empty-inline { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin: 0; padding: 1.5rem 0; color: var(--app-muted); font-size: 0.82rem; text-align: center; }
 .demo-table-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .demo-table-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-bottom: 1px solid var(--app-border); }
 .demo-table-header h2 { margin: 0 0 0.2rem; font-size: 1rem; }
