@@ -16,7 +16,7 @@ class OutboundController extends Controller
         $warehouseId = trim((string) $request->query('warehouse_id', ''));
         $warehouseId = $warehouseId !== '' ? $warehouseId : null;
         $status = trim((string) $request->query('status', ''));
-        $status = in_array($status, ['qc_pending', 'release_pending', 'missing_awb', 'completed'], true) ? $status : null;
+        $status = in_array($status, ['qc_pending', 'release_pending', 'missing_awb', 'missing_delivery_order', 'completed'], true) ? $status : null;
         $channel = trim((string) $request->query('channel', ''));
         $channel = in_array($channel, ['ecommerce', 'store'], true) ? $channel : null;
         $from = trim((string) $request->query('from', ''));

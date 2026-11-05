@@ -38,6 +38,8 @@ class WarehouseOutboundExportTest extends TestCase
                 'store_recording_status' => 'not_recorded',
                 'store_recording_status_label' => 'Belum tercatat',
                 'store_received_at' => null,
+                'document_status' => 'complete',
+                'document_status_label' => 'Resi tersedia',
             ],
         ]);
 
@@ -67,11 +69,11 @@ class WarehouseOutboundExportTest extends TestCase
         ]);
 
         $data = $export->array();
-        $detail = $data[18];
+        $detail = $data[19];
 
         $this->assertSame('Warehouse Outbound', $export->title());
         $this->assertSame(': 27-10-2026 s/d 27-10-2026', $data[3][1]);
-        $this->assertSame([1, 1, 2, 1, 1, 0, 1, 1], $data[15]);
+        $this->assertSame([1, 1, 2, 1, 1, 0, 0, 1, 1], $data[16]);
         $this->assertSame('Ecommerce', $detail[4]);
         $this->assertSame('Sudah release', $detail[15]);
         $this->assertSame('QC lolos', $detail[17]);
@@ -82,13 +84,14 @@ class WarehouseOutboundExportTest extends TestCase
         $this->assertSame(0, $detail[29]);
         $this->assertSame(2, $detail[30]);
         $this->assertSame('Belum tercatat', $detail[31]);
+        $this->assertSame('Resi tersedia', $detail[33]);
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->fromArray($data);
         $export->styles($sheet);
 
-        $this->assertSame('A18:AG19', $sheet->getAutoFilter()->getRange());
-        $this->assertSame('A19', $sheet->getFreezePane());
+        $this->assertSame('A19:AH20', $sheet->getAutoFilter()->getRange());
+        $this->assertSame('A20', $sheet->getFreezePane());
     }
 }

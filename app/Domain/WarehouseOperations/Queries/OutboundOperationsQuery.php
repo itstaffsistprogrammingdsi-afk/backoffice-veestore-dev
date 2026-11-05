@@ -30,6 +30,9 @@ class OutboundOperationsQuery
             $row->outbound_type_label = self::TYPE_LABELS[$row->outbound_type] ?? ($row->outbound_type ?: 'Lainnya');
             $row->event_date = $row->shipment_date ?? $row->released_at ?? $row->created_at;
             $row->has_awb = trim((string) $row->shipping_number) !== '';
+            $row->has_delivery_order = trim((string) $row->delivery_order_number) !== '';
+            $row->requires_awb = $row->outbound_type === 'ecommerce';
+            $row->requires_delivery_order = $row->outbound_type === 'store';
 
             if (! $row->qc_passed_at) {
                 $row->status = 'qc_pending';
@@ -37,9 +40,12 @@ class OutboundOperationsQuery
             } elseif (! $row->released_at) {
                 $row->status = 'release_pending';
                 $row->status_label = 'Menunggu Release';
-            } elseif (! $row->has_awb) {
+            } elseif ($row->requires_awb && ! $row->has_awb) {
                 $row->status = 'missing_awb';
                 $row->status_label = 'Belum Ada Resi';
+            } elseif ($row->requires_delivery_order && ! $row->has_delivery_order) {
+                $row->status = 'missing_delivery_order';
+                $row->status_label = 'Belum Ada Surat Jalan';
             } else {
                 $row->status = 'completed';
                 $row->status_label = 'Selesai';
@@ -97,7 +103,8 @@ class OutboundOperationsQuery
                 ['value' => '', 'label' => 'Semua status'],
                 ['value' => 'qc_pending', 'label' => 'Menunggu QC'],
                 ['value' => 'release_pending', 'label' => 'Menunggu Release'],
-                ['value' => 'missing_awb', 'label' => 'Belum Ada Resi'],
+                ['value' => 'missing_awb', 'label' => 'Belum Ada Resi (Ecommerce)'],
+                ['value' => 'missing_delivery_order', 'label' => 'Belum Ada Surat Jalan (Store)'],
                 ['value' => 'completed', 'label' => 'Selesai'],
             ],
         ];
@@ -136,11 +143,18 @@ class OutboundOperationsQuery
             ->when($applyStatus && $status === 'missing_awb', fn ($query) => $query
                 ->whereNotNull('wo.qc_passed_at')
                 ->whereNotNull('wo.released_at')
+                ->whereRaw("LOWER(wo.outbound_type::text) = 'ecommerce'")
                 ->whereRaw("NULLIF(TRIM(wo.shipping_number), '') IS NULL"))
+            ->when($applyStatus && $status === 'missing_delivery_order', fn ($query) => $query
+                ->whereNotNull('wo.qc_passed_at')
+                ->whereNotNull('wo.released_at')
+                ->whereRaw("LOWER(wo.outbound_type::text) = 'store'")
+                ->whereRaw("NULLIF(TRIM(wo.delivery_order_number), '') IS NULL"))
             ->when($applyStatus && $status === 'completed', fn ($query) => $query
                 ->whereNotNull('wo.qc_passed_at')
                 ->whereNotNull('wo.released_at')
-                ->whereRaw("NULLIF(TRIM(wo.shipping_number), '') IS NOT NULL"))
+                ->whereRaw("NOT (LOWER(wo.outbound_type::text) = 'ecommerce' AND NULLIF(TRIM(wo.shipping_number), '') IS NULL)")
+                ->whereRaw("NOT (LOWER(wo.outbound_type::text) = 'store' AND NULLIF(TRIM(wo.delivery_order_number), '') IS NULL)"))
             ->when($from, fn ($query) => $query->whereRaw('COALESCE(wo.shipment_date, wo.released_at, wo.created_at)::date >= ?', [$from]))
             ->when($to, fn ($query) => $query->whereRaw('COALESCE(wo.shipment_date, wo.released_at, wo.created_at)::date <= ?', [$to]))
             ->when($q !== '', function ($query) use ($q) {
@@ -212,7 +226,8 @@ class OutboundOperationsQuery
                 COUNT(*)::int as total_outbounds,
                 COUNT(*) FILTER (WHERE qc_passed_at IS NULL)::int as qc_pending,
                 COUNT(*) FILTER (WHERE qc_passed_at IS NOT NULL AND released_at IS NULL)::int as release_pending,
-                COUNT(*) FILTER (WHERE qc_passed_at IS NOT NULL AND released_at IS NOT NULL AND NULLIF(TRIM(shipping_number), \'\') IS NULL)::int as missing_awb,
+                COUNT(*) FILTER (WHERE qc_passed_at IS NOT NULL AND released_at IS NOT NULL AND LOWER(outbound_type::text) = \'ecommerce\' AND NULLIF(TRIM(shipping_number), \'\') IS NULL)::int as missing_awb,
+                COUNT(*) FILTER (WHERE qc_passed_at IS NOT NULL AND released_at IS NOT NULL AND LOWER(outbound_type::text) = \'store\' AND NULLIF(TRIM(delivery_order_number), \'\') IS NULL)::int as missing_delivery_order,
                 COUNT(*) FILTER (WHERE COALESCE(shipment_date, released_at, created_at)::date = CURRENT_DATE)::int as today_outbounds,
                 COUNT(*) FILTER (WHERE destination_store_id IS NOT NULL AND released_at IS NOT NULL)::int as store_transfers,
                 COUNT(*) FILTER (WHERE destination_store_id IS NOT NULL AND released_at IS NOT NULL AND store_received_qty <= 0)::int as store_not_recorded,

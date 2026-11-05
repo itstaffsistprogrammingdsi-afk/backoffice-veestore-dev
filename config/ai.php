@@ -128,6 +128,9 @@ return [
             'models' => [
                 'text' => [
                     'default' => env('NINE_ROUTER_MODEL', 'ocg/deepseek-v4.1-flash'),
+                    'auto' => env('NINE_ROUTER_AUTO_MODEL', 'cx/gpt-5.6-luna'),
+                    'auto_fallback' => env('NINE_ROUTER_AUTO_FALLBACK_MODEL', 'ocg/deepseek-v4.1-flash'),
+                    'expert' => env('NINE_ROUTER_EXPERT_MODEL', 'cx/gpt-5.6-sol'),
                 ],
             ],
         ],

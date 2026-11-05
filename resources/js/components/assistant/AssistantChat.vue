@@ -23,6 +23,13 @@ interface Urls {
     state?: string;
 }
 
+interface AssistantMode {
+    key: string;
+    label: string;
+    description?: string;
+    models: string[];
+}
+
 const props = withDefaults(
     defineProps<{
         initialMessages?: ChatMessage[];
@@ -30,12 +37,16 @@ const props = withDefaults(
         urls: Urls;
         mode?: 'panel' | 'page';
         model?: string;
+        modes?: AssistantMode[];
+        defaultMode?: string;
     }>(),
     {
         initialMessages: () => [],
         suggestions: () => [],
         mode: 'panel',
         model: '',
+        modes: () => [],
+        defaultMode: '',
     },
 );
 
@@ -50,8 +61,15 @@ const resetting = ref(false);
 const error = ref('');
 const scrollArea = ref<HTMLElement | null>(null);
 const input = ref<HTMLTextAreaElement | null>(null);
+const selectedMode = ref(props.defaultMode || props.modes[0]?.key || '');
+const servedModel = ref('');
 
 const hasMessages = computed(() => messages.value.length > 0);
+const activeMode = computed(() => props.modes.find((mode) => mode.key === selectedMode.value));
+const activeModels = computed(() =>
+    activeMode.value?.models.length ? activeMode.value.models : props.model ? [props.model] : [],
+);
+const modelLabel = computed(() => servedModel.value || activeModels.value.join(' → '));
 
 const uniqueTools = (tools?: ToolTrace[] | null) => {
     const seen = new Set<string>();
@@ -86,6 +104,13 @@ const scrollToBottom = async () => {
     if (element) {
         element.scrollTop = element.scrollHeight;
     }
+};
+
+const selectMode = (mode: string) => {
+    if (mode === selectedMode.value) return;
+
+    selectedMode.value = mode;
+    servedModel.value = '';
 };
 
 const csrfToken = () =>
@@ -135,7 +160,7 @@ const send = async (value?: string) => {
                 'X-CSRF-TOKEN': csrfToken(),
             },
             credentials: 'same-origin',
-            body: JSON.stringify({ message: text }),
+            body: JSON.stringify({ message: text, mode: selectedMode.value || undefined }),
         });
 
         const payload = await response.json().catch(() => null);
@@ -143,6 +168,12 @@ const send = async (value?: string) => {
         if (!response.ok) {
             throw new Error(payload?.message ?? 'VEE belum dapat menjawab.');
         }
+
+        if (typeof payload?.mode === 'string' && payload.mode !== '' && payload.mode !== selectedMode.value) {
+            selectedMode.value = payload.mode;
+        }
+
+        servedModel.value = typeof payload?.model === 'string' ? payload.model : '';
 
         messages.value = payload.messages ?? [
             ...messages.value,
@@ -189,6 +220,7 @@ const reset = async () => {
 
         messages.value = [];
         draft.value = '';
+        servedModel.value = '';
         await nextTick();
         input.value?.focus();
     } catch (exception) {
@@ -344,10 +376,27 @@ defineExpose({ focusInput: () => input.value?.focus() });
             </form>
 
             <div class="assistant-chat__meta">
-                <span v-if="props.model" class="assistant-chat__model">
-                    <i class="mdi mdi-chip" aria-hidden="true"></i>
-                    {{ props.model }}
-                </span>
+                <div class="assistant-chat__controls">
+                    <div v-if="props.modes.length > 1" class="assistant-modes" role="group" aria-label="Mode jawaban">
+                        <button
+                            v-for="mode in props.modes"
+                            :key="mode.key"
+                            type="button"
+                            class="assistant-modes__button"
+                            :class="{ 'is-active': selectedMode === mode.key }"
+                            :aria-pressed="selectedMode === mode.key"
+                            :title="mode.description || mode.label"
+                            :disabled="loading || resetting"
+                            @click="selectMode(mode.key)"
+                        >
+                            {{ mode.label }}
+                        </button>
+                    </div>
+                    <span v-if="modelLabel" class="assistant-chat__model" :title="modelLabel">
+                        <i class="mdi mdi-chip" aria-hidden="true"></i>
+                        {{ modelLabel }}
+                    </span>
+                </div>
                 <button
                     type="button"
                     class="assistant-reset"
@@ -733,10 +782,62 @@ defineExpose({ focusInput: () => input.value?.focus() });
 
 .assistant-chat__meta {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
     margin-top: 0.45rem;
+}
+
+.assistant-chat__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.assistant-modes {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--app-border);
+    border-radius: 0.5rem;
+    background: var(--app-surface-2);
+}
+
+.assistant-modes__button {
+    min-height: 44px;
+    padding: 0.3rem 0.65rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--app-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 140ms ease, color 140ms ease;
+}
+
+.assistant-modes__button:hover:not(:disabled) {
+    color: var(--app-ink);
+}
+
+.assistant-modes__button.is-active {
+    background: var(--app-surface);
+    color: var(--app-accent-ink);
+    box-shadow: 0 1px 2px rgba(25, 44, 62, 0.12);
+}
+
+.assistant-modes__button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--app-accent) 35%, transparent);
+    outline-offset: 2px;
+}
+
+.assistant-modes__button:disabled {
+    cursor: wait;
+    opacity: 0.55;
 }
 
 .assistant-chat__model {

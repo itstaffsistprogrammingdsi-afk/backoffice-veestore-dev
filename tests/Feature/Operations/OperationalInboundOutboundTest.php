@@ -22,6 +22,12 @@ class OperationalInboundOutboundTest extends TestCase
                 ->has('rows')
                 ->has('summary')
                 ->has('warehouses')
+                ->has('inboundTypes')
+                ->has('summary.total_good')
+                ->has('summary.total_bad')
+                ->has('summary.total_value')
+                ->where('filters.inbound_type', null)
+                ->where('filters.source_warehouse_id', null)
                 ->has('statusOptions')
                 ->has('urls'));
     }

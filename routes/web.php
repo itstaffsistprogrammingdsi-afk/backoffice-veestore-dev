@@ -171,6 +171,8 @@ Route::middleware('auth')->group(function () {
         ->name('operations.customers.demographics');
     Route::get('/operations/customers/demographics/export', [CustomerDemographicsOperationsController::class, 'export'])
         ->name('operations.customers.demographics.export');
+    Route::post('/operations/customers/demographics/birthday-greeting', [CustomerDemographicsOperationsController::class, 'sendBirthdayGreeting'])
+        ->name('operations.customers.demographics.birthday-greeting');
     Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
     Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
@@ -876,6 +878,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('crm/demographics/export', [CrmController::class, 'exportDemographics'])
             ->name('crm.demographics.export');
+
+        Route::post('crm/demographics/birthday-greeting', [CrmController::class, 'sendBirthdayGreeting'])
+            ->name('crm.demographics.birthday-greeting');
 
         Route::get('crm/demographics/regions/regencies', [CrmController::class, 'demographicRegencies'])
             ->name('crm.demographics.regencies');

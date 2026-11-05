@@ -29,6 +29,13 @@ interface Tool {
     description: string;
 }
 
+interface AssistantMode {
+    key: string;
+    label: string;
+    description?: string;
+    models: string[];
+}
+
 interface Props {
     messages: ChatMessage[];
     suggestions: string[];
@@ -36,6 +43,8 @@ interface Props {
     features: Feature[];
     coverage: Array<{ label: string; value: number }>;
     model: string;
+    modes: AssistantMode[];
+    default_mode: string;
     urls: {
         index: string;
         state: string;
@@ -118,6 +127,8 @@ const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(va
                     :suggestions="props.suggestions"
                     :urls="props.urls"
                     :model="props.model"
+                    :modes="props.modes"
+                    :default-mode="props.default_mode"
                     @activity-change="assistantBusy = $event"
                 />
             </section>

@@ -61,10 +61,14 @@ class StoreOutboundController extends Controller
             'couriers' => $couriers,
             'outboundTypes' => $outboundTypes,
             'outboundTypeLabels' => self::OUTBOUND_TYPE_LABELS,
+            'documentStatuses' => [
+                ['value' => 'missing_awb', 'label' => 'Belum ada resi ecommerce'],
+                ['value' => 'complete', 'label' => 'Resi lengkap atau tidak diperlukan'],
+            ],
             'filters' => $filters,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => ['index' => url()->current(), 'operations' => route('operations.store-outbound.index')],
         ]);
     }
 
@@ -75,7 +79,7 @@ class StoreOutboundController extends Controller
             'courier_id' => trim((string) $request->input('courier_id', '')),
             'outbound_type' => trim((string) $request->input('outbound_type', '')),
             'source' => trim((string) $request->input('source', '')),
-            'shipping_status' => trim((string) $request->input('shipping_status', '')),
+            'document_status' => trim((string) $request->input('document_status', '')),
             'date_from' => $this->normalizeDate($request->input('date_from')),
             'date_to' => $this->normalizeDate($request->input('date_to')),
             'q' => trim((string) $request->input('q', '')),
@@ -111,8 +115,11 @@ class StoreOutboundController extends Controller
             ->when($filters['source'] === 'store_cart', fn ($query) => $query->whereNotNull('so.store_cart_id'))
             ->when($filters['source'] === 'store_return', fn ($query) => $query->whereNotNull('so.store_return_id'))
             ->when($filters['source'] === 'other', fn ($query) => $query->whereNull('so.ecommerce_order_id')->whereNull('so.store_cart_id')->whereNull('so.store_return_id'))
-            ->when($filters['shipping_status'] === 'with_shipping', fn ($query) => $query->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, eo.shipping_number, '')), '') IS NOT NULL"))
-            ->when($filters['shipping_status'] === 'without_shipping', fn ($query) => $query->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, eo.shipping_number, '')), '') IS NULL"))
+            ->when($filters['document_status'] === 'missing_awb', fn ($query) => $query
+                ->whereRaw("(so.ecommerce_order_id IS NOT NULL OR LOWER(COALESCE(so.outbound_type::text, '')) = 'ecommerce')")
+                ->whereRaw("NULLIF(BTRIM(COALESCE(so.shipping_number, eo.shipping_number, '')), '') IS NULL"))
+            ->when($filters['document_status'] === 'complete', fn ($query) => $query
+                ->whereRaw("NOT ((so.ecommerce_order_id IS NOT NULL OR LOWER(COALESCE(so.outbound_type::text, '')) = 'ecommerce') AND NULLIF(BTRIM(COALESCE(so.shipping_number, eo.shipping_number, '')), '') IS NULL)"))
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $keyword = '%'.$filters['q'].'%';
 
@@ -189,9 +196,11 @@ class StoreOutboundController extends Controller
             COALESCE(SUM(store_outbound_rows.total_sku), 0)::int as total_sku,
             COALESCE(SUM(store_outbound_rows.total_items), 0)::int as total_items,
             COALESCE(SUM(store_outbound_rows.total_rfid), 0)::int as total_rfid,
-            COUNT(*) FILTER (WHERE store_outbound_rows.shipping_number <> \'-\')::int as total_with_shipping,
+            COUNT(*) FILTER (WHERE (store_outbound_rows.outbound_type::text = \'ecommerce\' OR store_outbound_rows.ecommerce_order_number <> \'-\') AND store_outbound_rows.shipping_number <> \'-\')::int as total_with_shipping,
+            COUNT(*) FILTER (WHERE (store_outbound_rows.outbound_type::text = \'ecommerce\' OR store_outbound_rows.ecommerce_order_number <> \'-\') AND store_outbound_rows.shipping_number = \'-\')::int as total_missing_awb,
             COUNT(*) FILTER (WHERE store_outbound_rows.ecommerce_order_id IS NOT NULL)::int as total_ecommerce,
-            COUNT(*) FILTER (WHERE store_outbound_rows.store_return_id IS NOT NULL)::int as total_returns
+            COUNT(*) FILTER (WHERE store_outbound_rows.store_return_id IS NOT NULL)::int as total_returns,
+            COALESCE(SUM(store_outbound_rows.item_quantity), 0)::int as total_header_qty
         ')->first();
     }
 
@@ -216,6 +225,21 @@ class StoreOutboundController extends Controller
             $row->total_sku = (int) $row->total_sku;
             $row->total_rfid = (int) $row->total_rfid;
             $row->outbound_type_label = self::OUTBOUND_TYPE_LABELS[$row->outbound_type] ?? ($row->outbound_type ?: '-');
+
+            $requiresShipping = strtolower((string) $row->outbound_type) === 'ecommerce'
+                || strtolower((string) $row->source_label) === 'ecommerce';
+            $hasShipping = trim((string) $row->shipping_number) !== '-';
+
+            if ($requiresShipping && ! $hasShipping) {
+                $row->document_status = 'missing_awb';
+                $row->document_status_label = 'Belum ada resi';
+            } elseif ($requiresShipping) {
+                $row->document_status = 'complete';
+                $row->document_status_label = 'Resi tersedia';
+            } else {
+                $row->document_status = 'not_required';
+                $row->document_status_label = 'Tidak memerlukan resi';
+            }
 
             return $row;
         });

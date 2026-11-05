@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\StokWmsExport;
 use App\Http\Controllers\Controller;
 use App\Services\StockReservationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StokWmsController extends Controller
@@ -17,8 +17,8 @@ class StokWmsController extends Controller
     {
         $filters = [
             'warehouse_id' => trim((string) $request->input('warehouse_id', '')),
-            'q'            => trim((string) $request->input('q', '')),
-            'min'          => (int) $request->input('min', 0),
+            'q' => trim((string) $request->input('q', '')),
+            'min' => (int) $request->input('min', 0),
         ];
 
         $rows = $this->buildFilteredQuery($filters)
@@ -31,15 +31,19 @@ class StokWmsController extends Controller
             ->get(['id', 'name', 'code']);
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Stok Wms',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Stok Warehouse',
+            'description' => 'Posisi stok fisik, reservasi aktif, dan stok tersedia per warehouse. Klik angka Qty Reservasi untuk melihat order dan pihak yang menahan stok.',
             'data' => [
-            'rows'       => $rows,
-            'warehouses' => $warehouses,
-            'filters'    => $filters,
-        ],
+                'rows' => $rows,
+                'warehouses' => $warehouses,
+                'filters' => $filters,
+            ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.stok-wms.export')],
+            'urls' => [
+                'index' => url()->current(),
+                'export' => route('monitoring.stok-wms.export'),
+                'reservations' => route('monitoring.stok-wms.reservations'),
+            ],
         ]);
     }
 
@@ -47,20 +51,20 @@ class StokWmsController extends Controller
     {
         $filters = [
             'warehouse_id' => trim((string) $request->input('warehouse_id', '')),
-            'q'            => trim((string) $request->input('q', '')),
-            'min'          => (int) $request->input('min', 0),
+            'q' => trim((string) $request->input('q', '')),
+            'min' => (int) $request->input('min', 0),
         ];
 
         $rows = $this->buildFilteredQuery($filters)->get()->map(function ($r) {
-            $r->qty_good              = (int) $r->qty_good;
+            $r->qty_good = (int) $r->qty_good;
             $r->qty_good_after_repair = (int) $r->qty_good_after_repair;
-            $r->qty_bad               = (int) $r->qty_bad;
-            $r->total_qty             = (int) $r->total_qty;
+            $r->qty_bad = (int) $r->qty_bad;
+            $r->total_qty = (int) $r->total_qty;
 
             return $r;
         });
 
-        $filename = 'laporan-stok-wms-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'laporan-stok-wms-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
             new StokWmsExport($rows, $filters),
@@ -70,9 +74,9 @@ class StokWmsController extends Controller
 
     private function buildFilteredQuery(array $filters)
     {
-        $q           = $filters['q'] ?? '';
+        $q = $filters['q'] ?? '';
         $warehouseId = $filters['warehouse_id'] ?? '';
-        $minStock    = (int) ($filters['min'] ?? 0);
+        $minStock = (int) ($filters['min'] ?? 0);
 
         $hasUnits = Schema::hasTable('units') && Schema::hasColumn('products', 'unit_id');
         $hasReservations = Schema::hasTable('stock_reservations');
@@ -99,8 +103,8 @@ class StokWmsController extends Controller
             ->when($q !== '', function ($q2) use ($q) {
                 $q2->where(function ($w2) use ($q) {
                     $w2->where('p.code', 'ILIKE', "%{$q}%")
-                       ->orWhere('p.name', 'ILIKE', "%{$q}%")
-                       ->orWhere('w.name', 'ILIKE', "%{$q}%");
+                        ->orWhere('p.name', 'ILIKE', "%{$q}%")
+                        ->orWhere('w.name', 'ILIKE', "%{$q}%");
                 });
             })
             ->selectRaw('

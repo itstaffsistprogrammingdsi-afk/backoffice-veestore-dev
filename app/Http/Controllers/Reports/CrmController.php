@@ -7,8 +7,10 @@ use App\Exports\CrmDashboardExport;
 use App\Exports\CrmDemographicsExport;
 use App\Exports\CustomerProfileExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BirthdayGreetingRequest;
 use App\Models\Customer;
 use App\Models\Store;
+use App\Services\BirthdayGreetingService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,11 +115,17 @@ class CrmController extends Controller
      * Ringkasan data demografi untuk segmentasi dan aktivitas CRM.
      * Semua angka serta tabel mengikuti filter yang dipilih pengguna.
      */
-    public function demographics(Request $request, CustomerDemographicsQuery $query)
-    {
+    public function demographics(
+        Request $request,
+        CustomerDemographicsQuery $query,
+        BirthdayGreetingService $greeting
+    ) {
         $data = $query->build($request->query());
 
         return Inertia::render('Reports/CrmDemographics', $data + [
+            'birthdayGreeting' => [
+                'template' => $greeting->template(),
+            ],
             'urls' => [
                 'index' => route('reports.crm.demographics'),
                 'export' => route('reports.crm.demographics.export'),
@@ -125,6 +133,7 @@ class CrmController extends Controller
                 'customerProfiles' => route('reports.crm.customer-profiles'),
                 'customerProfile' => route('reports.crm.customer-profile', ['customerId' => '__ID__']),
                 'preference' => route('reports.crm.customer-preference.index'),
+                'birthdayGreeting' => route('reports.crm.demographics.birthday-greeting'),
                 'regions' => [
                     'regencies' => route('reports.crm.demographics.regencies'),
                     'districts' => route('reports.crm.demographics.districts'),
@@ -132,6 +141,20 @@ class CrmController extends Controller
                 ],
             ],
         ]);
+    }
+
+    public function sendBirthdayGreeting(BirthdayGreetingRequest $request, BirthdayGreetingService $greeting)
+    {
+        $result = $greeting->send(
+            $request->validated('customer_ids'),
+            $request->validated('subject'),
+            $request->validated('message'),
+        );
+
+        return back()->with(
+            $result['sent'] > 0 ? 'success' : 'error',
+            $greeting->summaryMessage($result)
+        );
     }
 
     /** Download seluruh baris demografi sesuai filter halaman. */

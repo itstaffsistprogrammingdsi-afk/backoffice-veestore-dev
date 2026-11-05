@@ -13,6 +13,15 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class PaymentIncomeRealtimeController extends Controller
 {
+    private const PERIOD_OPTIONS = [
+        ['value' => 'today', 'label' => 'Hari ini'],
+        ['value' => 'week', 'label' => 'Minggu ini'],
+        ['value' => 'month', 'label' => 'Bulan ini'],
+        ['value' => 'year', 'label' => 'Tahun'],
+    ];
+
+    private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'custom'];
+
     public function index(Request $request)
     {
         $filters = $this->getFilters($request);
@@ -98,6 +107,16 @@ class PaymentIncomeRealtimeController extends Controller
                 'hourCounts' => $hourCounts,
 
                 'filters' => $filters,
+                'periodFilter' => [
+                    'value' => $filters['period'],
+                    'label' => $this->periodLabel($filters),
+                    'year' => (string) $filters['year'],
+                    'currentYear' => (string) now()->year,
+                    'options' => self::PERIOD_OPTIONS,
+                    'years' => $this->availableYears($filters['year']),
+                    'rangeLabel' => $this->formatPeriodRange($filters),
+                    'autoRefresh' => $filters['auto_refresh'],
+                ],
                 'storeId' => $filters['store_id'],
                 'paymentMethodId' => $filters['payment_method_id'],
                 'paymentStatus' => $filters['payment_status'],
@@ -151,10 +170,18 @@ class PaymentIncomeRealtimeController extends Controller
 
     private function getFilters(Request $request): array
     {
-        $today = now()->toDateString();
+        $period = $this->normalizePeriod($request->query('period'));
+        $year = $this->normalizeYear($request->query('year'));
+        $hasCustomDates = $request->filled('start_date') || $request->filled('end_date');
 
-        $startDate = $this->normalizeDate($request->query('start_date')) ?: $today;
-        $endDate = $this->normalizeDate($request->query('end_date')) ?: $today;
+        if ($period === 'custom' || ($period === null && $hasCustomDates)) {
+            $period = 'custom';
+            $startDate = $this->normalizeDate($request->query('start_date')) ?: now()->toDateString();
+            $endDate = $this->normalizeDate($request->query('end_date')) ?: now()->toDateString();
+        } else {
+            $period ??= 'today';
+            [$startDate, $endDate] = $this->periodRange($period, $year);
+        }
 
         if ($startDate > $endDate) {
             [$startDate, $endDate] = [$endDate, $startDate];
@@ -187,6 +214,8 @@ class PaymentIncomeRealtimeController extends Controller
             'payment_status' => $paymentStatus,
             'start_date' => $startDate,
             'end_date' => $endDate,
+            'period' => $period,
+            'year' => $year,
             'per_page' => $perPage,
             'auto_refresh' => $request->boolean('auto_refresh'),
         ];
@@ -768,6 +797,103 @@ class PaymentIncomeRealtimeController extends Controller
                 ->orWhere('m.income_source_label', 'ILIKE', "%{$keyword}%")
                 ->orWhere('m.payment_method_name', 'ILIKE', "%{$keyword}%");
         });
+    }
+
+    private function normalizePeriod($value): ?string
+    {
+        $value = $this->normalizeNullableString($value);
+
+        if ($value === null) {
+            return null;
+        }
+
+        return in_array($value, self::PERIOD_VALUES, true) ? $value : null;
+    }
+
+    private function normalizeYear($value): int
+    {
+        $currentYear = (int) now()->year;
+        $year = (int) $value;
+
+        if ($year < 2000 || $year > $currentYear) {
+            return $currentYear;
+        }
+
+        return $year;
+    }
+
+    private function periodRange(string $period, int $year): array
+    {
+        $now = now();
+
+        return match ($period) {
+            'week' => [
+                $now->copy()->startOfWeek(Carbon::MONDAY)->toDateString(),
+                $now->copy()->endOfWeek(Carbon::SUNDAY)->toDateString(),
+            ],
+            'month' => [
+                $now->copy()->startOfMonth()->toDateString(),
+                $now->copy()->endOfMonth()->toDateString(),
+            ],
+            'year' => [
+                Carbon::create($year, 1, 1)->toDateString(),
+                Carbon::create($year, 12, 31)->toDateString(),
+            ],
+            default => [$now->toDateString(), $now->toDateString()],
+        };
+    }
+
+    private function availableYears(int $selectedYear): array
+    {
+        $currentYear = (int) now()->year;
+        $startYear = min($selectedYear, $currentYear - 9);
+        $endYear = max($currentYear, $selectedYear);
+        $years = range($startYear, $endYear);
+        rsort($years);
+        $years = array_slice($years, 0, 10);
+
+        if (! in_array($selectedYear, $years, true)) {
+            $years[] = $selectedYear;
+            rsort($years);
+        }
+
+        return array_map(fn (int $year) => (string) $year, $years);
+    }
+
+    private function periodLabel(array $filters): string
+    {
+        return match ($filters['period']) {
+            'week' => 'Minggu ini',
+            'month' => 'Bulan ini',
+            'year' => 'Tahun '.$filters['year'],
+            'custom' => 'Rentang kustom',
+            default => 'Hari ini',
+        };
+    }
+
+    private function formatPeriodRange(array $filters): string
+    {
+        $start = Carbon::createFromFormat('Y-m-d', $filters['start_date']);
+        $end = Carbon::createFromFormat('Y-m-d', $filters['end_date']);
+        $months = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun', 7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'];
+
+        if ($filters['period'] === 'year') {
+            return '1 Jan - 31 Des '.$start->year;
+        }
+
+        if ($filters['period'] === 'month') {
+            return '1 - '.$end->day.' '.$months[$end->month].' '.$end->year;
+        }
+
+        if ($start->isSameDay($end)) {
+            return $start->day.' '.$months[$start->month].' '.$start->year;
+        }
+
+        if ($start->year === $end->year && $start->month === $end->month) {
+            return $start->day.' - '.$end->day.' '.$months[$end->month].' '.$end->year;
+        }
+
+        return $start->day.' '.$months[$start->month].' '.$start->year.' - '.$end->day.' '.$months[$end->month].' '.$end->year;
     }
 
     private function normalizeDate(?string $date): ?string

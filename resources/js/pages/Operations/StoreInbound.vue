@@ -45,7 +45,13 @@ interface InboundRow {
     warehouse_source_code: string;
     invoice_number: string | null;
     delivery_order_number: string | null;
+    order_id: string | null;
+    store_order_number: string;
+    quantity_item: number;
+    grand_total: number;
+    note: string | null;
     received_date: string | null;
+    received_by_name: string;
     created_at: string;
     qc_status: string | null;
     status_label: string;
@@ -74,6 +80,10 @@ interface Props {
         received_today: number;
         total_qty: number;
         total_sku: number;
+        total_header_qty: number;
+        total_good: number;
+        total_bad: number;
+        total_value: number;
     };
     skuRows: SkuRow[];
     stores: Array<{ id: string; name: string; code: string | null }>;
@@ -122,6 +132,7 @@ const expanded = ref<Record<string, boolean>>({});
 const skuDocsModal = ref<{ sku: SkuRow } | null>(null);
 
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
+const formatCurrency = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value ?? 0);
 const formatDate = (value: string | null) => {
     if (!value) return '-';
 
@@ -239,6 +250,27 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-xl-4">
+                <div class="inbound-summary">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-cash-multiple"></i></span>
+                    <div><span>Total Nilai Inbound</span><strong class="inbound-summary-currency">{{ formatCurrency(props.summary.total_value) }}</strong><small class="inbound-summary-note">Qty header {{ formatNumber(props.summary.total_header_qty) }}</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-4">
+                <div class="inbound-summary inbound-summary-success">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
+                    <div><span>Barang Baik</span><strong>{{ formatNumber(props.summary.total_good) }}</strong><small class="inbound-summary-note">Dari {{ formatNumber(props.summary.total_qty) }} item diterima</small></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl-4">
+                <div class="inbound-summary inbound-summary-danger">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-alert-octagon-outline"></i></span>
+                    <div><span>Barang Rusak</span><strong>{{ formatNumber(props.summary.total_bad) }}</strong><small class="inbound-summary-note">Perlu tindak lanjut QC</small></div>
+                </div>
+            </div>
+        </div>
+
         <div class="card inbound-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
@@ -300,7 +332,7 @@ onBeforeUnmount(() => {
                     <tbody>
                         <template v-for="row in props.rows.data" :key="row.id">
                             <tr>
-                                <td><div class="inbound-main"><strong>{{ row.invoice_number || row.delivery_order_number || 'Tanpa nomor' }}</strong><small>{{ row.qc_checked_items }} checked &middot; {{ row.qc_pending_items }} pending</small><small class="inbound-mobile-meta d-md-none"><span class="badge" :class="statusClass(row.qc_status)">{{ row.status_label }}</span><span>Good {{ formatNumber(row.qty_good) }}</span><span>Bad {{ formatNumber(row.qty_bad) }}</span></small></div></td>
+                                <td><div class="inbound-main"><strong>{{ row.invoice_number || row.delivery_order_number || row.store_order_number }}</strong><small v-if="row.store_order_number !== '-'">Order: {{ row.store_order_number }}</small><small>{{ row.qc_checked_items }} checked &middot; {{ row.qc_pending_items }} pending</small><small class="inbound-mobile-meta d-md-none"><span class="badge" :class="statusClass(row.qc_status)">{{ row.status_label }}</span><span>Good {{ formatNumber(row.qty_good) }}</span><span>Bad {{ formatNumber(row.qty_bad) }}</span></small></div></td>
                                 <td><strong>{{ row.store_name }}</strong><small class="inbound-subvalue">{{ row.store_code }}</small></td>
                                 <td><strong>{{ row.warehouse_source_name }}</strong><small class="inbound-subvalue">{{ row.warehouse_source_code }}</small></td>
                                 <td class="text-end"><strong>{{ formatNumber(row.total_items) }}</strong><small class="inbound-subvalue">{{ formatNumber(row.total_sku) }} SKU</small></td>
@@ -311,7 +343,28 @@ onBeforeUnmount(() => {
                                 <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)"><i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[row.id] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
                             <tr v-if="expanded[row.id]" class="inbound-detail-row">
-                                <td colspan="9"><div class="inbound-detail-wrap"><table class="table table-sm mb-0 inbound-detail-table"><thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">QC Checked</th><th class="text-end">QC Pending</th><th class="text-end">Good</th><th class="text-end">Bad</th></tr></thead><tbody><tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`"><td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td><td class="text-end">{{ formatNumber(detail.qty) }}</td><td class="text-end">{{ formatNumber(detail.qc_checked) }}</td><td class="text-end">{{ formatNumber(detail.qc_pending) }}</td><td class="text-end">{{ formatNumber(detail.qty_good) }}</td><td class="text-end">{{ formatNumber(detail.qty_bad) }}</td></tr><tr v-if="row.product_details.length === 0"><td colspan="6" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr></tbody></table></div></td>
+                                <td colspan="9">
+                                    <div class="inbound-detail-wrap">
+                                        <div class="inbound-detail-meta">
+                                            <span><b>Order store:</b> {{ row.store_order_number }}</span>
+                                            <span><b>Invoice:</b> {{ row.invoice_number || '-' }}</span>
+                                            <span><b>DO:</b> {{ row.delivery_order_number || '-' }}</span>
+                                            <span><b>PIC penerima:</b> {{ row.received_by_name || '-' }}</span>
+                                            <span><b>Qty header:</b> {{ formatNumber(row.quantity_item) }}</span>
+                                            <span><b>Nilai:</b> {{ formatCurrency(row.grand_total) }}</span>
+                                            <span><b>Catatan:</b> {{ row.note || '-' }}</span>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm mb-0 inbound-detail-table">
+                                                <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">QC Checked</th><th class="text-end">QC Pending</th><th class="text-end">Good</th><th class="text-end">Bad</th></tr></thead>
+                                                <tbody>
+                                                    <tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`"><td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td><td class="text-end">{{ formatNumber(detail.qty) }}</td><td class="text-end">{{ formatNumber(detail.qc_checked) }}</td><td class="text-end">{{ formatNumber(detail.qc_pending) }}</td><td class="text-end">{{ formatNumber(detail.qty_good) }}</td><td class="text-end">{{ formatNumber(detail.qty_bad) }}</td></tr>
+                                                    <tr v-if="row.product_details.length === 0"><td colspan="6" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </td>
                             </tr>
                         </template>
                     </tbody>
@@ -355,6 +408,10 @@ onBeforeUnmount(() => {
 .inbound-summary span:not(.inbound-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .inbound-summary strong { display: block; margin-top: 0.15rem; font-size: 1.35rem; }
 .inbound-summary-warning .inbound-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
+.inbound-summary-success .inbound-summary-icon { background: var(--app-success-bg); color: var(--app-success-ink); }
+.inbound-summary-danger .inbound-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
+.inbound-summary-currency { font-size: 1rem !important; line-height: 1.35; }
+.inbound-summary-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.68rem; }
 .inbound-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .inbound-card-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-bottom: 1px solid var(--app-border); }
 .inbound-card-header h2 { margin: 0 0 0.2rem; font-size: 1rem; }
@@ -367,7 +424,8 @@ onBeforeUnmount(() => {
 .inbound-main small, .inbound-subvalue { color: var(--app-muted); font-size: 0.73rem; }
 .inbound-main .inbound-mobile-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.3rem; }
 .inbound-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.inbound-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; }
+.inbound-detail-wrap { padding: 0.75rem 1rem 1rem 2.2rem; }
+.inbound-detail-meta { display: flex; flex-wrap: wrap; gap: 0.35rem 1.1rem; margin-bottom: 0.75rem; color: var(--app-muted); font-size: 0.74rem; }
 .inbound-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .inbound-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .inbound-detail-table td strong, .inbound-detail-table td small { display: block; }

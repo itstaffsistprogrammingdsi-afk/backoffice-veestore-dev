@@ -35,6 +35,7 @@ interface OutboundRow {
     qc_passed_at: string | null;
     qc_passed_by_name: string;
     outbound_by_name: string;
+    quantity_item: number;
     total_items: number;
     total_sku: number;
     destination_store_id: string | null;
@@ -45,7 +46,7 @@ interface OutboundRow {
     store_received_at: string | null;
     store_recording_status: 'not_recorded' | 'partial' | 'recorded' | null;
     store_recording_status_label: string;
-    status: 'qc_pending' | 'release_pending' | 'missing_awb' | 'completed';
+    status: 'qc_pending' | 'release_pending' | 'missing_awb' | 'missing_delivery_order' | 'completed';
     status_label: string;
     event_date: string | null;
     has_awb: boolean;
@@ -88,6 +89,7 @@ interface Props {
         qc_pending: number;
         release_pending: number;
         missing_awb: number;
+        missing_delivery_order: number;
         today_outbounds: number;
         store_transfers: number;
         store_not_recorded: number;
@@ -162,6 +164,7 @@ const statusClass = (status: OutboundRow['status']) => ({
     qc_pending: 'bg-label-warning',
     release_pending: 'bg-label-info',
     missing_awb: 'bg-label-danger',
+    missing_delivery_order: 'bg-label-danger',
     completed: 'bg-label-success',
 }[status]);
 
@@ -227,7 +230,7 @@ onBeforeUnmount(() => {
             <div>
                 <span class="outbound-eyebrow">Operations / Warehouse</span>
                 <h1>Outbound Operations</h1>
-                <p>Pantau antrean QC, release, nomor resi, dan detail barang yang keluar dari gudang.</p>
+                <p>Pantau antrean QC, release, resi ecommerce, surat jalan store, dan detail barang yang keluar dari gudang.</p>
             </div>
             <div class="outbound-hero-actions">
                 <Link :href="props.urls.stock" class="outbound-hero-button">
@@ -246,28 +249,34 @@ onBeforeUnmount(() => {
         </section>
 
         <div class="row g-3 mb-3">
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-tray-arrow-up"></i></span>
                     <div><span>Total Outbound</span><strong>{{ formatNumber(props.summary.total_outbounds) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary outbound-summary-warning">
                     <span class="outbound-summary-icon"><i class="mdi mdi-shield-check-outline"></i></span>
                     <div><span>Menunggu QC</span><strong>{{ formatNumber(props.summary.qc_pending) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-truck-check-outline"></i></span>
                     <div><span>Menunggu Release</span><strong>{{ formatNumber(props.summary.release_pending) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary outbound-summary-danger">
                     <span class="outbound-summary-icon"><i class="mdi mdi-barcode-off"></i></span>
-                    <div><span>Belum Ada Resi</span><strong>{{ formatNumber(props.summary.missing_awb) }}</strong></div>
+                    <div><span>Belum Ada Resi (Ecommerce)</span><strong>{{ formatNumber(props.summary.missing_awb) }}</strong></div>
+                </div>
+            </div>
+            <div class="col-6 col-xl">
+                <div class="outbound-summary outbound-summary-danger">
+                    <span class="outbound-summary-icon"><i class="mdi mdi-file-document-alert-outline"></i></span>
+                    <div><span>Belum Ada Surat Jalan (Store)</span><strong>{{ formatNumber(props.summary.missing_delivery_order) }}</strong></div>
                 </div>
             </div>
         </div>
@@ -362,7 +371,7 @@ onBeforeUnmount(() => {
             <div class="outbound-card-header">
                 <div>
                     <h2>Antrean Outbound</h2>
-                    <p>Fokus pada pekerjaan QC, release, dan kelengkapan nomor resi. Laporan lengkap tetap ada di Monitoring.</p>
+                    <p>Fokus pada QC, release, kelengkapan resi ecommerce, dan surat jalan transfer store. Laporan lengkap tetap ada di Monitoring.</p>
                 </div>
                 <span class="outbound-card-meta">{{ formatNumber(props.rows.total) }} dokumen</span>
             </div>
@@ -435,9 +444,16 @@ onBeforeUnmount(() => {
                                 <td colspan="7">
                                     <div class="outbound-detail-wrap">
                                         <div class="outbound-detail-meta">
+                                            <span><b>Invoice:</b> {{ row.invoice_number || '-' }}</span>
+                                            <span><b>Delivery order:</b> {{ row.delivery_order_number || '-' }}</span>
+                                            <span><b>Order ref:</b> {{ row.order_ref || '-' }}</span>
+                                            <span><b>Qty header:</b> {{ formatNumber(row.quantity_item) }}</span>
                                             <span><b>QC oleh:</b> {{ row.qc_passed_by_name || '-' }}</span>
                                             <span><b>Outbound oleh:</b> {{ row.outbound_by_name || '-' }}</span>
                                             <span><b>Release:</b> {{ formatDate(row.released_at) }}</span>
+                                            <span><b>Shipment:</b> {{ formatDate(row.shipment_date) }}</span>
+                                            <span><b>Dibuat:</b> {{ formatDate(row.created_at) }}</span>
+                                            <span><b>Kurir:</b> {{ row.courier_name || '-' }}</span>
                                             <span v-if="row.destination_store_name"><b>Toko tujuan:</b> {{ row.destination_store_name }} ({{ row.destination_store_code || '-' }})</span>
                                             <span v-if="row.store_recording_status"><b>Stok toko:</b> {{ row.store_recording_status_label }} · {{ formatNumber(row.store_received_qty) }}/{{ formatNumber(row.total_items) }} diterima</span>
                                         </div>

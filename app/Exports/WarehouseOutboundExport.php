@@ -50,17 +50,19 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
             ['Status Release', ': '.($this->filters['release_status'] ?? 'Semua Status')],
             ['Status QC', ': '.($this->filters['qc_status'] ?? 'Semua Status QC')],
             ['Status Stok Toko', ': '.($this->filters['reconciliation_status'] ?? 'Semua Status Stok Toko')],
+            ['Status Dokumen', ': '.($this->filters['document_status'] ?? 'Semua Status Dokumen')],
             ['Keyword', ': '.(($this->filters['q'] ?? null) ?: '-')],
             [''],
             ['RINGKASAN'],
-            ['Total Outbound', 'Total SKU', 'Total Item', 'Sudah Release', 'QC Lolos', 'Tanpa Resi', 'Transfer ke Toko', 'Belum Tercatat Toko'],
+            ['Total Outbound', 'Total SKU', 'Total Item', 'Sudah Release', 'QC Lolos', 'Tanpa Resi Ecommerce', 'Tanpa Surat Jalan Store', 'Transfer ke Toko', 'Belum Tercatat Toko'],
             [
                 $this->rows->count(),
                 (int) $this->rows->sum('total_sku'),
                 (int) $this->rows->sum('total_items'),
                 $this->rows->filter(fn ($row) => $row->released_at)->count(),
                 $this->rows->filter(fn ($row) => $row->qc_passed_at)->count(),
-                $this->rows->filter(fn ($row) => trim((string) ($row->shipping_number ?? '')) === '')->count(),
+                $this->rows->filter(fn ($row) => ($row->document_status ?? null) === 'missing_awb')->count(),
+                $this->rows->filter(fn ($row) => ($row->document_status ?? null) === 'missing_delivery_order')->count(),
                 $this->rows->filter(fn ($row) => ($row->destination_store_id ?? null) !== null)->count(),
                 $this->rows->filter(fn ($row) => ($row->store_recording_status ?? null) === 'not_recorded')->count(),
             ],
@@ -121,24 +123,24 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
 
     public function styles(Worksheet $sheet): array
     {
-        $lastColumn = 'AG';
-        $headerRow = 18;
+        $lastColumn = 'AH';
+        $headerRow = 19;
         $lastRow = $sheet->getHighestRow();
 
         $sheet->mergeCells("A1:{$lastColumn}1");
-        $sheet->mergeCells("A14:{$lastColumn}14");
+        $sheet->mergeCells("A15:{$lastColumn}15");
         $sheet->getStyle("A1:{$lastColumn}1")->applyFromArray([
             'font' => ['bold' => true, 'size' => 16],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
         ]);
-        $sheet->getStyle('A3:A12')->getFont()->setBold(true);
-        $sheet->getStyle("A14:{$lastColumn}14")->applyFromArray([
+        $sheet->getStyle('A3:A13')->getFont()->setBold(true);
+        $sheet->getStyle("A15:{$lastColumn}15")->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
             'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F766E']],
         ]);
-        $sheet->getStyle('A15:H15')->applyFromArray($this->headerStyle('115E59'));
-        $sheet->getStyle('A15:H16')->applyFromArray($this->borderStyle());
-        $sheet->getStyle('A16:H16')->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('A16:I16')->applyFromArray($this->headerStyle('115E59'));
+        $sheet->getStyle('A16:I17')->applyFromArray($this->borderStyle());
+        $sheet->getStyle('A17:I17')->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->applyFromArray($this->headerStyle('1E293B'));
         $sheet->getStyle("A{$headerRow}:{$lastColumn}{$lastRow}")->applyFromArray($this->borderStyle());
 
@@ -148,7 +150,7 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
             $sheet->getStyle('AD'.($headerRow + 1).":AE{$lastRow}")->getNumberFormat()->setFormatCode('#,##0');
         }
 
-        $sheet->freezePane('A19');
+        $sheet->freezePane('A20');
         $sheet->setAutoFilter("A{$headerRow}:{$lastColumn}{$lastRow}");
         $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
@@ -191,6 +193,7 @@ class WarehouseOutboundExport implements FromArray, ShouldAutoSize, WithStyles, 
             $first ? (int) ($row->store_variance_qty ?? 0) : '',
             $first ? $this->safeText($row->store_recording_status_label ?? '-') : '',
             $first ? $this->formatDateTime($row->store_received_at ?? null) : '',
+            $first ? $this->safeText($row->document_status_label ?? '-') : '',
         ];
     }
 

@@ -71,10 +71,15 @@ class WarehouseOutboundController extends Controller
                 'couriers' => $couriers,
                 'outboundTypes' => $outboundTypes,
                 'outboundTypeLabels' => self::OUTBOUND_TYPE_LABELS,
+                'documentStatuses' => [
+                    ['value' => 'missing_awb', 'label' => 'Belum ada resi ecommerce'],
+                    ['value' => 'missing_delivery_order', 'label' => 'Belum ada surat jalan store'],
+                    ['value' => 'complete', 'label' => 'Dokumen lengkap'],
+                ],
                 'filters' => $filters,
             ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.warehouse-outbound.export')],
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.warehouse-outbound.export'), 'operations' => route('operations.outbound.index')],
         ]);
     }
 
@@ -101,6 +106,7 @@ class WarehouseOutboundController extends Controller
             'store_name' => $storeName,
             'courier_name' => $courierName,
             'reconciliation_status' => $this->reconciliationStatusLabel($filters['reconciliation_status']),
+            'document_status' => $this->documentStatusLabel($filters['document_status']),
             'outbound_type' => $filters['outbound_type']
                 ? (self::OUTBOUND_TYPE_LABELS[$filters['outbound_type']] ?? $filters['outbound_type'])
                 : 'Semua Tipe',
@@ -121,6 +127,7 @@ class WarehouseOutboundController extends Controller
     {
         $storeId = trim((string) $request->input('store_id', ''));
         $reconciliationStatus = trim((string) $request->input('reconciliation_status', ''));
+        $documentStatus = trim((string) $request->input('document_status', ''));
 
         return [
             'warehouse_id' => trim((string) $request->input('warehouse_id', '')),
@@ -131,6 +138,9 @@ class WarehouseOutboundController extends Controller
             'qc_status' => trim((string) $request->input('qc_status', '')),
             'reconciliation_status' => in_array($reconciliationStatus, ['not_recorded', 'partial', 'recorded'], true)
                 ? $reconciliationStatus
+                : '',
+            'document_status' => in_array($documentStatus, ['missing_awb', 'missing_delivery_order', 'complete'], true)
+                ? $documentStatus
                 : '',
             'date_from' => $this->normalizeDate($request->input('date_from')),
             'date_to' => $this->normalizeDate($request->input('date_to')),
@@ -175,6 +185,16 @@ class WarehouseOutboundController extends Controller
             ->when($filters['release_status'] === 'unreleased', fn ($query) => $query->whereNull('wo.released_at'))
             ->when($filters['qc_status'] === 'passed', fn ($query) => $query->whereNotNull('wo.qc_passed_at'))
             ->when($filters['qc_status'] === 'pending', fn ($query) => $query->whereNull('wo.qc_passed_at'))
+            ->when($filters['document_status'] !== '', fn ($query) => $query->whereNotNull('wo.released_at'))
+            ->when($filters['document_status'] === 'missing_awb', fn ($query) => $query
+                ->whereRaw("LOWER(wo.outbound_type::text) = 'ecommerce'")
+                ->whereRaw("NULLIF(TRIM(wo.shipping_number), '') IS NULL"))
+            ->when($filters['document_status'] === 'missing_delivery_order', fn ($query) => $query
+                ->whereRaw("LOWER(wo.outbound_type::text) = 'store'")
+                ->whereRaw("NULLIF(TRIM(wo.delivery_order_number), '') IS NULL"))
+            ->when($filters['document_status'] === 'complete', fn ($query) => $query
+                ->whereRaw("NOT (LOWER(wo.outbound_type::text) = 'ecommerce' AND NULLIF(TRIM(wo.shipping_number), '') IS NULL)")
+                ->whereRaw("NOT (LOWER(wo.outbound_type::text) = 'store' AND NULLIF(TRIM(wo.delivery_order_number), '') IS NULL)"))
             ->when($filters['reconciliation_status'] !== '', fn ($query) => $query->whereNotNull('wo.released_at'))
             ->when($filters['reconciliation_status'] === 'not_recorded', fn ($query) => $query
                 ->whereNotNull('so.id')
@@ -277,7 +297,8 @@ class WarehouseOutboundController extends Controller
             COALESCE(SUM(outbound_rows.total_items), 0)::int as total_items,
             COUNT(*) FILTER (WHERE outbound_rows.released_at IS NOT NULL)::int as total_released,
             COUNT(*) FILTER (WHERE outbound_rows.qc_passed_at IS NOT NULL)::int as total_qc_passed,
-            COUNT(*) FILTER (WHERE NULLIF(TRIM(COALESCE(outbound_rows.shipping_number, \'\')), \'\') IS NULL)::int as total_without_shipping,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(outbound_rows.outbound_type::text, \'\')) = \'ecommerce\' AND outbound_rows.released_at IS NOT NULL AND NULLIF(TRIM(COALESCE(outbound_rows.shipping_number, \'\')), \'\') IS NULL)::int as total_without_shipping,
+            COUNT(*) FILTER (WHERE LOWER(COALESCE(outbound_rows.outbound_type::text, \'\')) = \'store\' AND outbound_rows.released_at IS NOT NULL AND NULLIF(TRIM(COALESCE(outbound_rows.delivery_order_number, \'\')), \'\') IS NULL)::int as total_without_delivery_order,
             COUNT(*) FILTER (WHERE outbound_rows.destination_store_id IS NOT NULL AND outbound_rows.released_at IS NOT NULL)::int as total_store_transfers,
             COUNT(*) FILTER (WHERE outbound_rows.destination_store_id IS NOT NULL AND outbound_rows.released_at IS NOT NULL AND outbound_rows.store_received_qty <= 0)::int as store_not_recorded,
             COUNT(*) FILTER (WHERE outbound_rows.destination_store_id IS NOT NULL AND outbound_rows.released_at IS NOT NULL AND outbound_rows.store_received_qty > 0 AND outbound_rows.store_received_qty < outbound_rows.total_items)::int as store_partial,
@@ -315,6 +336,25 @@ class WarehouseOutboundController extends Controller
             $row->store_variance_qty = $row->destination_store_id
                 ? max(0, $row->total_items - $row->store_received_qty)
                 : 0;
+
+            $isEcommerce = strtolower((string) $row->outbound_type) === 'ecommerce';
+            $isStoreTransfer = strtolower((string) $row->outbound_type) === 'store';
+            $hasShippingNumber = trim((string) ($row->shipping_number ?? '')) !== '';
+            $hasDeliveryOrder = trim((string) ($row->delivery_order_number ?? '')) !== '';
+
+            if ($row->released_at && $isEcommerce && ! $hasShippingNumber) {
+                $row->document_status = 'missing_awb';
+                $row->document_status_label = 'Belum ada resi';
+            } elseif ($row->released_at && $isStoreTransfer && ! $hasDeliveryOrder) {
+                $row->document_status = 'missing_delivery_order';
+                $row->document_status_label = 'Belum ada surat jalan';
+            } elseif ($row->released_at && ($isEcommerce || $isStoreTransfer)) {
+                $row->document_status = 'complete';
+                $row->document_status_label = 'Dokumen lengkap';
+            } else {
+                $row->document_status = null;
+                $row->document_status_label = '-';
+            }
 
             if ($row->destination_store_id && $row->released_at) {
                 if ($row->store_received_qty <= 0) {
@@ -446,5 +486,14 @@ class WarehouseOutboundController extends Controller
             'partial' => 'Tercatat sebagian',
             'recorded' => 'Sudah tercatat',
         ][$status] ?? 'Semua Status Stok Toko';
+    }
+
+    private function documentStatusLabel(string $status): string
+    {
+        return [
+            'missing_awb' => 'Belum ada resi ecommerce',
+            'missing_delivery_order' => 'Belum ada surat jalan store',
+            'complete' => 'Dokumen lengkap',
+        ][$status] ?? 'Semua Status Dokumen';
     }
 }
