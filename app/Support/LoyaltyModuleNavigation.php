@@ -52,7 +52,7 @@ class LoyaltyModuleNavigation
 
             $items[] = [
                 'key' => $key,
-                'label' => $item['label'],
+                'label' => __($item['label']),
                 'icon' => $item['icon'],
                 'url' => route($item['route']),
             ];

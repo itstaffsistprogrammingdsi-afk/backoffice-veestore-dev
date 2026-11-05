@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <script>
+        window.__VEESTORE_LOCALE__ = @json(app()->getLocale());
         (function () {
             try {
                 var queryTheme = new URLSearchParams(window.location.search).get('theme');

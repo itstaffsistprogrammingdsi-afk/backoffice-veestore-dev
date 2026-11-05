@@ -24,7 +24,7 @@ class Navigation
 
     public static function forUser(?User $user): array
     {
-        return [
+        return self::translateLabels([
             'areas' => [
                 [
                     'key' => 'operations',
@@ -43,7 +43,20 @@ class Navigation
                     'groups' => self::filterGroups(self::reportsGroups($user)),
                 ],
             ],
-        ];
+        ]);
+    }
+
+    private static function translateLabels(array $node): array
+    {
+        foreach ($node as $key => $value) {
+            if (is_array($value)) {
+                $node[$key] = self::translateLabels($value);
+            } elseif (is_string($value) && in_array($key, ['label', 'description'], true)) {
+                $node[$key] = __($value);
+            }
+        }
+
+        return $node;
     }
 
     private static function operationsGroups(?User $user): array

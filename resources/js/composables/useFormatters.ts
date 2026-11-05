@@ -1,13 +1,15 @@
+import { intlLocale, translate } from '@/composables/i18n';
+
 export const formatNumber = (value: number | string | null | undefined): string => {
     const parsed = Number(value ?? 0);
 
-    return new Intl.NumberFormat('id-ID').format(Number.isFinite(parsed) ? parsed : 0);
+    return new Intl.NumberFormat(intlLocale()).format(Number.isFinite(parsed) ? parsed : 0);
 };
 
 export const formatCurrency = (value: number | string | null | undefined): string => {
     const parsed = Number(value ?? 0);
 
-    return new Intl.NumberFormat('id-ID', {
+    return new Intl.NumberFormat(intlLocale(), {
         style: 'currency',
         currency: 'IDR',
         maximumFractionDigits: 0,
@@ -21,7 +23,7 @@ export const formatDate = (value: string | null | undefined, withTime = false): 
 
     if (Number.isNaN(date.getTime())) return '-';
 
-    return new Intl.DateTimeFormat('id-ID', {
+    return new Intl.DateTimeFormat(intlLocale(), {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -36,7 +38,7 @@ export const formatDateLong = (value: string | null | undefined): string => {
 
     if (Number.isNaN(date.getTime())) return '-';
 
-    return new Intl.DateTimeFormat('id-ID', {
+    return new Intl.DateTimeFormat(intlLocale(), {
         day: '2-digit',
         month: 'long',
         year: 'numeric',
@@ -46,28 +48,28 @@ export const formatDateLong = (value: string | null | undefined): string => {
 export const genderLabel = (value: string | null | undefined): string => {
     const normalized = (value ?? '').toLowerCase();
 
-    if (['male', 'm', 'laki-laki'].includes(normalized)) return 'Laki-laki';
-    if (['female', 'f', 'perempuan'].includes(normalized)) return 'Perempuan';
+    if (['male', 'm', 'laki-laki'].includes(normalized)) return translate('Laki-laki');
+    if (['female', 'f', 'perempuan'].includes(normalized)) return translate('Perempuan');
 
-    return 'Belum diisi';
+    return translate('Belum diisi');
 };
 
 export const channelLabel = (value: string | null | undefined): string => {
     const normalized = (value ?? '').toLowerCase();
 
-    if (normalized === 'store') return 'Store';
+    if (normalized === 'store') return translate('Store');
     if (normalized === 'ecommerce') return 'E-commerce';
     if (normalized === 'backoffice') return 'Backoffice';
-    if (normalized === 'warehouse') return 'Warehouse';
+    if (normalized === 'warehouse') return translate('Warehouse');
 
-    return value || 'Belum diisi';
+    return value ? translate(value) : translate('Belum diisi');
 };
 
 export const membershipStatusLabel = (value: string | null | undefined): string => {
     const normalized = (value ?? '').toLowerCase();
 
-    if (normalized === 'active') return 'Aktif';
-    if (normalized === 'non_active') return 'Tidak aktif';
+    if (normalized === 'active') return translate('Active');
+    if (normalized === 'non_active') return translate('Inactive');
 
     return value || '-';
 };

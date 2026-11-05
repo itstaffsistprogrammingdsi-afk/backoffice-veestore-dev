@@ -15,9 +15,9 @@ defineProps<{
                 class="btn btn-sm"
                 :class="link.active ? 'btn-primary' : 'btn-outline-secondary'"
                 preserve-scroll
-                v-html="link.label"
+                v-html="$t(link.label)"
             />
-            <span v-else class="btn btn-sm btn-outline-secondary disabled" v-html="link.label" />
+            <span v-else class="btn btn-sm btn-outline-secondary disabled" v-html="$t(link.label)" />
         </template>
     </div>
 </template>
