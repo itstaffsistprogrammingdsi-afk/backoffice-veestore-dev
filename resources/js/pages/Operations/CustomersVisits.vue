@@ -99,10 +99,9 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
         </section>
 
         <div class="row g-3 mb-3">
-            <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-account-group-outline"></i></span><div><span>Total Customer</span><strong>{{ formatNumber(props.summary.total_customers) }}</strong></div></div></div>
-            <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-account-clock-outline"></i></span><div><span>Total Kunjungan</span><strong>{{ formatNumber(props.summary.total_visits) }}</strong></div></div></div>
-            <div class="col-6 col-xl-3"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-cart-check"></i></span><div><span>Transaksi Lunas</span><strong>{{ formatNumber(props.summary.paid_transactions) }}</strong></div></div></div>
-            <div class="col-6 col-xl-3"><div class="customer-summary customer-summary-accent"><span class="customer-summary-icon"><i class="mdi mdi-cash-multiple"></i></span><div><span>Total Spending</span><strong>{{ formatCurrency(props.summary.total_spending) }}</strong></div></div></div>
+            <div class="col-6 col-xl-4"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-account-group-outline"></i></span><div><span>Total Customer</span><strong>{{ formatNumber(props.summary.total_customers) }}</strong></div></div></div>
+            <div class="col-6 col-xl-4"><div class="customer-summary"><span class="customer-summary-icon"><i class="mdi mdi-account-clock-outline"></i></span><div><span>Total Kunjungan</span><strong>{{ formatNumber(props.summary.total_visits) }}</strong></div></div></div>
+            <div class="col-6 col-xl-4"><div class="customer-summary customer-summary-accent"><span class="customer-summary-icon"><i class="mdi mdi-cash-multiple"></i></span><div><span>Total Spending</span><strong>{{ formatCurrency(props.summary.total_spending) }}</strong></div></div></div>
         </div>
 
         <div class="card customer-card mb-3">
@@ -120,7 +119,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
             <div v-if="props.rows.data.length === 0" class="customer-empty"><i class="mdi mdi-account-off-outline"></i><strong>Tidak ada customer</strong><span>Coba ubah kata kunci atau filter store.</span></div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 customer-table">
-                    <thead><tr><th>Customer</th><th>Store</th><th>Tier</th><th class="text-end">Poin</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Transaksi Lunas</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th>Customer</th><th>Store</th><th>Tier</th><th class="text-end">Poin</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in props.rows.data" :key="`${row.customer_id}-${row.store_id}`">
                             <tr>
@@ -130,13 +129,12 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
                                 <td class="text-end">{{ formatNumber(row.loyalty_points) }}</td>
                                 <td class="text-end">{{ formatNumber(row.visit_count) }}</td>
                                 <td>{{ formatDate(row.last_visit_at) }}</td>
-                                <td class="text-end">{{ formatNumber(row.purchase_count) }}</td>
                                 <td class="text-end">{{ formatNumber(row.item_qty) }}</td>
                                 <td class="text-end"><strong>{{ formatCurrency(row.total_spending) }}</strong></td>
                                 <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggle(`${row.customer_id}-${row.store_id}`)"><i class="mdi" :class="expanded[`${row.customer_id}-${row.store_id}`] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[`${row.customer_id}-${row.store_id}`] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
                             <tr v-if="expanded[`${row.customer_id}-${row.store_id}`]" class="customer-detail-row">
-                                <td colspan="10">
+                                <td colspan="9">
                                     <div class="customer-detail-wrap">
                                         <p class="mb-2"><strong>Riwayat kunjungan:</strong> {{ row.visits.length }} kunjungan terakhir</p>
                                         <div class="table-responsive mb-3">
