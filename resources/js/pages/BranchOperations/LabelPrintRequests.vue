@@ -4,7 +4,7 @@ import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 
@@ -16,16 +16,6 @@ interface StoreOption {
 interface UserOption {
     id: string;
     name: string | null;
-}
-
-interface StoreItemOption {
-    store_id: string;
-    item_id: string;
-    category: string | null;
-    product_code: string | null;
-    product_name: string | null;
-    item_status: string | null;
-    barcode_value: string;
 }
 
 interface DetailItem {
@@ -66,9 +56,7 @@ interface Props {
     stores: StoreOption[];
     users: UserOption[];
     statuses: string[];
-    storeItems: StoreItemOption[];
     canDecide: boolean;
-    canRequest: boolean;
     canPrint: boolean;
     filters: {
         q: string;
@@ -80,7 +68,6 @@ interface Props {
     };
     urls: {
         index: string;
-        store: string;
         approve: string;
         reject: string;
         print: string;
@@ -112,71 +99,8 @@ const form = reactive({
 });
 
 const expandedId = ref<string | null>(null);
-const showCreate = ref(false);
-const itemSearch = ref('');
 const printFormRef = ref<HTMLFormElement | null>(null);
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
-
-const createForm = reactive({
-    store_id: '',
-    reason: '',
-    item_ids: [] as string[],
-});
-
-watch(() => createForm.store_id, () => {
-    createForm.item_ids = [];
-    itemSearch.value = '';
-});
-
-const selectedStoreItems = computed(() => {
-    if (!createForm.store_id) return [];
-
-    const needle = itemSearch.value.trim().toLowerCase();
-
-    return props.storeItems.filter((item) => {
-        if (item.store_id !== createForm.store_id) return false;
-        if (!needle) return true;
-
-        return `${item.product_code ?? ''} ${item.product_name ?? ''} ${item.barcode_value}`.toLowerCase().includes(needle);
-    });
-});
-
-const toggleItem = (itemId: string) => {
-    const index = createForm.item_ids.indexOf(itemId);
-
-    if (index >= 0) {
-        createForm.item_ids.splice(index, 1);
-        return;
-    }
-
-    createForm.item_ids.push(itemId);
-};
-
-const submitCreate = () => {
-    if (!createForm.store_id) {
-        window.alert('Pilih toko terlebih dahulu.');
-        return;
-    }
-
-    if (createForm.item_ids.length === 0) {
-        window.alert('Pilih minimal satu item yang akan dicetak.');
-        return;
-    }
-
-    router.post(props.urls.store, {
-        store_id: createForm.store_id,
-        reason: createForm.reason,
-        item_ids: createForm.item_ids,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            showCreate.value = false;
-            createForm.store_id = '';
-            createForm.reason = '';
-            createForm.item_ids = [];
-        },
-    });
-};
 
 const printRequest = (row: LabelRequestRow) => {
     const formElement = printFormRef.value;
@@ -257,12 +181,8 @@ const formatDate = (value: string | null) => {
             <div>
                 <span class="branch-eyebrow">Branch Operations</span>
                 <h1>Permintaan Label</h1>
-                <p>Riwayat permintaan cetak label dari toko, termasuk persetujuan HO/BO dan jumlah cetak ulang.</p>
+                <p>Tinjau dan setujui permintaan cetak label dari toko atau POS, termasuk riwayat cetak ulang.</p>
             </div>
-            <button v-if="props.canRequest" type="button" class="btn btn-primary" @click="showCreate = !showCreate">
-                <i class="mdi mdi-tag-plus-outline me-1"></i>
-                Buat Permintaan
-            </button>
         </div>
 
         <form ref="printFormRef" method="post" target="_blank" class="d-none">
@@ -271,56 +191,6 @@ const formatDate = (value: string | null) => {
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
-
-        <div v-if="showCreate && props.canRequest" class="card branch-card mb-3">
-            <div class="card-body">
-                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
-                    <div>
-                        <h2 class="h6 mb-1">Permintaan Cetak Label Baru</h2>
-                        <p class="text-muted small mb-0">Permintaan akan menunggu persetujuan HO/BO sebelum dapat dicetak.</p>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="showCreate = false">Tutup</button>
-                </div>
-                <div class="row g-2 align-items-end mb-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Toko</label>
-                        <SearchableSelect v-model="createForm.store_id" :options="storeOptions" placeholder="Pilih toko" search-placeholder="Cari toko..." />
-                    </div>
-                    <div class="col-md-8">
-                        <label class="form-label">Alasan cetak / cetak ulang</label>
-                        <input v-model="createForm.reason" class="form-control form-control-sm" type="text" maxlength="500" placeholder="Contoh: label rusak, hilang, atau permintaan ulang cabang" />
-                    </div>
-                </div>
-                <div v-if="createForm.store_id">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-                        <label class="form-label mb-0">Item yang akan dicetak</label>
-                        <input v-model="itemSearch" class="form-control form-control-sm branch-item-search" type="search" placeholder="Cari produk atau kode..." />
-                    </div>
-                    <div class="branch-item-picker">
-                        <label v-for="item in selectedStoreItems" :key="item.item_id" class="branch-item-row">
-                            <input
-                                type="checkbox"
-                                class="form-check-input"
-                                :checked="createForm.item_ids.includes(item.item_id)"
-                                @change="toggleItem(item.item_id)"
-                            />
-                            <span>
-                                <strong>{{ item.product_name ?? '-' }}</strong>
-                                <small>{{ item.product_code ?? '-' }} · {{ item.barcode_value }} · {{ item.category ?? '-' }} · {{ item.item_status ?? '-' }}</small>
-                            </span>
-                        </label>
-                        <p v-if="selectedStoreItems.length === 0" class="text-muted small mb-0">Tidak ada item yang cocok.</p>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center gap-2 mt-3">
-                    <button type="button" class="btn btn-primary" :disabled="!createForm.store_id || createForm.item_ids.length === 0 || !createForm.reason" @click="submitCreate">
-                        <i class="mdi mdi-send-outline me-1"></i>
-                        Kirim ke HO/BO
-                    </button>
-                    <span class="text-muted small">{{ createForm.item_ids.length }} item dipilih</span>
-                </div>
-            </div>
-        </div>
 
         <div class="card branch-card mb-3">
             <div class="card-body">
@@ -460,12 +330,4 @@ const formatDate = (value: string | null) => {
 .branch-card th { color: var(--branch-muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .branch-detail { background: var(--app-surface-2); }
 .branch-empty { padding: 2.5rem 1rem; color: var(--branch-muted); text-align: center; }
-.branch-item-search { max-width: 320px; }
-.branch-item-picker { max-height: 280px; overflow-y: auto; border: 1px solid var(--app-border); border-radius: 0.6rem; }
-.branch-item-row { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--app-border); cursor: pointer; }
-.branch-item-row:last-child { border-bottom: 0; }
-.branch-item-row:hover { background: var(--app-surface-2); }
-.branch-item-row span { display: grid; gap: 0.15rem; min-width: 0; }
-.branch-item-row strong { font-size: 0.84rem; }
-.branch-item-row small { color: var(--app-muted); font-size: 0.72rem; }
 </style>
