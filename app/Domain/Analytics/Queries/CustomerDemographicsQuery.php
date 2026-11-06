@@ -407,9 +407,22 @@ class CustomerDemographicsQuery
     {
         return $this->distribution(
             $query,
-            "COALESCE(NULLIF(registration_store.name, ''), NULLIF(customers.registration_source_id, ''), 'Belum diisi')",
+            $this->registrationSourceLabelSql(),
             10
         );
+    }
+
+    private function registrationSourceLabelSql(): string
+    {
+        return "COALESCE(
+            NULLIF(registration_store.name, ''),
+            CASE
+                WHEN LOWER(COALESCE(customers.registration_source_id::text, '')) LIKE 'android%' THEN 'Aplikasi Mobile'
+                WHEN LOWER(COALESCE(customers.registration_source_id::text, '')) LIKE 'ios%' THEN 'Aplikasi Mobile'
+                WHEN LOWER(COALESCE(customers.registration_source_id::text, '')) LIKE 'web%' THEN 'Website'
+                ELSE NULLIF(customers.registration_source_id::text, '')
+            END
+        )";
     }
 
     private function registrationTrend(Builder $query): Collection
@@ -502,7 +515,7 @@ class CustomerDemographicsQuery
             'regency.name as regency_name',
             'district.name as district_name',
             'village.name as village_name',
-            'registration_store.name as registration_source_name',
+            DB::raw($this->registrationSourceLabelSql().' as registration_source_name'),
             'membership_tier.name as membership_name',
             'membership_tier.sort_order as membership_sort_order',
             'lm.status as membership_status',
