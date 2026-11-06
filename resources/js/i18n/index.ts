@@ -7,6 +7,7 @@ type Locale = 'id' | 'en';
 export const currentLocale = ref<Locale>('id');
 
 const idToEnglish = new Map<string, string>();
+const exactOnlySources = new Set<string>();
 const databaseStatusLabels: Record<string, { id: string; en: string }> = {
   active: { id: 'Aktif', en: 'Active' },
   all: { id: 'Semua', en: 'All' },
@@ -314,6 +315,7 @@ for (const [source, translation] of Object.entries(dictionary as Record<string, 
 }
 
 for (const [raw, labels] of Object.entries(databaseStatusLabels)) {
+  exactOnlySources.add(normalize(raw));
   idToEnglish.set(normalize(raw), labels.en);
   idToEnglish.set(normalize(labels.id), labels.en);
   englishToIndonesian.set(normalize(raw), labels.id);
@@ -354,7 +356,7 @@ const entriesFor = (target: Locale) => {
   if (cached) return cached;
 
   const entries = [...mapFor(target).entries()]
-    .filter(([source]) => source.length > 1)
+    .filter(([source, replacement]) => source.length > 1 && source !== replacement && !exactOnlySources.has(source))
     .sort(([left], [right]) => right.length - left.length);
 
   partialEntries.set(target, entries);
@@ -426,7 +428,14 @@ const translateValue = (value: string, target: Locale) => {
   let translated = normalized;
 
   for (const [source, replacement] of entriesFor(target)) {
-    if (source === normalized || !translated.toLocaleLowerCase().includes(source.toLocaleLowerCase())) continue;
+    const lowerTranslated = translated.toLocaleLowerCase();
+    const lowerSource = source.toLocaleLowerCase();
+
+    if (source === normalized || !lowerTranslated.includes(lowerSource)) continue;
+
+    const lowerReplacement = replacement.toLocaleLowerCase();
+
+    if (lowerReplacement.includes(lowerSource) && lowerTranslated.includes(lowerReplacement)) continue;
 
     const pattern = new RegExp(`(^|[^A-Za-z0-9À-ÿ])${escapeRegExp(source)}(?=$|[^A-Za-z0-9À-ÿ])`, 'gi');
 
