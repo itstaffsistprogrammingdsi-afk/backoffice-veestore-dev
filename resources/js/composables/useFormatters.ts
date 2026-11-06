@@ -1,13 +1,17 @@
+import { currentLocale } from '@/i18n';
+
+const localeTag = () => (currentLocale.value === 'en' ? 'en-US' : 'id-ID');
+
 export const formatNumber = (value: number | string | null | undefined): string => {
     const parsed = Number(value ?? 0);
 
-    return new Intl.NumberFormat('id-ID').format(Number.isFinite(parsed) ? parsed : 0);
+    return new Intl.NumberFormat(localeTag()).format(Number.isFinite(parsed) ? parsed : 0);
 };
 
 export const formatCurrency = (value: number | string | null | undefined): string => {
     const parsed = Number(value ?? 0);
 
-    return new Intl.NumberFormat('id-ID', {
+    return new Intl.NumberFormat(localeTag(), {
         style: 'currency',
         currency: 'IDR',
         maximumFractionDigits: 0,
@@ -21,7 +25,7 @@ export const formatDate = (value: string | null | undefined, withTime = false): 
 
     if (Number.isNaN(date.getTime())) return '-';
 
-    return new Intl.DateTimeFormat('id-ID', {
+    return new Intl.DateTimeFormat(localeTag(), {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -36,7 +40,7 @@ export const formatDateLong = (value: string | null | undefined): string => {
 
     if (Number.isNaN(date.getTime())) return '-';
 
-    return new Intl.DateTimeFormat('id-ID', {
+    return new Intl.DateTimeFormat(localeTag(), {
         day: '2-digit',
         month: 'long',
         year: 'numeric',

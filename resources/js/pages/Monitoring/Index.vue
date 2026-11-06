@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { formatDate, formatNumber } from '@/composables/useFormatters';
 import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
 defineOptions({ layout: AppLayout });
@@ -17,13 +18,6 @@ const props = defineProps<{
 }>();
 
 const search = ref('');
-
-const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
-const formatDate = (value: string | null) => {
-    if (!value) return '-';
-
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
-};
 
 const normalizedSearch = computed(() => search.value.trim().toLowerCase());
 
@@ -117,7 +111,7 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
                             <th>Toko</th>
                             <th>Order</th>
                             <th>Gudang</th>
-                            <th class="text-end">Keluar</th>
+                            <th class="text-end">Barang Keluar</th>
                             <th class="text-end">Diterima</th>
                             <th class="text-end">Selisih</th>
                             <th>Status</th>
