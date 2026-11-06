@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
@@ -171,6 +171,39 @@ const filters = reactive({
 
 const activeTab = ref<'availability' | 'import'>('availability');
 const expanded = ref<Record<string, boolean>>({});
+const barrierInfoModal = ref(false);
+
+const openBarrierInfo = () => {
+    barrierInfoModal.value = true;
+};
+
+const closeBarrierInfo = () => {
+    barrierInfoModal.value = false;
+};
+
+const showRestockNeeds = async () => {
+    barrierInfoModal.value = false;
+    activeTab.value = 'import';
+    await nextTick();
+    document.getElementById('stock-import-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+const onKeydown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && barrierInfoModal.value) {
+        closeBarrierInfo();
+    }
+};
+
+watch(barrierInfoModal, (value) => {
+    document.body.style.overflow = value ? 'hidden' : '';
+});
+
+onMounted(() => window.addEventListener('keydown', onKeydown));
+
+onBeforeUnmount(() => {
+    window.removeEventListener('keydown', onKeydown);
+    document.body.style.overflow = '';
+});
 
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 const formatDate = (value: string | null) => {
@@ -329,7 +362,12 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 <div class="stock-summary stock-summary-alert">
                     <span class="stock-summary-icon"><i class="mdi mdi-alert-outline"></i></span>
                     <div>
-                        <span>Item di Bawah Barrier</span>
+                        <span class="stock-summary-label">
+                            Item di Bawah Barrier
+                            <button v-if="props.summary.below_barrier_count > 0" class="stock-info-button" type="button" aria-label="Lihat keterangan stok barrier" title="Lihat keterangan stok barrier" @click="openBarrierInfo">
+                                <i class="mdi mdi-alert-circle-outline"></i>
+                            </button>
+                        </span>
                         <strong>{{ formatNumber(props.summary.below_barrier_count) }}</strong>
                     </div>
                 </div>
@@ -377,20 +415,6 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 </div>
             </div>
         </div>
-
-        <div v-if="props.summary.below_barrier_count > 0" class="stock-alert">
-            <i class="mdi mdi-alert-outline"></i>
-            <div>
-                <strong>{{ formatNumber(props.summary.below_barrier_count) }} item sudah menyentuh stock barrier.</strong>
-                <span v-if="props.summary.near_barrier_count > 0">Tim store perlu menyiapkan replenishment dari warehouse. Ada {{ formatNumber(props.summary.near_barrier_count) }} item lain yang mendekati barrier.</span>
-                <span v-else>Tim store perlu menyiapkan replenishment dari warehouse. Tidak ada item lain yang mendekati barrier.</span>
-            </div>
-            <button class="btn btn-sm btn-outline-danger" type="button" @click="activeTab = 'import'">
-                Lihat Perlu Restock
-            </button>
-        </div>
-
-
 
         <StoreTransferReconciliationPanel
             :reconciliation="props.transferReconciliation"
@@ -729,6 +753,30 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
         </details>
 
     </div>
+
+    <Teleport to="body">
+        <div v-if="barrierInfoModal" class="stock-info-backdrop" @click.self="closeBarrierInfo">
+            <div class="stock-info-modal" role="dialog" aria-modal="true" aria-labelledby="barrier-info-title">
+                <div class="stock-info-header">
+                    <div>
+                        <h5 id="barrier-info-title" class="mb-0">Keterangan Stok Barrier</h5>
+                        <small>Barang yang menyentuh ambang barrier</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup keterangan stok barrier" @click="closeBarrierInfo"><i class="mdi mdi-close"></i></button>
+                </div>
+                <div class="stock-info-body">
+                    <p class="mb-2"><strong>{{ formatNumber(props.summary.below_barrier_count) }} item sudah menyentuh stok barrier.</strong></p>
+                    <p v-if="props.summary.near_barrier_count > 0" class="mb-2">Tim toko perlu menyiapkan replenishment dari gudang. Ada {{ formatNumber(props.summary.near_barrier_count) }} item lain yang mendekati barrier.</p>
+                    <p v-else class="mb-2">Tim toko perlu menyiapkan replenishment dari gudang. Tidak ada barang lain yang mendekati barrier.</p>
+                    <p class="text-muted small mb-0">Buka tab Perlu Restock untuk melihat saran replenishment per produk dan toko.</p>
+                </div>
+                <div class="stock-info-footer">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeBarrierInfo">Tutup</button>
+                    <button class="btn btn-sm btn-primary" type="button" @click="showRestockNeeds">Lihat Perlu Restock</button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
 </template>
 
 <style scoped>
@@ -743,16 +791,21 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 .stock-summary { display: flex; align-items: center; gap: 0.85rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .stock-summary-icon { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 0.65rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.25rem; }
 .stock-summary span:not(.stock-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.stock-summary span.stock-summary-label { display: inline-flex; align-items: center; gap: 0.35rem; }
+.stock-info-button { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; padding: 0; border: 0; border-radius: 50%; background: var(--app-danger-bg); color: var(--app-danger-ink); font-size: 0.85rem; line-height: 1; cursor: pointer; }
+.stock-info-button:hover { filter: brightness(0.96); }
+.stock-info-button:focus-visible { outline: 2px solid var(--app-danger-ink); outline-offset: 1px; }
 .stock-summary strong { display: block; margin-top: 0.15rem; font-size: 1.35rem; }
 .stock-summary-alert .stock-summary-icon,
 .stock-summary-danger .stock-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
 .stock-summary-warning .stock-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .stock-summary-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.68rem; }
-.stock-alert { display: flex; align-items: center; gap: 0.8rem; padding: 0.9rem 1rem; margin-bottom: 1rem; border: 1px solid color-mix(in srgb, var(--app-danger-ink) 25%, var(--app-border)); border-radius: 0.8rem; background: var(--app-danger-bg); color: var(--app-danger-ink); }
-.stock-alert > i { font-size: 1.3rem; }
-.stock-alert > div { flex: 1 1 320px; }
-.stock-alert strong { display: block; }
-.stock-alert span { font-size: 0.82rem; }
+.stock-info-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(8vh, 4rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.62); }
+.stock-info-modal { width: min(460px, 100%); overflow: hidden; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.28); color: var(--app-ink); }
+.stock-info-header, .stock-info-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; }
+.stock-info-header { border-bottom: 1px solid var(--app-border); }
+.stock-info-footer { justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface-2); }
+.stock-info-body { padding: 1rem 1.1rem; }
 .stock-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .stock-aging-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; padding: 1rem 1.1rem; }
 .stock-aging-grid > div { padding: 0.7rem; border: 1px solid var(--app-border); border-radius: 0.6rem; background: var(--app-surface-2); }
@@ -809,6 +862,5 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
     .stock-recon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 575.98px) {
-    .stock-alert { align-items: flex-start; flex-direction: column; }
 }
 </style>

@@ -260,13 +260,13 @@ onBeforeUnmount(() => {
             <div class="col-6 col-xl-4">
                 <div class="inbound-summary inbound-summary-success">
                     <span class="inbound-summary-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
-                    <div><span>Barang Baik</span><strong>{{ formatNumber(props.summary.total_good) }}</strong><small class="inbound-summary-note">Dari {{ formatNumber(props.summary.total_qty) }} item diterima</small></div>
+                    <div><span>Barang Baik (Good)</span><strong>{{ formatNumber(props.summary.total_good) }}</strong><small class="inbound-summary-note">Dari {{ formatNumber(props.summary.total_qty) }} item diterima</small></div>
                 </div>
             </div>
             <div class="col-6 col-xl-4">
                 <div class="inbound-summary inbound-summary-danger">
                     <span class="inbound-summary-icon"><i class="mdi mdi-alert-octagon-outline"></i></span>
-                    <div><span>Barang Rusak</span><strong>{{ formatNumber(props.summary.total_bad) }}</strong><small class="inbound-summary-note">Perlu tindak lanjut QC</small></div>
+                    <div><span>Barang Rusak (Bad)</span><strong>{{ formatNumber(props.summary.total_bad) }}</strong><small class="inbound-summary-note">Perlu tindak lanjut QC</small></div>
                 </div>
             </div>
         </div>

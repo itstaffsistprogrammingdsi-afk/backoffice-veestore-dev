@@ -10,9 +10,9 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Akses Backoffice" />
+    <Head title="Akses Master Data & Report" />
 
-    <AuthShell title="Akses Backoffice" description="Akun backoffice dikelola oleh administrator.">
+    <AuthShell title="Akses Master Data & Report" description="Akun Master Data & Report dikelola oleh administrator.">
         <div class="auth-info" role="note">
             Hubungi administrator untuk meminta akun atau bantuan akses.
         </div>

@@ -33,6 +33,15 @@ interface Props {
         demographics: string;
         preference: string;
         exports: string;
+        branch_expansion: string;
+        loyalty_accounts: string;
+        pending_transactions: string;
+        anomalies: string;
+        warehouse_audit: string;
+        stock_opname: string;
+        stock_movements: string;
+        promo_acquisition: string;
+        user_access: string;
     };
 }
 
@@ -54,6 +63,15 @@ const modules = [
     { title: 'Customer Demographics', description: 'Segmentasi gender, usia, wilayah, tier, dan kanal registrasi.', icon: 'mdi-account-details-outline', url: 'demographics', action: 'Buka Demografi' },
     { title: 'Customer Preference', description: 'Hubungkan usia, gender, wilayah, dan tier dengan produk yang dibeli.', icon: 'mdi-account-star-outline', url: 'preference', action: 'Buka Preferensi' },
     { title: 'Ekspor Saya', description: 'Unduh laporan yang sudah diproses.', icon: 'mdi-file-export-outline', url: 'exports', action: 'Lihat Ekspor' },
+    { title: 'Rekomendasi Cabang Baru', description: 'Prioritaskan kecamatan dan kelurahan dari demografi, pelanggan aktif, dan nilai penjualan.', icon: 'mdi-store-plus-outline', url: 'branch_expansion', action: 'Buka Rekomendasi' },
+    { title: 'Loyalty Poin & Voucher per Akun', description: 'Saldo poin, poin masuk/keluar, voucher tersedia, dan voucher terpakai per akun.', icon: 'mdi-account-cash-outline', url: 'loyalty_accounts', action: 'Buka Loyalty' },
+    { title: 'Transaksi Gantung', description: 'Keranjang, kunjungan, pesanan, permintaan barang, retur, dan pembayaran yang belum selesai.', icon: 'mdi-timer-alert-outline', url: 'pending_transactions', action: 'Buka Transaksi Gantung' },
+    { title: 'Anomali Transaksi', description: 'Bandingkan permintaan barang, penjualan, penerimaan, dan pencatatan pembayaran per metode.', icon: 'mdi-alert-decagram-outline', url: 'anomalies', action: 'Buka Anomali' },
+    { title: 'Audit Pengguna Gudang', description: 'Aktivitas WMS pada inbound, outbound, QC, dan stok opname per pengguna.', icon: 'mdi-warehouse-cog', url: 'warehouse_audit', action: 'Buka Audit Gudang' },
+    { title: 'Stok Opname, Selisih & Penyesuaian', description: 'Nilai selisih, PIC, approval, rekap harian, mingguan, dan bulanan.', icon: 'mdi-clipboard-text-clock-outline', url: 'stock_opname', action: 'Buka Opname' },
+    { title: 'Stok Barang Keluar Masuk', description: 'Pergerakan real time, harian, bulanan, serta gudang kecil ke display.', icon: 'mdi-swap-vertical-bold', url: 'stock_movements', action: 'Buka Pergerakan Stok' },
+    { title: 'Promo, Poin & Referral', description: 'Jumlah akun yang mengambil voucher, memakai poin, dan berhasil referral.', icon: 'mdi-sale-outline', url: 'promo_acquisition', action: 'Buka Promo' },
+    { title: 'Akses Pengguna Harian', description: 'Login dan aktivitas per hari dan per aplikasi, termasuk WMS.', icon: 'mdi-account-clock-outline', url: 'user_access', action: 'Buka Akses' },
 ];
 </script>
 

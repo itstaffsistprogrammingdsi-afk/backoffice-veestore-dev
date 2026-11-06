@@ -4,7 +4,7 @@ import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 
@@ -16,6 +16,16 @@ interface StoreOption {
 interface UserOption {
     id: string;
     name: string | null;
+}
+
+interface StoreItemOption {
+    store_id: string;
+    item_id: string;
+    category: string | null;
+    product_code: string | null;
+    product_name: string | null;
+    item_status: string | null;
+    barcode_value: string;
 }
 
 interface DetailItem {
@@ -56,7 +66,10 @@ interface Props {
     stores: StoreOption[];
     users: UserOption[];
     statuses: string[];
+    storeItems: StoreItemOption[];
     canDecide: boolean;
+    canRequest: boolean;
+    canPrint: boolean;
     filters: {
         q: string;
         status: string | null;
@@ -67,8 +80,10 @@ interface Props {
     };
     urls: {
         index: string;
+        store: string;
         approve: string;
         reject: string;
+        print: string;
     };
 }
 
@@ -97,6 +112,80 @@ const form = reactive({
 });
 
 const expandedId = ref<string | null>(null);
+const showCreate = ref(false);
+const itemSearch = ref('');
+const printFormRef = ref<HTMLFormElement | null>(null);
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+const createForm = reactive({
+    store_id: '',
+    reason: '',
+    item_ids: [] as string[],
+});
+
+watch(() => createForm.store_id, () => {
+    createForm.item_ids = [];
+    itemSearch.value = '';
+});
+
+const selectedStoreItems = computed(() => {
+    if (!createForm.store_id) return [];
+
+    const needle = itemSearch.value.trim().toLowerCase();
+
+    return props.storeItems.filter((item) => {
+        if (item.store_id !== createForm.store_id) return false;
+        if (!needle) return true;
+
+        return `${item.product_code ?? ''} ${item.product_name ?? ''} ${item.barcode_value}`.toLowerCase().includes(needle);
+    });
+});
+
+const toggleItem = (itemId: string) => {
+    const index = createForm.item_ids.indexOf(itemId);
+
+    if (index >= 0) {
+        createForm.item_ids.splice(index, 1);
+        return;
+    }
+
+    createForm.item_ids.push(itemId);
+};
+
+const submitCreate = () => {
+    if (!createForm.store_id) {
+        window.alert('Pilih toko terlebih dahulu.');
+        return;
+    }
+
+    if (createForm.item_ids.length === 0) {
+        window.alert('Pilih minimal satu item yang akan dicetak.');
+        return;
+    }
+
+    router.post(props.urls.store, {
+        store_id: createForm.store_id,
+        reason: createForm.reason,
+        item_ids: createForm.item_ids,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showCreate.value = false;
+            createForm.store_id = '';
+            createForm.reason = '';
+            createForm.item_ids = [];
+        },
+    });
+};
+
+const printRequest = (row: LabelRequestRow) => {
+    const formElement = printFormRef.value;
+
+    if (!formElement) return;
+
+    formElement.action = props.urls.print.replace('__ID__', row.id);
+    formElement.submit();
+};
 
 const applyFilters = () => {
     router.get(props.urls.index, {
@@ -161,19 +250,77 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Request Label" />
+    <Head title="Permintaan Cetak Label" />
 
     <div class="branch-page">
         <div class="branch-header">
             <div>
                 <span class="branch-eyebrow">Branch Operations</span>
                 <h1>Permintaan Label</h1>
-                <p>Riwayat permintaan cetak label dari toko.</p>
+                <p>Riwayat permintaan cetak label dari toko, termasuk persetujuan HO/BO dan jumlah cetak ulang.</p>
             </div>
+            <button v-if="props.canRequest" type="button" class="btn btn-primary" @click="showCreate = !showCreate">
+                <i class="mdi mdi-tag-plus-outline me-1"></i>
+                Buat Permintaan
+            </button>
         </div>
+
+        <form ref="printFormRef" method="post" target="_blank" class="d-none">
+            <input type="hidden" name="_token" :value="csrfToken" />
+        </form>
 
         <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
         <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+
+        <div v-if="showCreate && props.canRequest" class="card branch-card mb-3">
+            <div class="card-body">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                    <div>
+                        <h2 class="h6 mb-1">Permintaan Cetak Label Baru</h2>
+                        <p class="text-muted small mb-0">Permintaan akan menunggu persetujuan HO/BO sebelum dapat dicetak.</p>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="showCreate = false">Tutup</button>
+                </div>
+                <div class="row g-2 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Toko</label>
+                        <SearchableSelect v-model="createForm.store_id" :options="storeOptions" placeholder="Pilih toko" search-placeholder="Cari toko..." />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Alasan cetak / cetak ulang</label>
+                        <input v-model="createForm.reason" class="form-control form-control-sm" type="text" maxlength="500" placeholder="Contoh: label rusak, hilang, atau permintaan ulang cabang" />
+                    </div>
+                </div>
+                <div v-if="createForm.store_id">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+                        <label class="form-label mb-0">Item yang akan dicetak</label>
+                        <input v-model="itemSearch" class="form-control form-control-sm branch-item-search" type="search" placeholder="Cari produk atau kode..." />
+                    </div>
+                    <div class="branch-item-picker">
+                        <label v-for="item in selectedStoreItems" :key="item.item_id" class="branch-item-row">
+                            <input
+                                type="checkbox"
+                                class="form-check-input"
+                                :checked="createForm.item_ids.includes(item.item_id)"
+                                @change="toggleItem(item.item_id)"
+                            />
+                            <span>
+                                <strong>{{ item.product_name ?? '-' }}</strong>
+                                <small>{{ item.product_code ?? '-' }} · {{ item.barcode_value }} · {{ item.category ?? '-' }} · {{ item.item_status ?? '-' }}</small>
+                            </span>
+                        </label>
+                        <p v-if="selectedStoreItems.length === 0" class="text-muted small mb-0">Tidak ada item yang cocok.</p>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 mt-3">
+                    <button type="button" class="btn btn-primary" :disabled="!createForm.store_id || createForm.item_ids.length === 0 || !createForm.reason" @click="submitCreate">
+                        <i class="mdi mdi-send-outline me-1"></i>
+                        Kirim ke HO/BO
+                    </button>
+                    <span class="text-muted small">{{ createForm.item_ids.length }} item dipilih</span>
+                </div>
+            </div>
+        </div>
 
         <div class="card branch-card mb-3">
             <div class="card-body">
@@ -245,13 +392,22 @@ const formatDate = (value: string | null) => {
                                         <i class="mdi mdi-eye-outline"></i>
                                     </button>
                                     <template v-if="props.canDecide && row.status === 'pending'">
-                                        <button class="btn btn-sm btn-success me-1" type="button" @click="decide(row, 'approve')">
+                                        <button class="btn btn-sm btn-success me-1" type="button" title="Setujui" @click="decide(row, 'approve')">
                                             <i class="mdi mdi-check"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" type="button" @click="decide(row, 'reject')">
+                                        <button class="btn btn-sm btn-outline-danger me-1" type="button" title="Tolak" @click="decide(row, 'reject')">
                                             <i class="mdi mdi-close"></i>
                                         </button>
                                     </template>
+                                    <button
+                                        v-if="props.canPrint && (row.status === 'approved' || row.status === 'printed')"
+                                        class="btn btn-sm btn-outline-primary"
+                                        type="button"
+                                        title="Cetak label"
+                                        @click="printRequest(row)"
+                                    >
+                                        <i class="mdi mdi-printer-outline"></i>
+                                    </button>
                                 </td>
                             </tr>
                             <tr v-if="expandedId === row.id">
@@ -259,7 +415,7 @@ const formatDate = (value: string | null) => {
                                     <div class="table-responsive">
                                         <table class="table table-sm mb-0">
                                             <thead>
-                                                <tr><th>Item ID</th><th>Product Code</th><th>Product Name</th><th>Status</th><th>Print Index</th><th>Printed By</th><th>Printed At</th></tr>
+                                                <tr><th>Item ID</th><th>Product Code</th><th>Product Name</th><th>Status</th><th>Cetakan ke-</th><th>Dicetak Oleh</th><th>Waktu Cetak</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="item in detailItems[row.id] ?? []" :key="item.id">
@@ -267,7 +423,7 @@ const formatDate = (value: string | null) => {
                                                     <td>{{ item.product_code ?? '-' }}</td>
                                                     <td>{{ item.product_name ?? '-' }}</td>
                                                     <td>{{ item.item_status ?? '-' }}</td>
-                                                    <td>{{ item.print_index ?? '-' }}</td>
+                                                    <td>{{ item.print_index ? `Cetakan ke-${item.print_index}` : '-' }}</td>
                                                     <td>{{ item.printed_by_name ?? '-' }}</td>
                                                     <td>{{ formatDate(item.printed_at) }}</td>
                                                 </tr>
@@ -296,7 +452,7 @@ const formatDate = (value: string | null) => {
 
 <style scoped>
 .branch-page { --branch-ink: var(--app-ink); --branch-border: var(--app-border); --branch-muted: var(--app-muted); color: var(--branch-ink); }
-.branch-header { padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--branch-ink); color: #fff; }
+.branch-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--branch-ink); color: #fff; }
 .branch-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .branch-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
 .branch-header p { margin: 0; color: var(--app-hero-muted); }
@@ -304,4 +460,12 @@ const formatDate = (value: string | null) => {
 .branch-card th { color: var(--branch-muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .branch-detail { background: var(--app-surface-2); }
 .branch-empty { padding: 2.5rem 1rem; color: var(--branch-muted); text-align: center; }
+.branch-item-search { max-width: 320px; }
+.branch-item-picker { max-height: 280px; overflow-y: auto; border: 1px solid var(--app-border); border-radius: 0.6rem; }
+.branch-item-row { display: flex; align-items: flex-start; gap: 0.65rem; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--app-border); cursor: pointer; }
+.branch-item-row:last-child { border-bottom: 0; }
+.branch-item-row:hover { background: var(--app-surface-2); }
+.branch-item-row span { display: grid; gap: 0.15rem; min-width: 0; }
+.branch-item-row strong { font-size: 0.84rem; }
+.branch-item-row small { color: var(--app-muted); font-size: 0.72rem; }
 </style>

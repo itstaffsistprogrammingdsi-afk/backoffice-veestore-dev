@@ -18,7 +18,9 @@ interface ProductDetail {
     exchange_amount: number | null;
     item_count: number;
     qty_good: number;
+    qty_good_after_repair: number;
     qty_bad: number;
+    qty_pending_qc: number;
     qty_other: number;
     last_qc_at: string | null;
     condition_summary: string;
@@ -46,6 +48,7 @@ interface InboundRow {
     outbound_reference_number: string | null;
     quantity_item: number;
     grand_total: number;
+    detail_value: number;
     received_date: string | null;
     created_at: string;
     received_by_name: string;
@@ -56,7 +59,9 @@ interface InboundRow {
     total_qty: number;
     item_count: number;
     qty_good: number;
+    qty_good_after_repair: number;
     qty_bad: number;
+    qty_pending_qc: number;
     qty_other: number;
     last_qc_at: string | null;
     status: 'pending' | 'received';
@@ -100,9 +105,12 @@ interface Props {
         total_sku: number;
         total_items: number;
         total_good: number;
+        total_good_after_repair: number;
         total_bad: number;
+        total_pending_qc: number;
         total_other: number;
         total_value: number;
+        total_header_value: number;
         total_warehouses: number;
         total_origins: number;
     };
@@ -155,8 +163,9 @@ const filters = reactive({
 
 const expanded = ref<Record<string, boolean>>({});
 const skuDocsModal = ref<{ sku: SkuRow } | null>(null);
+const summaryInfo = ref<'value' | 'qc' | null>(null);
 
-const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
+const formatNumber = (value: number) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(value);
 const formatCurrency = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(value ?? 0);
 const formatDate = (value: string | null) => {
     if (!value) return '-';
@@ -171,6 +180,8 @@ const formatDate = (value: string | null) => {
 };
 
 const statusClass = (status: InboundRow['status']) => status === 'received' ? 'bg-label-success' : 'bg-label-warning';
+
+const hasValueMismatch = computed(() => Math.abs(props.summary.total_header_value - props.summary.total_value) > 0.01);
 
 const applyFilters = () => {
     router.get(props.urls.index, {
@@ -213,14 +224,28 @@ const closeSkuDocs = () => {
     skuDocsModal.value = null;
 };
 
+const openSummaryInfo = (type: 'value' | 'qc') => {
+    summaryInfo.value = type;
+};
+
+const closeSummaryInfo = () => {
+    summaryInfo.value = null;
+};
+
 const onKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && skuDocsModal.value) {
+    if (event.key !== 'Escape') return;
+
+    if (skuDocsModal.value) {
         closeSkuDocs();
+    }
+
+    if (summaryInfo.value) {
+        closeSummaryInfo();
     }
 };
 
-watch(skuDocsModal, (value) => {
-    document.body.style.overflow = value ? 'hidden' : '';
+watch([skuDocsModal, summaryInfo], ([skuModal, infoModal]) => {
+    document.body.style.overflow = skuModal || infoModal ? 'hidden' : '';
 });
 
 onMounted(() => window.addEventListener('keydown', onKeydown));
@@ -278,7 +303,7 @@ onBeforeUnmount(() => {
             <div class="col-6 col-xl">
                 <div class="inbound-summary">
                     <span class="inbound-summary-icon"><i class="mdi mdi-package-variant-closed"></i></span>
-                    <div><span>Total Qty Masuk</span><strong>{{ formatNumber(props.summary.total_qty) }}</strong></div>
+                    <div><span>Total Barang Masuk</span><strong>{{ formatNumber(props.summary.total_qty) }}</strong></div>
                 </div>
             </div>
             <div class="col-6 col-xl">
@@ -290,25 +315,54 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="row g-3 mb-3">
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="inbound-summary">
                     <span class="inbound-summary-icon"><i class="mdi mdi-cash-multiple"></i></span>
-                    <div><span>Total Nilai Inbound</span><strong class="inbound-summary-currency">{{ formatCurrency(props.summary.total_value) }}</strong></div>
+                    <div>
+                        <span class="inbound-summary-label">
+                            Total Nilai Inbound
+                            <button v-if="hasValueMismatch" class="inbound-info-button" type="button" aria-label="Lihat keterangan nilai" title="Lihat keterangan nilai" @click="openSummaryInfo('value')">
+                                <i class="mdi mdi-alert-circle-outline"></i>
+                            </button>
+                        </span>
+                        <strong class="inbound-summary-currency">{{ formatCurrency(props.summary.total_value) }}</strong>
+                        <small class="inbound-summary-note">dari harga detail</small>
+                    </div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="inbound-summary inbound-summary-success">
                     <span class="inbound-summary-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
-                    <div><span>Barang Baik</span><strong>{{ formatNumber(props.summary.total_good) }}</strong><small class="inbound-summary-note">{{ formatNumber(props.summary.total_items) }} unit tercatat</small></div>
+                    <div>
+                        <span>Barang Baik (Good)</span>
+                        <strong>{{ formatNumber(props.summary.total_good) }}</strong>
+                        <small class="inbound-summary-note">dari {{ formatNumber(props.summary.total_items) }} unit masuk</small>
+                        <small v-if="props.summary.total_good_after_repair > 0" class="inbound-summary-note">{{ formatNumber(props.summary.total_good_after_repair) }} baik setelah perbaikan</small>
+                    </div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
+                <div class="inbound-summary inbound-summary-warning">
+                    <span class="inbound-summary-icon"><i class="mdi mdi-clipboard-clock-outline"></i></span>
+                    <div>
+                        <span class="inbound-summary-label">
+                            Belum QC
+                            <button v-if="props.summary.total_pending_qc > 0" class="inbound-info-button" type="button" aria-label="Lihat keterangan QC" title="Lihat keterangan QC" @click="openSummaryInfo('qc')">
+                                <i class="mdi mdi-alert-circle-outline"></i>
+                            </button>
+                        </span>
+                        <strong>{{ formatNumber(props.summary.total_pending_qc) }}</strong>
+                        <small class="inbound-summary-note">belum dihitung sebagai barang baik</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-xl">
                 <div class="inbound-summary inbound-summary-danger">
                     <span class="inbound-summary-icon"><i class="mdi mdi-alert-octagon-outline"></i></span>
-                    <div><span>Barang Rusak</span><strong>{{ formatNumber(props.summary.total_bad) }}</strong><small class="inbound-summary-note">{{ formatNumber(props.summary.total_other) }} kondisi lain</small></div>
+                    <div><span>Barang Rusak (Bad)</span><strong>{{ formatNumber(props.summary.total_bad) }}</strong><small class="inbound-summary-note">{{ formatNumber(props.summary.total_other) }} kondisi lain</small></div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="inbound-summary">
                     <span class="inbound-summary-icon"><i class="mdi mdi-source-branch"></i></span>
                     <div><span>Sumber & Tujuan</span><strong>{{ formatNumber(props.summary.total_origins) }} / {{ formatNumber(props.summary.total_warehouses) }}</strong><small class="inbound-summary-note">sumber / warehouse</small></div>
@@ -414,7 +468,7 @@ onBeforeUnmount(() => {
                                 </td>
                                 <td class="text-end">
                                     <strong>{{ formatNumber(row.total_qty) }}</strong>
-                                    <small class="inbound-subvalue">{{ formatNumber(row.total_sku) }} SKU &middot; {{ formatCurrency(row.grand_total) }}</small>
+                                    <small class="inbound-subvalue">{{ formatNumber(row.total_sku) }} SKU &middot; {{ formatCurrency(row.detail_value) }}</small>
                                 </td>
                                 <td>
                                     <strong>{{ row.received_by_name || '-' }}</strong>
@@ -426,7 +480,7 @@ onBeforeUnmount(() => {
                                 </td>
                                 <td>
                                     <span class="badge" :class="statusClass(row.status)">{{ row.status_label }}</span>
-                                    <small class="inbound-subvalue">{{ formatNumber(row.qty_good) }} baik / {{ formatNumber(row.qty_bad) }} rusak</small>
+                                    <small class="inbound-subvalue">{{ formatNumber(row.qty_good) }} baik / {{ formatNumber(row.qty_pending_qc) }} belum QC / {{ formatNumber(row.qty_bad) }} rusak</small>
                                 </td>
                                 <td class="text-end">
                                     <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
@@ -447,7 +501,8 @@ onBeforeUnmount(() => {
                                             <span><b>Batch:</b> {{ row.batch_number || '-' }}</span>
                                             <span><b>Referensi keluar:</b> {{ row.outbound_reference_number || '-' }}</span>
                                             <span><b>Qty header:</b> {{ formatNumber(row.quantity_item) }}</span>
-                                            <span><b>Nilai:</b> {{ formatCurrency(row.grand_total) }}</span>
+                                            <span><b>Nilai header:</b> {{ formatCurrency(row.grand_total) }}</span>
+                                            <span><b>Nilai detail:</b> {{ formatCurrency(row.detail_value) }}</span>
                                         </div>
                                         <div class="table-responsive">
                                             <table class="table table-sm mb-0 inbound-detail-table">
@@ -457,6 +512,8 @@ onBeforeUnmount(() => {
                                                         <th class="text-end">Qty</th>
                                                         <th class="text-end">Item</th>
                                                         <th class="text-end">Good</th>
+                                                        <th class="text-end">Baik Perbaikan</th>
+                                                        <th class="text-end">Belum QC</th>
                                                         <th class="text-end">Bad</th>
                                                         <th class="text-end">Lain</th>
                                                         <th>Expired</th>
@@ -471,6 +528,8 @@ onBeforeUnmount(() => {
                                                         <td class="text-end">{{ formatNumber(detail.quantity) }}</td>
                                                         <td class="text-end">{{ formatNumber(detail.item_count) }}</td>
                                                         <td class="text-end">{{ formatNumber(detail.qty_good) }}</td>
+                                                        <td class="text-end">{{ formatNumber(detail.qty_good_after_repair) }}</td>
+                                                        <td class="text-end">{{ formatNumber(detail.qty_pending_qc) }}</td>
                                                         <td class="text-end">{{ formatNumber(detail.qty_bad) }}</td>
                                                         <td class="text-end">{{ formatNumber(detail.qty_other) }}</td>
                                                         <td>{{ detail.expired_date ? formatDate(detail.expired_date) : '-' }}</td>
@@ -481,7 +540,7 @@ onBeforeUnmount(() => {
                                                         </td>
                                                         <td>{{ detail.note || '-' }}</td>
                                                     </tr>
-                                                    <tr v-if="row.product_details.length === 0"><td colspan="10" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr>
+                                                    <tr v-if="row.product_details.length === 0"><td colspan="12" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr>
                                                 </tbody>
                                             </table>
                                         </div>
@@ -546,6 +605,42 @@ onBeforeUnmount(() => {
     </div>
 
     <Teleport to="body">
+        <div v-if="summaryInfo" class="sku-docs-backdrop" @click.self="closeSummaryInfo">
+            <div class="sku-docs-modal summary-info-modal" role="dialog" aria-modal="true" aria-labelledby="summary-info-title">
+                <div class="sku-docs-header">
+                    <div>
+                        <h5 id="summary-info-title" class="mb-0">{{ summaryInfo === 'value' ? 'Keterangan Nilai Inbound' : 'Keterangan Belum QC' }}</h5>
+                        <small>{{ summaryInfo === 'value' ? 'Sumber nilai pada card Total Nilai Inbound' : 'Rekonsiliasi unit yang belum QC' }}</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup keterangan" @click="closeSummaryInfo"><i class="mdi mdi-close"></i></button>
+                </div>
+                <div class="sku-docs-body">
+                    <template v-if="summaryInfo === 'value'">
+                        <p class="mb-2">Nilai header: <strong>{{ formatCurrency(props.summary.total_header_value) }}</strong></p>
+                        <p class="mb-2">Nilai dari harga detail: <strong>{{ formatCurrency(props.summary.total_value) }}</strong></p>
+                        <p class="text-muted small mb-0">Card Total Nilai memakai harga detail (qty &times; harga). Isi harga detail pada dokumen agar nilainya sesuai.</p>
+                    </template>
+                    <template v-else>
+                        <p class="mb-2"><strong>{{ formatNumber(props.summary.total_pending_qc) }} unit belum QC.</strong></p>
+                        <p class="mb-2">
+                            Total {{ formatNumber(props.summary.total_items) }} unit masuk terdiri dari
+                            {{ formatNumber(props.summary.total_good) }} baik,
+                            {{ formatNumber(props.summary.total_good_after_repair) }} baik setelah perbaikan,
+                            {{ formatNumber(props.summary.total_bad) }} rusak (bad),
+                            {{ formatNumber(props.summary.total_pending_qc) }} belum QC, dan
+                            {{ formatNumber(props.summary.total_other) }} kondisi lain.
+                        </p>
+                        <p class="text-muted small mb-0">Unit tanpa QC belum dihitung sebagai barang baik.</p>
+                    </template>
+                </div>
+                <div class="sku-docs-footer">
+                    <button class="btn btn-sm btn-primary" type="button" @click="closeSummaryInfo">Mengerti</button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
             <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header">
@@ -591,6 +686,10 @@ onBeforeUnmount(() => {
 .inbound-summary { display: flex; align-items: center; gap: 0.85rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .inbound-summary-icon { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 0.65rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.25rem; }
 .inbound-summary span:not(.inbound-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.inbound-summary span.inbound-summary-label { display: inline-flex; align-items: center; gap: 0.35rem; }
+.inbound-info-button { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; padding: 0; border: 0; border-radius: 50%; background: var(--app-warning-bg); color: var(--app-warning-ink); font-size: 0.85rem; line-height: 1; cursor: pointer; }
+.inbound-info-button:hover { filter: brightness(0.96); }
+.inbound-info-button:focus-visible { outline: 2px solid var(--app-warning-ink); outline-offset: 1px; }
 .inbound-summary strong { display: block; margin-top: 0.15rem; font-size: 1.35rem; }
 .inbound-summary-warning .inbound-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .inbound-summary-success .inbound-summary-icon { background: var(--app-success-bg); color: var(--app-success-ink); }
@@ -624,6 +723,7 @@ onBeforeUnmount(() => {
 .stock-doc-link { border: 0; background: transparent; color: var(--app-accent-ink); font-size: 0.8rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .sku-docs-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(8vh, 4rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.62); }
 .sku-docs-modal { width: min(680px, 100%); overflow: hidden; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.28); color: var(--app-ink); }
+.summary-info-modal { width: min(460px, 100%); }
 .sku-docs-header, .sku-docs-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; }
 .sku-docs-header { border-bottom: 1px solid var(--app-border); }
 .sku-docs-footer { justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface-2); }

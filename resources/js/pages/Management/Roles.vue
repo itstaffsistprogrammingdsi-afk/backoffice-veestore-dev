@@ -106,13 +106,13 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Peran Backoffice" />
+    <Head title="Peran Master Data & Report" />
 
     <div class="management-page">
         <div class="management-header">
             <div>
                 <span class="management-eyebrow">Management</span>
-                <h1>Peran Backoffice</h1>
+                <h1>Peran Master Data & Report</h1>
                 <p>Kelola peran yang dapat diberikan ke pengguna backoffice.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applySearch">

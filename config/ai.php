@@ -127,10 +127,13 @@ return [
             'key' => env('NINE_ROUTER_API_KEY'),
             'models' => [
                 'text' => [
-                    'default' => env('NINE_ROUTER_MODEL', 'ocg/deepseek-v4.1-flash'),
+                    'default' => env('NINE_ROUTER_MODEL', 'cx/gpt-5.6-luna'),
                     'auto' => env('NINE_ROUTER_AUTO_MODEL', 'cx/gpt-5.6-luna'),
+                    'auto_secondary' => env('NINE_ROUTER_AUTO_SECONDARY_MODEL', 'cx/gpt-5.6-sol'),
                     'auto_fallback' => env('NINE_ROUTER_AUTO_FALLBACK_MODEL', 'ocg/deepseek-v4.1-flash'),
-                    'expert' => env('NINE_ROUTER_EXPERT_MODEL', 'cx/gpt-5.6-sol'),
+                    'auto_fallback_secondary' => env('NINE_ROUTER_AUTO_FALLBACK_SECONDARY_MODEL', 'ocg/glm-5.3-flash'),
+                    'expert' => env('NINE_ROUTER_EXPERT_MODEL', 'cx/gpt-6.1-sol'),
+                    'expert_fallback' => env('NINE_ROUTER_EXPERT_FALLBACK_MODEL', 'ocg/claude-haiku-5-5'),
                 ],
             ],
         ],

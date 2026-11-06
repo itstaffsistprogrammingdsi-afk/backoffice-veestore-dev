@@ -35,9 +35,12 @@ class InboundOperationsQuery
             $row->total_qty = (int) $row->total_qty;
             $row->item_count = (int) $row->item_count;
             $row->qty_good = (int) $row->qty_good;
+            $row->qty_good_after_repair = (int) $row->qty_good_after_repair;
             $row->qty_bad = (int) $row->qty_bad;
+            $row->qty_pending_qc = (int) $row->qty_pending_qc;
             $row->qty_other = (int) $row->qty_other;
             $row->grand_total = (float) ($row->grand_total ?? 0);
+            $row->detail_value = (float) ($row->detail_value ?? 0);
             $row->quantity_item = (int) ($row->quantity_item ?? 0);
             $row->status = $row->received_date ? 'received' : 'pending';
             $row->status_label = $row->status === 'received' ? 'Diterima' : 'Menunggu penerimaan';
@@ -54,7 +57,9 @@ class InboundOperationsQuery
                     'exchange_amount' => $detail->exchange_amount !== null ? (float) $detail->exchange_amount : null,
                     'item_count' => (int) $detail->item_count,
                     'qty_good' => (int) $detail->qty_good,
+                    'qty_good_after_repair' => (int) $detail->qty_good_after_repair,
                     'qty_bad' => (int) $detail->qty_bad,
+                    'qty_pending_qc' => (int) $detail->qty_pending_qc,
                     'qty_other' => (int) $detail->qty_other,
                     'last_qc_at' => $detail->last_qc_at,
                     'condition_summary' => $detail->condition_summary,
@@ -106,6 +111,13 @@ class InboundOperationsQuery
             ->orderByRaw('COALESCE(wq.performed_at, wq.created_at) DESC')
             ->orderByDesc('wq.id');
 
+        $valueSummary = DB::table('warehouse_inbound_details as wid_value')
+            ->selectRaw('
+                wid_value.warehouse_inbound_id,
+                COALESCE(SUM(wid_value.quantity * COALESCE(wid_value.price_idr, 0)), 0)::numeric as detail_value
+            ')
+            ->groupBy('wid_value.warehouse_inbound_id');
+
         $itemSummary = DB::table('warehouse_inbound_details as wid_qc')
             ->join('items as i_qc', 'i_qc.warehouse_inbound_detail_id', '=', 'wid_qc.id')
             ->leftJoinSub($latestQc, 'latest_qc', 'latest_qc.item_id', '=', 'i_qc.id')
@@ -113,9 +125,11 @@ class InboundOperationsQuery
             ->selectRaw('
                 wid_qc.warehouse_inbound_id,
                 COUNT(i_qc.id)::int as item_count,
-                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic_qc.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
-                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic_qc.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad,
-                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic_qc.name, \'\')) NOT IN (\'good\', \'bad\') THEN 1 ELSE 0 END), 0)::int as qty_other,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic_qc.status::text, ic_qc.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic_qc.status::text, ic_qc.name, \'\')) = \'good_after_repair\' THEN 1 ELSE 0 END), 0)::int as qty_good_after_repair,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic_qc.status::text, ic_qc.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad,
+                COALESCE(SUM(CASE WHEN ic_qc.id IS NULL THEN 1 ELSE 0 END), 0)::int as qty_pending_qc,
+                COALESCE(SUM(CASE WHEN ic_qc.id IS NOT NULL AND LOWER(COALESCE(ic_qc.status::text, ic_qc.name, \'\')) NOT IN (\'good\', \'good_after_repair\', \'bad\') THEN 1 ELSE 0 END), 0)::int as qty_other,
                 MAX(latest_qc.qc_at) as last_qc_at
             ')
             ->groupBy('wid_qc.warehouse_inbound_id');
@@ -129,6 +143,7 @@ class InboundOperationsQuery
             ->leftJoin('warehouse_inbound_details as wid', 'wid.warehouse_inbound_id', '=', 'wi.id')
             ->leftJoin('products as p', 'p.id', '=', 'wid.product_id')
             ->leftJoinSub($itemSummary, 'item_summary', 'item_summary.warehouse_inbound_id', '=', 'wi.id')
+            ->leftJoinSub($valueSummary, 'value_summary', 'value_summary.warehouse_inbound_id', '=', 'wi.id')
             ->when($hasUsers, fn ($query) => $query->leftJoin('users as u_received', 'u_received.id', '=', 'wi.received_by'))
             ->when($hasUsers, fn ($query) => $query->leftJoin('users as u_created', 'u_created.id', '=', 'wi.created_by'))
             ->whereNull('w.deleted_at')
@@ -178,11 +193,14 @@ class InboundOperationsQuery
                 wi.outbound_reference_number,
                 wi.quantity_item,
                 wi.grand_total,
+                COALESCE(value_summary.detail_value, 0)::numeric as detail_value,
                 wi.received_date,
                 wi.created_at,
                 COALESCE(item_summary.item_count, 0)::int as item_count,
                 COALESCE(item_summary.qty_good, 0)::int as qty_good,
+                COALESCE(item_summary.qty_good_after_repair, 0)::int as qty_good_after_repair,
                 COALESCE(item_summary.qty_bad, 0)::int as qty_bad,
+                COALESCE(item_summary.qty_pending_qc, 0)::int as qty_pending_qc,
                 COALESCE(item_summary.qty_other, 0)::int as qty_other,
                 item_summary.last_qc_at,
                 CASE
@@ -222,11 +240,14 @@ class InboundOperationsQuery
                 'wi.outbound_reference_number',
                 'wi.quantity_item',
                 'wi.grand_total',
+                'value_summary.detail_value',
                 'wi.received_date',
                 'wi.created_at',
                 'item_summary.item_count',
                 'item_summary.qty_good',
+                'item_summary.qty_good_after_repair',
                 'item_summary.qty_bad',
+                'item_summary.qty_pending_qc',
                 'item_summary.qty_other',
                 'item_summary.last_qc_at',
                 ...($hasUsers ? ['u_received.name', 'u_created.name'] : [])
@@ -246,23 +267,50 @@ class InboundOperationsQuery
     ): object {
         $query = $this->baseQuery($q, $warehouseId, null, $supplierId, $inboundType, $sourceWarehouseId, false, $from, $to)->reorder();
 
-        return DB::query()
+        $summary = DB::query()
             ->fromSub($query, 'inbound_rows')
             ->selectRaw('
                 COUNT(*)::int as total_inbounds,
                 COUNT(*) FILTER (WHERE received_date IS NULL)::int as pending_inbounds,
                 COUNT(*) FILTER (WHERE received_date IS NOT NULL AND received_date::date = CURRENT_DATE)::int as received_today,
-                COALESCE(SUM(total_sku), 0)::int as total_sku,
                 COALESCE(SUM(total_qty), 0)::int as total_qty,
                 COALESCE(SUM(item_count), 0)::int as total_items,
                 COALESCE(SUM(qty_good), 0)::int as total_good,
+                COALESCE(SUM(qty_good_after_repair), 0)::int as total_good_after_repair,
                 COALESCE(SUM(qty_bad), 0)::int as total_bad,
+                COALESCE(SUM(qty_pending_qc), 0)::int as total_pending_qc,
                 COALESCE(SUM(qty_other), 0)::int as total_other,
-                COALESCE(SUM(grand_total), 0)::numeric as total_value,
+                COALESCE(SUM(detail_value), 0)::numeric as total_value,
+                COALESCE(SUM(grand_total), 0)::numeric as total_header_value,
                 COUNT(DISTINCT warehouse_id)::int as total_warehouses,
                 COUNT(DISTINCT NULLIF(origin_name, \'-\'))::int as total_origins
             ')
             ->first();
+
+        $summary->total_value = (float) ($summary->total_value ?? 0);
+        $summary->total_header_value = (float) ($summary->total_header_value ?? 0);
+
+        $documentIds = DB::query()
+            ->fromSub($this->baseQuery($q, $warehouseId, null, $supplierId, $inboundType, $sourceWarehouseId, false, $from, $to)->reorder(), 'inbound_rows')
+            ->pluck('id')
+            ->all();
+
+        $skuQuery = DB::table('warehouse_inbound_details as wid')
+            ->whereIn('wid.warehouse_inbound_id', $documentIds);
+
+        if ($this->qMatchesProduct($q)) {
+            $skuQuery->join('products as p', 'p.id', '=', 'wid.product_id')
+                ->where(function ($sub) use ($q) {
+                    $sub->where('p.code', 'ILIKE', "%{$q}%")
+                        ->orWhere('p.name', 'ILIKE', "%{$q}%");
+                });
+        }
+
+        $summary->total_sku = empty($documentIds)
+            ? 0
+            : (int) $skuQuery->distinct('wid.product_id')->count('wid.product_id');
+
+        return $summary;
     }
 
     private function skuBreakdown(
@@ -403,9 +451,11 @@ class InboundOperationsQuery
             ->selectRaw('
                 wid.id as detail_id,
                 COUNT(i.id)::int as item_count,
-                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
-                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad,
-                COALESCE(SUM(CASE WHEN i.id IS NOT NULL AND LOWER(COALESCE(ic.name, \'\')) NOT IN (\'good\', \'bad\') THEN 1 ELSE 0 END), 0)::int as qty_other,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.status::text, ic.name, \'\')) = \'good\' THEN 1 ELSE 0 END), 0)::int as qty_good,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.status::text, ic.name, \'\')) = \'good_after_repair\' THEN 1 ELSE 0 END), 0)::int as qty_good_after_repair,
+                COALESCE(SUM(CASE WHEN LOWER(COALESCE(ic.status::text, ic.name, \'\')) = \'bad\' THEN 1 ELSE 0 END), 0)::int as qty_bad,
+                COALESCE(SUM(CASE WHEN i.id IS NOT NULL AND ic.id IS NULL THEN 1 ELSE 0 END), 0)::int as qty_pending_qc,
+                COALESCE(SUM(CASE WHEN i.id IS NOT NULL AND ic.id IS NOT NULL AND LOWER(COALESCE(ic.status::text, ic.name, \'\')) NOT IN (\'good\', \'good_after_repair\', \'bad\') THEN 1 ELSE 0 END), 0)::int as qty_other,
                 MAX(latest_qc.qc_at) as last_qc_at
             ')
             ->groupBy('wid.id')
@@ -454,7 +504,9 @@ class InboundOperationsQuery
 
                 $row->item_count = (int) ($summary->item_count ?? 0);
                 $row->qty_good = (int) ($summary->qty_good ?? 0);
+                $row->qty_good_after_repair = (int) ($summary->qty_good_after_repair ?? 0);
                 $row->qty_bad = (int) ($summary->qty_bad ?? 0);
+                $row->qty_pending_qc = (int) ($summary->qty_pending_qc ?? 0);
                 $row->qty_other = (int) ($summary->qty_other ?? 0);
                 $row->last_qc_at = $summary->last_qc_at ?? null;
                 $row->condition_summary = $conditions->isNotEmpty()

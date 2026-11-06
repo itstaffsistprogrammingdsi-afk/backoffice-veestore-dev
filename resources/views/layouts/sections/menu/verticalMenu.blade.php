@@ -76,10 +76,10 @@ $canSeeItem = function ($item) use (&$canSeeItem) {
     <a href="{{ url('/') }}" class="app-brand-link">
       <span class="app-brand-logo demo me-1">
         <img src="{{ asset('assets/img/logo.png') }}"
-             alt="Logo Backoffice"
+             alt="Logo Master Data & Report"
              class="app-brand-logo-image">
       </span>
-      <span class="app-brand-text demo menu-text fw-semibold ms-2">Backoffice</span>
+      <span class="app-brand-text demo menu-text fw-semibold ms-2">Master Data & Report</span>
     </a>
 
     <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">

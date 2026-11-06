@@ -1,5 +1,5 @@
 <style>
-/* Tema bersama untuk halaman daftar legacy Backoffice. */
+/* Tema bersama untuk halaman daftar legacy Master Data & Report. */
 .veestore-index-theme {
     --index-primary: var(--vee-blue);
     --index-primary-dark: var(--vee-blue-dark);

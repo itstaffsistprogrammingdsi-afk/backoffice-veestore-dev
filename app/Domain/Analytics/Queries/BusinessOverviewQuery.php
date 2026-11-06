@@ -79,6 +79,85 @@ class BusinessOverviewQuery
         return $this->inventory($this->normalizeFilters([]), false);
     }
 
+    public function productSalesSnapshot(array $input): array
+    {
+        $filters = $this->normalizeFilters($input);
+        $product = trim((string) ($input['product'] ?? ''));
+        $store = trim((string) ($input['store'] ?? ''));
+        $limit = max(1, min((int) ($input['limit'] ?? 20), 50));
+        $perStore = isset($input['per_store']) && $input['per_store'] !== null
+            ? max(1, min((int) $input['per_store'], 10))
+            : null;
+
+        $query = $this->productSalesQuery($filters);
+
+        if ($product !== '') {
+            $query->where(function (Builder $query) use ($product) {
+                $query->where('product_name', 'ilike', '%'.$product.'%')
+                    ->orWhere('product_code', 'ilike', '%'.$product.'%');
+            });
+        }
+
+        if ($store !== '') {
+            $query->where(function (Builder $query) use ($store) {
+                $query->where('store_name', 'ilike', '%'.$store.'%')
+                    ->orWhere('store_code', 'ilike', '%'.$store.'%');
+            });
+        }
+
+        $grouped = $query
+            ->selectRaw('
+                store_id,
+                store_code,
+                store_name,
+                product_id,
+                product_code,
+                product_name,
+                SUM(qty)::int AS qty,
+                COUNT(DISTINCT transaction_id)::int AS transactions
+            ')
+            ->groupBy('store_id', 'store_code', 'store_name', 'product_id', 'product_code', 'product_name');
+
+        if ($perStore !== null) {
+            $rows = DB::query()
+                ->fromSub($grouped, 'sales')
+                ->selectRaw('*, ROW_NUMBER() OVER (PARTITION BY store_name ORDER BY qty DESC, product_name) AS rank')
+                ->orderBy('store_name')
+                ->orderBy('rank')
+                ->limit(500)
+                ->get()
+                ->filter(fn ($row) => (int) $row->rank <= $perStore)
+                ->values();
+        } else {
+            $rows = $grouped
+                ->orderByDesc('qty')
+                ->orderBy('store_name')
+                ->orderBy('product_name')
+                ->limit($limit)
+                ->get();
+        }
+
+        return [
+            'period' => $filters,
+            'filters' => [
+                'product' => $product !== '' ? $product : null,
+                'store' => $store !== '' ? $store : null,
+                'per_store' => $perStore,
+            ],
+            'row_count' => $rows->count(),
+            'rows' => $rows->map(fn ($row) => [
+                'store_id' => $row->store_id,
+                'store_code' => $row->store_code,
+                'store_name' => $row->store_name,
+                'product_id' => $row->product_id,
+                'product_code' => $row->product_code,
+                'product_name' => $row->product_name,
+                'qty' => (int) $row->qty,
+                'transactions' => (int) $row->transactions,
+            ])->values()->all(),
+        ];
+    }
+
     private function normalizeFilters(array $input): array
     {
         $defaultFrom = CarbonImmutable::now()->subDays(29)->toDateString();
@@ -423,6 +502,9 @@ class BusinessOverviewQuery
             ->whereNotNull('product.id')
             ->whereRaw('paid_visits.paid_at::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
             ->selectRaw('
+                store.id AS store_id,
+                store.code AS store_code,
+                store.name AS store_name,
                 product.id AS product_id,
                 product.code AS product_code,
                 product.name AS product_name,
@@ -436,11 +518,15 @@ class BusinessOverviewQuery
             ->join('payments as p', 'p.id', '=', 'eo.payment_id')
             ->join('products as product', 'product.id', '=', 'detail.product_id')
             ->leftJoin('product_categories as category', 'category.id', '=', 'product.category_id')
+            ->leftJoin('stores as store', 'store.id', '=', 'eo.handled_by_store_id')
             ->whereNull('p.deleted_at')
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
             ->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
             ->whereRaw('COALESCE(p.completed_at, eo.created_at)::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
             ->selectRaw('
+                eo.handled_by_store_id AS store_id,
+                store.code AS store_code,
+                COALESCE(store.name, \'Ecommerce tanpa cabang\') AS store_name,
                 product.id AS product_id,
                 product.code AS product_code,
                 product.name AS product_name,

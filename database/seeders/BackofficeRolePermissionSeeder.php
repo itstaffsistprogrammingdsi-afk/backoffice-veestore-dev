@@ -24,6 +24,10 @@ class BackofficeRolePermissionSeeder extends Seeder
             'update master-customer',
             'approve management-label-requests',
             'manage label-print-requests',
+            'create label-print-requests',
+            'print label-print-requests',
+            'approve store-opname-variance',
+            'manage store-opname',
         ];
 
         DB::connection(self::CONNECTION)->transaction(function () use ($menuPermissions, $customPermissions) {
@@ -160,6 +164,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                         'master-data-stores',
                         'master-data-locations-store',
                     ]),
+                    ['create label-print-requests', 'print label-print-requests'],
                     $menu([
                         'dashboard-analytics',
                         'master-data-stores',
@@ -212,7 +217,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                 'Management' => array_merge(
                     $viewPermissions,
                     $menuPermissions,
-                    ['approve management-label-requests', 'manage label-print-requests']
+                    ['approve management-label-requests', 'manage label-print-requests', 'create label-print-requests', 'print label-print-requests', 'approve store-opname-variance', 'manage store-opname']
                 ),
             ];
 

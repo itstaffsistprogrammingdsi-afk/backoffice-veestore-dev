@@ -104,7 +104,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-barcode"></i></span><div><span>Total SKU Keluar</span><strong>{{ formatNumber(props.movementSummary.total_sku) }}</strong></div></div></div>
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-store"></i></span><div><span>Qty Store</span><strong>{{ formatNumber(props.movementSummary.store_qty) }}</strong></div></div></div>
             <div class="col-6 col-xl-2"><div class="outbound-summary"><span class="outbound-summary-icon"><i class="mdi mdi-cart-outline"></i></span><div><span>Qty Ecommerce</span><strong>{{ formatNumber(props.movementSummary.ecommerce_qty) }}</strong></div></div></div>
-            <div class="col-6 col-xl-2"><div class="outbound-summary outbound-summary-danger"><span class="outbound-summary-icon"><i class="mdi mdi-barcode-off"></i></span><div><span>Belum Ada Resi (Ecommerce)</span><strong>{{ formatNumber(props.summary.missing_shipping) }}</strong></div></div></div>
+            <div v-if="props.summary.missing_shipping > 0" class="col-6 col-xl-2"><div class="outbound-summary outbound-summary-danger"><span class="outbound-summary-icon"><i class="mdi mdi-barcode-off"></i></span><div><span>Belum Ada Resi (Ecommerce)</span><strong>{{ formatNumber(props.summary.missing_shipping) }}</strong></div></div></div>
         </div>
 
         <div class="card outbound-card mb-3">

@@ -9,13 +9,13 @@ return [
     'modes' => [
         'auto' => [
             'label' => 'Auto',
-            'description' => 'Luna untuk jawaban cepat, DeepSeek V4.1 Flash sebagai cadangan.',
-            'models' => ['auto', 'auto_fallback'],
+            'description' => 'Codex GPT 5.6 Luna lalu GPT 5.6 Sol; cadangan DeepSeek V4.1 Flash dan GLM 5.3 Flash.',
+            'models' => ['auto', 'auto_secondary', 'auto_fallback', 'auto_fallback_secondary'],
         ],
         'expert' => [
             'label' => 'Expert',
-            'description' => 'GPT 5.6 Sol untuk analisis yang lebih dalam.',
-            'models' => ['expert'],
+            'description' => 'Codex GPT 6.1 Sol; cadangan Claude Haiku 5.5.',
+            'models' => ['expert', 'expert_fallback'],
         ],
     ],
 
@@ -28,7 +28,7 @@ return [
     'limits' => [
         'max_rows' => 100,
         'max_history' => 6,
-        'max_steps' => 4,
+        'max_steps' => 8,
         'max_message_length' => 2000,
         'statement_timeout_ms' => 8000,
     ],

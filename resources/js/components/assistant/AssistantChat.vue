@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { router } from '@inertiajs/vue3';
 import { computed, nextTick, ref, watch } from 'vue';
 import VeeMascot from './VeeMascot.vue';
 import { renderAssistantMarkdown } from '@/composables/useAssistantMarkdown';
@@ -91,6 +92,7 @@ const toolLabels: Record<string, string> = {
     master_data: 'Data master',
     query_data: 'Query data',
     business_overview: 'Ringkasan bisnis',
+    product_sales: 'Penjualan produk',
     stock_health: 'Kesehatan stok',
     operations_pipeline: 'Alur operasional',
     promo_loyalty: 'Promo dan loyalty',
@@ -231,6 +233,31 @@ const reset = async () => {
     }
 };
 
+const onContentClick = (event: MouseEvent) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+    }
+
+    const target = event.target;
+
+    if (!(target instanceof Element)) return;
+
+    const anchor = target.closest('a');
+
+    if (!anchor || anchor.target === '_blank') return;
+
+    const href = anchor.getAttribute('href');
+
+    if (!href) return;
+
+    const url = new URL(href, window.location.href);
+
+    if (url.origin !== window.location.origin) return;
+
+    event.preventDefault();
+    router.visit(url.pathname + url.search + url.hash);
+};
+
 const onKeydown = (event: KeyboardEvent) => {
     if (event.key !== 'Enter' || event.shiftKey) return;
 
@@ -297,6 +324,7 @@ defineExpose({ focusInput: () => input.value?.focus() });
                             v-if="message.role === 'assistant'"
                             class="assistant-message__content"
                             v-html="renderAssistantMarkdown(message.content)"
+                            @click="onContentClick"
                         ></div>
                         <p v-else class="assistant-message__content">{{ message.content }}</p>
 
@@ -591,6 +619,18 @@ defineExpose({ focusInput: () => input.value?.focus() });
     margin: 0.6rem 0 0.35rem;
     font-size: 0.92rem;
     font-weight: 800;
+}
+
+.assistant-message__content :deep(a) {
+    color: var(--app-accent-ink);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.assistant-message__content :deep(a:hover),
+.assistant-message__content :deep(a:focus-visible) {
+    color: var(--app-accent);
 }
 
 .assistant-message__content :deep(code) {

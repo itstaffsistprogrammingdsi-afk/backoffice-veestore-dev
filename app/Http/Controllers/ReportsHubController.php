@@ -25,6 +25,15 @@ class ReportsHubController extends Controller
                 'demographics' => route('reports.crm.demographics'),
                 'preference' => route('reports.crm.customer-preference.index'),
                 'exports' => route('report-exports.index'),
+                'branch_expansion' => route('monitoring.branch-expansion.index'),
+                'loyalty_accounts' => route('monitoring.loyalty-accounts.index'),
+                'pending_transactions' => route('monitoring.pending-transactions.index'),
+                'anomalies' => route('monitoring.transaction-anomalies.index'),
+                'warehouse_audit' => route('monitoring.warehouse-user-audit.index'),
+                'stock_opname' => route('monitoring.stock-opname-variance.index'),
+                'stock_movements' => route('monitoring.stock-movements.index'),
+                'promo_acquisition' => route('monitoring.promo-acquisition.index'),
+                'user_access' => route('monitoring.user-monitoring.index'),
             ],
         ]);
     }

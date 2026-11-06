@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\WarehouseInboundExport;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
@@ -10,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class WarehouseInboundController extends Controller
@@ -65,6 +65,7 @@ class WarehouseInboundController extends Controller
             $row->event_date = $row->received_date;
             $row->total_qty = (int) $row->total_qty;
             $row->total_sku = (int) $row->total_sku;
+            $row->detail_value = (float) ($row->detail_value ?? 0);
 
             return $row;
         });
@@ -96,15 +97,15 @@ class WarehouseInboundController extends Controller
             'title' => 'Warehouse Inbound',
             'description' => 'Laporan monitoring.',
             'data' => [
-            'rows' => $rows,
-            'rowItems' => $rows->items(),
-            'summary' => $summary,
-            'warehouses' => $warehouses,
-            'suppliers' => $suppliers,
-            'inboundTypes' => $inboundTypes,
-            'inboundTypeLabels' => self::INBOUND_TYPE_LABELS,
-            'filters' => $filters,
-        ],
+                'rows' => $rows,
+                'rowItems' => $rows->items(),
+                'summary' => $summary,
+                'warehouses' => $warehouses,
+                'suppliers' => $suppliers,
+                'inboundTypes' => $inboundTypes,
+                'inboundTypeLabels' => self::INBOUND_TYPE_LABELS,
+                'filters' => $filters,
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.warehouse-inbound.export'), 'operations' => route('operations.inbound.index')],
         ]);
@@ -186,6 +187,13 @@ class WarehouseInboundController extends Controller
 
         $hasUsers = Schema::hasTable('users');
 
+        $valueSummary = DB::table('warehouse_inbound_details as wid_value')
+            ->selectRaw('
+                wid_value.warehouse_inbound_id,
+                COALESCE(SUM(wid_value.quantity * COALESCE(wid_value.price_idr, 0)), 0)::numeric as detail_value
+            ')
+            ->groupBy('wid_value.warehouse_inbound_id');
+
         $query = DB::table('warehouse_inbounds as wi')
             ->join('warehouses as w', 'w.id', '=', 'wi.warehouse_id')
             ->leftJoin('warehouses as sw', 'sw.id', '=', 'wi.source_warehouse_id')
@@ -194,6 +202,7 @@ class WarehouseInboundController extends Controller
             ->leftJoin('stores as return_store', 'return_store.id', '=', 'sr.store_id')
             ->leftJoin('warehouse_inbound_details as wid', 'wid.warehouse_inbound_id', '=', 'wi.id')
             ->leftJoin('products as p', 'p.id', '=', 'wid.product_id')
+            ->leftJoinSub($valueSummary, 'value_summary', 'value_summary.warehouse_inbound_id', '=', 'wi.id')
             ->when($hasUsers, fn ($q2) => $q2->leftJoin('users as u_received', 'u_received.id', '=', 'wi.received_by'))
             ->when($hasUsers, fn ($q2) => $q2->leftJoin('users as u_created', 'u_created.id', '=', 'wi.created_by'))
             ->whereNull('w.deleted_at')
@@ -238,6 +247,7 @@ class WarehouseInboundController extends Controller
                 wi.delivery_order_number,
                 wi.quantity_item,
                 wi.grand_total,
+                COALESCE(value_summary.detail_value, 0)::numeric as detail_value,
                 wi.received_date,
                 wi.created_at,
                 wi.inbound_type,
@@ -287,6 +297,7 @@ class WarehouseInboundController extends Controller
                 'wi.delivery_order_number',
                 'wi.quantity_item',
                 'wi.grand_total',
+                'value_summary.detail_value',
                 'wi.received_date',
                 'wi.created_at',
                 'wi.inbound_type',
@@ -367,17 +378,58 @@ class WarehouseInboundController extends Controller
     {
         $query = $this->baseQuery($filters)->reorder();
 
-        return DB::query()
+        $summary = DB::query()
             ->fromSub($query, 'inbound_rows')
             ->selectRaw('
                 COUNT(*)::int as total_inbounds,
-                COALESCE(SUM(inbound_rows.total_sku), 0)::int as total_sku,
                 COALESCE(SUM(inbound_rows.total_qty), 0)::int as total_qty,
-                COALESCE(SUM(inbound_rows.grand_total), 0)::numeric as total_value,
+                COALESCE(SUM(inbound_rows.detail_value), 0)::numeric as total_value,
+                COALESCE(SUM(inbound_rows.grand_total), 0)::numeric as total_header_value,
                 COUNT(DISTINCT inbound_rows.warehouse_id)::int as total_warehouses,
                 COUNT(DISTINCT NULLIF(inbound_rows.origin_name, \'-\'))::int as total_origins
             ')
             ->first();
+
+        $summary->total_value = (float) ($summary->total_value ?? 0);
+        $summary->total_header_value = (float) ($summary->total_header_value ?? 0);
+
+        $documentIds = DB::query()
+            ->fromSub($this->baseQuery($filters)->reorder(), 'inbound_rows')
+            ->pluck('id')
+            ->all();
+
+        $q = (string) ($filters['q'] ?? '');
+
+        $skuQuery = DB::table('warehouse_inbound_details as wid')
+            ->whereIn('wid.warehouse_inbound_id', $documentIds);
+
+        if ($this->qMatchesProduct($q)) {
+            $skuQuery->join('products as p', 'p.id', '=', 'wid.product_id')
+                ->where(function ($sub) use ($q) {
+                    $sub->where('p.code', 'ILIKE', "%{$q}%")
+                        ->orWhere('p.name', 'ILIKE', "%{$q}%");
+                });
+        }
+
+        $summary->total_sku = empty($documentIds)
+            ? 0
+            : (int) $skuQuery->distinct('wid.product_id')->count('wid.product_id');
+
+        return $summary;
+    }
+
+    private function qMatchesProduct(string $q): bool
+    {
+        if ($q === '') {
+            return false;
+        }
+
+        return DB::table('products')
+            ->where(function ($sub) use ($q) {
+                $sub->where('code', 'ILIKE', "%{$q}%")
+                    ->orWhere('name', 'ILIKE', "%{$q}%");
+            })
+            ->exists();
     }
 
     private function getFilteredRowsForExport(array $filters): Collection
@@ -388,6 +440,7 @@ class WarehouseInboundController extends Controller
                 $r->event_date = $r->received_date;
                 $r->total_qty = (int) $r->total_qty;
                 $r->total_sku = (int) $r->total_sku;
+                $r->detail_value = (float) ($r->detail_value ?? 0);
 
                 return $r;
             });

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
+import { currentLocale, switchLocale as changeLocale } from '@/i18n';
 
 interface Branding {
     name: string;
@@ -11,10 +12,21 @@ interface Branding {
 
 const { isDark, toggleTheme } = useTheme();
 const page = usePage();
+const locale = currentLocale;
+const localeOptions = [
+    { value: 'id', label: 'ID' },
+    { value: 'en', label: 'EN' },
+];
+
+const switchLocale = (value: string) => {
+    if (value === locale.value) return;
+
+    changeLocale(value);
+};
 const branding = computed<Branding>(() => (
     page.props.branding ?? {
         name: 'VeeStore',
-        tagline: 'Backoffice',
+        tagline: 'Master Data & Report',
         logo_url: '/assets/img/logo.png',
     }
 ) as Branding);
@@ -34,15 +46,31 @@ defineProps<{
                     <strong class="auth-tagline">{{ branding.tagline }}</strong>
                 </div>
 
-                <button
-                    class="theme-toggle"
-                    type="button"
-                    :aria-label="isDark ? 'Aktifkan light mode' : 'Aktifkan dark mode'"
-                    :title="isDark ? 'Light mode' : 'Dark mode'"
-                    @click="toggleTheme"
-                >
-                    <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" aria-hidden="true"></i>
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="locale-toggle" role="group" aria-label="Bahasa antarmuka">
+                        <button
+                            v-for="option in localeOptions"
+                            :key="option.value"
+                            type="button"
+                            :class="{ 'is-active': locale === option.value }"
+                            :aria-pressed="locale === option.value"
+                            :title="option.value === 'id' ? 'Bahasa Indonesia' : 'English'"
+                            @click="switchLocale(option.value)"
+                        >
+                            {{ option.label }}
+                        </button>
+                    </div>
+
+                    <button
+                        class="theme-toggle"
+                        type="button"
+                        :aria-label="isDark ? 'Aktifkan light mode' : 'Aktifkan dark mode'"
+                        :title="isDark ? 'Light mode' : 'Dark mode'"
+                        @click="toggleTheme"
+                    >
+                        <i class="mdi" :class="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
 
             <div class="auth-card">

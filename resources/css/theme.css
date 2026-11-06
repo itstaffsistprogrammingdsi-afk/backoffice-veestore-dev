@@ -938,6 +938,48 @@ html.inertia-sidebar-open body {
     background: var(--app-surface-2);
 }
 
+/* Locale toggle */
+.locale-toggle {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--app-border);
+    border-radius: 0.6rem;
+    background: var(--app-surface-2);
+}
+
+.locale-toggle button {
+    min-width: 34px;
+    height: 32px;
+    padding: 0 0.4rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--app-muted);
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+
+.locale-toggle button:hover {
+    color: var(--app-ink);
+}
+
+.locale-toggle button.is-active {
+    background: var(--app-surface);
+    color: var(--app-accent-ink);
+    box-shadow: 0 1px 2px rgba(25, 44, 62, 0.12);
+}
+
+@media (max-width: 575.98px) {
+    .locale-toggle button {
+        min-width: 44px;
+        height: 40px;
+    }
+}
+
 :focus-visible {
     outline: 2px solid var(--app-focus);
     outline-offset: 2px;

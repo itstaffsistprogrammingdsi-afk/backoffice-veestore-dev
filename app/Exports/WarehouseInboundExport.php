@@ -11,7 +11,6 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class WarehouseInboundExport implements FromArray, ShouldAutoSize, WithStyles, WithTitle
@@ -54,7 +53,7 @@ class WarehouseInboundExport implements FromArray, ShouldAutoSize, WithStyles, W
                 $this->rows->count(),
                 (int) $this->rows->sum('total_sku'),
                 (int) $this->rows->sum('total_qty'),
-                (float) $this->rows->sum('grand_total'),
+                $this->detailValueTotal(),
             ],
             [''],
             [
@@ -112,6 +111,15 @@ class WarehouseInboundExport implements FromArray, ShouldAutoSize, WithStyles, W
         return $data;
     }
 
+    private function detailValueTotal(): float
+    {
+        return (float) $this->detailMap->reduce(function (float $carry, mixed $details): float {
+            return $carry + (float) collect($details)->sum(
+                fn (object $detail): float => (float) ($detail->quantity ?? 0) * (float) ($detail->price_idr ?? 0)
+            );
+        }, 0.0);
+    }
+
     public function styles(Worksheet $sheet): array
     {
         $lastColumn = 'AH';
@@ -149,19 +157,24 @@ class WarehouseInboundExport implements FromArray, ShouldAutoSize, WithStyles, W
             ->applyFromArray($this->borderStyle());
 
         if ($lastRow > $headerRow) {
-            $sheet->getStyle('P'.($headerRow + 1).":S{$lastRow}")
+            $firstDataRow = $headerRow + 1;
+
+            $sheet->getStyle("P{$firstDataRow}:S{$lastRow}")
                 ->getNumberFormat()
-                ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-            $sheet->getStyle('V'.($headerRow + 1).":V{$lastRow}")
+                ->setFormatCode('#,##0');
+            $sheet->getStyle("V{$firstDataRow}:V{$lastRow}")
                 ->getNumberFormat()
-                ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-            $sheet->getStyle('X'.($headerRow + 1).":X{$lastRow}")
+                ->setFormatCode('#,##0');
+            $sheet->getStyle("X{$firstDataRow}:X{$lastRow}")
                 ->getNumberFormat()
-                ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-            $sheet->getStyle('Z'.($headerRow + 1).":AB{$lastRow}")
+                ->setFormatCode('#,##0');
+            $sheet->getStyle("Z{$firstDataRow}:Z{$lastRow}")
                 ->getNumberFormat()
-                ->setFormatCode(NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED1);
-            $sheet->getStyle('AC'.($headerRow + 1).":AE{$lastRow}")
+                ->setFormatCode('#,##0.00');
+            $sheet->getStyle("AA{$firstDataRow}:AB{$lastRow}")
+                ->getNumberFormat()
+                ->setFormatCode('#,##0');
+            $sheet->getStyle("AC{$firstDataRow}:AE{$lastRow}")
                 ->getNumberFormat()
                 ->setFormatCode('#,##0');
         }

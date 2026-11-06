@@ -68,7 +68,7 @@ class AssistantContext
             return $models[0];
         }
 
-        return (string) config('ai.providers.nine_router.models.text.default', 'ocg/deepseek-v4.1-flash');
+        return (string) config('ai.providers.nine_router.models.text.default', 'cx/gpt-5.6-luna');
     }
 
     public function suggestions(): array

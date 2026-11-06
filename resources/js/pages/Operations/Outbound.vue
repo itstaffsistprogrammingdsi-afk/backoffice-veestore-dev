@@ -140,6 +140,7 @@ const filters = reactive({
 
 const expanded = ref<Record<string, boolean>>({});
 const skuDocsModal = ref<{ sku: SkuRow } | null>(null);
+const storeInfoModal = ref(false);
 
 const channelOptions = [
     { value: '', label: 'Semua channel' },
@@ -147,7 +148,8 @@ const channelOptions = [
     { value: 'store', label: 'Store' },
 ];
 
-const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
+const storeOutstanding = computed(() => props.summary.store_not_recorded + props.summary.store_partial);
+const formatNumber = (value: number) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(value);
 const formatDate = (value: string | null) => {
     if (!value) return '-';
 
@@ -205,14 +207,28 @@ const closeSkuDocs = () => {
     skuDocsModal.value = null;
 };
 
+const openStoreInfo = () => {
+    storeInfoModal.value = true;
+};
+
+const closeStoreInfo = () => {
+    storeInfoModal.value = false;
+};
+
 const onKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && skuDocsModal.value) {
+    if (event.key !== 'Escape') return;
+
+    if (skuDocsModal.value) {
         closeSkuDocs();
+    }
+
+    if (storeInfoModal.value) {
+        closeStoreInfo();
     }
 };
 
-watch(skuDocsModal, (value) => {
-    document.body.style.overflow = value ? 'hidden' : '';
+watch([skuDocsModal, storeInfoModal], ([skuModal, storeModal]) => {
+    document.body.style.overflow = skuModal || storeModal ? 'hidden' : '';
 });
 
 onMounted(() => window.addEventListener('keydown', onKeydown));
@@ -252,7 +268,7 @@ onBeforeUnmount(() => {
             <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-tray-arrow-up"></i></span>
-                    <div><span>Total Outbound</span><strong>{{ formatNumber(props.summary.total_outbounds) }}</strong></div>
+                    <div><span>Jumlah Keluar</span><strong>{{ formatNumber(props.summary.total_outbounds) }}</strong></div>
                 </div>
             </div>
             <div class="col-6 col-xl">
@@ -267,13 +283,13 @@ onBeforeUnmount(() => {
                     <div><span>Menunggu Release</span><strong>{{ formatNumber(props.summary.release_pending) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl">
+            <div v-if="props.summary.missing_awb > 0" class="col-6 col-xl">
                 <div class="outbound-summary outbound-summary-danger">
                     <span class="outbound-summary-icon"><i class="mdi mdi-barcode-off"></i></span>
                     <div><span>Belum Ada Resi (Ecommerce)</span><strong>{{ formatNumber(props.summary.missing_awb) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl">
+            <div v-if="props.summary.missing_delivery_order > 0" class="col-6 col-xl">
                 <div class="outbound-summary outbound-summary-danger">
                     <span class="outbound-summary-icon"><i class="mdi mdi-file-document-alert-outline"></i></span>
                     <div><span>Belum Ada Surat Jalan (Store)</span><strong>{{ formatNumber(props.summary.missing_delivery_order) }}</strong></div>
@@ -282,7 +298,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="row g-3 mb-3">
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-package-variant-closed"></i></span>
                     <div>
@@ -292,35 +308,39 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-barcode"></i></span>
                     <div><span>Total SKU Keluar</span><strong>{{ formatNumber(props.movementSummary.total_sku) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-store"></i></span>
                     <div><span>Qty Store</span><strong>{{ formatNumber(props.movementSummary.store_qty) }}</strong></div>
                 </div>
             </div>
-            <div class="col-6 col-xl-3">
+            <div class="col-6 col-xl">
                 <div class="outbound-summary">
                     <span class="outbound-summary-icon"><i class="mdi mdi-cart-outline"></i></span>
                     <div><span>Qty Ecommerce</span><strong>{{ formatNumber(props.movementSummary.ecommerce_qty) }}</strong></div>
                 </div>
             </div>
-        </div>
-
-        <div v-if="props.summary.store_not_recorded + props.summary.store_partial > 0" class="outbound-alert">
-            <i class="mdi mdi-store-alert-outline" aria-hidden="true"></i>
-            <div>
-                <strong>{{ formatNumber(props.summary.store_not_recorded + props.summary.store_partial) }} outbound ke toko belum tercatat di stok toko.</strong>
-                <span>{{ formatNumber(props.summary.store_not_recorded) }} belum diterima, {{ formatNumber(props.summary.store_partial) }} baru diterima sebagian. Cek laporan untuk melihat toko tujuan.</span>
+            <div class="col-6 col-xl">
+                <div class="outbound-summary outbound-summary-danger">
+                    <span class="outbound-summary-icon"><i class="mdi mdi-store-alert-outline"></i></span>
+                    <div>
+                        <span class="outbound-summary-label">
+                            Belum Tercatat di Toko
+                            <button v-if="storeOutstanding > 0" class="outbound-info-button" type="button" aria-label="Lihat keterangan stok toko" title="Lihat keterangan stok toko" @click="openStoreInfo">
+                                <i class="mdi mdi-alert-circle-outline"></i>
+                            </button>
+                        </span>
+                        <strong>{{ formatNumber(storeOutstanding) }}</strong>
+                        <small class="outbound-summary-note">{{ formatNumber(props.summary.store_not_recorded) }} belum diterima &middot; {{ formatNumber(props.summary.store_partial) }} sebagian</small>
+                    </div>
+                </div>
             </div>
-            <Link :href="`${props.urls.monitoring}?reconciliation_status=not_recorded`" class="btn btn-sm btn-outline-danger">
-                Buka laporan
-            </Link>
         </div>
 
         <div class="card outbound-card mb-3">
@@ -537,6 +557,31 @@ onBeforeUnmount(() => {
     </div>
 
     <Teleport to="body">
+        <div v-if="storeInfoModal" class="sku-docs-backdrop" @click.self="closeStoreInfo">
+            <div class="sku-docs-modal store-info-modal" role="dialog" aria-modal="true" aria-labelledby="store-info-title">
+                <div class="sku-docs-header">
+                    <div>
+                        <h5 id="store-info-title" class="mb-0">Keterangan Stok Toko</h5>
+                        <small>Rekonsiliasi outbound gudang ke toko</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup keterangan stok toko" @click="closeStoreInfo"><i class="mdi mdi-close"></i></button>
+                </div>
+                <div class="sku-docs-body">
+                    <p class="mb-2"><strong>{{ formatNumber(storeOutstanding) }} outbound ke toko belum tercatat di stok toko.</strong></p>
+                    <p class="mb-2">{{ formatNumber(props.summary.store_not_recorded) }} belum diterima, {{ formatNumber(props.summary.store_partial) }} baru diterima sebagian.</p>
+                    <p class="text-muted small mb-0">Cek laporan untuk melihat toko tujuan.</p>
+                </div>
+                <div class="sku-docs-footer">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeStoreInfo">Tutup</button>
+                    <Link :href="`${props.urls.monitoring}?reconciliation_status=not_recorded`" class="btn btn-sm btn-primary">
+                        Buka laporan
+                    </Link>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
             <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header">
@@ -583,15 +628,14 @@ onBeforeUnmount(() => {
 .outbound-summary { display: flex; align-items: center; gap: 0.85rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .outbound-summary-icon { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 0.65rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.25rem; }
 .outbound-summary span:not(.outbound-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.outbound-summary span.outbound-summary-label { display: inline-flex; align-items: center; gap: 0.35rem; }
+.outbound-info-button { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; padding: 0; border: 0; border-radius: 50%; background: var(--app-danger-bg); color: var(--app-danger-ink); font-size: 0.85rem; line-height: 1; cursor: pointer; }
+.outbound-info-button:hover { filter: brightness(0.96); }
+.outbound-info-button:focus-visible { outline: 2px solid var(--app-danger-ink); outline-offset: 1px; }
 .outbound-summary strong { display: block; margin-top: 0.15rem; font-size: 1.35rem; }
 .outbound-summary-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.68rem; }
 .outbound-summary-warning .outbound-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .outbound-summary-danger .outbound-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
-.outbound-alert { display: flex; align-items: center; gap: 0.8rem; padding: 0.9rem 1rem; margin-bottom: 1rem; border: 1px solid color-mix(in srgb, var(--app-danger-ink) 25%, var(--app-border)); border-radius: 0.8rem; background: var(--app-danger-bg); color: var(--app-danger-ink); }
-.outbound-alert > i { font-size: 1.3rem; }
-.outbound-alert > div { flex: 1 1 320px; }
-.outbound-alert strong { display: block; }
-.outbound-alert span { font-size: 0.82rem; }
 .outbound-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .outbound-card-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; border-bottom: 1px solid var(--app-border); }
 .outbound-card-header h2 { margin: 0 0 0.2rem; font-size: 1rem; }
@@ -620,6 +664,7 @@ onBeforeUnmount(() => {
 .stock-doc-link { border: 0; background: transparent; color: var(--app-accent-ink); font-size: 0.8rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .sku-docs-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(8vh, 4rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.62); }
 .sku-docs-modal { width: min(680px, 100%); overflow: hidden; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.28); color: var(--app-ink); }
+.store-info-modal { width: min(460px, 100%); }
 .sku-docs-header, .sku-docs-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; }
 .sku-docs-header { border-bottom: 1px solid var(--app-border); }
 .sku-docs-footer { justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface-2); }

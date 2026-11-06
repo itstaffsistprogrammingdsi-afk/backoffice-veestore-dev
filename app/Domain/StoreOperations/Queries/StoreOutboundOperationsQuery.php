@@ -72,6 +72,14 @@ class StoreOutboundOperationsQuery
     private function baseQuery(string $q, ?string $storeId, ?string $channel, ?string $status, bool $applyStatus = true, ?string $from = null, ?string $to = null)
     {
         $hasCouriers = Schema::hasTable('couriers');
+        $hasEcommerceCourier = Schema::hasTable('ecommerce_order_shipping_methods');
+
+        $courierSelect = match (true) {
+            $hasCouriers && $hasEcommerceCourier => "COALESCE(NULLIF(TRIM(c.name), ''), NULLIF(TRIM(sm.courier_name), ''), '') as courier_name",
+            $hasCouriers => "COALESCE(c.name, '') as courier_name",
+            $hasEcommerceCourier => "COALESCE(NULLIF(TRIM(sm.courier_name), ''), '') as courier_name",
+            default => "'' as courier_name",
+        };
 
         return DB::table('store_outbounds as so')
             ->join('stores as s', 's.id', '=', 'so.store_id')
@@ -79,6 +87,7 @@ class StoreOutboundOperationsQuery
             ->leftJoin('items as i', 'i.id', '=', 'sod.item_id')
             ->leftJoin('products as p', 'p.id', '=', 'i.product_id')
             ->leftJoin('ecommerce_orders as eo', 'eo.id', '=', 'so.ecommerce_order_id')
+            ->when($hasEcommerceCourier, fn ($query) => $query->leftJoin('ecommerce_order_shipping_methods as sm', 'sm.id', '=', 'eo.shipping_method_id'))
             ->leftJoin('payments as pay', 'pay.id', '=', 'so.payment_id')
             ->leftJoin('store_returns as sr', 'sr.id', '=', 'so.store_return_id')
             ->when($hasCouriers, fn ($query) => $query->leftJoin('couriers as c', 'c.id', '=', 'so.courier_id'))
@@ -129,12 +138,13 @@ class StoreOutboundOperationsQuery
                 COUNT(DISTINCT i.product_id)::int as total_sku,
                 COUNT(DISTINCT sod.rfid_tag_id)::int as total_rfid
             ')
-            ->when($hasCouriers, fn ($query) => $query->selectRaw("COALESCE(c.name, '') as courier_name"), fn ($query) => $query->selectRaw("'' as courier_name"))
+            ->selectRaw($courierSelect)
             ->groupBy(
                 'so.id', 'so.store_id', 's.name', 's.code', 'so.outbound_type', 'so.shipment_date',
                 'so.created_at', 'so.item_quantity', 'so.shipping_number', 'eo.shipping_number', 'eo.order_number',
                 'pay.transaction_number', 'pay.print_count', 'sr.return_number', 'so.ecommerce_order_id', 'so.store_cart_id', 'so.store_return_id',
-                ...($hasCouriers ? ['c.name'] : [])
+                ...($hasCouriers ? ['c.name'] : []),
+                ...($hasEcommerceCourier ? ['sm.courier_name'] : [])
             )
             ->orderByRaw('COALESCE(so.shipment_date, so.created_at) DESC')
             ->orderByDesc('total_items');

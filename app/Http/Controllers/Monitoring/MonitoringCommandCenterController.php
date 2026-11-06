@@ -49,6 +49,7 @@ class MonitoringCommandCenterController extends Controller
 
         $groupIcons = [
             'monitoring-sales-payment' => 'mdi-chart-line',
+            'monitoring-branch-expansion' => 'mdi-store-plus-outline',
             'monitoring-orders' => 'mdi-package-variant-closed',
             'monitoring-inventory' => 'mdi-warehouse',
             'monitoring-customer-marketing' => 'mdi-account-heart-outline',
@@ -57,11 +58,12 @@ class MonitoringCommandCenterController extends Controller
         ];
 
         $groupDescriptions = [
-            'monitoring-sales-payment' => 'Pemasukan, pembayaran, omzet, dan transaksi kasir.',
+            'monitoring-sales-payment' => 'Pemasukan, pembayaran, transaksi gantung, anomali, omzet, dan transaksi kasir.',
+            'monitoring-branch-expansion' => 'Prioritas wilayah pembukaan cabang dari demografi dan penjualan.',
             'monitoring-orders' => 'Pesanan ecommerce, store, retur, serta pemenuhan SLA.',
             'monitoring-inventory' => 'Stok, warehouse, pergerakan barang, dan kontrol kualitas.',
-            'monitoring-customer-marketing' => 'Customer, loyalty, promo, voucher, dan permintaan barcode.',
-            'monitoring-audit-data' => 'Audit akses, aktivitas pengguna, absensi, dan kualitas data.',
+            'monitoring-customer-marketing' => 'Customer, loyalty, voucher per akun, promo, referral, dan afiliasi.',
+            'monitoring-audit-data' => 'Audit akses, aktivitas pengguna WMS, absensi, cetak ulang label, dan kualitas data.',
             'monitoring-supplier' => 'Kinerja supplier dan daftar produk supplier.',
         ];
 
@@ -90,7 +92,7 @@ class MonitoringCommandCenterController extends Controller
                 }
 
                 $paymentItems = collect($group['items'])
-                    ->filter(fn (array $item) => preg_match('/payment-income|payment-reconciliation|store-payment|ecommerce-payment/', $item['url']) === 1)
+                    ->filter(fn (array $item) => preg_match('/payment-income|payment-reconciliation|store-payment|ecommerce-payment|pending-transactions|transaction-anomalies/', $item['url']) === 1)
                     ->values()
                     ->all();
 
@@ -104,7 +106,7 @@ class MonitoringCommandCenterController extends Controller
                         ...$group,
                         'name' => 'Pembayaran & Pemasukan',
                         'icon' => 'mdi-credit-card-check-outline',
-                        'description' => 'Pemasukan realtime, rekonsiliasi, dan pembayaran store/ecommerce.',
+                        'description' => 'Pemasukan realtime, rekonsiliasi, transaksi gantung, anomali, dan pembayaran store/ecommerce.',
                         'items' => $paymentItems,
                     ],
                     [

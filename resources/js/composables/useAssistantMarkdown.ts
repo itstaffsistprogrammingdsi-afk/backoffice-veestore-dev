@@ -6,10 +6,49 @@ const escapeHtml = (value: string): string =>
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
-const inline = (value: string): string =>
-    escapeHtml(value)
+const safeHref = (value: string): string | null => {
+    const url = value.trim();
+
+    if (/^\/(?!\/)/.test(url) || /^https?:\/\//i.test(url)) {
+        return url;
+    }
+
+    return null;
+};
+
+const isExternal = (url: string): boolean => {
+    if (!/^https?:\/\//i.test(url)) {
+        return false;
+    }
+
+    if (typeof window === 'undefined') {
+        return true;
+    }
+
+    try {
+        return new URL(url).origin !== window.location.origin;
+    } catch {
+        return true;
+    }
+};
+
+const inline = (value: string): string => {
+    const html = escapeHtml(value)
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    return html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, text: string, href: string) => {
+        const url = safeHref(href);
+
+        if (!url) {
+            return match;
+        }
+
+        const external = isExternal(url) ? ' target="_blank" rel="noopener noreferrer"' : '';
+
+        return `<a href="${url}"${external}>${text}</a>`;
+    });
+};
 
 export function renderAssistantMarkdown(value: string): string {
     const lines = value.replace(/\r\n/g, '\n').split('\n');

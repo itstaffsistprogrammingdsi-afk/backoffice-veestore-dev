@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\ReferralScoreReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReferralScoreReportController extends Controller
@@ -145,7 +145,7 @@ class ReferralScoreReportController extends Controller
 
         $latestReferralRows = DB::query()
             ->fromSub(clone $baseQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 x.id,
                 x.code_used,
                 x.status,
@@ -155,7 +155,7 @@ class ReferralScoreReportController extends Controller
                 x.referee_name,
                 x.referee_email,
                 x.referrer_score
-            ")
+            ')
             ->orderByDesc('x.created_at')
             ->limit(10)
             ->get();
@@ -182,26 +182,65 @@ class ReferralScoreReportController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
+        $affiliatePoints = DB::table('customer_loyalty_point_mutations')
+            ->whereRaw("type::text IN ('referral_register','referral_first_tx')")
+            ->select('customer_id')
+            ->selectRaw("
+                COALESCE(SUM(points) FILTER (WHERE type::text = 'referral_register'), 0)::numeric AS register_points,
+                COALESCE(SUM(points) FILTER (WHERE type::text = 'referral_first_tx'), 0)::numeric AS first_tx_points,
+                COALESCE(SUM(points), 0)::numeric AS total_points,
+                MAX(created_at) AS last_point_at
+            ")
+            ->groupBy('customer_id');
+
+        $affiliateRows = DB::query()
+            ->fromSub(clone $baseQuery, 'x')
+            ->leftJoinSub($affiliatePoints, 'ap', fn ($join) => $join->on('ap.customer_id', '=', 'x.referrer_id'))
+            ->selectRaw("
+                x.referrer_id,
+                COALESCE(MAX(x.referrer_name), 'Referrer Tidak Diketahui') AS referrer_name,
+                MAX(x.referrer_email) AS referrer_email,
+                MAX(x.referrer_wa_number) AS referrer_wa_number,
+                COUNT(*)::int AS total_referral,
+                COUNT(DISTINCT x.referee_id)::int AS total_referee,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(x.status::text, '')) IN ('registered','first_transaction_done','success','completed','approved'))::int AS registered_referral,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(x.status::text, '')) = 'first_transaction_done')::int AS first_transaction_referral,
+                MAX(COALESCE(ap.register_points, 0))::numeric AS register_points,
+                MAX(COALESCE(ap.first_tx_points, 0))::numeric AS first_tx_points,
+                MAX(COALESCE(ap.total_points, 0))::numeric AS total_affiliate_points,
+                MAX(ap.last_point_at) AS last_point_at
+            ")
+            ->groupBy('x.referrer_id')
+            ->orderByDesc('total_affiliate_points')
+            ->orderByDesc('total_referral')
+            ->limit(100)
+            ->get();
+
+        $summary->total_affiliate_points = (float) $affiliateRows->sum(fn ($row) => (float) $row->total_affiliate_points);
+        $summary->total_affiliate_referrer = $affiliateRows->count();
+        $summary->total_first_transaction_referral = (int) $affiliateRows->sum('first_transaction_referral');
+
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Referral Score Report',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Referral & Afiliasi',
+            'description' => 'Pantau referral, referrer, status transaksi pertama, dan poin afiliasi yang diperoleh.',
             'data' => compact(
-            'rows',
-            'q',
-            'status',
-            'referrerId',
-            'from',
-            'to',
-            'referrers',
-            'statuses',
-            'summary',
-            'topReferrers',
-            'topReferrerChartRows',
-            'statusChartRows',
-            'trendRows',
-            'topCodeRows',
-            'latestReferralRows'
-        ),
+                'rows',
+                'q',
+                'status',
+                'referrerId',
+                'from',
+                'to',
+                'referrers',
+                'statuses',
+                'summary',
+                'topReferrers',
+                'topReferrerChartRows',
+                'statusChartRows',
+                'trendRows',
+                'topCodeRows',
+                'latestReferralRows',
+                'affiliateRows'
+            ),
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.referral-score-report.export')],
         ]);
@@ -209,7 +248,7 @@ class ReferralScoreReportController extends Controller
 
     public function export(Request $request)
     {
-        $filename = 'monitoring-referral-score-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'monitoring-referral-score-report-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new ReferralScoreReportExport($request), $filename);
     }

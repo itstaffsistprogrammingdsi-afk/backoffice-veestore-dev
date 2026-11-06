@@ -136,8 +136,8 @@ class StorePaymentTransactionController extends Controller
             ->values();
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Pembayaran Store',
-            'description' => 'Transaksi pembayaran store beserta metode pembayaran dan rincian produk.',
+            'title' => 'Pembayaran, Metode & Uang Kembalian',
+            'description' => 'Transaksi pembayaran store beserta metode pembayaran, nominal dibayar, dan uang kembalian.',
             'data' => [
                 'rows' => $rows,
                 'stores' => $stores,

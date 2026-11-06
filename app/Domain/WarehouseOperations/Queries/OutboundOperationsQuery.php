@@ -114,6 +114,15 @@ class OutboundOperationsQuery
     {
         $hasUsers = Schema::hasTable('users');
         $hasCouriers = Schema::hasTable('couriers');
+        $hasEcommerceCourier = Schema::hasTable('ecommerce_orders')
+            && Schema::hasTable('ecommerce_order_shipping_methods');
+
+        $courierSelect = match (true) {
+            $hasCouriers && $hasEcommerceCourier => "COALESCE(NULLIF(TRIM(c.name), ''), NULLIF(TRIM(sm.courier_name), ''), '') as courier_name",
+            $hasCouriers => "COALESCE(c.name, '') as courier_name",
+            $hasEcommerceCourier => "COALESCE(NULLIF(TRIM(sm.courier_name), ''), '') as courier_name",
+            default => "'' as courier_name",
+        };
 
         $storeInbound = DB::table('store_inbounds as si')
             ->leftJoin('store_inbound_details as sid', 'sid.store_inbound_id', '=', 'si.id')
@@ -130,6 +139,9 @@ class OutboundOperationsQuery
             ->leftJoin('store_orders as store_order', 'store_order.id', '=', 'wo.order_id')
             ->leftJoin('stores as destination_store', 'destination_store.id', '=', 'store_order.store_id')
             ->leftJoinSub($storeInbound, 'store_inbound', 'store_inbound.order_id', '=', 'store_order.id')
+            ->when($hasEcommerceCourier, fn ($query) => $query
+                ->leftJoin('ecommerce_orders as eo', 'eo.id', '=', 'wo.order_id')
+                ->leftJoin('ecommerce_order_shipping_methods as sm', 'sm.id', '=', 'eo.shipping_method_id'))
             ->when($hasCouriers, fn ($query) => $query->leftJoin('couriers as c', 'c.id', '=', 'wo.courier_id'))
             ->when($hasUsers, fn ($query) => $query->leftJoin('users as u', 'u.id', '=', 'wo.user_id'))
             ->when($hasUsers, fn ($query) => $query->leftJoin('users as qc', 'qc.id', '=', 'wo.qc_passed_by'))
@@ -209,7 +221,7 @@ class OutboundOperationsQuery
                     JOIN items i_count ON i_count.id = wod_count.item_id
                     WHERE wod_count.warehouse_outbound_id = wo.id) as total_sku
             ')
-            ->when($hasCouriers, fn ($query) => $query->selectRaw("COALESCE(c.name, '') as courier_name"), fn ($query) => $query->selectRaw("'' as courier_name"))
+            ->selectRaw($courierSelect)
             ->when($hasUsers, fn ($query) => $query->selectRaw("COALESCE(u.name, '') as outbound_by_name"), fn ($query) => $query->selectRaw("'' as outbound_by_name"))
             ->when($hasUsers, fn ($query) => $query->selectRaw("COALESCE(qc.name, '') as qc_passed_by_name"), fn ($query) => $query->selectRaw("'' as qc_passed_by_name"))
             ->orderByRaw('COALESCE(wo.shipment_date, wo.released_at, wo.created_at) DESC')

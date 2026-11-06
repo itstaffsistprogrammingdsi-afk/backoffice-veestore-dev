@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
+import { currentLocale, switchLocale as changeLocale } from '@/i18n';
 
 interface NavItem {
     label: string;
@@ -54,12 +55,23 @@ const props = withDefaults(defineProps<Props>(), {
 
 const page = usePage();
 const { isDark, toggleTheme } = useTheme();
+const locale = currentLocale;
+const localeOptions = [
+    { value: 'id', label: 'ID' },
+    { value: 'en', label: 'EN' },
+];
+
+const switchLocale = (value: string) => {
+    if (value === locale.value) return;
+
+    changeLocale(value);
+};
 
 const navigation = computed<Navigation>(() => (page.props.navigation ?? { areas: [] }) as Navigation);
 const branding = computed<Branding>(() => (
     page.props.branding ?? {
         name: 'VeeStore',
-        tagline: 'Backoffice',
+        tagline: 'Master Data & Report',
         logo_url: '/assets/img/logo.png',
     }
 ) as Branding);
@@ -182,7 +194,7 @@ const pageTitle = computed(
     () =>
         props.title ??
         activeItem.value?.label ??
-        (headTitle.value && headTitle.value !== 'VeeStore Backoffice' ? headTitle.value : null) ??
+        (headTitle.value && headTitle.value !== 'VeeStore Master Data & Report' ? headTitle.value : null) ??
         activeArea.value?.label ??
         'VeeStore',
 );
@@ -651,6 +663,20 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <div class="locale-toggle" role="group" aria-label="Bahasa antarmuka">
+                        <button
+                            v-for="option in localeOptions"
+                            :key="option.value"
+                            type="button"
+                            :class="{ 'is-active': locale === option.value }"
+                            :aria-pressed="locale === option.value"
+                            :title="option.value === 'id' ? 'Bahasa Indonesia' : 'English'"
+                            @click="switchLocale(option.value)"
+                        >
+                            {{ option.label }}
+                        </button>
+                    </div>
+
                     <button
                         class="theme-toggle"
                         type="button"

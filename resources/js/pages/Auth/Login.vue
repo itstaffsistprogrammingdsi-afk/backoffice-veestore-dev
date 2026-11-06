@@ -31,7 +31,7 @@ const submit = () => {
 <template>
     <Head title="Masuk" />
 
-    <AuthShell title="Masuk ke Backoffice" description="Gunakan email atau username dan password akun Anda.">
+    <AuthShell title="Masuk ke Master Data & Report" description="Gunakan email atau username dan password akun Anda.">
         <div v-if="flash.success" class="auth-alert auth-alert-success" role="status">{{ flash.success }}</div>
         <div v-if="flash.error" class="auth-alert auth-alert-danger" role="alert">{{ flash.error }}</div>
 

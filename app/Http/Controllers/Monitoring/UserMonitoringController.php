@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\UserMonitoringExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class UserMonitoringController extends Controller
@@ -23,7 +23,7 @@ class UserMonitoringController extends Controller
         $to = $request->query('to') ?: now()->toDateString();
         $perPage = (int) $request->query('per_page', 5);
 
-        if (!in_array($perPage, [5, 10, 25, 50, 100], true)) {
+        if (! in_array($perPage, [5, 10, 25, 50, 100], true)) {
             $perPage = 5;
         }
 
@@ -125,26 +125,72 @@ class UserMonitoringController extends Controller
             ->orderBy('platform')
             ->pluck('platform');
 
+        $dailyRows = DB::table('session_logs as sl')
+            ->whereBetween(DB::raw('sl.logged_at::date'), [$from, $to])
+            ->selectRaw("
+                sl.logged_at::date AS report_date,
+                TO_CHAR(sl.logged_at::date, 'DD Mon YYYY') AS period_label,
+                COALESCE(sl.app_type::text, 'unknown') AS app_type,
+                COUNT(*)::int AS session_count,
+                COUNT(DISTINCT sl.user_id)::int AS unique_users,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(sl.status::text, '')) IN ('failed','rejected'))::int AS failed_count,
+                MAX(sl.last_activity_at) AS last_activity_at
+            ")
+            ->groupByRaw('sl.logged_at::date, sl.app_type::text')
+            ->orderByDesc('report_date')
+            ->orderBy('app_type')
+            ->get();
+
+        $appSummary = DB::table('session_logs as sl')
+            ->whereBetween(DB::raw('sl.logged_at::date'), [$from, $to])
+            ->selectRaw("
+                COALESCE(sl.app_type::text, 'unknown') AS app_type,
+                COUNT(*)::int AS session_count,
+                COUNT(DISTINCT sl.user_id)::int AS unique_users,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(sl.status::text, '')) IN ('failed','rejected'))::int AS failed_count,
+                MAX(sl.last_activity_at) AS last_activity_at
+            ")
+            ->groupByRaw("COALESCE(sl.app_type::text, 'unknown')")
+            ->orderByDesc('session_count')
+            ->get();
+
+        $summary = DB::table('session_logs as sl')
+            ->whereBetween(DB::raw('sl.logged_at::date'), [$from, $to])
+            ->selectRaw("
+                COUNT(*)::int AS total_sessions,
+                COUNT(DISTINCT sl.user_id)::int AS unique_users,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(sl.status::text, '')) IN ('failed','rejected'))::int AS failed_logins,
+                COUNT(*) FILTER (WHERE sl.app_type::text = 'warehouse')::int AS wms_sessions,
+                COUNT(*) FILTER (WHERE sl.app_type::text = 'store')::int AS store_sessions,
+                COUNT(*) FILTER (WHERE sl.app_type::text = 'ecommerce')::int AS ecommerce_sessions,
+                COUNT(*) FILTER (WHERE sl.app_type::text = 'backoffice')::int AS backoffice_sessions,
+                COUNT(*) FILTER (WHERE sl.logged_at::date = CURRENT_DATE)::int AS today_sessions
+            ")
+            ->first();
+
         return Inertia::render('Monitoring/Report', [
-            'title' => 'User Monitoring',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Akses Pengguna Harian',
+            'description' => 'Rekap login dan aktivitas pengguna per hari dan per aplikasi, termasuk akses WMS, toko, ecommerce, dan Master Data & Report.',
             'data' => compact(
-            'rows',
-            'q',
-            'status',
-            'type',
-            'appType',
-            'device',
-            'platform',
-            'from',
-            'to',
-            'perPage',
-            'statuses',
-            'types',
-            'appTypes',
-            'devices',
-            'platforms'
-        ),
+                'rows',
+                'dailyRows',
+                'appSummary',
+                'summary',
+                'q',
+                'status',
+                'type',
+                'appType',
+                'device',
+                'platform',
+                'from',
+                'to',
+                'perPage',
+                'statuses',
+                'types',
+                'appTypes',
+                'devices',
+                'platforms'
+            ),
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.user-monitoring.export')],
         ]);
@@ -152,7 +198,8 @@ class UserMonitoringController extends Controller
 
     public function export(Request $request)
     {
-        $filename = 'monitoring-user-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'monitoring-user-'.now()->format('Ymd_His').'.xlsx';
+
         return Excel::download(new UserMonitoringExport($request), $filename);
     }
 }

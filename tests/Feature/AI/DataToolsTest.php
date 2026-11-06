@@ -55,6 +55,18 @@ class DataToolsTest extends TestCase
         $this->assertNotEmpty($result['tables']);
     }
 
+    public function test_product_sales_tool_groups_by_store_and_product(): void
+    {
+        $result = app(ToolRegistry::class)->call('product_sales', ['per_store' => 2]);
+
+        $this->assertArrayNotHasKey('error', $result, json_encode($result));
+        $this->assertArrayHasKey('period', $result);
+        $this->assertArrayHasKey('rows', $result);
+        $this->assertArrayHasKey('qty', $result['rows'][0] ?? []);
+        $this->assertArrayHasKey('store_name', $result['rows'][0] ?? []);
+        $this->assertArrayHasKey('product_name', $result['rows'][0] ?? []);
+    }
+
     public function test_system_map_tool_returns_features_and_navigation(): void
     {
         $result = app(SystemMapTool::class)->run([]);
@@ -63,6 +75,16 @@ class DataToolsTest extends TestCase
         $this->assertArrayHasKey('features', $result);
         $this->assertArrayHasKey('menu', $result);
         $this->assertNotEmpty($result['features']);
+        $this->assertNotEmpty($result['menu']);
+
+        foreach ($result['menu'] as $item) {
+            $this->assertArrayHasKey('path', $item);
+            $this->assertArrayHasKey('url', $item);
+
+            if ($item['url'] !== '') {
+                $this->assertStringStartsWith('/', $item['url']);
+            }
+        }
     }
 
     public function test_all_domain_tools_run_without_query_errors(): void
@@ -71,6 +93,7 @@ class DataToolsTest extends TestCase
 
         $arguments = [
             'business_overview' => [],
+            'product_sales' => ['per_store' => 3],
             'stock_health' => [],
             'operations_pipeline' => [],
             'promo_loyalty' => [],

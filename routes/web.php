@@ -8,6 +8,7 @@ use App\Http\Controllers\BranchOperations\StoreVoucherRequestController;
 use App\Http\Controllers\dashboard\Analytics;
 use App\Http\Controllers\Ecommerce\EcommerceOrderController;
 use App\Http\Controllers\Ecommerce\EcommercePaymentOperationsController;
+use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointMutationController;
 // Master Data
@@ -46,7 +47,9 @@ use App\Http\Controllers\MasterData\WarehouseController;
 use App\Http\Controllers\Monitoring\AnomalyItemMonitoringController;
 use App\Http\Controllers\Monitoring\AuditWmsOpnameController;
 use App\Http\Controllers\Monitoring\BarcodeRequestReportController;
+use App\Http\Controllers\Monitoring\BranchExpansionReportController;
 use App\Http\Controllers\Monitoring\CashierShiftReportController;
+use App\Http\Controllers\Monitoring\CustomerLoyaltyAccountReportController;
 use App\Http\Controllers\Monitoring\CustomerLoyaltyPointsReportController;
 use App\Http\Controllers\Monitoring\CustomerMembershipMonitoringController;
 use App\Http\Controllers\Monitoring\EcommerceOrderFulfillmentController;
@@ -62,14 +65,18 @@ use App\Http\Controllers\Monitoring\OmsetCabangController;
 use App\Http\Controllers\Monitoring\OmsetKotorSalesController;
 use App\Http\Controllers\Monitoring\OrderHandledController;
 use App\Http\Controllers\Monitoring\PaymentIncomeRealtimeController;
+use App\Http\Controllers\Monitoring\PendingTransactionReportController;
 use App\Http\Controllers\Monitoring\PhysicalStockAccumulationController;
 use App\Http\Controllers\Monitoring\ProductAgingMonitoringController;
 use App\Http\Controllers\Monitoring\ProductSlowmovingController;
 use App\Http\Controllers\Monitoring\ProdukTerlarisController;
+use App\Http\Controllers\Monitoring\PromoAcquisitionReportController;
 use App\Http\Controllers\Monitoring\PromoUsageController;
 use App\Http\Controllers\Monitoring\RedeemPointReportController;
 use App\Http\Controllers\Monitoring\ReferralScoreReportController;
 use App\Http\Controllers\Monitoring\SlowDeadstockController;
+use App\Http\Controllers\Monitoring\StockMovementReportController;
+use App\Http\Controllers\Monitoring\StockOpnameVarianceReportController;
 use App\Http\Controllers\Monitoring\StokPercabangController;
 use App\Http\Controllers\Monitoring\StokWmsController;
 use App\Http\Controllers\Monitoring\StoreInboundController;
@@ -82,12 +89,14 @@ use App\Http\Controllers\Monitoring\StoreStockBarrierController;
 use App\Http\Controllers\Monitoring\StoreStockOpnameReportController;
 use App\Http\Controllers\Monitoring\SupplierInsightController;
 use App\Http\Controllers\Monitoring\TrackingBarangController;
+use App\Http\Controllers\Monitoring\TransactionAnomalyReportController;
 use App\Http\Controllers\Monitoring\UserMonitoringController;
 use App\Http\Controllers\Monitoring\VoidCancelCustomerReportController;
 use App\Http\Controllers\Monitoring\VoucherRejectReportController;
 use App\Http\Controllers\Monitoring\WarehouseInboundController;
 use App\Http\Controllers\Monitoring\WarehouseOutboundController;
 use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
+use App\Http\Controllers\Monitoring\WarehouseUserAuditReportController;
 // Reports
 use App\Http\Controllers\NotificationStatusController;
 use App\Http\Controllers\Operations\CustomerDemographicsOperationsController;
@@ -147,6 +156,8 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+Route::post('/language/{locale}', [LanguageController::class, 'update'])->name('language.update');
 
 /*
 |--------------------------------------------------------------------------
@@ -465,6 +476,13 @@ Route::middleware('auth')->group(function () {
         Route::get('request-label', [StoreLabelPrintRequestController::class, 'index'])
             ->name('request-label.index');
 
+        Route::post('request-label', [StoreLabelPrintRequestController::class, 'store'])
+            ->name('request-label.store');
+
+        Route::post('request-label/{id}/print', [StoreLabelPrintRequestController::class, 'print'])
+            ->whereUuid('id')
+            ->name('request-label.print');
+
         Route::redirect('request-print-barcode', '/branch-operations/request-label', 301)
             ->name('request-print-barcode.index');
 
@@ -541,6 +559,38 @@ Route::middleware('auth')->group(function () {
             ->name('data-quality.index');
         Route::get('supplier-insight', [SupplierInsightController::class, 'index'])
             ->name('supplier-insight.index');
+
+        Route::get('branch-expansion', [BranchExpansionReportController::class, 'index'])
+            ->name('branch-expansion.index');
+
+        Route::get('loyalty-accounts', [CustomerLoyaltyAccountReportController::class, 'index'])
+            ->name('loyalty-accounts.index');
+
+        Route::get('pending-transactions', [PendingTransactionReportController::class, 'index'])
+            ->name('pending-transactions.index');
+
+        Route::get('transaction-anomalies', [TransactionAnomalyReportController::class, 'index'])
+            ->name('transaction-anomalies.index');
+
+        Route::get('warehouse-user-audit', [WarehouseUserAuditReportController::class, 'index'])
+            ->name('warehouse-user-audit.index');
+
+        Route::get('stock-opname-variance', [StockOpnameVarianceReportController::class, 'index'])
+            ->name('stock-opname-variance.index');
+
+        Route::post('stock-opname-variance/{id}/approve', [StockOpnameVarianceReportController::class, 'approve'])
+            ->whereUuid('id')
+            ->name('stock-opname-variance.approve');
+
+        Route::post('stock-opname-variance/{id}/reject', [StockOpnameVarianceReportController::class, 'reject'])
+            ->whereUuid('id')
+            ->name('stock-opname-variance.reject');
+
+        Route::get('stock-movements', [StockMovementReportController::class, 'index'])
+            ->name('stock-movements.index');
+
+        Route::get('promo-acquisition', [PromoAcquisitionReportController::class, 'index'])
+            ->name('promo-acquisition.index');
 
         Route::get('stok-percabang', [StokPercabangController::class, 'index'])
             ->name('stok-percabang');

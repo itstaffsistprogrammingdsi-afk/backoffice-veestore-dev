@@ -7,6 +7,7 @@ use App\Ai\Mcp\Tools\CustomerInsightTool;
 use App\Ai\Mcp\Tools\DataSchemaTool;
 use App\Ai\Mcp\Tools\MasterDataTool;
 use App\Ai\Mcp\Tools\OperationsPipelineTool;
+use App\Ai\Mcp\Tools\ProductSalesTool;
 use App\Ai\Mcp\Tools\PromoLoyaltyTool;
 use App\Ai\Mcp\Tools\QueryDataTool;
 use App\Ai\Mcp\Tools\StockHealthTool;
@@ -27,6 +28,7 @@ class ToolRegistry
             MasterDataTool::class,
             QueryDataTool::class,
             BusinessOverviewTool::class,
+            ProductSalesTool::class,
             StockHealthTool::class,
             OperationsPipelineTool::class,
             PromoLoyaltyTool::class,

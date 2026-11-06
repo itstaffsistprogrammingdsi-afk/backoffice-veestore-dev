@@ -39,6 +39,8 @@ interface Props {
         exports?: Record<string, string>;
         operations?: string;
         reservations?: string;
+        approve?: string;
+        reject?: string;
     };
 }
 
@@ -273,6 +275,14 @@ const ALLOWED_FILTERS = new Set([
     'device',
     'platform',
     'gender',
+    'level',
+    'priority',
+    'source_type',
+    'min_age_days',
+    'has_activity',
+    'opname_status',
+    'movement_type',
+    'direction',
     'min',
     'min_move_count',
     'min_damage_count',
@@ -376,6 +386,14 @@ const FILTER_LABELS: Record<string, string> = {
     device: 'Device',
     platform: 'Platform',
     gender: 'Gender',
+    level: 'Level Wilayah',
+    priority: 'Prioritas',
+    source_type: 'Jenis Transaksi',
+    min_age_days: 'Umur Minimal (hari)',
+    has_activity: 'Cakupan Akun',
+    opname_status: 'Status Opname',
+    movement_type: 'Jenis Pergerakan',
+    direction: 'Arah Pergerakan',
     min: 'Nilai Minimal',
     min_move_count: 'Min. Perpindahan',
     min_damage_count: 'Min. Kerusakan',
@@ -432,7 +450,7 @@ const DATE_KEYS = new Set([
     'to',
 ]);
 
-const NUMBER_KEYS = new Set(['min', 'min_move_count', 'min_damage_count']);
+const NUMBER_KEYS = new Set(['min', 'min_move_count', 'min_damage_count', 'min_age_days']);
 
 const OPTION_SOURCES: Record<string, { keys: string[]; labels?: string[] }> = {
     store_id: { keys: ['stores'] },
@@ -495,6 +513,12 @@ const OPTION_SOURCES: Record<string, { keys: string[]; labels?: string[] }> = {
     channel: { keys: [] },
     group_by: { keys: [] },
     birthday_month: { keys: [] },
+    level: { keys: ['levelOptions'] },
+    priority: { keys: ['priorityOptions'] },
+    source_type: { keys: ['sourceTypes'] },
+    movement_type: { keys: ['movementTypes'] },
+    direction: { keys: ['directionOptions'] },
+    opname_status: { keys: ['statuses'] },
 };
 
 const PRESET_OPTIONS: Record<string, FilterOption[]> = {
@@ -571,7 +595,12 @@ const PRESET_OPTIONS: Record<string, FilterOption[]> = {
     group_by: [
         { value: 'product', label: 'Produk' },
         { value: 'daily', label: 'Harian' },
+        { value: 'weekly', label: 'Mingguan' },
         { value: 'monthly', label: 'Bulanan' },
+    ],
+    has_activity: [
+        { value: '1', label: 'Hanya akun aktif' },
+        { value: '0', label: 'Semua akun' },
     ],
     aging_bucket: [
         { value: '0_30', label: '0 - 30 hari' },
@@ -642,6 +671,22 @@ const DATASET_LABELS: Record<string, string> = {
     topAgingStore: 'Aging di Cabang',
     topAgingWarehouse: 'Aging di Gudang',
     topAgingOverall: 'Aging Keseluruhan',
+    topRegions: 'Wilayah Prioritas',
+    affiliateRows: 'Ringkasan Afiliasi',
+    pendingByType: 'Transaksi Gantung per Jenis',
+    flowRows: 'Rantai Barang ke Pembayaran per Cabang',
+    paymentMethodRows: 'Pencatatan per Metode Pembayaran',
+    userSummary: 'Aktivitas per Pengguna Gudang',
+    storeSummary: 'Rekap Selisih per Toko',
+    periodRows: 'Rekap Harian / Mingguan / Bulanan',
+    reasonRows: 'Alasan Selisih / Penyesuaian',
+    dailyRows: 'Rekap Harian',
+    monthlyRows: 'Rekap Bulanan',
+    pointRows: 'Poin per Jenis Mutasi',
+    referralRows: 'Referral per Status',
+    appSummary: 'Akses per Aplikasi',
+    voucherUsageRows: 'Voucher Terpakai',
+    opnameItems: 'Rincian Item Opname',
 };
 
 const DATASET_DESCRIPTIONS: Record<string, string> = {
@@ -676,6 +721,22 @@ const DATASET_DESCRIPTIONS: Record<string, string> = {
     topAgingStore: 'Produk dengan aging tertinggi di cabang.',
     topAgingWarehouse: 'Produk dengan aging tertinggi di gudang.',
     topAgingOverall: 'Produk dengan aging tertinggi secara keseluruhan.',
+    topRegions: 'Wilayah dengan potensi tertinggi berdasarkan demografi dan penjualan.',
+    affiliateRows: 'Poin afiliasi dan jumlah referral per referrer.',
+    pendingByType: 'Jumlah dan nilai transaksi gantung per jenis.',
+    flowRows: 'Perbandingan permintaan barang, penjualan, pembayaran diterima, dan pembayaran tercatat per cabang.',
+    paymentMethodRows: 'Total pencatatan pembayaran per metode, misalnya BCA, BRI, atau tunai.',
+    userSummary: 'Rekap aktivitas pengguna WMS pada periode dan filter yang dipilih.',
+    storeSummary: 'Rekap nilai dan kuantitas selisih stok opname per toko.',
+    periodRows: 'Rekap selisih stok opname harian, mingguan, atau bulanan.',
+    reasonRows: 'Pengelompokan selisih berdasarkan alasan penyesuaian, cacat, hilang, atau koreksi.',
+    dailyRows: 'Pergerakan stok yang diagregasi per hari.',
+    monthlyRows: 'Pergerakan stok yang diagregasi per bulan.',
+    pointRows: 'Penerimaan dan pemakaian poin per jenis mutasi.',
+    referralRows: 'Jumlah referral dan akun unik per status.',
+    appSummary: 'Jumlah akses dan pengguna unik per aplikasi, termasuk WMS.',
+    voucherUsageRows: 'Voucher yang sudah digunakan pada periode ini.',
+    opnameItems: 'Rincian item per sesi stok opname beserta nilai selisih.',
 };
 
 const DATASET_KEYS = new Set(Object.keys(DATASET_LABELS));
@@ -711,6 +772,22 @@ const DATASET_ORDER = [
     'topAgingStore',
     'topAgingWarehouse',
     'topAgingOverall',
+    'topRegions',
+    'affiliateRows',
+    'pendingByType',
+    'flowRows',
+    'paymentMethodRows',
+    'userSummary',
+    'storeSummary',
+    'periodRows',
+    'reasonRows',
+    'dailyRows',
+    'monthlyRows',
+    'pointRows',
+    'referralRows',
+    'appSummary',
+    'voucherUsageRows',
+    'opnameItems',
 ];
 
 const COLUMN_LABELS: Record<string, string> = {
@@ -760,6 +837,7 @@ const COLUMN_LABELS: Record<string, string> = {
     last_inbound_at: 'Inbound Terakhir',
     last_mutation_at: 'Mutasi Terakhir',
     grand_total: 'Grand Total',
+    detail_value: 'Nilai Detail',
     total_amount: 'Total Pembayaran',
     gross_sales: 'Omzet Kotor',
     net_after_product_discount: 'Setelah Diskon Produk',
@@ -930,6 +1008,128 @@ const COLUMN_LABELS: Record<string, string> = {
     date_of_birth: 'Tanggal Lahir',
     gender: 'Gender',
     referral_code: 'Kode Referral',
+    region_name: 'Wilayah',
+    region_code: 'Kode Wilayah',
+    total_customers: 'Jumlah Pelanggan',
+    buying_customers: 'Pelanggan Bertransaksi',
+    total_transactions: 'Total Transaksi',
+    pos_spending: 'Belanja POS',
+    ecom_spending: 'Belanja Ecommerce',
+    total_spending: 'Total Belanja',
+    average_spending: 'Rata-rata Belanja',
+    potential_score: 'Skor Potensi',
+    priority_label: 'Prioritas',
+    recommendation: 'Rekomendasi',
+    point_balance: 'Saldo Poin',
+    earned_points: 'Poin Masuk',
+    redeemed_points: 'Poin Ditukar',
+    expired_points: 'Poin Kedaluwarsa',
+    adjusted_points: 'Penyesuaian Poin',
+    mutation_count: 'Jumlah Mutasi',
+    used_voucher_count: 'Voucher Terpakai',
+    used_voucher_value: 'Nilai Voucher Terpakai',
+    available_voucher_count: 'Voucher Tersedia',
+    available_voucher_value: 'Estimasi Nilai Voucher',
+    last_voucher_at: 'Voucher Terakhir',
+    source_type: 'Jenis Transaksi',
+    reference: 'Referensi',
+    age_days: 'Umur (hari)',
+    min_age_days: 'Umur Minimal',
+    quantity_gap: 'Selisih Qty',
+    requested_qty: 'Qty Diminta',
+    sold_qty: 'Qty Terjual',
+    solved_qty: 'Qty Terjual',
+    request_count: 'Jumlah Permintaan',
+    sale_count: 'Jumlah Penjualan',
+    payment_count: 'Jumlah Pembayaran',
+    payment_received: 'Pembayaran Diterima',
+    payment_paid: 'Nominal Dibayar',
+    payment_change: 'Uang Kembalian',
+    payment_recorded: 'Pembayaran Tercatat',
+    recording_gap: 'Selisih Pencatatan',
+    change_gap: 'Selisih Kembalian',
+    payment_gap: 'Selisih Penjualan vs Pembayaran',
+    payment_methods: 'Metode Pembayaran',
+    method_count: 'Jumlah Metode',
+    detail_total: 'Total Tercatat',
+    expected_amount: 'Nominal Seharusnya',
+    recorded_amount: 'Nominal Tercatat',
+    transaction_count: 'Jumlah Transaksi',
+    event_count: 'Jumlah Aktivitas',
+    inbound_events: 'Aktivitas Inbound',
+    outbound_events: 'Aktivitas Outbound',
+    qc_events: 'Aktivitas QC',
+    opname_events: 'Aktivitas Opname',
+    user_name: 'Pengguna',
+    action: 'Aksi',
+    detail: 'Detail',
+    session_count: 'Jumlah Sesi',
+    item_count: 'Jumlah Item',
+    discrepancy_qty: 'Selisih Qty',
+    discrepancy_value: 'Nilai Selisih',
+    difference_qty: 'Selisih Qty',
+    difference_value: 'Nilai Selisih',
+    approval_status_label: 'Status Persetujuan',
+    approver_name: 'Approver',
+    pic_name: 'PIC',
+    unit_price: 'Harga Satuan',
+    shortage_qty: 'Qty Kurang',
+    surplus_qty: 'Qty Lebih',
+    unapproved_sessions: 'Sesi Belum Disetujui',
+    period_label: 'Periode',
+    movement_type: 'Jenis Pergerakan',
+    direction: 'Arah',
+    document_count: 'Jumlah Dokumen',
+    to_display_items: 'Item ke Display',
+    to_store_stock_items: 'Item ke Gudang Kecil',
+    inbound_documents: 'Dokumen Masuk',
+    outbound_documents: 'Dokumen Keluar',
+    voucher_context: 'Konteks Voucher',
+    voucher_type: 'Tipe Voucher',
+    usage_count_in_period: 'Pemakaian Periode',
+    unique_customers: 'Akun Unik',
+    remaining_quota: 'Sisa Kuota',
+    mutation_type: 'Jenis Mutasi',
+    mutation_label: 'Keterangan Mutasi',
+    points_in: 'Poin Masuk',
+    points_out: 'Poin Keluar',
+    total_points: 'Total Poin',
+    referral_status: 'Status Referral',
+    total_referral: 'Total Referral',
+    total_referrer: 'Total Referrer',
+    total_referee: 'Total Referee',
+    register_points: 'Poin Registrasi',
+    first_tx_points: 'Poin Transaksi Pertama',
+    total_affiliate_points: 'Total Poin Afiliasi',
+    last_point_at: 'Poin Terakhir',
+    registered_referral: 'Referral Terdaftar',
+    first_transaction_referral: 'Transaksi Pertama',
+    unique_users: 'Pengguna Unik',
+    failed_count: 'Gagal',
+    failed_logins: 'Login Gagal',
+    wms_sessions: 'Akses WMS',
+    store_sessions: 'Akses Toko',
+    ecommerce_sessions: 'Akses Ecommerce',
+    backoffice_sessions: 'Akses Master Data & Report',
+    today_sessions: 'Akses Hari Ini',
+    total_sessions: 'Total Akses',
+    total_pending: 'Total Gantung',
+    affected_stores: 'Cabang Terdampak',
+    oldest_age_days: 'Umur Terlama (hari)',
+    over_seven_days: 'Lebih dari 7 Hari',
+    max_age_days: 'Umur Maksimal',
+    total_anomalies: 'Total Anomali',
+    total_payments: 'Total Pembayaran',
+    total_sales: 'Total Penjualan',
+    total_paid: 'Total Dibayar',
+    total_change: 'Total Kembalian',
+    total_recorded: 'Total Tercatat',
+    total_recording_difference: 'Total Selisih Pencatatan',
+    total_change_difference: 'Total Selisih Kembalian',
+    total_flow_difference: 'Total Selisih Rantai',
+    total_quantity_gap: 'Total Selisih Qty',
+    method: 'Metode',
+    amount: 'Nominal',
 };
 
 const HIDDEN_COLUMNS = new Set([
@@ -945,6 +1145,7 @@ const HIDDEN_COLUMNS = new Set([
     'rfid_list',
     'item_conditions',
     'show_detail_button',
+    'can_decide',
     'url',
     'created_by',
     'updated_by',
@@ -992,6 +1193,29 @@ const CURRENCY_KEYS = new Set([
     'total_shipping',
     'gross_sales',
     'net_sales',
+    'available_voucher_value',
+    'used_voucher_value',
+    'difference_value',
+    'discrepancy_value',
+    'total_discrepancy_value',
+    'net_discrepancy_value',
+    'sold_value',
+    'payment_received',
+    'payment_paid',
+    'payment_change',
+    'payment_recorded',
+    'recording_gap',
+    'change_gap',
+    'payment_gap',
+    'payment_gap',
+    'detail_total',
+    'recorded_amount',
+    'total_affiliate_points',
+    'register_points',
+    'first_tx_points',
+    'voucher_discount_value',
+    'discount_amount',
+    'recorded_amount',
 ]);
 
 const LONG_TEXT_KEYS = new Set([
@@ -1573,6 +1797,21 @@ const detailRows = computed<Row[]>(() => {
 
     return Array.isArray(details) ? details as Row[] : [];
 });
+const detailSectionTitle = computed<string>(() => {
+    const detail = detailRows.value[0] ?? {};
+
+    if ('voucher_code' in detail || 'voucher_name' in detail) return 'Daftar Voucher Akun';
+    if ('method' in detail || 'payment_method' in detail) return 'Rincian Metode Pembayaran';
+
+    return 'Detail Produk';
+});
+
+const detailSectionDescription = computed<string>(() =>
+    detailSectionTitle.value === 'Detail Produk'
+        ? 'Detail dokumen dan seluruh baris produk pada data ini.'
+        : 'Detail dokumen dan rincian pendukung pada data ini.',
+);
+
 const detailColumns = computed<TableColumn[]>(() => {
     const keys = new Set<string>();
 
@@ -1596,6 +1835,30 @@ const openRowDetail = (row: Row) => {
 };
 const closeRowDetail = () => {
     selectedRow.value = null;
+};
+
+const hasApprovalActions = computed(() => Boolean((props.urls?.approve || props.urls?.reject) && activeDataset.value?.key === 'rows'));
+
+const decideOpname = (row: Row, action: 'approve' | 'reject') => {
+    const url = action === 'approve' ? props.urls?.approve : props.urls?.reject;
+
+    if (!url) return;
+
+    const sessionId = String(row.session_id ?? '');
+
+    if (!sessionId) return;
+
+    let reason = '';
+
+    if (action === 'reject') {
+        reason = window.prompt('Alasan penolakan sesi stok opname:')?.trim() ?? '';
+
+        if (!reason) return;
+    } else if (!window.confirm('Setujui sesi stok opname ini dan catat keputusan penyesuaian?')) {
+        return;
+    }
+
+    router.post(url.replace('__ID__', sessionId), { reason }, { preserveScroll: true });
 };
 const onDetailKeydown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && selectedRow.value) closeRowDetail();
@@ -1661,6 +1924,7 @@ const summaryLabel = (key: string): string => {
         total_header_qty: 'Qty Header',
         received_today: 'Diterima Hari Ini',
         total_value: 'Total Nilai',
+        total_header_value: 'Total Nilai Header',
         total_nominal: 'Total Nilai',
         total_amount: 'Total Nominal',
         total_transactions: 'Total Transaksi',
@@ -2097,6 +2361,8 @@ const COLUMN_PRIORITY: Record<string, number> = {
     last_mutation_at: 2,
     date: 2,
     grand_total: 3,
+    detail_value: 3,
+    total_header_value: 3,
     total_amount: 3,
     paid_amount: 3,
     total_nominal: 3,
@@ -2818,6 +3084,7 @@ const selectDataset = (key: string) => {
                                 {{ column.label }}
                             </th>
                             <th v-if="hasRowDetails" scope="col" class="text-end">Detail</th>
+                            <th v-if="hasApprovalActions" scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -2866,6 +3133,27 @@ const selectDataset = (key: string) => {
                                 </button>
                                 <span v-else class="text-muted">-</span>
                             </td>
+                            <td v-if="hasApprovalActions" class="text-end">
+                                <template v-if="row.can_decide">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-success me-1"
+                                        title="Setujui sesi opname"
+                                        @click="decideOpname(row, 'approve')"
+                                    >
+                                        <i class="mdi mdi-check" aria-hidden="true"></i>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Tolak sesi opname"
+                                        @click="decideOpname(row, 'reject')"
+                                    >
+                                        <i class="mdi mdi-close" aria-hidden="true"></i>
+                                    </button>
+                                </template>
+                                <span v-else class="text-muted">-</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -2894,7 +3182,7 @@ const selectDataset = (key: string) => {
                     <header class="monitor-modal-header">
                         <div>
                             <h2 id="monitor-detail-title">{{ props.title }}</h2>
-                            <p>Detail dokumen dan seluruh baris produk pada data ini.</p>
+                            <p>{{ detailSectionDescription }}</p>
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Tutup detail dokumen" @click="closeRowDetail">
                             <i class="mdi mdi-close" aria-hidden="true"></i>
@@ -2915,7 +3203,7 @@ const selectDataset = (key: string) => {
                         </dl>
 
                         <section v-if="detailRows.length" class="monitor-detail-products" aria-labelledby="monitor-detail-products-title">
-                            <h3 id="monitor-detail-products-title">Detail Produk</h3>
+                            <h3 id="monitor-detail-products-title">{{ detailSectionTitle }}</h3>
                             <div class="table-responsive">
                                 <table class="table table-sm align-middle monitor-detail-table mb-0">
                                     <thead>
@@ -2936,7 +3224,7 @@ const selectDataset = (key: string) => {
                                 </table>
                             </div>
                         </section>
-                        <p v-else class="text-muted small mb-0">Tidak ada detail produk pada dokumen ini.</p>
+                        <p v-else class="text-muted small mb-0">Tidak ada rincian pendukung pada data ini.</p>
                     </div>
 
                     <footer class="monitor-modal-footer">

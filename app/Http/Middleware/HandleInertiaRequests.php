@@ -23,7 +23,7 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             'branding' => [
                 'name' => 'VeeStore',
-                'tagline' => 'Backoffice',
+                'tagline' => 'Master Data & Report',
                 'logo_url' => asset('assets/img/logo.png'),
             ],
             'auth' => [
@@ -32,6 +32,11 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
+            ],
+            'locale' => app()->getLocale(),
+            'available_locales' => [
+                ['value' => 'id', 'label' => 'ID'],
+                ['value' => 'en', 'label' => 'EN'],
             ],
             'navigation' => fn () => Navigation::forUser($request->user()),
             'promoModule' => fn () => PromoModuleNavigation::forRequest($request),

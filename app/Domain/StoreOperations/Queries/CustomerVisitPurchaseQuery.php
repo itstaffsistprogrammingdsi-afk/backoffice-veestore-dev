@@ -87,6 +87,13 @@ class CustomerVisitPurchaseQuery
             ->join('stores as s', 's.id', '=', 'v.store_id')
             ->whereNull('c.deleted_at')
             ->whereNull('s.deleted_at')
+            ->whereExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('store_visit_payments as svp')
+                    ->join('payments as p', 'p.id', '=', 'svp.payment_id')
+                    ->whereColumn('svp.visit_id', 'v.id')
+                    ->where('p.status', 'paid');
+            })
             ->when($storeId, fn ($query) => $query->where('v.store_id', $storeId))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {
@@ -134,6 +141,13 @@ class CustomerVisitPurchaseQuery
             ->join('stores as s', 's.id', '=', 'v.store_id')
             ->whereNull('c.deleted_at')
             ->whereNull('s.deleted_at')
+            ->whereExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('store_visit_payments as svp')
+                    ->join('payments as p', 'p.id', '=', 'svp.payment_id')
+                    ->whereColumn('svp.visit_id', 'v.id')
+                    ->where('p.status', 'paid');
+            })
             ->when($storeId, fn ($query) => $query->where('v.store_id', $storeId))
             ->when($q !== '', function ($query) use ($q) {
                 $query->where(function ($sub) use ($q) {

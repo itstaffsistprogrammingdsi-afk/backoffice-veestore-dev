@@ -67,12 +67,42 @@ class AssistantController extends Controller
             }
 
             $answer = trim((string) $response);
-            $toolCalls = $logger->calls();
-            $answer = $this->appendSources($answer, $toolCalls);
             $usage = [
                 'input_tokens' => $response->usage->inputTokens ?? null,
                 'output_tokens' => $response->usage->outputTokens ?? null,
             ];
+
+            if ($answer === '' && $response->toolResults->isNotEmpty()) {
+                try {
+                    $finalResponse = (new VeeAssistant($usedModel))
+                        ->withTools([])
+                        ->withMessages($response->messages)
+                        ->prompt(
+                            "Pertanyaan pengguna: {$message}\n\n"
+                            .'Susun jawaban akhir dalam Bahasa Indonesia hanya berdasarkan data tool pada riwayat di atas. '
+                            .'Jangan memanggil tool. Jika sebagian data belum tersedia, sebutkan bagian yang belum bisa dijawab.',
+                            timeout: 120,
+                        );
+
+                    $answer = trim((string) $finalResponse);
+                    $usage['input_tokens'] = ($usage['input_tokens'] ?? 0) + ($finalResponse->usage->inputTokens ?? 0);
+                    $usage['output_tokens'] = ($usage['output_tokens'] ?? 0) + ($finalResponse->usage->outputTokens ?? 0);
+                } catch (Throwable $exception) {
+                    Log::warning('VEE gagal menyusun jawaban akhir.', [
+                        'model' => $usedModel,
+                        'exception' => $exception::class,
+                    ]);
+                }
+            }
+
+            if ($answer === '') {
+                $answer = $response->toolResults->isNotEmpty()
+                    ? 'Data sudah ditemukan, tetapi VEE belum bisa menyusun ringkasan. Coba sebutkan periode, nama produk, atau nama toko yang lebih spesifik.'
+                    : 'VEE belum bisa menyusun jawaban untuk pertanyaan ini. Coba tuliskan pertanyaan dengan periode, nama produk, atau nama toko yang lebih spesifik.';
+            }
+
+            $toolCalls = $logger->calls();
+            $answer = $this->appendSources($answer, $toolCalls);
 
             $messages = $this->messages($request);
             $messages[] = $this->message('user', $message);
@@ -186,6 +216,7 @@ class AssistantController extends Controller
 
             $labels = match ($call['name'] ?? '') {
                 'stock_health' => ['Stok gudang operasional', 'Stok toko operasional'],
+                'product_sales' => ['Penjualan produk POS dan ecommerce per toko'],
                 'business_overview' => match ($focus) {
                     'sales' => ['Transaksi penjualan POS dan ecommerce'],
                     'orders' => ['Pesanan ecommerce, order toko, dan retur'],

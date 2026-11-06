@@ -251,83 +251,310 @@
       "hide_submenu": true,
       "submenu": [
         {
-          "name": "Penjualan",
+          "name": "Penjualan & Pembayaran",
           "slug": "monitoring-sales-payment",
           "submenu": [
-            {"url":"monitoring/payment-income-realtime","name":"Pemasukan & Pembayaran","slug":"monitoring-payment-income-realtime"},
-            {"url":"monitoring/payment-reconciliation","name":"Rekonsiliasi Pembayaran","slug":"monitoring.payment-reconciliation"},
-            {"url":"monitoring/store-payment-transactions","name":"Pembayaran Store","slug":"monitoring-store-payment-transactions"},
-            {"url":"monitoring/ecommerce-payment","name":"Pembayaran Ecommerce","slug":"monitoring-ecommerce-payment"},
-            {"url":"monitoring/omset-cabang","name":"Omset","slug":"monitoring-omset-cabang"},
-            {"url":"monitoring/produk-terlaris","name":"Produk Terlaris","slug":"monitoring-produk-terlaris"},
-            {"url":"monitoring/cashier-shift-report","name":"Shift Kasir","slug":"monitoring-cashier-shift-report"},
-            {"url":"monitoring/void-cancel-customer","name":"Void & Cancel","slug":"monitoring-void-cancel-customer"}
+            {
+              "url": "monitoring/payment-income-realtime",
+              "name": "Pemasukan & Pembayaran",
+              "slug": "monitoring-payment-income-realtime"
+            },
+            {
+              "url": "monitoring/store-payment-transactions",
+              "name": "Metode Pembayaran & Kembalian",
+              "slug": "monitoring-store-payment-transactions"
+            },
+            {
+              "url": "monitoring/payment-reconciliation",
+              "name": "Rekonsiliasi Pembayaran",
+              "slug": "monitoring.payment-reconciliation"
+            },
+            {
+              "url": "monitoring/pending-transactions",
+              "name": "Transaksi Gantung",
+              "slug": "monitoring.pending-transactions"
+            },
+            {
+              "url": "monitoring/transaction-anomalies",
+              "name": "Anomali Transaksi",
+              "slug": "monitoring.transaction-anomalies"
+            },
+            {
+              "url": "monitoring/ecommerce-payment",
+              "name": "Pembayaran Ecommerce",
+              "slug": "monitoring-ecommerce-payment"
+            },
+            {
+              "url": "monitoring/omset-cabang",
+              "name": "Omset",
+              "slug": "monitoring-omset-cabang"
+            },
+            {
+              "url": "monitoring/produk-terlaris",
+              "name": "Produk Terlaris",
+              "slug": "monitoring-produk-terlaris"
+            },
+            {
+              "url": "monitoring/cashier-shift-report",
+              "name": "Shift Kasir",
+              "slug": "monitoring-cashier-shift-report"
+            },
+            {
+              "url": "monitoring/void-cancel-customer",
+              "name": "Void & Cancel",
+              "slug": "monitoring-void-cancel-customer"
+            }
           ]
         },
         {
-          "name": "Pesanan",
+          "name": "Rekomendasi Cabang",
+          "slug": "monitoring-branch-expansion",
+          "submenu": [
+            {
+              "url": "monitoring/branch-expansion",
+              "name": "Rekomendasi Cabang Baru",
+              "slug": "monitoring-branch-expansion"
+            }
+          ]
+        },
+        {
+          "name": "Pesanan & Retur",
           "slug": "monitoring-orders",
           "submenu": [
-            {"url":"monitoring/fulfillment-control","name":"Fulfillment & SLA","slug":"monitoring.fulfillment-control"},
-            {"url":"monitoring/order-handled","name":"Order Handled","slug":"monitoring-order-handled"}
+            {
+              "url": "monitoring/fulfillment-control",
+              "name": "Fulfillment & SLA",
+              "slug": "monitoring.fulfillment-control"
+            },
+            {
+              "url": "monitoring/order-handled",
+              "name": "Order Handled",
+              "slug": "monitoring-order-handled"
+            }
           ]
         },
         {
           "name": "Stok & Logistik",
           "slug": "monitoring-inventory",
           "submenu": [
-            {"url":"monitoring/stok-percabang","name":"Stok per Cabang","slug":"monitoring.stok-percabang"},
-            {"url":"monitoring/stok-wms","name":"Stok Warehouse","slug":"monitoring.stok-wms"},
-            {"url":"monitoring/warehouse-inbound","name":"Warehouse Inbound","slug":"monitoring-warehouse-inbound"},
-            {"url":"monitoring/warehouse-outbound","name":"Warehouse Outbound","slug":"monitoring.warehouse-outbound"},
-            {"url":"monitoring/store-inbound","name":"Store Inbound","slug":"monitoring.store-inbound"},
-            {"url":"monitoring/store-outbound","name":"Store Outbound","slug":"monitoring.store-outbound"},
-            {"url":"monitoring/quality-control","name":"Quality Control","slug":"monitoring.quality-control"},
-            {"url":"monitoring/mutasi-stock-wms","name":"Mutasi Stok WMS","slug":"monitoring-mutasi-stock-wms"},
-            {"url":"monitoring/tracking-barang","name":"Tracking Barang","slug":"monitoring-tracking-barang"},
-            {"url":"monitoring/anomali-item","name":"Anomali Item","slug":"monitoring-anomali-item"},
-            {"url":"monitoring/physical-stocks","name":"Stok Produk","slug":"monitoring-physical-stocks"},
-            {"url":"monitoring/product-slowmoving","name":"Produk Slowmoving","slug":"monitoring-product-slowmoving"},
-            {"url":"monitoring/product-aging","name":"Product Aging","slug":"monitoring-product-aging"},
-            {"url":"monitoring/stok-mendekati-kedaluwarsa","name":"Stok Mendekati Kedaluwarsa","slug":"monitoring-stok-mendekati-kedaluwarsa"},
-            {"url":"monitoring/stok-barier-cabang","name":"Branch Barrier","slug":"monitoring-stok-barier-cabang"},
-            {"url":"monitoring/store-stock-opnames","name":"Store Stok Opname","slug":"monitoring-store-stock-opnames"},
-            {"url":"monitoring/stok-barier-gudang","name":"WMS Barrier","slug":"monitoring-stok-barier-gudang"},
-            {"url":"monitoring/audit-wms-opnames","name":"WMS Stok Opname","slug":"monitoring-audit-wms-opnames"},
-            {"url":"monitoring/barcode-request-report","name":"Laporan Cetak Ulang Label","slug":"monitoring-barcode-request-report"}
+            {
+              "url": "monitoring/stock-movements",
+              "name": "Stok Barang Keluar Masuk",
+              "slug": "monitoring-stock-movements"
+            },
+            {
+              "url": "monitoring/stock-opname-variance",
+              "name": "Stok Opname, Selisih & Penyesuaian",
+              "slug": "monitoring-stock-opname-variance"
+            },
+            {
+              "url": "monitoring/stok-percabang",
+              "name": "Stok per Cabang",
+              "slug": "monitoring.stok-percabang"
+            },
+            {
+              "url": "monitoring/stok-wms",
+              "name": "Stok Warehouse",
+              "slug": "monitoring.stok-wms"
+            },
+            {
+              "url": "monitoring/warehouse-inbound",
+              "name": "Warehouse Inbound",
+              "slug": "monitoring-warehouse-inbound"
+            },
+            {
+              "url": "monitoring/warehouse-outbound",
+              "name": "Warehouse Outbound",
+              "slug": "monitoring.warehouse-outbound"
+            },
+            {
+              "url": "monitoring/store-inbound",
+              "name": "Store Inbound",
+              "slug": "monitoring.store-inbound"
+            },
+            {
+              "url": "monitoring/store-outbound",
+              "name": "Store Outbound",
+              "slug": "monitoring.store-outbound"
+            },
+            {
+              "url": "monitoring/quality-control",
+              "name": "Quality Control",
+              "slug": "monitoring.quality-control"
+            },
+            {
+              "url": "monitoring/mutasi-stock-wms",
+              "name": "Mutasi Stok WMS",
+              "slug": "monitoring-mutasi-stock-wms"
+            },
+            {
+              "url": "monitoring/tracking-barang",
+              "name": "Tracking Barang",
+              "slug": "monitoring-tracking-barang"
+            },
+            {
+              "url": "monitoring/anomali-item",
+              "name": "Anomali Item",
+              "slug": "monitoring-anomali-item"
+            },
+            {
+              "url": "monitoring/physical-stocks",
+              "name": "Stok Produk",
+              "slug": "monitoring-physical-stocks"
+            },
+            {
+              "url": "monitoring/product-slowmoving",
+              "name": "Produk Slowmoving",
+              "slug": "monitoring-product-slowmoving"
+            },
+            {
+              "url": "monitoring/product-aging",
+              "name": "Product Aging",
+              "slug": "monitoring-product-aging"
+            },
+            {
+              "url": "monitoring/stok-mendekati-kedaluwarsa",
+              "name": "Stok Mendekati Kedaluwarsa",
+              "slug": "monitoring-stok-mendekati-kedaluwarsa"
+            },
+            {
+              "url": "monitoring/stok-barier-cabang",
+              "name": "Branch Barrier",
+              "slug": "monitoring-stok-barier-cabang"
+            },
+            {
+              "url": "monitoring/store-stock-opnames",
+              "name": "Store Stok Opname",
+              "slug": "monitoring-store-stock-opnames"
+            },
+            {
+              "url": "monitoring/stok-barier-gudang",
+              "name": "WMS Barrier",
+              "slug": "monitoring-stok-barier-gudang"
+            },
+            {
+              "url": "monitoring/audit-wms-opnames",
+              "name": "WMS Stok Opname",
+              "slug": "monitoring-audit-wms-opnames"
+            },
+            {
+              "url": "monitoring/barcode-request-report",
+              "name": "Laporan Cetak Ulang Label",
+              "slug": "monitoring-barcode-request-report"
+            }
           ]
         },
         {
-          "name": "Customer & Promo",
+          "name": "Pelanggan, Loyalty & Promo",
           "slug": "monitoring-customer-marketing",
           "submenu": [
-            {"url":"monitoring/data-customer","name":"Data Customer","slug":"monitoring-data-customer"},
-            {"url":"monitoring/customer-membership","name":"Customer Membership","slug":"monitoring-customer-membership"},
-            {"url":"monitoring/customer-loyalty-points-report","name":"Customer Loyalty","slug":"monitoring-customer-loyalty-points-report"},
-            {"url":"monitoring/referral-score-report","name":"Referral & Referrer","slug":"monitoring-referral-score-report"},
-            {"url":"monitoring/redeem-point-report","name":"Redeem Point","slug":"monitoring-redeem-point-report"},
-            {"url":"monitoring/diskon","name":"Monitoring Diskon","slug":"monitoring-diskon"},
-            {"url":"monitoring/promo-usage","name":"Promo Usage","slug":"monitoring-promo-usage"},
-            {"url":"monitoring/voucher-reject-report","name":"Voucher Reject","slug":"monitoring-voucher-reject-report"},
-            {"url":"monitoring/request-voucher","name":"Request Voucher","slug":"monitoring-request-voucher"}
+            {
+              "url": "monitoring/data-customer",
+              "name": "Data Customer",
+              "slug": "monitoring-data-customer"
+            },
+            {
+              "url": "monitoring/customer-membership",
+              "name": "Customer Membership",
+              "slug": "monitoring-customer-membership"
+            },
+            {
+              "url": "monitoring/loyalty-accounts",
+              "name": "Loyalty Poin & Voucher per Akun",
+              "slug": "monitoring-loyalty-accounts"
+            },
+            {
+              "url": "monitoring/customer-loyalty-points-report",
+              "name": "Mutasi Poin Loyalty",
+              "slug": "monitoring-customer-loyalty-points-report"
+            },
+            {
+              "url": "monitoring/referral-score-report",
+              "name": "Referral & Afiliasi",
+              "slug": "monitoring-referral-score-report"
+            },
+            {
+              "url": "monitoring/promo-acquisition",
+              "name": "Promo, Poin & Referral",
+              "slug": "monitoring-promo-acquisition"
+            },
+            {
+              "url": "monitoring/redeem-point-report",
+              "name": "Redeem Point",
+              "slug": "monitoring-redeem-point-report"
+            },
+            {
+              "url": "monitoring/diskon",
+              "name": "Monitoring Diskon",
+              "slug": "monitoring-diskon"
+            },
+            {
+              "url": "monitoring/promo-usage",
+              "name": "Promo Usage",
+              "slug": "monitoring-promo-usage"
+            },
+            {
+              "url": "monitoring/voucher-reject-report",
+              "name": "Voucher Reject",
+              "slug": "monitoring-voucher-reject-report"
+            },
+            {
+              "url": "monitoring/request-voucher",
+              "name": "Request Voucher",
+              "slug": "monitoring-request-voucher"
+            }
           ]
         },
         {
-          "name": "Audit & SDM",
+          "name": "Audit & Akses",
           "slug": "monitoring-audit-data",
           "submenu": [
-            {"url":"monitoring/audit-center","name":"Audit & Security","slug":"monitoring.audit-center"},
-            {"url":"monitoring/user-monitoring","name":"User Session Log","slug":"monitoring-user-monitoring"},
-            {"url":"monitoring/employee-shift-attendance","name":"Absensi Karyawan","slug":"monitoring-employee-shift-attendance"},
-            {"url":"monitoring/data-quality","name":"Kualitas Data","slug":"monitoring.data-quality"}
+            {
+              "url": "monitoring/audit-center",
+              "name": "Audit & Security",
+              "slug": "monitoring.audit-center"
+            },
+            {
+              "url": "monitoring/user-monitoring",
+              "name": "Akses Pengguna Harian",
+              "slug": "monitoring-user-monitoring"
+            },
+            {
+              "url": "monitoring/warehouse-user-audit",
+              "name": "Audit Pengguna Gudang",
+              "slug": "monitoring-warehouse-user-audit"
+            },
+            {
+              "url": "monitoring/employee-shift-attendance",
+              "name": "Absensi Karyawan",
+              "slug": "monitoring-employee-shift-attendance"
+            },
+            {
+              "url": "monitoring/data-quality",
+              "name": "Kualitas Data",
+              "slug": "monitoring.data-quality"
+            },
+            {
+              "url": "monitoring/barcode-request-report",
+              "name": "Cetak Ulang Label",
+              "slug": "monitoring-barcode-request-report"
+            }
           ]
         },
         {
           "name": "Supplier",
           "slug": "monitoring-supplier",
           "submenu": [
-            {"url":"monitoring/supplier-insight","name":"Insight Supplier","slug":"monitoring.supplier-insight"},
-            {"url":"reports/supplier-products","name":"Supplier Products","slug":"reports-supplier-products"}
+            {
+              "url": "monitoring/supplier-insight",
+              "name": "Insight Supplier",
+              "slug": "monitoring.supplier-insight"
+            },
+            {
+              "url": "reports/supplier-products",
+              "name": "Supplier Products",
+              "slug": "reports-supplier-products"
+            }
           ]
         }
       ]

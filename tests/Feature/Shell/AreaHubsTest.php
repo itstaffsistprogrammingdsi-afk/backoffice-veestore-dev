@@ -21,7 +21,7 @@ class AreaHubsTest extends TestCase
                 ->has('stats')
                 ->has('urls')
                 ->where('branding.name', 'VeeStore')
-                ->where('branding.tagline', 'Backoffice')
+                ->where('branding.tagline', 'Master Data & Report')
                 ->where('branding.logo_url', asset('assets/img/logo.png'))
                 ->where('urls.stock', route('operations.stock.index'))
                 ->where('urls.inbound', route('operations.inbound.index'))

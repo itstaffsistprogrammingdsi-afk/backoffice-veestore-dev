@@ -85,5 +85,40 @@ class WarehouseInboundExportTest extends TestCase
 
         $this->assertSame('A15:AH16', $sheet->getAutoFilter()->getRange());
         $this->assertSame('A16', $sheet->getFreezePane());
+        $this->assertSame('#,##0', $sheet->getStyle('P16')->getNumberFormat()->getFormatCode());
+        $this->assertSame('#,##0', $sheet->getStyle('R16')->getNumberFormat()->getFormatCode());
+        $this->assertSame('#,##0', $sheet->getStyle('V16')->getNumberFormat()->getFormatCode());
+        $this->assertSame('#,##0', $sheet->getStyle('AB16')->getNumberFormat()->getFormatCode());
+        $this->assertSame('#,##0', $sheet->getStyle('AC16')->getNumberFormat()->getFormatCode());
+        $this->assertSame('#,##0.00', $sheet->getStyle('Z16')->getNumberFormat()->getFormatCode());
+    }
+
+    public function test_it_uses_detail_prices_for_the_value_summary(): void
+    {
+        $rows = collect([
+            (object) [
+                'id' => 'inbound-1',
+                'quantity_item' => 2,
+                'total_sku' => 1,
+                'total_qty' => 2,
+                'grand_total' => 999999,
+            ],
+        ]);
+
+        $detailMap = collect([
+            'inbound-1' => collect([
+                (object) [
+                    'quantity' => 2,
+                    'price_idr' => 0,
+                    'exchange_rate' => null,
+                    'exchange_amount' => null,
+                ],
+            ]),
+        ]);
+
+        $export = new WarehouseInboundExport($rows, $detailMap);
+        $data = $export->array();
+
+        $this->assertSame([1, 1, 2, 0.0], $data[12]);
     }
 }

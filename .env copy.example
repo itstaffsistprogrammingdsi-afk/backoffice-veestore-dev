@@ -11,10 +11,13 @@ APP_FAKER_LOCALE=id_ID
 AI_PROVIDER=nine_router
 NINE_ROUTER_URL=https://your-9router-host/v1
 NINE_ROUTER_API_KEY=
-NINE_ROUTER_MODEL=ocg/deepseek-v4.1-flash
+NINE_ROUTER_MODEL=cx/gpt-5.6-luna
 NINE_ROUTER_AUTO_MODEL=cx/gpt-5.6-luna
+NINE_ROUTER_AUTO_SECONDARY_MODEL=cx/gpt-5.6-sol
 NINE_ROUTER_AUTO_FALLBACK_MODEL=ocg/deepseek-v4.1-flash
-NINE_ROUTER_EXPERT_MODEL=cx/gpt-5.6-sol
+NINE_ROUTER_AUTO_FALLBACK_SECONDARY_MODEL=ocg/glm-5.3-flash
+NINE_ROUTER_EXPERT_MODEL=cx/gpt-6.1-sol
+NINE_ROUTER_EXPERT_FALLBACK_MODEL=ocg/claude-haiku-5-5
 AI_ASSISTANT_MODE=auto
 
 # Token untuk MCP client (Authorization: Bearer ...)

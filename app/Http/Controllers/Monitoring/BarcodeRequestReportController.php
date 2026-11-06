@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\BarcodeRequestReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class BarcodeRequestReportController extends Controller
@@ -48,28 +48,28 @@ class BarcodeRequestReportController extends Controller
             ->pluck('status');
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Barcode Request Report',
-            'description' => 'Laporan monitoring.',
+            'title' => 'Laporan Cetak Ulang Label',
+            'description' => 'Riwayat permintaan cetak label, approval HO/BO, jumlah cetakan, dan pengguna yang mencetak.',
             'data' => [
-            'rows' => $rows,
-            'summary' => $summary,
-            'frequentRequesters' => $frequentRequesters,
-            'frequentReprinters' => $frequentReprinters,
+                'rows' => $rows,
+                'summary' => $summary,
+                'frequentRequesters' => $frequentRequesters,
+                'frequentReprinters' => $frequentReprinters,
 
-            'q' => $filters['q'],
-            'status' => $filters['status'],
-            'storeId' => $filters['store_id'],
-            'requestedBy' => $filters['requested_by'],
-            'printedBy' => $filters['printed_by'],
-            'from' => $filters['from'],
-            'to' => $filters['to'],
-            'perPage' => $filters['per_page'],
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
+                'q' => $filters['q'],
+                'status' => $filters['status'],
+                'storeId' => $filters['store_id'],
+                'requestedBy' => $filters['requested_by'],
+                'printedBy' => $filters['printed_by'],
+                'from' => $filters['from'],
+                'to' => $filters['to'],
+                'perPage' => $filters['per_page'],
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
 
-            'stores' => $stores,
-            'users' => $users,
-            'statuses' => $statuses,
-        ],
+                'stores' => $stores,
+                'users' => $users,
+                'statuses' => $statuses,
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.barcode-request-report.export')],
         ]);
@@ -77,7 +77,7 @@ class BarcodeRequestReportController extends Controller
 
     public function export(Request $request)
     {
-        $filename = 'monitoring-request-cetak-label-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'monitoring-request-cetak-label-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new BarcodeRequestReportExport($request), $filename);
     }
@@ -86,7 +86,7 @@ class BarcodeRequestReportController extends Controller
     {
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -346,7 +346,7 @@ class BarcodeRequestReportController extends Controller
 
     private function applyDeletedAtFilter($query, string $table, ?string $alias = null): void
     {
-        if (!Schema::hasColumn($table, 'deleted_at')) {
+        if (! Schema::hasColumn($table, 'deleted_at')) {
             return;
         }
 

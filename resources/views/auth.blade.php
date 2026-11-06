@@ -22,7 +22,7 @@
         })();
     </script>
 
-    <title>VeeStore Backoffice</title>
+    <title>VeeStore Master Data & Report</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/img/logo.png') }}" />
     <link rel="apple-touch-icon" href="{{ asset('assets/img/logo.png') }}" />
     @vite(['resources/js/app.ts'])

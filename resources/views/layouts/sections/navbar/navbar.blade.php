@@ -657,7 +657,7 @@ if ($user) {
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <span class="navbar-user-copy d-none d-lg-block text-end">
                                 <span class="navbar-user-name">{{ $user->name ?? 'User' }}</span>
-                                <span class="navbar-user-role">{{ session('user_role_name') ?: 'Backoffice' }}</span>
+                                <span class="navbar-user-role">{{ session('user_role_name') ?: 'Master Data & Report' }}</span>
                             </span>
                             <div class="avatar avatar-online">
                                 <img src="{{ asset('assets/img/avatars/1.png') }}" alt="{{ $user->name ?? 'User' }}"
@@ -805,7 +805,7 @@ if ($user) {
                     <div class="profile-label">Akses Aplikasi</div>
                     <div class="d-flex flex-wrap gap-2 mt-2">
                         @foreach([
-                            'Backoffice' => $user->backoffice_access,
+                            'Master Data & Report' => $user->backoffice_access,
                             'POS / Store' => $user->store_access,
                             'Warehouse' => $user->wms_access,
                             'Ecommerce' => $user->ecommerce_access,

@@ -107,12 +107,12 @@ class SystemMapTool extends AssistantTool
             'menu' => $this->menu($search),
             'features' => $features,
             'routes' => $includeRoutes ? $this->routes() : null,
-            'hint' => 'Gunakan data_schema untuk struktur tabel, query_data untuk membaca data, dan business_overview untuk ringkasan penjualan, pesanan, serta stok.',
+            'hint' => 'Gunakan navigation untuk tautan yang sudah difilter sesuai hak akses pengguna. Gunakan data_schema untuk struktur tabel, query_data untuk membaca data, dan business_overview untuk ringkasan penjualan, pesanan, serta stok.',
         ];
     }
 
     /**
-     * @return list<array{name: string, slug: string, url: string}>
+     * @return list<array{name: string, path: string, slug: string, url: string}>
      */
     private function menu(string $search): array
     {
@@ -125,22 +125,27 @@ class SystemMapTool extends AssistantTool
         $payload = json_decode(File::get($path), true);
         $items = [];
 
-        $collect = function (array $nodes) use (&$collect, &$items, $search): void {
+        $collect = function (array $nodes, array $trail = []) use (&$collect, &$items, $search): void {
             foreach ($nodes as $node) {
+                $name = isset($node['name']) ? (string) $node['name'] : '';
+                $breadcrumb = $name !== '' ? [...$trail, $name] : $trail;
+
                 if (isset($node['name'], $node['slug']) && $this->matches($search, [
                     $node['name'],
                     $node['slug'],
                     $node['url'] ?? null,
+                    implode(' > ', $breadcrumb),
                 ])) {
                     $items[] = [
                         'name' => $node['name'],
+                        'path' => implode(' > ', $breadcrumb),
                         'slug' => $node['slug'],
-                        'url' => $node['url'] ?? '',
+                        'url' => $this->normalizeUrl($node['url'] ?? null),
                     ];
                 }
 
                 if (! empty($node['submenu']) && is_array($node['submenu'])) {
-                    $collect($node['submenu']);
+                    $collect($node['submenu'], $breadcrumb);
                 }
             }
         };
@@ -148,6 +153,21 @@ class SystemMapTool extends AssistantTool
         $collect($payload['menu'] ?? []);
 
         return $items;
+    }
+
+    private function normalizeUrl(mixed $url): string
+    {
+        $url = trim((string) ($url ?? ''));
+
+        if ($url === '') {
+            return '';
+        }
+
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://') || str_starts_with($url, '/')) {
+            return $url;
+        }
+
+        return '/'.$url;
     }
 
     /**
