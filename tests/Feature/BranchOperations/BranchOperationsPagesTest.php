@@ -4,6 +4,7 @@ namespace Tests\Feature\BranchOperations;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\InteractsWithBackofficeAdmin;
 use Tests\TestCase;
@@ -27,9 +28,7 @@ class BranchOperationsPagesTest extends TestCase
                 ->has('users')
                 ->has('statuses')
                 ->has('canDecide')
-                ->has('canRequest')
                 ->has('canPrint')
-                ->has('storeItems')
                 ->has('filters')
                 ->has('urls'));
 
@@ -53,17 +52,28 @@ class BranchOperationsPagesTest extends TestCase
 
         $this->assertNotNull($storeItem);
 
-        $this->actingAs($admin)
-            ->post(route('branch-operations.request-label.store'), [
-                'store_id' => $storeItem->store_id,
-                'reason' => 'Label rusak untuk uji cetak ulang',
-                'item_ids' => [$storeItem->item_id],
-            ])
-            ->assertRedirect(route('branch-operations.request-label.index'));
+        $requestId = (string) Str::uuid();
+
+        DB::table('store_label_print_requests')->insert([
+            'id' => $requestId,
+            'store_id' => $storeItem->store_id,
+            'requested_by' => $admin->id,
+            'status' => 'pending',
+            'reason' => 'Label rusak untuk uji cetak ulang',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('store_label_print_request_items')->insert([
+            'id' => (string) Str::uuid(),
+            'label_print_request_id' => $requestId,
+            'item_id' => $storeItem->item_id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $requestRow = DB::table('store_label_print_requests')
-            ->where('store_id', $storeItem->store_id)
-            ->where('reason', 'Label rusak untuk uji cetak ulang')
+            ->where('id', $requestId)
             ->first();
 
         $this->assertNotNull($requestRow);

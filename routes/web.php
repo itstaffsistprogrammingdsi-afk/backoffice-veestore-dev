@@ -476,9 +476,6 @@ Route::middleware('auth')->group(function () {
         Route::get('request-label', [StoreLabelPrintRequestController::class, 'index'])
             ->name('request-label.index');
 
-        Route::post('request-label', [StoreLabelPrintRequestController::class, 'store'])
-            ->name('request-label.store');
-
         Route::post('request-label/{id}/print', [StoreLabelPrintRequestController::class, 'print'])
             ->whereUuid('id')
             ->name('request-label.print');

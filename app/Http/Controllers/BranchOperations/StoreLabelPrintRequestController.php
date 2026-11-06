@@ -132,25 +132,6 @@ class StoreLabelPrintRequestController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        $storeItems = DB::table('store_items as si')
-            ->join('items as i', 'i.id', '=', 'si.item_id')
-            ->join('products as p', 'p.id', '=', 'i.product_id')
-            ->leftJoin('rfid_tags as rt', 'rt.id', '=', 'i.rfid_tag_id')
-            ->join('stores as s', 's.id', '=', 'si.store_id')
-            ->whereNull('s.deleted_at')
-            ->when($accessibleStoreIds !== null, fn ($builder) => $builder->whereIn('si.store_id', $accessibleStoreIds))
-            ->orderBy('s.name')
-            ->orderBy('p.name')
-            ->get([
-                'si.store_id',
-                'si.item_id',
-                'si.category',
-                'p.code as product_code',
-                'p.name as product_name',
-                'i.status as item_status',
-                DB::raw('COALESCE(rt.value, i.id::text) as barcode_value'),
-            ]);
-
         $canDecide = $this->canDecideLabelRequest();
 
         return Inertia::render('BranchOperations/LabelPrintRequests', [
@@ -159,9 +140,7 @@ class StoreLabelPrintRequestController extends Controller
             'stores' => $stores,
             'users' => $users,
             'statuses' => $statuses,
-            'storeItems' => $storeItems,
             'canDecide' => $canDecide,
-            'canRequest' => $this->canRequestLabel(),
             'canPrint' => $this->canPrintLabel(),
             'filters' => [
                 'q' => $q,
@@ -173,68 +152,11 @@ class StoreLabelPrintRequestController extends Controller
             ],
             'urls' => [
                 'index' => route('branch-operations.request-label.index'),
-                'store' => route('branch-operations.request-label.store'),
                 'approve' => route('management.request-labels.approve', ['id' => '__ID__']),
                 'reject' => route('management.request-labels.reject', ['id' => '__ID__']),
                 'print' => route('branch-operations.request-label.print', ['id' => '__ID__']),
             ],
         ]);
-    }
-
-    public function store(Request $request)
-    {
-        abort_unless($this->canRequestLabel(), 403);
-
-        $validated = $request->validate([
-            'store_id' => ['required', 'uuid'],
-            'reason' => ['required', 'string', 'max:500'],
-            'item_ids' => ['required', 'array', 'min:1'],
-            'item_ids.*' => ['required', 'uuid'],
-        ]);
-
-        $accessibleStoreIds = $this->accessibleStoreIds();
-
-        if ($accessibleStoreIds !== null && ! in_array($validated['store_id'], $accessibleStoreIds, true)) {
-            abort(403, 'Toko tidak termasuk akses pengguna.');
-        }
-
-        $validItems = DB::table('store_items')
-            ->where('store_id', $validated['store_id'])
-            ->whereIn('item_id', $validated['item_ids'])
-            ->pluck('item_id')
-            ->all();
-
-        if (count($validItems) !== count(array_unique($validated['item_ids']))) {
-            return back()->with('error', 'Sebagian item tidak berada di toko yang dipilih.');
-        }
-
-        $requestId = (string) Str::uuid();
-
-        DB::transaction(function () use ($validated, $validItems, $requestId) {
-            DB::table('store_label_print_requests')->insert([
-                'id' => $requestId,
-                'store_id' => $validated['store_id'],
-                'requested_by' => auth()->id(),
-                'status' => 'pending',
-                'reason' => $validated['reason'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $rows = collect($validItems)->map(fn ($itemId) => [
-                'id' => (string) Str::uuid(),
-                'label_print_request_id' => $requestId,
-                'item_id' => $itemId,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ])->all();
-
-            DB::table('store_label_print_request_items')->insert($rows);
-        });
-
-        return redirect()
-            ->route('branch-operations.request-label.index')
-            ->with('success', 'Permintaan cetak label dikirim dan menunggu persetujuan HO/BO.');
     }
 
     public function print(Request $request, string $id)
@@ -354,26 +276,6 @@ class StoreLabelPrintRequestController extends Controller
             ->all();
     }
 
-    private function canRequestLabel(): bool
-    {
-        $user = auth()->user();
-
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->can('create label-print-requests') || $user->can('manage label-print-requests')) {
-            return true;
-        }
-
-        $roles = ['superadmin', 'administrator', 'admin', 'management', 'manager', 'store operations'];
-
-        return $user->getRoleNames()
-            ->map(fn ($role) => strtolower(trim($role)))
-            ->contains(fn ($role) => in_array($role, $roles, true))
-            || (bool) $user->store_access;
-    }
-
     private function canPrintLabel(): bool
     {
         $user = auth()->user();
@@ -386,7 +288,7 @@ class StoreLabelPrintRequestController extends Controller
             return true;
         }
 
-        return $this->canDecideLabelRequest() || $this->canRequestLabel();
+        return $this->canDecideLabelRequest();
     }
 
     private function canDecideLabelRequest(): bool
