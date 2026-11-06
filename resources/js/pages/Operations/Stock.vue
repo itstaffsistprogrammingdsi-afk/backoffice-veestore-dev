@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import StockReservationDetailModal from '@/components/StockReservationDetailModal.vue';
 import StoreTransferReconciliationPanel from '@/components/StoreTransferReconciliationPanel.vue';
+import { formatDate, formatNumber } from '@/composables/useFormatters';
 import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
 defineOptions({ layout: AppLayout });
@@ -175,13 +176,6 @@ const openReservationDetail = (product: ProductGroup, warehouse: StockRow) => {
 
 const closeReservationDetail = () => {
     reservationTarget.value = null;
-};
-
-const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
-const formatDate = (value: string | null) => {
-    if (!value) return '-';
-
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
 };
 
 const movementClass = (category: string) => ({

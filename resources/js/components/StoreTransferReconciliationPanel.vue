@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { Link } from '@inertiajs/vue3';
+import { formatDate, formatNumber } from '@/composables/useFormatters';
 import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
 const props = withDefaults(defineProps<{
@@ -23,13 +24,6 @@ const reportUrl = computed(() => {
 
     return `${props.indexUrl}?${params.toString()}`;
 });
-
-const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
-const formatDate = (value: string | null) => {
-    if (!value) return '-';
-
-    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
-};
 </script>
 
 <template>
@@ -75,7 +69,7 @@ const formatDate = (value: string | null) => {
                             <th>Toko</th>
                             <th>Order</th>
                             <th>Gudang</th>
-                            <th class="text-end">Keluar</th>
+                            <th class="text-end">Barang Keluar</th>
                             <th class="text-end">Diterima</th>
                             <th class="text-end">Selisih</th>
                             <th>Status</th>

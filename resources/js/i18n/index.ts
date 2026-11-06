@@ -1,13 +1,12 @@
 import { router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import dictionary from './en.json';
+import { createTranslator, type Locale, type TemplateMatch, type TranslationEntry } from './translator';
 
-type Locale = 'id' | 'en';
+export type { Locale } from './translator';
 
 export const currentLocale = ref<Locale>('id');
 
-const idToEnglish = new Map<string, string>();
-const exactOnlySources = new Set<string>();
 const databaseStatusLabels: Record<string, { id: string; en: string }> = {
   active: { id: 'Aktif', en: 'Active' },
   all: { id: 'Semua', en: 'All' },
@@ -114,9 +113,9 @@ const tableLabelTranslations: Array<{ id: string; en: string }> = [
   { id: 'Semua Gagal QC', en: 'All QC Failed' },
   { id: 'QC Sebagian', en: 'Partial QC' },
   { id: 'Ditolak QC', en: 'QC Rejected' },
-  { id: 'Belum tercatat', en: 'Not recorded' },
+  { id: 'Belum tercatat', en: 'Not Recorded' },
   { id: 'Sudah tercatat', en: 'Recorded' },
-  { id: 'Tercatat sebagian', en: 'Partially recorded' },
+  { id: 'Tercatat sebagian', en: 'Partially Recorded' },
   { id: 'Tanpa barrier', en: 'No barrier' },
   { id: 'Di bawah barrier', en: 'Below barrier' },
   { id: 'Mendekati barrier', en: 'Near barrier' },
@@ -190,108 +189,136 @@ const tableTranslationAliases: Array<{ source: string; id: string; en: string }>
   { source: 'referral_first_tx', id: 'Transaksi Pertama Referral', en: 'Referral First Transaction' },
   { source: 'void_reversal', id: 'Pembalikan Void', en: 'Void Reversal' }
 ];
-const englishToIndonesian = new Map<string, string>(
-  Object.entries({
-    Amount: 'Jumlah',
-    Approval: 'Persetujuan',
-    Approved: 'Disetujui',
-    'Audit Center': 'Pusat Audit',
-    Available: 'Tersedia',
-    Balance: 'Saldo',
-    Brand: 'Merek',
-    Channel: 'Kanal',
-    'Command Center': 'Pusat Komando',
-    Customer: 'Customer',
-    'Customer Demographics': 'Demografi Customer',
-    'Customer Loyalty Point Reward': 'Hadiah Poin Loyalitas Customer',
-    'Customer Loyalty Points Report': 'Laporan Poin Loyalitas Customer',
-    'Customer Membership': 'Keanggotaan Customer',
-    'Customer Point': 'Poin Customer',
-    'Customer Product Preference': 'Preferensi Produk Customer',
-    'Customer Profile': 'Profil Customer',
-    'Customer Profiles': 'Profil Customer',
-    'Customers & Visits': 'Customer dan Kunjungan',
-    Detail: 'Detail',
-    'Download PNG': 'Unduh PNG',
-    'Download SVG': 'Unduh SVG',
-    Edit: 'Ubah',
-    Ecommerce: 'E-commerce',
-    'Employee Shift Attendance': 'Absensi Shift Karyawan',
-    Expired: 'Kedaluwarsa',
-    'Fast Moving': 'Pergerakan Cepat',
-    Gender: 'Jenis Kelamin',
-    Good: 'Baik',
-    'History Customer': 'Riwayat Customer',
-    'History Customer Ecommerce': 'Riwayat Customer E-commerce',
-    Inbound: 'Barang Masuk',
-    Item: 'Barang',
-    Management: 'Manajemen',
-    'Master Data': 'Data Master',
-    Membership: 'Keanggotaan',
-    'Membership Tier': 'Tingkat Keanggotaan',
-    Monitoring: 'Monitoring',
-    Name: 'Nama',
-    Notes: 'Catatan',
-    Order: 'Pesanan',
-    'Order ID': 'ID Pesanan',
-    'Order number...': 'Nomor pesanan...',
-    Outbound: 'Barang Keluar',
-    Parent: 'Induk',
-    Pending: 'Menunggu',
-    Percentage: 'Persentase',
-    'Physical Stocks': 'Stok Fisik',
-    'Print Index': 'Indeks Cetak',
-    'Product Aging': 'Umur Produk',
-    'Product Code': 'Kode Produk',
-    'Product Discounts': 'Diskon Produk',
-    'Product Name': 'Nama Produk',
-    'Product Slowmoving': 'Produk Lambat Bergerak',
-    'Promo Setup': 'Pengaturan Promo',
-    Promos: 'Promo',
-    Qty: 'Jumlah',
-    Quantity: 'Jumlah',
-    Receive: 'Terima',
-    Received: 'Diterima',
-    Reject: 'Tolak',
-    Rejected: 'Ditolak',
-    'Report Voucher': 'Laporan Voucher',
-    Reports: 'Laporan',
-    Request: 'Permintaan',
-    'Request Label': 'Permintaan Label',
-    'Request Voucher': 'Permintaan Voucher',
-    Reserved: 'Dicadangkan',
-    Return: 'Retur',
-    SKU: 'SKU',
-    'Slow Deadstock': 'Stok Mati Lambat',
-    'Slow Moving': 'Lambat Bergerak',
-    Source: 'Sumber',
-    Status: 'Status',
-    Store: 'Toko',
-    Stores: 'Toko',
-    Supplier: 'Pemasok',
-    'Supplier Insight': 'Insight Pemasok',
-    'Supplier Products': 'Produk Pemasok',
-    Threshold: 'Ambang Batas',
-    Tier: 'Tingkat',
-    Total: 'Total',
-    'Total Customer': 'Total Customer',
-    'Total Inbound': 'Total Masuk',
-    'Total Outbound': 'Total Barang Keluar',
-    'Total Spending': 'Total Belanja',
-    Type: 'Tipe',
-    Updated: 'Diperbarui',
-    'User Monitoring': 'Monitoring Pengguna',
-    Value: 'Nilai',
-    'Use your email or username and account password.': 'Gunakan email atau username dan password akun Anda.',
-    'Voucher Usage': 'Penggunaan Voucher',
-    Vouchers: 'Voucher',
-    WA: 'WA',
-    Warehouse: 'Gudang',
-    'Warehouse Inbound': 'Barang Masuk Gudang',
-    'Warehouse Outbound': 'Barang Keluar Gudang',
-    'Warehouse Stock Barriers': 'Barrier Stok Gudang'
-  })
+
+const englishToIndonesian: Record<string, string> = {
+  Amount: 'Jumlah',
+  Approval: 'Persetujuan',
+  Approved: 'Disetujui',
+  'Audit Center': 'Pusat Audit',
+  Available: 'Tersedia',
+  Balance: 'Saldo',
+  Brand: 'Merek',
+  Channel: 'Kanal',
+  'Command Center': 'Pusat Komando',
+  Customer: 'Customer',
+  'Customer Demographics': 'Demografi Customer',
+  'Customer Loyalty Point Reward': 'Hadiah Poin Loyalitas Customer',
+  'Customer Loyalty Points Report': 'Laporan Poin Loyalitas Customer',
+  'Customer Membership': 'Keanggotaan Customer',
+  'Customer Point': 'Poin Customer',
+  'Customer Product Preference': 'Preferensi Produk Customer',
+  'Customer Profile': 'Profil Customer',
+  'Customer Profiles': 'Profil Customer',
+  'Customers & Visits': 'Customer dan Kunjungan',
+  Detail: 'Detail',
+  'Download PNG': 'Unduh PNG',
+  'Download SVG': 'Unduh SVG',
+  Edit: 'Ubah',
+  Ecommerce: 'E-commerce',
+  'Employee Shift Attendance': 'Absensi Shift Karyawan',
+  Expired: 'Kedaluwarsa',
+  'Fast Moving': 'Pergerakan Cepat',
+  Gender: 'Jenis Kelamin',
+  Good: 'Baik',
+  'History Customer': 'Riwayat Customer',
+  'History Customer Ecommerce': 'Riwayat Customer E-commerce',
+  Inbound: 'Barang Masuk',
+  Item: 'Barang',
+  Management: 'Manajemen',
+  'Master Data': 'Data Master',
+  Membership: 'Keanggotaan',
+  'Membership Tier': 'Tingkat Keanggotaan',
+  Monitoring: 'Monitoring',
+  Name: 'Nama',
+  Notes: 'Catatan',
+  Order: 'Pesanan',
+  'Order ID': 'ID Pesanan',
+  'Order number...': 'Nomor pesanan...',
+  Outbound: 'Barang Keluar',
+  Parent: 'Induk',
+  Pending: 'Menunggu',
+  Percentage: 'Persentase',
+  'Physical Stocks': 'Stok Fisik',
+  'Print Index': 'Indeks Cetak',
+  'Product Aging': 'Umur Produk',
+  'Product Code': 'Kode Produk',
+  'Product Discounts': 'Diskon Produk',
+  'Product Name': 'Nama Produk',
+  'Product Slowmoving': 'Produk Lambat Bergerak',
+  'Promo Setup': 'Pengaturan Promo',
+  Promos: 'Promo',
+  Qty: 'Jumlah',
+  Quantity: 'Jumlah',
+  Receive: 'Terima',
+  Received: 'Diterima',
+  Reject: 'Tolak',
+  Rejected: 'Ditolak',
+  'Report Voucher': 'Laporan Voucher',
+  Reports: 'Laporan',
+  Request: 'Permintaan',
+  'Request Label': 'Permintaan Label',
+  'Request Voucher': 'Permintaan Voucher',
+  Reserved: 'Dicadangkan',
+  Return: 'Retur',
+  SKU: 'SKU',
+  'Slow Deadstock': 'Stok Mati Lambat',
+  'Slow Moving': 'Lambat Bergerak',
+  Source: 'Sumber',
+  Status: 'Status',
+  Store: 'Toko',
+  Stores: 'Toko',
+  Supplier: 'Pemasok',
+  'Supplier Insight': 'Insight Pemasok',
+  'Supplier Products': 'Produk Pemasok',
+  Threshold: 'Ambang Batas',
+  Tier: 'Tingkat',
+  Total: 'Total',
+  'Total Customer': 'Total Customer',
+  'Total Inbound': 'Total Masuk',
+  'Total Outbound': 'Total Barang Keluar',
+  'Total Spending': 'Total Belanja',
+  Type: 'Tipe',
+  Updated: 'Diperbarui',
+  'User Monitoring': 'Monitoring Pengguna',
+  Value: 'Nilai',
+  'Use your email or username and account password.': 'Gunakan email atau username dan password akun Anda.',
+  'Voucher Usage': 'Penggunaan Voucher',
+  Vouchers: 'Voucher',
+  WA: 'WA',
+  Warehouse: 'Gudang',
+  'Warehouse Inbound': 'Barang Masuk Gudang',
+  'Warehouse Outbound': 'Barang Keluar Gudang',
+  'Warehouse Stock Barriers': 'Barrier Stok Gudang'
+};
+
+const buildEntries = (): TranslationEntry[] => {
+  const entries: TranslationEntry[] = [];
+
+  for (const [source, translation] of Object.entries(dictionary as Record<string, string>)) {
+    entries.push({ source, translation });
+  }
+
+  for (const [key, labels] of Object.entries(databaseStatusLabels)) {
+    entries.push({ source: key, translation: labels.en, reverse: labels.id });
+    entries.push({ source: labels.id, translation: labels.en, reverse: labels.id });
+  }
+
+  for (const labels of tableLabelTranslations) {
+    entries.push({ source: labels.id, translation: labels.en, reverse: labels.id });
+  }
+
+  for (const alias of tableTranslationAliases) {
+    entries.push({ source: alias.source, translation: alias.en, reverse: alias.id });
+  }
+
+  return entries;
+};
+
+const translator = createTranslator(
+  buildEntries(),
+  Object.entries(englishToIndonesian).map(([source, translation]) => ({ source, translation })),
 );
+
 const attributeNames = ['placeholder', 'title', 'aria-label', 'alt', 'data-label'];
 const skippedTags = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA']);
 const observerConfig: MutationObserverInit = {
@@ -304,41 +331,6 @@ const observerConfig: MutationObserverInit = {
 
 const normalize = (value: string) => value.replace(/\s+/g, ' ').trim();
 
-for (const [source, translation] of Object.entries(dictionary as Record<string, string>)) {
-  if (source === translation) continue;
-
-  idToEnglish.set(normalize(source), translation);
-
-  if (!englishToIndonesian.has(normalize(translation))) {
-    englishToIndonesian.set(normalize(translation), source);
-  }
-}
-
-for (const [raw, labels] of Object.entries(databaseStatusLabels)) {
-  exactOnlySources.add(normalize(raw));
-  idToEnglish.set(normalize(raw), labels.en);
-  idToEnglish.set(normalize(labels.id), labels.en);
-  englishToIndonesian.set(normalize(raw), labels.id);
-  englishToIndonesian.set(normalize(labels.en), labels.id);
-}
-
-for (const labels of tableLabelTranslations) {
-  idToEnglish.set(normalize(labels.id), labels.en);
-  idToEnglish.set(normalize(labels.en), labels.en);
-  englishToIndonesian.set(normalize(labels.id), labels.id);
-  englishToIndonesian.set(normalize(labels.en), labels.id);
-}
-
-for (const alias of tableTranslationAliases) {
-  idToEnglish.set(normalize(alias.source), alias.en);
-  englishToIndonesian.set(normalize(alias.source), alias.id);
-}
-
-let observer: MutationObserver | null = null;
-let scheduled = false;
-const partialEntries = new Map<Locale, Array<[string, string]>>();
-const translationCache = new Map<string, string | null>();
-
 const shouldSkip = (element: Element | null) => {
   if (!element) return false;
   if (skippedTags.has(element.tagName)) return true;
@@ -346,122 +338,8 @@ const shouldSkip = (element: Element | null) => {
   return Boolean(element.closest('[data-no-translate], .notranslate, [translate="no"]'));
 };
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const mapFor = (target: Locale) => (target === 'en' ? idToEnglish : englishToIndonesian);
-
-const entriesFor = (target: Locale) => {
-  const cached = partialEntries.get(target);
-
-  if (cached) return cached;
-
-  const entries = [...mapFor(target).entries()]
-    .filter(([source, replacement]) => source.length > 1 && source !== replacement && !exactOnlySources.has(source))
-    .sort(([left], [right]) => right.length - left.length);
-
-  partialEntries.set(target, entries);
-
-  return entries;
-};
-
-const listingUnits: Record<string, { id: string; en: string }> = {
-  baris: { id: 'baris', en: 'rows' },
-  customer: { id: 'customer', en: 'customers' },
-  data: { id: 'data', en: 'records' },
-  export: { id: 'export', en: 'exports' },
-  order: { id: 'order', en: 'orders' },
-  retur: { id: 'retur', en: 'returns' },
-  transaksi: { id: 'transaksi', en: 'transactions' },
-  user: { id: 'user', en: 'users' }
-};
-
-const translateListing = (value: string, target: Locale) => {
-  if (target === 'en') {
-    const match = value.match(
-      /^Menampilkan\s+(.+?)\s*-\s*(.+?)\s+dari\s+(.+?)\s+(baris|customer|data|export|order|retur|transaksi|user)$/i
-    );
-
-    if (!match) return undefined;
-
-    return `Showing ${match[1]} - ${match[2]} of ${match[3]} ${listingUnits[match[4].toLowerCase()].en}`;
-  }
-
-  const match = value.match(
-    /^Showing\s+(.+?)\s*-\s*(.+?)\s+of\s+(.+?)\s+(rows|customers|records|exports|orders|returns|transactions|users)$/i
-  );
-
-  if (!match) return undefined;
-
-  const unit = Object.values(listingUnits).find(entry => entry.en === match[4].toLowerCase());
-
-  return unit ? `Menampilkan ${match[1]} - ${match[2]} dari ${match[3]} ${unit.id}` : undefined;
-};
-
-const translateValue = (value: string, target: Locale) => {
-  const normalized = normalize(value);
-
-  if (!normalized) return undefined;
-
-  const cacheKey = `${target}:${normalized}`;
-
-  if (translationCache.has(cacheKey)) {
-    return translationCache.get(cacheKey) ?? undefined;
-  }
-
-  const map = mapFor(target);
-  const exact = map.get(normalized);
-
-  if (exact) {
-    translationCache.set(cacheKey, exact);
-
-    return exact;
-  }
-
-  const listing = translateListing(normalized, target);
-
-  if (listing) {
-    translationCache.set(cacheKey, listing);
-
-    return listing;
-  }
-
-  let translated = normalized;
-
-  for (const [source, replacement] of entriesFor(target)) {
-    const lowerTranslated = translated.toLocaleLowerCase();
-    const lowerSource = source.toLocaleLowerCase();
-
-    if (source === normalized || !lowerTranslated.includes(lowerSource)) continue;
-
-    const lowerReplacement = replacement.toLocaleLowerCase();
-
-    if (lowerReplacement.includes(lowerSource) && lowerTranslated.includes(lowerReplacement)) continue;
-
-    const pattern = new RegExp(`(^|[^A-Za-z0-9À-ÿ])${escapeRegExp(source)}(?=$|[^A-Za-z0-9À-ÿ])`, 'gi');
-
-    translated = translated.replace(pattern, (_, prefix: string) => `${prefix}${replacement}`);
-  }
-
-  const result = translated === normalized ? null : translated;
-  translationCache.set(cacheKey, result);
-
-  return result ?? undefined;
-};
-
-const translateText = (node: Text, target: Locale) => {
-  if (shouldSkip(node.parentElement)) return;
-
-  const raw = node.nodeValue ?? '';
-  const content = raw.trim();
-  const translated = translateValue(content, target);
-
-  if (!translated) return;
-
-  const leading = raw.match(/^\s*/)?.[0] ?? '';
-  const trailing = raw.match(/\s*$/)?.[0] ?? '';
-
-  node.nodeValue = `${leading}${translated}${trailing}`;
-};
+let observer: MutationObserver | null = null;
+let scheduled = false;
 
 const translateAttributes = (element: Element, target: Locale) => {
   if (shouldSkip(element)) return;
@@ -471,7 +349,7 @@ const translateAttributes = (element: Element, target: Locale) => {
 
     if (!value) continue;
 
-    const translated = translateValue(value, target);
+    const translated = translator.translate(value, target);
 
     if (translated && translated !== value) {
       element.setAttribute(name, translated);
@@ -479,36 +357,164 @@ const translateAttributes = (element: Element, target: Locale) => {
   }
 };
 
-const translateRoot = (root: Node, target: Locale) => {
-  const element = root instanceof Element ? root : null;
+const writeSegment = (
+  group: Text[],
+  segment: string,
+  anchor: Text | null,
+  fallbackParent: Node | null,
+) => {
+  if (group.length > 0) {
+    group[0].nodeValue = segment;
 
-  if (element) translateAttributes(element, target);
-
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
-    acceptNode(node) {
-      if (node.nodeType !== Node.ELEMENT_NODE) return NodeFilter.FILTER_ACCEPT;
-
-      const current = node as Element;
-
-      if (skippedTags.has(current.tagName) || shouldSkip(current)) {
-        return NodeFilter.FILTER_REJECT;
-      }
-
-      return NodeFilter.FILTER_ACCEPT;
-    }
-  });
-
-  let current = walker.nextNode();
-
-  while (current) {
-    if (current.nodeType === Node.ELEMENT_NODE) {
-      translateAttributes(current as Element, target);
-    } else {
-      translateText(current as Text, target);
+    for (let index = 1; index < group.length; index += 1) {
+      group[index].nodeValue = '';
     }
 
-    current = walker.nextNode();
+    return;
   }
+
+  if (!segment) return;
+
+  const parent = anchor?.parentNode ?? fallbackParent;
+
+  if (!parent) return;
+
+  parent.insertBefore(document.createTextNode(segment), anchor);
+};
+
+const alignCaptures = (nodes: Text[], captures: string[]) => {
+  const indexes: number[] = [];
+  let cursor = 0;
+
+  for (const capture of captures) {
+    let found = -1;
+
+    for (let index = cursor; index < nodes.length; index += 1) {
+      if (normalize(nodes[index].nodeValue ?? '') === capture) {
+        found = index;
+        break;
+      }
+    }
+
+    if (found === -1) return null;
+
+    indexes.push(found);
+    cursor = found + 1;
+  }
+
+  return indexes;
+};
+
+const applyMatch = (nodes: Text[], dynamicIndexes: number[], match: TemplateMatch) => {
+  const groups: Text[][] = [];
+  const fallbackParent = nodes[0]?.parentNode ?? null;
+  let start = 0;
+
+  for (const index of dynamicIndexes) {
+    groups.push(nodes.slice(start, index));
+    start = index + 1;
+  }
+
+  groups.push(nodes.slice(start));
+
+  for (let index = 0; index < groups.length; index += 1) {
+    const anchor = dynamicIndexes[index] !== undefined
+      ? nodes[dynamicIndexes[index]]
+      : null;
+
+    writeSegment(groups[index], match.segments[index] ?? '', anchor, fallbackParent);
+  }
+
+  for (let index = 0; index < dynamicIndexes.length; index += 1) {
+    if (!match.translateFlags[index]) continue;
+
+    const node = nodes[dynamicIndexes[index]];
+    const value = match.values[index];
+
+    if (!node || normalize(node.nodeValue ?? '') === value) continue;
+
+    const raw = node.nodeValue ?? '';
+    const leading = raw.match(/^\s*/)?.[0] ?? '';
+    const trailing = raw.match(/\s*$/)?.[0] ?? '';
+
+    node.nodeValue = `${leading}${value}${trailing}`;
+  }
+};
+
+const translateTextNode = (node: Text, target: Locale) => {
+  const raw = node.nodeValue ?? '';
+  const content = raw.trim();
+  const translated = translator.translate(content, target);
+
+  if (!translated || translated === content) return;
+
+  const leading = raw.match(/^\s*/)?.[0] ?? '';
+  const trailing = raw.match(/\s*$/)?.[0] ?? '';
+
+  node.nodeValue = `${leading}${translated}${trailing}`;
+};
+
+const translateRun = (nodes: Text[], target: Locale) => {
+  if (nodes.length === 1) {
+    translateTextNode(nodes[0], target);
+
+    return;
+  }
+
+  const raw = nodes.map((node) => node.nodeValue ?? '').join('');
+  const content = normalize(raw);
+
+  if (!content) return;
+
+  const match = translator.match(content, target);
+
+  if (match) {
+    const dynamicIndexes = alignCaptures(nodes, match.captures);
+
+    if (dynamicIndexes) {
+      applyMatch(nodes, dynamicIndexes, match);
+
+      return;
+    }
+  }
+
+  for (const node of nodes) {
+    translateTextNode(node, target);
+  }
+};
+
+const translateElement = (element: Element, target: Locale) => {
+  if (shouldSkip(element)) return;
+
+  translateAttributes(element, target);
+
+  let run: Text[] = [];
+
+  const flush = () => {
+    if (run.length > 0) translateRun(run, target);
+
+    run = [];
+  };
+
+  for (const child of Array.from(element.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      run.push(child as Text);
+
+      continue;
+    }
+
+    flush();
+
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const childElement = child as Element;
+
+      if (!skippedTags.has(childElement.tagName)) {
+        translateElement(childElement, target);
+      }
+    }
+  }
+
+  flush();
 };
 
 const translateTitle = (target: Locale) => {
@@ -516,7 +522,7 @@ const translateTitle = (target: Locale) => {
 
   if (!match) return;
 
-  const translated = translateValue(match[1], target);
+  const translated = translator.translate(match[1], target);
 
   if (translated) {
     document.title = `${translated}${match[2]}`;
@@ -525,7 +531,7 @@ const translateTitle = (target: Locale) => {
 
 const translateDocument = () => {
   observer?.disconnect();
-  translateRoot(document.body, currentLocale.value);
+  translateElement(document.body, currentLocale.value);
   translateTitle(currentLocale.value);
   observer?.observe(document.body, observerConfig);
 };
