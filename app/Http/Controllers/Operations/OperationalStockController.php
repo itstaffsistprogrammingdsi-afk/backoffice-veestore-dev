@@ -14,12 +14,15 @@ class OperationalStockController extends Controller
         $q = trim((string) $request->query('q', ''));
         $warehouseId = trim((string) $request->query('warehouse_id', ''));
         $warehouseId = $warehouseId !== '' ? $warehouseId : null;
+        $movement = trim((string) $request->query('movement', ''));
+        $movement = in_array($movement, ['slow', 'fast'], true) ? $movement : null;
 
         return Inertia::render('Operations/Stock', [
-            ...$query->build($q, $warehouseId),
+            ...$query->build($q, $warehouseId, $movement),
             'filters' => [
                 'q' => $q,
                 'warehouse_id' => $warehouseId,
+                'movement' => $movement,
             ],
             'urls' => [
                 'index' => route('operations.stock.index'),
@@ -27,6 +30,7 @@ class OperationalStockController extends Controller
                 'ecommerce_orders' => route('ecommerce.orders.index'),
                 'stock_wms' => route('monitoring.stok-wms'),
                 'stock_barriers' => route('monitoring.stok-barier-gudang.index'),
+                'email_alert_settings' => route('settings.stock-barrier-alerts.edit'),
                 'outbound_report' => route('monitoring.warehouse-outbound.index'),
                 'reservations' => route('monitoring.stok-wms.reservations'),
             ],

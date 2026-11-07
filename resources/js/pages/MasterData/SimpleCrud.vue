@@ -28,6 +28,15 @@ interface Column {
     key: string;
     label: string;
     align?: 'start' | 'end' | 'center';
+    type?: 'text' | 'image';
+}
+
+interface ScanConfig {
+    url: string;
+    field: string;
+    imageUrlKey?: string;
+    title?: string;
+    hint?: string;
 }
 
 interface SelectFilter {
@@ -62,6 +71,7 @@ interface Props {
     items: Paginator<Record<string, any>>;
     columns: Column[];
     fields: Field[];
+    scan?: ScanConfig | null;
     rowActions?: RowAction[];
     filters: { q: string };
     extraFilters?: SelectFilter[];
@@ -84,6 +94,12 @@ const extraSearch = reactive<Record<string, string>>(
 );
 const showCreate = ref(false);
 const editingId = ref<string | null>(null);
+const scanLoading = ref(false);
+const scanError = ref('');
+const scanSuccess = ref('');
+const scanWarnings = ref<string[]>([]);
+const scannedImageUrl = ref<string | null>(null);
+const existingImageUrl = ref<string | null>(null);
 
 const emptyPayload = () => Object.fromEntries(
     props.fields
@@ -103,6 +119,10 @@ const payloadForSubmit = (source: Record<string, any>) => {
         }
     }
 
+    if (props.scan && !(payload[props.scan.field] instanceof File)) {
+        delete payload[props.scan.field];
+    }
+
     return payload;
 };
 
@@ -112,6 +132,123 @@ const onFileChange = (key: string, event: Event) => {
 
     createForm[key] = file;
     editForm[key] = file;
+};
+
+const clearScanFile = () => {
+    if (!props.scan) return;
+
+    delete createForm[props.scan.field];
+    delete editForm[props.scan.field];
+};
+
+const releaseScanPreview = () => {
+    if (scannedImageUrl.value?.startsWith('blob:')) {
+        URL.revokeObjectURL(scannedImageUrl.value);
+    }
+
+    scannedImageUrl.value = null;
+};
+
+const resetScanState = () => {
+    releaseScanPreview();
+    scanError.value = '';
+    scanSuccess.value = '';
+    scanWarnings.value = [];
+    existingImageUrl.value = null;
+};
+
+const applyScannedData = (isEdit: boolean, data: Record<string, any>) => {
+    const form = formFor(isEdit);
+
+    for (const field of props.fields) {
+        if (field.type === 'map') continue;
+
+        const value = data[field.key];
+
+        if (value === undefined || value === null || value === '') continue;
+
+        if (field.type === 'multiselect') {
+            if (Array.isArray(value)) {
+                form[field.key] = value.map((item) => String(item));
+            }
+
+            continue;
+        }
+
+        if (field.type === 'select') {
+            const stringValue = String(value);
+            const options = field.options ?? [];
+
+            if (options.length > 0 && !options.some((option) => option.value === stringValue)) {
+                continue;
+            }
+
+            form[field.key] = stringValue;
+            continue;
+        }
+
+        form[field.key] = String(value);
+    }
+};
+
+const scanVoucherImage = async (file: File, isEdit: boolean) => {
+    if (!props.scan) return;
+
+    const targetIsEdit = isEdit;
+    const form = formFor(targetIsEdit);
+    form[props.scan.field] = file;
+
+    releaseScanPreview();
+    scannedImageUrl.value = URL.createObjectURL(file);
+    scanLoading.value = true;
+    scanError.value = '';
+    scanSuccess.value = '';
+    scanWarnings.value = [];
+
+    const body = new FormData();
+    body.append(props.scan.field, file);
+
+    const token = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+
+    try {
+        const response = await fetch(props.scan.url, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': token,
+            },
+            body,
+            credentials: 'same-origin',
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            const validationMessage = payload?.errors?.[props.scan.field]?.[0];
+            throw new Error(validationMessage ?? payload?.message ?? 'Gambar voucher gagal dibaca.');
+        }
+
+        if (targetIsEdit !== Boolean(editingId.value)) {
+            return;
+        }
+
+        applyScannedData(targetIsEdit, payload.data ?? {});
+        scanWarnings.value = Array.isArray(payload.warnings) ? payload.warnings : [];
+        scanSuccess.value = 'Data voucher berhasil dibaca. Periksa kembali sebelum menyimpan.';
+    } catch (error) {
+        scanError.value = error instanceof Error ? error.message : 'Gambar voucher gagal dibaca.';
+    } finally {
+        scanLoading.value = false;
+    }
+};
+
+const onScanFileChange = (event: Event, isEdit: boolean) => {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) return;
+
+    void scanVoucherImage(file, isEdit);
 };
 
 const setCoordinates = (isEdit: boolean, field: Field, value: { latitude: number; longitude: number } | null) => {
@@ -212,6 +349,8 @@ const resetSearch = () => {
 const openCreate = () => {
     createForm.reset();
     createForm.clearErrors();
+    clearScanFile();
+    resetScanState();
     showCreate.value = true;
     editingId.value = null;
 };
@@ -219,6 +358,8 @@ const openCreate = () => {
 const cancelCreate = () => {
     showCreate.value = false;
     createForm.reset();
+    clearScanFile();
+    resetScanState();
 };
 
 const submitCreate = () => {
@@ -230,6 +371,8 @@ const submitCreate = () => {
             onSuccess: () => {
                 showCreate.value = false;
                 createForm.reset();
+                clearScanFile();
+                resetScanState();
             },
         });
 };
@@ -237,6 +380,10 @@ const submitCreate = () => {
 const startEdit = (row: Record<string, any>) => {
     editingId.value = String(row.id);
     editForm.clearErrors();
+    resetScanState();
+    existingImageUrl.value = props.scan?.imageUrlKey
+        ? (row[props.scan.imageUrlKey] ?? null)
+        : null;
 
     for (const field of props.fields) {
         if (field.type === 'map') continue;
@@ -250,6 +397,8 @@ const startEdit = (row: Record<string, any>) => {
 const cancelEdit = () => {
     editingId.value = null;
     editForm.reset();
+    clearScanFile();
+    resetScanState();
 };
 
 const submitEdit = () => {
@@ -263,6 +412,8 @@ const submitEdit = () => {
             onSuccess: () => {
                 editingId.value = null;
                 editForm.reset();
+                clearScanFile();
+                resetScanState();
             },
         });
 };
@@ -360,6 +511,33 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="cancelCreate">Tutup</button>
             </div>
             <div class="card-body">
+                <div v-if="props.scan" class="crud-scan">
+                    <div class="crud-scan-copy">
+                        <strong>{{ props.scan.title ?? 'Upload gambar' }}</strong>
+                        <p>{{ props.scan.hint ?? 'Sistem akan membaca data dari gambar secara otomatis.' }}</p>
+                        <input
+                            class="form-control form-control-sm"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            :disabled="scanLoading"
+                            aria-label="Upload gambar voucher"
+                            @change="onScanFileChange($event, false)"
+                        />
+                        <div v-if="scanLoading" class="crud-scan-status" role="status">
+                            <i class="mdi mdi-loading mdi-spin me-1"></i>
+                            Membaca gambar voucher...
+                        </div>
+                        <div v-else-if="scanError" class="text-danger small mt-2" role="alert">{{ scanError }}</div>
+                        <div v-else-if="createForm.errors.voucher_image" class="text-danger small mt-2" role="alert">{{ createForm.errors.voucher_image }}</div>
+                        <div v-else-if="scanSuccess" class="text-success small mt-2" role="status">{{ scanSuccess }}</div>
+                        <ul v-if="scanWarnings.length > 0" class="crud-scan-warnings">
+                            <li v-for="warning in scanWarnings" :key="warning">{{ warning }}</li>
+                        </ul>
+                    </div>
+                    <div v-if="scannedImageUrl" class="crud-scan-preview">
+                        <img :src="scannedImageUrl" alt="Pratinjau gambar voucher" />
+                    </div>
+                </div>
                 <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
                     <div v-for="field in fields" :key="field.key" :class="field.type === 'map' ? 'col-12' : 'col-md-4'">
                         <label class="form-label">{{ field.label }}</label>
@@ -418,7 +596,15 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                     <tbody>
                         <template v-for="row in items.data" :key="row.id">
                             <tr>
-                                <td v-for="column in columns" :key="column.key" :class="`text-${column.align ?? 'start'}`">{{ display(row, column.key) }}</td>
+                                <td v-for="column in columns" :key="column.key" :class="`text-${column.align ?? 'start'}`">
+                                    <template v-if="column.type === 'image'">
+                                        <a v-if="row[column.key]" :href="row[column.key]" target="_blank" rel="noopener">
+                                            <img class="crud-thumb" :src="row[column.key]" :alt="column.label" loading="lazy" />
+                                        </a>
+                                        <span v-else class="text-muted">-</span>
+                                    </template>
+                                    <template v-else>{{ display(row, column.key) }}</template>
+                                </td>
                                 <td class="text-end crud-actions">
                                     <div class="d-inline-flex align-items-center gap-1">
                                         <template v-if="editingId === String(row.id)">
@@ -441,6 +627,33 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             </tr>
                             <tr v-if="editingId === String(row.id)">
                                 <td :colspan="columns.length + 1" class="crud-edit">
+                                    <div v-if="props.scan" class="crud-scan mb-3">
+                                        <div class="crud-scan-copy">
+                                            <strong>{{ props.scan.title ?? 'Upload gambar' }}</strong>
+                                            <p>{{ props.scan.hint ?? 'Sistem akan membaca data dari gambar secara otomatis.' }}</p>
+                                            <input
+                                                class="form-control form-control-sm"
+                                                type="file"
+                                                accept="image/jpeg,image/png,image/webp"
+                                                :disabled="scanLoading"
+                                                aria-label="Upload gambar voucher pengganti"
+                                                @change="onScanFileChange($event, true)"
+                                            />
+                                            <div v-if="scanLoading" class="crud-scan-status" role="status">
+                                                <i class="mdi mdi-loading mdi-spin me-1"></i>
+                                                Membaca gambar voucher...
+                                            </div>
+                                            <div v-else-if="scanError" class="text-danger small mt-2" role="alert">{{ scanError }}</div>
+                                            <div v-else-if="editForm.errors.voucher_image" class="text-danger small mt-2" role="alert">{{ editForm.errors.voucher_image }}</div>
+                                            <div v-else-if="scanSuccess" class="text-success small mt-2" role="status">{{ scanSuccess }}</div>
+                                            <ul v-if="scanWarnings.length > 0" class="crud-scan-warnings">
+                                                <li v-for="warning in scanWarnings" :key="warning">{{ warning }}</li>
+                                            </ul>
+                                        </div>
+                                        <div v-if="scannedImageUrl || existingImageUrl" class="crud-scan-preview">
+                                            <img :src="scannedImageUrl || existingImageUrl || ''" alt="Pratinjau gambar voucher" />
+                                        </div>
+                                    </div>
                                     <form class="row g-2 align-items-end" @submit.prevent="submitEdit">
                                         <div v-for="field in fields" :key="field.key" :class="field.type === 'map' ? 'col-12' : 'col-md-4'">
                                             <label class="form-label">{{ field.label }}</label>
@@ -507,9 +720,18 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
 .crud-card th { color: var(--crud-muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
 .crud-actions { white-space: nowrap; }
 .crud-actions .btn { padding: .25rem .4rem; }
+.crud-thumb { width: 52px; height: 52px; border: 1px solid var(--crud-border); border-radius: .45rem; object-fit: cover; background: var(--app-surface-2); }
+.crud-scan { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: .85rem .95rem; border: 1px dashed var(--crud-border); border-radius: .7rem; background: var(--app-surface-2); }
+.crud-scan-copy { flex: 1 1 auto; min-width: 0; }
+.crud-scan-copy strong { display: block; margin-bottom: .2rem; font-size: .86rem; }
+.crud-scan-copy p { margin: 0 0 .6rem; color: var(--crud-muted); font-size: .76rem; line-height: 1.5; }
+.crud-scan-status { margin-top: .5rem; color: var(--crud-muted); font-size: .78rem; }
+.crud-scan-warnings { margin: .5rem 0 0; padding-left: 1.1rem; color: var(--app-warning-ink); font-size: .76rem; }
+.crud-scan-preview { flex: 0 0 auto; }
+.crud-scan-preview img { display: block; width: 132px; max-height: 132px; border: 1px solid var(--crud-border); border-radius: .55rem; object-fit: contain; background: #fff; }
 .crud-edit { background: var(--app-surface-2); }
 .crud-empty { padding: 2.5rem 1rem; color: var(--crud-muted); text-align: center; }
 .crud-filter-select { width: auto; min-width: 140px; }
-@media (max-width: 767.98px) { .crud-header { align-items: flex-start; flex-direction: column; } }
-@media (max-width: 575.98px) { .crud-filter-select { width: 100%; } }
+@media (max-width: 767.98px) { .crud-header { align-items: flex-start; flex-direction: column; } .crud-scan { flex-direction: column; } }
+@media (max-width: 575.98px) { .crud-filter-select { width: 100%; } .crud-scan-preview img { width: 100%; max-height: 180px; } }
 </style>

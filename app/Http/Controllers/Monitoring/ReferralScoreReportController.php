@@ -13,6 +13,17 @@ class ReferralScoreReportController extends Controller
 {
     public function index(Request $request)
     {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Referral & Afiliasi',
+            'description' => 'Pantau referral, referrer, status transaksi pertama, dan poin afiliasi yang diperoleh.',
+            'data' => $this->reportData($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.referral-score-report.export')],
+        ]);
+    }
+
+    public function reportData(Request $request): array
+    {
         $q = trim((string) $request->query('q', ''));
         $status = $this->normalizeNullableString($request->query('status'));
         $referrerId = $this->normalizeNullableString($request->query('referrer_id'));
@@ -220,30 +231,24 @@ class ReferralScoreReportController extends Controller
         $summary->total_affiliate_referrer = $affiliateRows->count();
         $summary->total_first_transaction_referral = (int) $affiliateRows->sum('first_transaction_referral');
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Referral & Afiliasi',
-            'description' => 'Pantau referral, referrer, status transaksi pertama, dan poin afiliasi yang diperoleh.',
-            'data' => compact(
-                'rows',
-                'q',
-                'status',
-                'referrerId',
-                'from',
-                'to',
-                'referrers',
-                'statuses',
-                'summary',
-                'topReferrers',
-                'topReferrerChartRows',
-                'statusChartRows',
-                'trendRows',
-                'topCodeRows',
-                'latestReferralRows',
-                'affiliateRows'
-            ),
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.referral-score-report.export')],
-        ]);
+        return compact(
+            'rows',
+            'q',
+            'status',
+            'referrerId',
+            'from',
+            'to',
+            'referrers',
+            'statuses',
+            'summary',
+            'topReferrers',
+            'topReferrerChartRows',
+            'statusChartRows',
+            'trendRows',
+            'topCodeRows',
+            'latestReferralRows',
+            'affiliateRows'
+        );
     }
 
     public function export(Request $request)

@@ -13,7 +13,22 @@ class VoucherReportController extends Controller
 {
     public function index(Request $request)
     {
+        $data = $this->reportData($request);
 
+        return Inertia::render('Reports/Voucher', [
+            'vouchers' => $data['vouchers'],
+            'voucherList' => $data['voucherList'],
+            'filters' => $data['filters'],
+            'urls' => [
+                'index' => route('reports.voucher.index'),
+                'export' => route('reports.voucher.export'),
+                'detail' => route('reports.voucher.detail', ['id' => '__ID__']),
+            ],
+        ]);
+    }
+
+    public function reportData(Request $request): array
+    {
         $voucher = $request->voucher;
         $start = $request->start;
         $end = $request->end;
@@ -93,7 +108,7 @@ count(distinct case when sc.status='paid' then sc.id end)
             ->orderBy('code')
             ->pluck('code');
 
-        return Inertia::render('Reports/Voucher', [
+        return [
             'vouchers' => $vouchers,
             'voucherList' => $voucherList,
             'filters' => [
@@ -101,13 +116,7 @@ count(distinct case when sc.status='paid' then sc.id end)
                 'start' => $start,
                 'end' => $end,
             ],
-            'urls' => [
-                'index' => route('reports.voucher.index'),
-                'export' => route('reports.voucher.export'),
-                'detail' => route('reports.voucher.detail', ['id' => '__ID__']),
-            ],
-        ]);
-
+        ];
     }
 
     public function export(Request $request)

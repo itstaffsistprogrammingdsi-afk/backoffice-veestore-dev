@@ -1,17 +1,10 @@
 {
   "menu": [
     {
-      "url": "/",
-      "name": "Dashboard",
-      "icon": "menu-icon tf-icons mdi mdi-home-outline",
-      "slug": "dashboard",
-      "submenu": [
-        {
-          "url": "/",
-          "name": "Analytics",
-          "slug": "dashboard-analytics"
-        }
-      ]
+      "url": "reports/business-overview",
+      "name": "Ringkasan Usaha",
+      "icon": "menu-icon tf-icons mdi mdi-view-dashboard-outline",
+      "slug": "reports-business-overview"
     },
     {
       "url": "ecommerce/orders",
@@ -404,18 +397,13 @@
             },
             {
               "url": "monitoring/product-slowmoving",
-              "name": "Produk Slowmoving",
+              "name": "Slow Moving & Kedaluwarsa",
               "slug": "monitoring-product-slowmoving"
             },
             {
               "url": "monitoring/product-aging",
               "name": "Product Aging",
               "slug": "monitoring-product-aging"
-            },
-            {
-              "url": "monitoring/stok-mendekati-kedaluwarsa",
-              "name": "Stok Mendekati Kedaluwarsa",
-              "slug": "monitoring-stok-mendekati-kedaluwarsa"
             },
             {
               "url": "monitoring/stok-barier-cabang",
@@ -464,34 +452,14 @@
               "slug": "monitoring-loyalty-accounts"
             },
             {
-              "url": "monitoring/customer-loyalty-points-report",
-              "name": "Mutasi Poin Loyalty",
-              "slug": "monitoring-customer-loyalty-points-report"
-            },
-            {
-              "url": "monitoring/referral-score-report",
-              "name": "Referral & Afiliasi",
-              "slug": "monitoring-referral-score-report"
-            },
-            {
-              "url": "monitoring/promo-acquisition",
-              "name": "Promo, Poin & Referral",
-              "slug": "monitoring-promo-acquisition"
-            },
-            {
-              "url": "monitoring/redeem-point-report",
-              "name": "Redeem Point",
-              "slug": "monitoring-redeem-point-report"
+              "url": "monitoring/promo-loyalty",
+              "name": "Promo, Poin, Referral & Voucher",
+              "slug": "monitoring-promo-loyalty"
             },
             {
               "url": "monitoring/diskon",
               "name": "Monitoring Diskon",
               "slug": "monitoring-diskon"
-            },
-            {
-              "url": "monitoring/promo-usage",
-              "name": "Promo Usage",
-              "slug": "monitoring-promo-usage"
             },
             {
               "url": "monitoring/voucher-reject-report",
@@ -568,6 +536,11 @@
           "url": "settings/app/points",
           "name": "Point Rate",
           "slug": "settings-app-points"
+        },
+        {
+          "url": "settings/app/stock-barrier-alerts",
+          "name": "Barrier Alert Email",
+          "slug": "settings-app-stock-barrier-alerts"
         },
         {
           "url": "settings/app/customer-loyalty-point-transaction-reward",

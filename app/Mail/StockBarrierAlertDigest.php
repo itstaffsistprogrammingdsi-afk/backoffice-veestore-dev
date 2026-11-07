@@ -16,7 +16,16 @@ class StockBarrierAlertDigest extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Peringatan stok mencapai barrier');
+        $mode = (string) ($this->payload['mode'] ?? 'instant');
+
+        $subject = match ($mode) {
+            'daily' => 'Ringkasan harian stok mencapai barrier',
+            'weekly' => 'Ringkasan mingguan stok mencapai barrier',
+            'monthly' => 'Ringkasan bulanan stok mencapai barrier',
+            default => 'Peringatan stok mencapai barrier',
+        };
+
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content

@@ -4,10 +4,8 @@ namespace App\Http\Controllers\Reports;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class StoreReturnApprovalController extends Controller
@@ -93,12 +91,10 @@ class StoreReturnApprovalController extends Controller
 
         $returns = $query->paginate(10)->withQueryString();
         $stores = DB::table('stores')->orderBy('name')->get(['id', 'name']);
-        $warehouses = DB::table('warehouses')->whereNull('deleted_at')->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Reports/Returns', [
             'returns' => $returns,
             'stores' => $stores,
-            'warehouses' => $warehouses,
             'statuses' => $this->allowedStatuses,
             'filters' => [
                 'q' => $q,
@@ -109,8 +105,7 @@ class StoreReturnApprovalController extends Controller
             'urls' => [
                 'index' => route('reports.retur-cabang.index'),
                 'show' => route('reports.retur-cabang.show', ['return' => '__ID__']),
-                'approve' => route('reports.retur-cabang.approve', ['return' => '__ID__']),
-                'reject' => route('reports.retur-cabang.reject', ['return' => '__ID__']),
+                'approval' => route('operations.store-returns.index'),
             ],
         ]);
     }
@@ -184,109 +179,5 @@ class StoreReturnApprovalController extends Controller
             'header' => $header,
             'details' => $details,
         ]);
-    }
-
-    /**
-     * Approve:
-     * - Validasi warehouse_id (wajib) dan simpan ke header.
-     * - OPSIONAL: menerima approved_qty[product_id] dari modal.
-     * - Untuk tiap product_id, update N baris detail (yang belum approved) menjadi 'approved'.
-     * - Update header ke 'approved'.
-     */
-    public function approve(Request $request, string $returnId)
-    {
-        $row = DB::table('store_returns')->where('id', $returnId)->first();
-        if (! $row) {
-            return back()->withErrors(['retur' => 'Data retur tidak ditemukan.']);
-        }
-
-        $nowStatus = strtolower((string) $row->status);
-        if (! in_array($nowStatus, ['pending_approval', 'requested'], true)) {
-            return back()->withErrors(['status' => 'Retur tidak berada pada status menunggu persetujuan.']);
-        }
-
-        // Wajib pilih warehouse & valid (hanya warehouse aktif, samakan dengan master data)
-        $data = $request->validate([
-            'warehouse_id' => ['required', Rule::exists('warehouses', 'id')->whereNull('deleted_at')],
-            // Jika nanti aktifkan input qty approved per produk:
-            // 'approved_qty'   => ['array'],
-            // 'approved_qty.*' => ['nullable','integer','min:0'],
-        ]);
-
-        /** @var array<string,int|string|null> $approvedMap */
-        $approvedMap = (array) $request->input('approved_qty', []); // opsional
-
-        DB::transaction(function () use ($returnId, $data, $approvedMap) {
-            // OPSIONAL: setujui N item per product_id bila dikirim dari modal
-            foreach ($approvedMap as $productId => $qty) {
-                $productId = (string) $productId;
-                $qty = (int) $qty;
-
-                if ($qty <= 0 || $productId === '') {
-                    continue;
-                }
-
-                // Ambil ID detail yang BELUM approved untuk produk tsb
-                $detailIds = DB::table('store_return_details as d')
-                    ->join('items as i', 'i.id', '=', 'd.item_id')
-                    ->where('d.store_return_id', $returnId)
-                    ->where('i.product_id', $productId)
-                    ->where(function ($q) {
-                        $q->whereNull('d.status')->orWhere('d.status', '!=', 'approved');
-                    })
-                    ->orderBy('d.created_at')
-                    ->limit($qty)
-                    ->pluck('d.id')
-                    ->all();
-
-                if (! empty($detailIds)) {
-                    DB::table('store_return_details')
-                        ->whereIn('id', $detailIds)
-                        ->update([
-                            'status' => 'approved',
-                            'updated_at' => now(),
-                        ]);
-                }
-            }
-
-            // Update header: status approved + simpan warehouse_id
-            DB::table('store_returns')
-                ->where('id', $returnId)
-                ->update([
-                    'status' => 'approved',
-                    'warehouse_id' => $data['warehouse_id'], // SIMPAN WAREHOUSE KE HEADER
-                    'approved_at' => now(),
-                    'approved_by' => Auth::id(),
-                    'updated_at' => now(),
-                ]);
-        });
-
-        return back()->with('success', 'Retur telah disetujui.');
-    }
-
-    public function reject(string $returnId)
-    {
-        $row = DB::table('store_returns')->where('id', $returnId)->first();
-        if (! $row) {
-            return back()->withErrors(['retur' => 'Data retur tidak ditemukan.']);
-        }
-
-        $nowStatus = strtolower((string) $row->status);
-        if (! in_array($nowStatus, ['pending_approval', 'requested', 'draft'], true)) {
-            return back()->withErrors(['status' => 'Retur tidak bisa direject pada status saat ini.']);
-        }
-
-        DB::transaction(function () use ($returnId) {
-            DB::table('store_returns')
-                ->where('id', $returnId)
-                ->update([
-                    'status' => 'rejected',
-                    'approved_at' => null,
-                    'approved_by' => null,
-                    'rejected_at' => now(),
-                ]);
-        });
-
-        return back()->with('success', 'Retur ditolak.');
     }
 }

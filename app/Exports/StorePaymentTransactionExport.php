@@ -16,7 +16,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithStyles, WithTitle
 {
     protected Collection $rows;
+
     protected Collection $paymentMethodSummaries;
+
     protected array $filters;
 
     public function __construct(
@@ -48,18 +50,18 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
 
         $periode = '-';
         if ($startDate !== '-' && $endDate !== '-') {
-            $periode = $startDate . ' s/d ' . $endDate;
+            $periode = $startDate.' s/d '.$endDate;
         }
 
         $data = [
             ['LAPORAN STORE PAYMENT TRANSACTIONS'],
             [''],
-            ['Tanggal Export', ': ' . now()->format('d-m-Y H:i:s')],
-            ['Periode', ': ' . $periode],
-            ['Store', ': ' . $storeName],
-            ['Metode Pembayaran', ': ' . $paymentMethodName],
-            ['Status Payment', ': ' . $paymentStatusLabel],
-            ['Keyword', ': ' . $keyword],
+            ['Tanggal Export', ': '.now()->format('d-m-Y H:i:s')],
+            ['Periode', ': '.$periode],
+            ['Store', ': '.$storeName],
+            ['Metode Pembayaran', ': '.$paymentMethodName],
+            ['Status Payment', ': '.$paymentStatusLabel],
+            ['Keyword', ': '.$keyword],
             [''],
             ['RINGKASAN METODE PEMBAYARAN'],
             ['No', 'Metode Pembayaran', 'Jumlah Transaksi', 'Total Digunakan'],
@@ -103,6 +105,7 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
             'Store Code',
             'Visit Code',
             'Customer',
+            'Cashier',
             'Check In',
             'Check Out',
             'Transaction Number',
@@ -131,6 +134,7 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
                     $row->store_code ?? '-',
                     $row->visit_code ?? '-',
                     $row->customer_name ?? '-',
+                    $row->cashier_name ?? '-',
                     $row->check_in_at ? Carbon::parse($row->check_in_at)->format('d-m-Y H:i:s') : '-',
                     $row->check_out_at ? Carbon::parse($row->check_out_at)->format('d-m-Y H:i:s') : '-',
                     $row->transaction_number ?? '-',
@@ -160,6 +164,7 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
                     $first ? ($row->store_code ?? '-') : '',
                     $first ? ($row->visit_code ?? '-') : '',
                     $first ? ($row->customer_name ?? '-') : '',
+                    $first ? ($row->cashier_name ?? '-') : '',
                     $first ? ($row->check_in_at ? Carbon::parse($row->check_in_at)->format('d-m-Y H:i:s') : '-') : '',
                     $first ? ($row->check_out_at ? Carbon::parse($row->check_out_at)->format('d-m-Y H:i:s') : '-') : '',
                     $first ? ($row->transaction_number ?? '-') : '',
@@ -188,7 +193,7 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
     public function styles(Worksheet $sheet)
     {
         $lastRow = $sheet->getHighestRow();
-        $lastColumn = 'U';
+        $lastColumn = 'V';
 
         $sheet->mergeCells("A1:{$lastColumn}1");
 
@@ -254,7 +259,7 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
             if (
                 $sheet->getCell("A{$row}")->getValue() === 'No' &&
                 $sheet->getCell("B{$row}")->getValue() === 'Store' &&
-                $sheet->getCell("U{$row}")->getValue() === 'Completed At'
+                $sheet->getCell("V{$row}")->getValue() === 'Completed At'
             ) {
                 $detailHeaderRow = $row;
                 break;
@@ -292,21 +297,21 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
                 ],
             ]);
 
-            $sheet->getStyle("A" . ($detailHeaderRow + 1) . ":A{$lastRow}")->applyFromArray([
+            $sheet->getStyle('A'.($detailHeaderRow + 1).":A{$lastRow}")->applyFromArray([
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                     'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ]);
 
-            $sheet->getStyle("J" . ($detailHeaderRow + 1) . ":P{$lastRow}")->applyFromArray([
+            $sheet->getStyle('K'.($detailHeaderRow + 1).":N{$lastRow}")->applyFromArray([
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_RIGHT,
                     'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ]);
 
-            $sheet->freezePane("A" . ($detailHeaderRow + 1));
+            $sheet->freezePane('A'.($detailHeaderRow + 1));
         }
 
         $summaryLastRow = $detailHeaderRow ? $detailHeaderRow - 2 : 12;
@@ -331,7 +336,7 @@ class StorePaymentTransactionExport implements FromArray, ShouldAutoSize, WithSt
 
     private function formatDate(?string $date): string
     {
-        if (!$date) {
+        if (! $date) {
             return '-';
         }
 

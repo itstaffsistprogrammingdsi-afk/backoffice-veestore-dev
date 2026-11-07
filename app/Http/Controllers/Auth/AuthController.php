@@ -18,7 +18,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard-analytics');
+            return redirect()->route('reports.business-overview.index');
         }
 
         Inertia::setRootView('auth');
@@ -147,14 +147,14 @@ class AuthController extends Controller
         }
 
         return Inertia::location(
-            redirect()->intended(route('dashboard-analytics'))->getTargetUrl()
+            redirect()->intended(route('reports.business-overview.index'))->getTargetUrl()
         );
     }
 
     public function showRegister()
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard-analytics');
+            return redirect()->route('reports.business-overview.index');
         }
 
         Inertia::setRootView('auth');

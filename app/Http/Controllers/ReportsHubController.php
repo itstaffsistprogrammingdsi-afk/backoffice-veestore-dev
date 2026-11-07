@@ -18,7 +18,6 @@ class ReportsHubController extends Controller
             'inventory' => $data['inventory']['summary'],
             'urls' => [
                 'overview' => route('reports.business-overview.index'),
-                'dashboard' => route('dashboard-analytics'),
                 'assistant' => route('ai-assistant.index'),
                 'monitoring' => route('monitoring.command-center.index'),
                 'crm' => route('reports.crm.index'),
@@ -32,7 +31,7 @@ class ReportsHubController extends Controller
                 'warehouse_audit' => route('monitoring.warehouse-user-audit.index'),
                 'stock_opname' => route('monitoring.stock-opname-variance.index'),
                 'stock_movements' => route('monitoring.stock-movements.index'),
-                'promo_acquisition' => route('monitoring.promo-acquisition.index'),
+                'promo_acquisition' => route('monitoring.promo-loyalty.index'),
                 'user_access' => route('monitoring.user-monitoring.index'),
             ],
         ]);

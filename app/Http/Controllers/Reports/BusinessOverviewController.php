@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reports;
 use App\Domain\Analytics\Queries\BusinessOverviewQuery;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class BusinessOverviewController extends Controller
@@ -12,6 +13,21 @@ class BusinessOverviewController extends Controller
     public function index(Request $request, BusinessOverviewQuery $query)
     {
         return Inertia::render('Reports/BusinessOverview', $query->build($request->query()) + [
+            'periodOptions' => [
+                ['value' => 'today', 'label' => 'Hari ini'],
+                ['value' => 'week', 'label' => 'Minggu ini'],
+                ['value' => 'month', 'label' => 'Bulan ini'],
+                ['value' => 'year', 'label' => 'Tahun ini'],
+                ['value' => 'last_month', 'label' => 'Bulan lalu'],
+            ],
+            'stores' => DB::table('stores')
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'warehouses' => DB::table('warehouses')
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'urls' => [
                 'index' => route('reports.business-overview.index'),
                 'sales' => route('monitoring.payment-income-realtime.index'),
@@ -27,10 +43,13 @@ class BusinessOverviewController extends Controller
                 'warehouse_outbound' => route('monitoring.warehouse-outbound.index'),
                 'store_inbound' => route('monitoring.store-inbound.index'),
                 'store_outbound' => route('monitoring.store-outbound.index'),
-                'expiring' => route('monitoring.stok-mendekati-kedaluwarsa.index'),
+                'expiring' => route('monitoring.product-slowmoving.index', ['dataset' => 'expiring']),
                 'slow_moving' => route('monitoring.product-slowmoving.index'),
                 'aging' => route('monitoring.product-aging.index'),
                 'monitoring' => route('monitoring.command-center.index'),
+                'crm' => route('reports.crm.index'),
+                'demographics' => route('reports.crm.demographics'),
+                'preference' => route('reports.crm.customer-preference.index'),
             ],
         ]);
     }

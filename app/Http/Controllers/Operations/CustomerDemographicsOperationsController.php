@@ -23,6 +23,7 @@ class CustomerDemographicsOperationsController extends Controller
         return Inertia::render('Operations/CustomerDemographics', $data + [
             'birthdayGreeting' => [
                 'template' => $greeting->template(),
+                'vouchers' => $greeting->availableVouchers(),
             ],
             'urls' => [
                 'index' => route('operations.customers.demographics'),
@@ -46,6 +47,7 @@ class CustomerDemographicsOperationsController extends Controller
             $request->validated('customer_ids'),
             $request->validated('subject'),
             $request->validated('message'),
+            $request->validated('voucher_id'),
         );
 
         return back()->with(

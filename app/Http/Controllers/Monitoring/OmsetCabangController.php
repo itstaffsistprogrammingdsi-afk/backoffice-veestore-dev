@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use App\Domain\Analytics\Support\FinancialBreakdown;
 use App\Exports\OmsetCabangExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -48,6 +49,14 @@ class OmsetCabangController extends Controller
             dateTo: $filters['date_to']
         );
 
+        $finance = $this->getFinancialSummary(
+            storeId: $filters['store_id'],
+            productId: $filters['product_id'],
+            q: $filters['q'],
+            dateFrom: $filters['date_from'],
+            dateTo: $filters['date_to']
+        );
+
         $rows = $this->getRows(
             storeId: $filters['store_id'],
             productId: $filters['product_id'],
@@ -67,10 +76,11 @@ class OmsetCabangController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Cabang',
-            'description' => 'Ringkasan omset per cabang. Baris tabel adalah cabang, bukan rincian produk.',
+            'description' => 'Ringkasan omset per cabang dari transaksi lunas POS dan ecommerce. Baris tabel adalah cabang, bukan rincian produk.',
             'data' => [
                 'rows' => $rows,
                 'summary' => $summary,
+                'finance' => $finance,
                 'stores' => $stores,
                 'products' => $products,
                 'chartRows' => $chartRows,
@@ -222,10 +232,20 @@ class OmsetCabangController extends Controller
                 COALESCE(SUM(x.received_qty), 0)::int as total_barang_diterima,
                 COALESCE(SUM(x.requested_qty - x.approved_qty), 0)::int as total_sisa_belum_keluar,
 
+                COALESCE(SUM(x.total_harga_awal), 0)::numeric as total_omset_kotor,
+                COALESCE(SUM(x.total_diskon_produk), 0)::numeric as total_diskon_produk,
+                COALESCE(SUM(x.total_voucher_promo), 0)::numeric as total_voucher_promo,
+                COALESCE(SUM(x.total_harga_akhir), 0)::numeric as total_omset_bersih,
                 COALESCE(SUM(x.total_harga_base), 0)::numeric as total_harga_base,
+                COALESCE(SUM(x.total_harga_akhir - x.total_harga_base), 0)::numeric as laba_kotor,
+                CASE
+                    WHEN SUM(x.total_harga_akhir) > 0 THEN
+                        ROUND((SUM(x.total_harga_akhir - x.total_harga_base) / SUM(x.total_harga_akhir)) * 100, 2)
+                    ELSE 0
+                END as margin_kotor_percent,
                 COALESCE(SUM(x.total_omset_kotor_store), 0)::numeric as total_omset_kotor_store,
                 COALESCE(SUM(x.total_omset_kotor_ecommerce), 0)::numeric as total_omset_kotor_ecommerce,
-                COALESCE(SUM(x.total_omset_kotor_store + x.total_omset_kotor_ecommerce), 0)::numeric as total_omset
+                COALESCE(SUM(x.total_harga_akhir), 0)::numeric as total_omset
             ')
             ->groupBy('x.store_name', 'x.store_code');
     }
@@ -253,6 +273,7 @@ class OmsetCabangController extends Controller
                 COUNT(DISTINCT x.product_id) as total_produk,
                 COUNT(DISTINCT x.customer_id) as total_customer,
                 COUNT(DISTINCT x.order_id) as total_store_order,
+                COUNT(DISTINCT x.order_id) as total_transaksi,
 
                 COALESCE(SUM(x.requested_qty), 0) as total_barang_diambil,
                 COALESCE(SUM(x.approved_qty), 0) as total_barang_keluar,
@@ -260,12 +281,76 @@ class OmsetCabangController extends Controller
                 COALESCE(SUM(x.requested_qty - x.approved_qty), 0) as total_sisa_belum_keluar,
 
                 COALESCE(SUM(x.total_harga_order_store), 0) as total_harga_order_store,
+                COALESCE(SUM(x.total_harga_awal), 0) as total_omset_kotor,
+                COALESCE(SUM(x.total_diskon_produk), 0) as total_diskon_produk,
+                COALESCE(SUM(x.total_voucher_promo), 0) as total_voucher_promo,
+                COALESCE(SUM(x.total_harga_akhir), 0) as total_omset_bersih,
                 COALESCE(SUM(x.total_harga_base), 0) as total_harga_base,
                 COALESCE(SUM(x.total_omset_kotor_store), 0) as total_omset_kotor_store,
                 COALESCE(SUM(x.total_omset_kotor_ecommerce), 0) as total_omset_kotor_ecommerce,
-                COALESCE(SUM(x.total_omset_kotor_store + x.total_omset_kotor_ecommerce), 0) as total_omset
+                COALESCE(SUM(x.total_harga_akhir), 0) as total_omset
             ')
             ->first();
+    }
+
+    private function getFinancialSummary(
+        ?string $storeId = null,
+        ?string $productId = null,
+        ?string $q = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null
+    ): array {
+        $channelRows = DB::query()
+            ->fromSub(
+                $this->buildBaseQuery(
+                    storeId: $storeId,
+                    productId: $productId,
+                    q: $q,
+                    dateFrom: $dateFrom,
+                    dateTo: $dateTo
+                ),
+                'x'
+            )
+            ->selectRaw('
+                x.sales_channel as channel,
+                COUNT(DISTINCT x.order_id) as transactions,
+                COALESCE(SUM(x.requested_qty), 0) as qty,
+                COALESCE(SUM(x.total_harga_awal), 0) as gross_sales,
+                COALESCE(SUM(x.total_diskon_produk), 0) as product_discount,
+                COALESCE(SUM(GREATEST(x.total_harga_awal - x.total_diskon_produk, 0)), 0) as net_after_product_discount,
+                COALESCE(SUM(x.total_voucher_promo), 0) as voucher_discount,
+                COALESCE(SUM(x.total_harga_akhir), 0) as net_sales,
+                COALESCE(SUM(x.total_harga_base), 0) as base_price
+            ')
+            ->groupBy('x.sales_channel')
+            ->get()
+            ->map(fn (object $row): array => (array) $row)
+            ->all();
+
+        $totals = [
+            'transactions' => array_sum(array_column($channelRows, 'transactions')),
+            'qty' => array_sum(array_column($channelRows, 'qty')),
+            'gross_sales' => array_sum(array_column($channelRows, 'gross_sales')),
+            'product_discount' => array_sum(array_column($channelRows, 'product_discount')),
+            'net_after_product_discount' => array_sum(array_column($channelRows, 'net_after_product_discount')),
+            'voucher_discount' => array_sum(array_column($channelRows, 'voucher_discount')),
+            'net_sales' => array_sum(array_column($channelRows, 'net_sales')),
+            'base_price' => array_sum(array_column($channelRows, 'base_price')),
+        ];
+
+        return [
+            ...FinancialBreakdown::make(
+                $totals['gross_sales'],
+                $totals['product_discount'],
+                $totals['voucher_discount'],
+                $totals['net_sales'],
+                $totals['base_price'],
+                $totals['transactions'],
+                $totals['qty'],
+                $totals['net_after_product_discount']
+            ),
+            'channels' => FinancialBreakdown::channels($channelRows),
+        ];
     }
 
     private function getChartRows(
@@ -369,7 +454,7 @@ class OmsetCabangController extends Controller
             ->whereNull('pay.deleted_at')
             ->where(function ($query) {
                 $query->whereNotNull('pay.completed_at')
-                    ->orWhereIn(DB::raw('LOWER(pay.status::text)'), ['paid', 'success', 'completed']);
+                    ->orWhereIn(DB::raw('LOWER(pay.status::text)'), ['paid', 'settlement', 'capture', 'success', 'completed']);
             })
             ->selectRaw('svp.visit_id, MIN(COALESCE(pay.completed_at, pay.created_at)) as paid_at, MIN(pay.transaction_number) as transaction_number')
             ->groupBy('svp.visit_id');
@@ -493,8 +578,15 @@ class OmsetCabangController extends Controller
 
         return DB::table('ecommerce_order_details as eod')
             ->join('ecommerce_orders as eo', 'eo.id', '=', 'eod.ecommerce_order_id')
+            ->join('payments as pay', 'pay.id', '=', 'eo.payment_id')
             ->join('products as p', 'p.id', '=', 'eod.product_id')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
+            ->whereNull('pay.deleted_at')
+            ->where(function ($query) {
+                $query->whereNotNull('pay.completed_at')
+                    ->orWhereIn(DB::raw('LOWER(pay.status::text)'), ['paid', 'settlement', 'capture', 'success', 'completed']);
+            })
+            ->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
             ->leftJoinSub($orderNet, 'order_net', fn ($join) => $join->on('order_net.ecommerce_order_id', '=', 'eo.id'))
             ->leftJoin('stores as handled_store', 'handled_store.id', '=', 'eo.handled_by_store_id')
             ->leftJoin('warehouses as handled_warehouse', 'handled_warehouse.id', '=', 'eo.handled_by_warehouse_id')

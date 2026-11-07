@@ -133,6 +133,7 @@ interface Props {
     filters: {
         q: string;
         warehouse_id: string | null;
+        movement: 'slow' | 'fast' | null;
     };
     urls: {
         index: string;
@@ -140,6 +141,7 @@ interface Props {
         ecommerce_orders: string;
         stock_wms: string;
         stock_barriers: string;
+        email_alert_settings: string;
         outbound_report: string;
         reservations: string;
     };
@@ -156,6 +158,7 @@ const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
 const filters = reactive({
     q: props.filters.q ?? '',
     warehouse_id: props.filters.warehouse_id ?? '',
+    movement: props.filters.movement ?? '',
 });
 
 const activeTab = ref<'availability' | 'import'>('availability');
@@ -222,6 +225,7 @@ const applyFilters = () => {
     router.get(props.urls.index, {
         q: filters.q || undefined,
         warehouse_id: filters.warehouse_id || undefined,
+        movement: filters.movement || undefined,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -232,6 +236,7 @@ const applyFilters = () => {
 const resetFilters = () => {
     filters.q = '';
     filters.warehouse_id = '';
+    filters.movement = '';
     applyFilters();
 };
 
@@ -278,13 +283,17 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                     <i class="mdi mdi-tune-variant me-1"></i>
                     Atur Barrier
                 </Link>
+                <Link :href="props.urls.email_alert_settings" class="stock-hero-button stock-hero-button-outline">
+                    <i class="mdi mdi-email-alert-outline me-1"></i>
+                    Email Alert
+                </Link>
             </div>
         </section>
 
         <div class="card stock-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-lg-6">
+                    <div class="col-lg-4">
                         <label class="form-label">Cari produk atau gudang</label>
                         <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau warehouse..." />
                     </div>
@@ -297,7 +306,15 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                             search-placeholder="Cari warehouse..."
                         />
                     </div>
-                    <div class="col-md-6 col-lg-3 d-flex gap-2">
+                    <div class="col-md-4 col-lg-2">
+                        <label class="form-label">Movement</label>
+                        <select v-model="filters.movement" class="form-select form-select-sm">
+                            <option value="">Semua movement</option>
+                            <option value="slow">Slow Moving</option>
+                            <option value="fast">Fast Moving</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-lg-3 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button>
                     </div>
@@ -449,7 +466,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div v-if="props.products.length === 0" class="stock-empty">
                 <i class="mdi mdi-package-variant-closed"></i>
                 <strong>Tidak ada stok yang cocok</strong>
-                <span>Coba ubah kata kunci atau filter warehouse.</span>
+                <span>Coba ubah kata kunci, filter warehouse, atau movement.</span>
             </div>
 
             <div v-else class="table-responsive">

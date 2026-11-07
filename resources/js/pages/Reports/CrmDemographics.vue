@@ -107,6 +107,17 @@ interface GreetingTemplate {
     placeholders: string[];
 }
 
+interface BirthdayVoucher {
+    id: string;
+    name: string;
+    code: string;
+    type: string;
+    value: number;
+    distribution_type: string;
+    valid_until: string | null;
+    available_codes_count: number | null;
+}
+
 interface Summary {
     totalCustomers: number;
     registeredCustomers: number;
@@ -162,6 +173,7 @@ interface Props {
     birthdayCustomers: BirthdayRow[];
     birthdayGreeting: {
         template: GreetingTemplate;
+        vouchers: BirthdayVoucher[];
     };
     rows: Paginator<CustomerRow>;
     urls: {
@@ -370,6 +382,7 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
                     :total="props.summary.birthdayThisMonth"
                     :month-label="props.birthdayMonthLabel"
                     :template="props.birthdayGreeting.template"
+                    :vouchers="props.birthdayGreeting.vouchers"
                     :send-url="props.urls.birthdayGreeting"
                     title="Customer Ulang Tahun"
                     subtitle="Daftar customer yang dapat menjadi target komunikasi dan program loyalitas."

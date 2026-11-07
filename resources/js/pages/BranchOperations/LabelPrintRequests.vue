@@ -174,14 +174,14 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Permintaan Cetak Label" />
+    <Head title="Persetujuan Cetak Ulang Label" />
 
     <div class="branch-page">
         <div class="branch-header">
             <div>
                 <span class="branch-eyebrow">Branch Operations</span>
-                <h1>Permintaan Label</h1>
-                <p>Tinjau dan setujui permintaan cetak label dari toko atau POS, termasuk riwayat cetak ulang.</p>
+                <h1>Persetujuan Cetak Ulang Label</h1>
+                <p>Tinjau dan setujui permintaan cetak ulang label dari toko atau POS, termasuk riwayat cetaknya.</p>
             </div>
         </div>
 

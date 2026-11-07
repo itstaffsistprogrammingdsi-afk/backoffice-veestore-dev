@@ -2,17 +2,27 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
-use App\Exports\PromoUsageExport;
 use App\Http\Controllers\Controller;
+use App\Services\ReportExportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Maatwebsite\Excel\Facades\Excel;
+use Inertia\Inertia;
 
 class PromoUsageController extends Controller
 {
     public function index(Request $request)
+    {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Promo Usage',
+            'description' => 'Laporan monitoring.',
+            'data' => $this->reportData($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.promo-usage.export')],
+        ]);
+    }
+
+    public function reportData(Request $request): array
     {
         $filters = $this->getFilters($request);
 
@@ -58,10 +68,7 @@ class PromoUsageController extends Controller
             ->orderBy('status')
             ->pluck('status');
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Promo Usage',
-            'description' => 'Laporan monitoring.',
-            'data' => [
+        return [
             'rows' => $rows,
             'summary' => $summary,
 
@@ -81,24 +88,21 @@ class PromoUsageController extends Controller
             'discounts' => $discounts,
             'vouchers' => $vouchers,
             'orderStatuses' => $orderStatuses,
-        ],
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.promo-usage.export')],
-        ]);
+        ];
     }
 
     public function export(Request $request)
     {
-        $filename = 'promo-usage-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'promo-usage-report-'.now()->format('Ymd_His').'.xlsx';
 
-        return app(\App\Services\ReportExportService::class)->enqueue($request, 'promo-usage', $filename);
+        return app(ReportExportService::class)->enqueue($request, 'promo-usage', $filename);
     }
 
     private function getFilters(Request $request): array
     {
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -327,7 +331,7 @@ class PromoUsageController extends Controller
 
         return DB::query()
             ->fromSub($subQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(*)::int as total_usage,
                 COUNT(DISTINCT x.order_id)::int as total_order,
                 COALESCE(SUM(COALESCE(x.quantity, 0)), 0)::int as total_qty,
@@ -336,7 +340,7 @@ class PromoUsageController extends Controller
                 COUNT(CASE WHEN x.detail_discount_snapshot_id IS NOT NULL THEN 1 END)::int as total_discount_usage,
                 COUNT(CASE WHEN x.checkout_order_voucher_id IS NOT NULL THEN 1 END)::int as total_checkout_voucher,
                 COUNT(CASE WHEN x.shipping_order_voucher_id IS NOT NULL THEN 1 END)::int as total_shipping_voucher
-            ")
+            ')
             ->first();
     }
 

@@ -295,6 +295,7 @@ class StorePaymentTransactionController extends Controller
             ->join('store_customer_visits as scv', 'scv.id', '=', 'svp.visit_id')
             ->join('stores as s', 's.id', '=', 'scv.store_id')
             ->leftJoin('customers as c', 'c.id', '=', 'scv.customer_id')
+            ->leftJoin('users as cashier', 'cashier.id', '=', 'svp.cashier_user_id')
             ->leftJoin('payments as p', 'p.id', '=', 'svp.payment_id')
             ->leftJoinSub($paymentMethodAgg, 'pma', function ($join) {
                 $join->on('pma.payment_id', '=', 'p.id');
@@ -329,6 +330,7 @@ class StorePaymentTransactionController extends Controller
                 'svp.source as payment_source',
                 'svp.note as payment_note',
                 'svp.cashier_user_id',
+                DB::raw("COALESCE(cashier.name, '-') as cashier_name"),
 
                 'p.id as payment_id_ref',
                 'p.transaction_number',

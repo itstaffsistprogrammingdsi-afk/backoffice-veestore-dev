@@ -5,7 +5,6 @@ use App\Http\Controllers\AI\AssistantController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\BranchOperations\StoreLabelPrintRequestController;
 use App\Http\Controllers\BranchOperations\StoreVoucherRequestController;
-use App\Http\Controllers\dashboard\Analytics;
 use App\Http\Controllers\Ecommerce\EcommerceOrderController;
 use App\Http\Controllers\Ecommerce\EcommercePaymentOperationsController;
 use App\Http\Controllers\LanguageController;
@@ -55,7 +54,6 @@ use App\Http\Controllers\Monitoring\CustomerMembershipMonitoringController;
 use App\Http\Controllers\Monitoring\EcommerceOrderFulfillmentController;
 use App\Http\Controllers\Monitoring\EcommercePaymentController;
 use App\Http\Controllers\Monitoring\EmployeeShiftAttendanceController;
-use App\Http\Controllers\Monitoring\ExpiringStockMonitoringController;
 use App\Http\Controllers\Monitoring\MonitoringCommandCenterController;
 use App\Http\Controllers\Monitoring\MonitoringDataCustomerController;
 use App\Http\Controllers\Monitoring\MonitoringDiskonController;
@@ -70,11 +68,10 @@ use App\Http\Controllers\Monitoring\PhysicalStockAccumulationController;
 use App\Http\Controllers\Monitoring\ProductAgingMonitoringController;
 use App\Http\Controllers\Monitoring\ProductSlowmovingController;
 use App\Http\Controllers\Monitoring\ProdukTerlarisController;
-use App\Http\Controllers\Monitoring\PromoAcquisitionReportController;
+use App\Http\Controllers\Monitoring\PromoLoyaltyReportController;
 use App\Http\Controllers\Monitoring\PromoUsageController;
 use App\Http\Controllers\Monitoring\RedeemPointReportController;
 use App\Http\Controllers\Monitoring\ReferralScoreReportController;
-use App\Http\Controllers\Monitoring\SlowDeadstockController;
 use App\Http\Controllers\Monitoring\StockMovementReportController;
 use App\Http\Controllers\Monitoring\StockOpnameVarianceReportController;
 use App\Http\Controllers\Monitoring\StokPercabangController;
@@ -84,7 +81,6 @@ use App\Http\Controllers\Monitoring\StoreOrderRequestController;
 use App\Http\Controllers\Monitoring\StoreOutboundController;
 use App\Http\Controllers\Monitoring\StorePaymentTransactionController;
 use App\Http\Controllers\Monitoring\StoreReturnRequestController;
-use App\Http\Controllers\Monitoring\StoreSlowstockController;
 use App\Http\Controllers\Monitoring\StoreStockBarrierController;
 use App\Http\Controllers\Monitoring\StoreStockOpnameReportController;
 use App\Http\Controllers\Monitoring\SupplierInsightController;
@@ -126,6 +122,7 @@ use App\Http\Controllers\Settings\AffiliatePointsInviteeController;
 use App\Http\Controllers\Settings\AffiliatePointsInviterController;
 use App\Http\Controllers\Settings\CustomerLoyaltyPointTransactionRewardController;
 use App\Http\Controllers\Settings\PointSettingController;
+use App\Http\Controllers\Settings\StockBarrierAlertSettingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -213,7 +210,8 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('/reports', ReportsHubController::class)->name('reports.index');
 
-    Route::get('/dashboard', [Analytics::class, 'index'])->name('dashboard-analytics');
+    Route::get('/dashboard', fn () => redirect()->route('reports.business-overview.index'))
+        ->name('dashboard-analytics');
 
     Route::prefix('ai-assistant')->name('ai-assistant.')->middleware('permission:view ai-analytics|view ai-assistant')->group(function () {
         Route::get('/', [AssistantController::class, 'index'])->name('index');
@@ -246,6 +244,16 @@ Route::middleware('auth')->group(function () {
     Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('app/points', [PointSettingController::class, 'edit'])->name('points.edit');
         Route::post('app/points', [PointSettingController::class, 'update'])->name('points.update');
+
+        Route::get(
+            'app/stock-barrier-alerts',
+            [StockBarrierAlertSettingController::class, 'edit']
+        )->name('stock-barrier-alerts.edit');
+
+        Route::post(
+            'app/stock-barrier-alerts',
+            [StockBarrierAlertSettingController::class, 'update']
+        )->name('stock-barrier-alerts.update');
 
         Route::get(
             'app/customer-loyalty-point-transaction-reward',
@@ -425,6 +433,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('payment-methods/{payment_method}', [PaymentMethodController::class, 'destroy'])->name('payment-methods.destroy');
 
         Route::get('vouchers', [VoucherController::class, 'index'])->name('vouchers.index');
+        Route::post('vouchers/scan', [VoucherController::class, 'scan'])
+            ->middleware('throttle:20,1')
+            ->name('vouchers.scan');
         Route::post('vouchers', [VoucherController::class, 'store'])->name('vouchers.store');
         Route::put('vouchers/{key}', [VoucherController::class, 'update'])->name('vouchers.update');
         Route::delete('vouchers/{key}', [VoucherController::class, 'destroy'])->name('vouchers.destroy');
@@ -586,8 +597,17 @@ Route::middleware('auth')->group(function () {
         Route::get('stock-movements', [StockMovementReportController::class, 'index'])
             ->name('stock-movements.index');
 
-        Route::get('promo-acquisition', [PromoAcquisitionReportController::class, 'index'])
-            ->name('promo-acquisition.index');
+        Route::prefix('promo-loyalty')->name('promo-loyalty.')->group(function () {
+            Route::get('/', [PromoLoyaltyReportController::class, 'index'])
+                ->name('index');
+
+            Route::get('/export', [PromoLoyaltyReportController::class, 'export'])
+                ->name('export');
+        });
+
+        Route::get('promo-acquisition', fn () => redirect()->route('monitoring.promo-loyalty.index', [
+            'dataset' => 'promoRows',
+        ]))->name('promo-acquisition.index');
 
         Route::get('stok-percabang', [StokPercabangController::class, 'index'])
             ->name('stok-percabang');
@@ -658,14 +678,26 @@ Route::middleware('auth')->group(function () {
         Route::get('store-stock-opnames/{sessionItemId}/rfid-detail', [StoreStockOpnameReportController::class, 'rfidDetail'])
             ->name('store-stock-opnames.rfid-detail');
 
-        Route::get('slow-deadstock', [SlowDeadstockController::class, 'index'])
-            ->name('slow-deadstock.index');
+        Route::get('slow-deadstock', fn () => redirect()->route('monitoring.product-slowmoving.index', array_filter([
+            'mode' => 'warehouse',
+            'warehouse_id' => request()->query('warehouse_id'),
+            'start_date' => request()->query('start_date'),
+            'end_date' => request()->query('end_date'),
+        ])))->name('slow-deadstock.index');
 
-        Route::get('slow-deadstock/export-slow', [SlowDeadstockController::class, 'exportSlow'])
-            ->name('slow-deadstock.export-slow');
+        Route::get('slow-deadstock/export-slow', fn () => redirect()->route('monitoring.product-slowmoving.export-slow', array_filter([
+            'mode' => 'warehouse',
+            'warehouse_id' => request()->query('warehouse_id'),
+            'start_date' => request()->query('start_date'),
+            'end_date' => request()->query('end_date'),
+        ])))->name('slow-deadstock.export-slow');
 
-        Route::get('slow-deadstock/export-dead', [SlowDeadstockController::class, 'exportDead'])
-            ->name('slow-deadstock.export-dead');
+        Route::get('slow-deadstock/export-dead', fn () => redirect()->route('monitoring.product-slowmoving.export-dead', array_filter([
+            'mode' => 'warehouse',
+            'warehouse_id' => request()->query('warehouse_id'),
+            'start_date' => request()->query('start_date'),
+            'end_date' => request()->query('end_date'),
+        ])))->name('slow-deadstock.export-dead');
 
         Route::get('store-payment-transactions', [StorePaymentTransactionController::class, 'index'])
             ->name('store-payment-transactions.index');
@@ -714,14 +746,26 @@ Route::middleware('auth')->group(function () {
         Route::get('store-return-requests/export', [StoreReturnRequestController::class, 'export'])
             ->name('store-return-requests.export');
 
-        Route::get('store-slowstock', [StoreSlowstockController::class, 'index'])
-            ->name('store-slowstock.index');
+        Route::get('store-slowstock', fn () => redirect()->route('monitoring.product-slowmoving.index', array_filter([
+            'mode' => 'store',
+            'store_id' => request()->query('store_id'),
+            'start_date' => request()->query('start_date'),
+            'end_date' => request()->query('end_date'),
+        ])))->name('store-slowstock.index');
 
-        Route::get('store-slowstock/export-slow', [StoreSlowstockController::class, 'exportSlow'])
-            ->name('store-slowstock.export-slow');
+        Route::get('store-slowstock/export-slow', fn () => redirect()->route('monitoring.product-slowmoving.export-slow', array_filter([
+            'mode' => 'store',
+            'store_id' => request()->query('store_id'),
+            'start_date' => request()->query('start_date'),
+            'end_date' => request()->query('end_date'),
+        ])))->name('store-slowstock.export-slow');
 
-        Route::get('store-slowstock/export-dead', [StoreSlowstockController::class, 'exportDead'])
-            ->name('store-slowstock.export-dead');
+        Route::get('store-slowstock/export-dead', fn () => redirect()->route('monitoring.product-slowmoving.export-dead', array_filter([
+            'mode' => 'store',
+            'store_id' => request()->query('store_id'),
+            'start_date' => request()->query('start_date'),
+            'end_date' => request()->query('end_date'),
+        ])))->name('store-slowstock.export-dead');
 
         Route::get('diskon', [MonitoringDiskonController::class, 'index'])
             ->name('diskon.index');
@@ -758,8 +802,9 @@ Route::middleware('auth')->group(function () {
                 ->name('postal-code');
         });
 
-        Route::get('promo-usage', [PromoUsageController::class, 'index'])
-            ->name('promo-usage.index');
+        Route::get('promo-usage', fn () => redirect()->route('monitoring.promo-loyalty.index', [
+            'dataset' => 'promoUsageRows',
+        ]))->name('promo-usage.index');
 
         Route::get('promo-usage/export', [PromoUsageController::class, 'export'])
             ->name('promo-usage.export');
@@ -791,8 +836,20 @@ Route::middleware('auth')->group(function () {
         Route::get('product-aging/{productId}/detail', [ProductAgingMonitoringController::class, 'detail'])
             ->name('product-aging.detail');
 
-        Route::get('stok-mendekati-kedaluwarsa', [ExpiringStockMonitoringController::class, 'index'])
-            ->name('stok-mendekati-kedaluwarsa.index');
+        Route::get('stok-mendekati-kedaluwarsa', function () {
+            $mode = match (request()->query('scope')) {
+                'warehouse' => 'warehouse',
+                'store' => 'store',
+                default => 'all',
+            };
+
+            return redirect()->route('monitoring.product-slowmoving.index', array_filter([
+                'mode' => $mode,
+                'dataset' => 'expiring',
+                'store_id' => request()->query('store_id'),
+                'warehouse_id' => request()->query('warehouse_id'),
+            ]));
+        })->name('stok-mendekati-kedaluwarsa.index');
 
         Route::prefix('cashier-shift-report')->name('cashier-shift-report.')->group(function () {
             Route::get('/', [CashierShiftReportController::class, 'index'])
@@ -811,14 +868,16 @@ Route::middleware('auth')->group(function () {
                 ->name('transaction-items');
         });
 
-        Route::get('referral-score-report', [ReferralScoreReportController::class, 'index'])
-            ->name('referral-score-report.index');
+        Route::get('referral-score-report', fn () => redirect()->route('monitoring.promo-loyalty.index', [
+            'dataset' => 'referralRows',
+        ]))->name('referral-score-report.index');
 
         Route::get('referral-score-report/export', [ReferralScoreReportController::class, 'export'])
             ->name('referral-score-report.export');
 
-        Route::get('customer-loyalty-points-report', [CustomerLoyaltyPointsReportController::class, 'index'])
-            ->name('customer-loyalty-points-report.index');
+        Route::get('customer-loyalty-points-report', fn () => redirect()->route('monitoring.promo-loyalty.index', [
+            'dataset' => 'pointMutationRows',
+        ]))->name('customer-loyalty-points-report.index');
 
         Route::get('customer-loyalty-points-report/export', [CustomerLoyaltyPointsReportController::class, 'export'])
             ->name('customer-loyalty-points-report.export');
@@ -872,8 +931,9 @@ Route::middleware('auth')->group(function () {
                 ->name('export');
         });
 
-        Route::get('redeem-point-report', [RedeemPointReportController::class, 'index'])
-            ->name('redeem-point-report.index');
+        Route::get('redeem-point-report', fn () => redirect()->route('monitoring.promo-loyalty.index', [
+            'dataset' => 'redeemPointRows',
+        ]))->name('redeem-point-report.index');
 
         Route::get('redeem-point-report/export', [RedeemPointReportController::class, 'export'])
             ->name('redeem-point-report.export');
@@ -893,8 +953,14 @@ Route::middleware('auth')->group(function () {
             Route::get('/export-slow', [ProductSlowmovingController::class, 'exportSlow'])
                 ->name('export-slow');
 
+            Route::get('/export-fast', [ProductSlowmovingController::class, 'exportFast'])
+                ->name('export-fast');
+
             Route::get('/export-dead', [ProductSlowmovingController::class, 'exportDead'])
                 ->name('export-dead');
+
+            Route::get('/export-expiring', [ProductSlowmovingController::class, 'exportExpiring'])
+                ->name('export-expiring');
         });
 
         Route::prefix('employee-shift-attendance')->name('employee-shift-attendance.')->group(function () {
@@ -963,8 +1029,9 @@ Route::middleware('auth')->group(function () {
                     ->name('export');
             });
 
-        Route::get('voucher', [VoucherReportController::class, 'index'])
-            ->name('voucher.index');
+        Route::get('voucher', fn () => redirect()->route('monitoring.promo-loyalty.index', [
+            'dataset' => 'voucherUsageRows',
+        ]))->name('voucher.index');
 
         Route::get('voucher/{id}/detail', [VoucherReportController::class, 'detail'])
             ->name('voucher.detail');
@@ -1013,14 +1080,6 @@ Route::middleware('auth')->group(function () {
             Route::get('{return}', [StoreReturnApprovalController::class, 'show'])
                 ->whereUuid('return')
                 ->name('show');
-
-            Route::patch('{return}/approve', [StoreReturnApprovalController::class, 'approve'])
-                ->whereUuid('return')
-                ->name('approve');
-
-            Route::patch('{return}/reject', [StoreReturnApprovalController::class, 'reject'])
-                ->whereUuid('return')
-                ->name('reject');
         });
 
         Route::get('history-customer', [HistoryCustomerController::class, 'index'])

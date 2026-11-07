@@ -26,7 +26,6 @@ interface Props {
     };
     urls: {
         overview: string;
-        dashboard: string;
         assistant: string;
         monitoring: string;
         crm: string;
@@ -56,7 +55,6 @@ const currency = (value: number) => new Intl.NumberFormat('id-ID', {
 const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
 
 const modules = [
-    { title: 'Dashboard Analitik', description: 'Ringkasan performa penjualan dan operasional.', icon: 'mdi-view-dashboard-outline', url: 'dashboard', action: 'Buka Dashboard' },
     { title: 'VEE Assistant', description: 'Tanya data operasional dengan bahasa natural dan jawaban dari data terkini.', icon: 'mdi-chat-processing-outline', url: 'assistant', action: 'Buka VEE' },
     { title: 'Monitoring', description: 'Pusat komando, stok, omzet, dan audit operasional.', icon: 'mdi-monitor-dashboard', url: 'monitoring', action: 'Buka Monitoring' },
     { title: 'CRM', description: 'Profil customer dan aktivitas pelanggan.', icon: 'mdi-account-heart-outline', url: 'crm', action: 'Buka CRM' },
@@ -70,7 +68,7 @@ const modules = [
     { title: 'Audit Pengguna Gudang', description: 'Aktivitas WMS pada inbound, outbound, QC, dan stok opname per pengguna.', icon: 'mdi-warehouse-cog', url: 'warehouse_audit', action: 'Buka Audit Gudang' },
     { title: 'Stok Opname, Selisih & Penyesuaian', description: 'Nilai selisih, PIC, approval, rekap harian, mingguan, dan bulanan.', icon: 'mdi-clipboard-text-clock-outline', url: 'stock_opname', action: 'Buka Opname' },
     { title: 'Stok Barang Keluar Masuk', description: 'Pergerakan real time, harian, bulanan, serta gudang kecil ke display.', icon: 'mdi-swap-vertical-bold', url: 'stock_movements', action: 'Buka Pergerakan Stok' },
-    { title: 'Promo, Poin & Referral', description: 'Jumlah akun yang mengambil voucher, memakai poin, dan berhasil referral.', icon: 'mdi-sale-outline', url: 'promo_acquisition', action: 'Buka Promo' },
+    { title: 'Promo, Poin, Referral & Voucher', description: 'Pemakaian promo dan voucher, mutasi poin, referral, serta redeem poin dalam satu laporan.', icon: 'mdi-sale-outline', url: 'promo_acquisition', action: 'Buka Laporan' },
     { title: 'Akses Pengguna Harian', description: 'Login dan aktivitas per hari dan per aplikasi, termasuk WMS.', icon: 'mdi-account-clock-outline', url: 'user_access', action: 'Buka Akses' },
 ];
 </script>

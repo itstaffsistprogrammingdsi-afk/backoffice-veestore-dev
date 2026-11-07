@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class BirthdayGreetingRequest extends FormRequest
 {
@@ -18,6 +19,11 @@ class BirthdayGreetingRequest extends FormRequest
             'customer_ids.*' => ['required', 'uuid', 'exists:customers,id'],
             'subject' => ['required', 'string', 'max:150'],
             'message' => ['required', 'string', 'max:5000'],
+            'voucher_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('vouchers', 'id')->whereNull('deleted_at'),
+            ],
         ];
     }
 
@@ -33,6 +39,8 @@ class BirthdayGreetingRequest extends FormRequest
             'subject.max' => 'Subjek email maksimal 150 karakter.',
             'message.required' => 'Isi sapaan wajib diisi.',
             'message.max' => 'Isi sapaan maksimal 5000 karakter.',
+            'voucher_id.uuid' => 'Voucher yang dipilih tidak valid.',
+            'voucher_id.exists' => 'Voucher yang dipilih tidak ditemukan.',
         ];
     }
 }

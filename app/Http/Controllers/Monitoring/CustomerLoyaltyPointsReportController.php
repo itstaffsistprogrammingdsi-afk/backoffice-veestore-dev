@@ -2,17 +2,28 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\CustomerLoyaltyPointsReportExport;
 use App\Http\Controllers\Controller;
 use App\Services\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerLoyaltyPointsReportController extends Controller
 {
     public function index(Request $request)
+    {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Customer Loyalty Points Report',
+            'description' => 'Laporan monitoring.',
+            'data' => $this->reportData($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.customer-loyalty-points-report.export')],
+        ]);
+    }
+
+    public function reportData(Request $request): array
     {
         $q = trim((string) $request->query('q', ''));
         $mutationType = $this->normalizeNullableString($request->query('mutation_type'));
@@ -20,7 +31,7 @@ class CustomerLoyaltyPointsReportController extends Controller
         $registrationChannel = $this->normalizeNullableString($request->query('registration_channel'));
         $registrationStoreId = $this->normalizeNullableString($request->query('registration_store_id'));
 
-        if (!in_array($registrationChannel, ['store', 'ecommerce'], true)) {
+        if (! in_array($registrationChannel, ['store', 'ecommerce'], true)) {
             $registrationChannel = null;
         }
 
@@ -37,10 +48,10 @@ class CustomerLoyaltyPointsReportController extends Controller
         );
 
         $latestBalance = DB::table('customer_loyalty_points as clp')
-            ->selectRaw("
+            ->selectRaw('
                 clp.customer_id,
                 COALESCE(MAX(clp.balance), 0) as current_balance
-            ")
+            ')
             ->groupBy('clp.customer_id');
 
         $baseRowsQuery = DB::table('customers as c')
@@ -128,14 +139,14 @@ class CustomerLoyaltyPointsReportController extends Controller
 
         $branchChartRows = DB::query()
             ->fromSub(clone $baseRowsQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 x.branch_name as label,
                 COUNT(*)::int as total_customer,
                 COALESCE(SUM(x.current_balance), 0) as total_balance,
                 COALESCE(SUM(x.total_point_in), 0) as total_point_in,
                 COALESCE(SUM(x.total_point_out), 0) as total_point_out,
                 COALESCE(SUM(x.total_mutations), 0)::int as total_mutations
-            ")
+            ')
             ->groupBy('x.branch_name')
             ->orderByDesc('total_balance')
             ->limit(15)
@@ -143,14 +154,14 @@ class CustomerLoyaltyPointsReportController extends Controller
 
         $topBranches = DB::query()
             ->fromSub(clone $baseRowsQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 x.branch_name,
                 COUNT(*)::int as total_customer,
                 COALESCE(SUM(x.current_balance), 0) as total_balance,
                 COALESCE(SUM(x.total_point_in), 0) as total_point_in,
                 COALESCE(SUM(x.total_point_out), 0) as total_point_out,
                 COALESCE(SUM(x.total_mutations), 0)::int as total_mutations
-            ")
+            ')
             ->groupBy('x.branch_name')
             ->orderByDesc('total_balance')
             ->limit(10)
@@ -158,7 +169,7 @@ class CustomerLoyaltyPointsReportController extends Controller
 
         $topMembers = DB::query()
             ->fromSub(clone $baseRowsQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 x.customer_id,
                 x.customer_name,
                 x.customer_email,
@@ -169,7 +180,7 @@ class CustomerLoyaltyPointsReportController extends Controller
                 x.total_point_out,
                 x.total_mutations,
                 x.last_mutation_at
-            ")
+            ')
             ->orderByDesc('x.current_balance')
             ->limit(10)
             ->get();
@@ -235,7 +246,7 @@ class CustomerLoyaltyPointsReportController extends Controller
 
         $detailRows = collect();
 
-        if (!empty($customerIds)) {
+        if (! empty($customerIds)) {
             $detailRows = $this->allMutationDetailQuery()
                 ->whereIn('clpm.customer_id', $customerIds)
                 ->orderBy('c.name')
@@ -274,10 +285,7 @@ class CustomerLoyaltyPointsReportController extends Controller
             ->orderBy('name')
             ->get();
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Customer Loyalty Points Report',
-            'description' => 'Laporan monitoring.',
-            'data' => compact(
+        return compact(
             'rows',
             'detailRows',
             'q',
@@ -296,15 +304,12 @@ class CustomerLoyaltyPointsReportController extends Controller
             'mutationTypeChartRows',
             'mutationTrendRows',
             'stores'
-        ),
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.customer-loyalty-points-report.export')],
-        ]);
+        );
     }
 
     public function export(Request $request)
     {
-        $filename = 'customer-loyalty-points-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'customer-loyalty-points-report-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
             new CustomerLoyaltyPointsReportExport($request),
@@ -358,13 +363,13 @@ class CustomerLoyaltyPointsReportController extends Controller
         string $q = ''
     ) {
         $query = DB::table('customer_loyalty_point_mutations as clpm')
-            ->selectRaw("
+            ->selectRaw('
                 clpm.customer_id,
                 COUNT(clpm.id) as total_mutations,
                 COALESCE(SUM(CASE WHEN clpm.points > 0 THEN clpm.points ELSE 0 END), 0) as total_point_in,
                 COALESCE(SUM(CASE WHEN clpm.points < 0 THEN ABS(clpm.points) ELSE 0 END), 0) as total_point_out,
                 MAX(clpm.created_at) as last_mutation_at
-            ")
+            ')
             ->groupBy('clpm.customer_id');
 
         if ($mutationType) {
@@ -519,19 +524,19 @@ class CustomerLoyaltyPointsReportController extends Controller
                     END as ref_label
                 "),
 
-                DB::raw("
+                DB::raw('
                     CASE
                         WHEN clpm.points > 0 THEN clpm.points
                         ELSE 0
                     END as point_in
-                "),
+                '),
 
-                DB::raw("
+                DB::raw('
                     CASE
                         WHEN clpm.points < 0 THEN ABS(clpm.points)
                         ELSE 0
                     END as point_out
-                "),
+                '),
             ]);
     }
 

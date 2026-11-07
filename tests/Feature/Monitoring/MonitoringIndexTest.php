@@ -28,6 +28,7 @@ class MonitoringIndexTest extends TestCase
                 ->has('storeTransferReconciliation.rows')
                 ->where('storeTransferReportUrl', route('monitoring.warehouse-outbound.index', ['reconciliation_status' => 'not_recorded']))
                 ->where('overviewUrl', route('reports.business-overview.index'))
+                ->where('reportGroups', fn ($groups) => collect($groups)->pluck('items')->flatten(1)->pluck('url')->contains(fn ($url) => str_contains((string) $url, '/reports/supplier-products')))
                 ->where('monitoringGroups', fn ($groups) => collect($groups)->pluck('name')->contains('Pembayaran & Pemasukan')
                     && collect($groups)->pluck('name')->contains('Omzet & Kasir')));
 
@@ -207,7 +208,16 @@ class MonitoringIndexTest extends TestCase
                 ->where('data.omsetTab', 'cabang')
                 ->has('data.omsetUrls.kotor')
                 ->has('data.rows.data.0.store_name')
-                ->missing('data.rows.data.0.product_name'));
+                ->missing('data.rows.data.0.product_name')
+                ->has('data.finance.gross_sales')
+                ->has('data.finance.product_discount')
+                ->has('data.finance.net_sales')
+                ->has('data.finance.base_price')
+                ->has('data.finance.gross_profit')
+                ->has('data.finance.gross_margin_percent')
+                ->has('data.finance.effective_discount_percent')
+                ->has('data.finance.reconciliation.is_balanced')
+                ->has('data.finance.channels'));
 
         $this->actingAs($admin)
             ->get(route('monitoring.omset-kotor.index', $query))
@@ -215,7 +225,17 @@ class MonitoringIndexTest extends TestCase
                 ->where('data.omsetTab', 'kotor')
                 ->has('data.omsetUrls.cabang')
                 ->has('data.summary.total_gross_sales')
-                ->has('data.summary.total_final_paid'));
+                ->has('data.summary.total_final_paid')
+                ->has('data.finance.gross_sales')
+                ->has('data.finance.product_discount')
+                ->has('data.finance.net_after_product_discount')
+                ->has('data.finance.voucher_discount')
+                ->has('data.finance.net_sales')
+                ->has('data.finance.base_price')
+                ->has('data.finance.gross_profit')
+                ->has('data.finance.gross_margin_percent')
+                ->has('data.finance.reconciliation.is_balanced')
+                ->has('data.finance.channels'));
 
         $this->actingAs($admin)
             ->get(route('monitoring.cashier-shift-report.index', $query))
@@ -397,6 +417,111 @@ class MonitoringIndexTest extends TestCase
                     ->where('data.periodFilter.value', 'custom'));
         } finally {
             Carbon::setTestNow();
+        }
+    }
+
+    public function test_product_slowmoving_report_combines_movement_and_expiry_menus(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.product-slowmoving.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('data.filters.mode', 'all')
+                ->where('data.filters.slow_max_qty', 5)
+                ->where('data.filters.expiry_days', 365)
+                ->has('data.categories')
+                ->has('data.slow')
+                ->has('data.fast')
+                ->has('data.dead')
+                ->has('data.expiring')
+                ->has('data.summary.slow_count')
+                ->has('data.summary.fast_count')
+                ->has('data.summary.dead_count')
+                ->has('data.summary.expiring_count'));
+
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.product-slowmoving.index', ['mode' => 'warehouse', 'dataset' => 'expiring']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('data.filters.mode', 'warehouse')
+                ->where('data.activeDataset', 'expiring')
+                ->has('data.warehouses'));
+
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.slow-deadstock.index'))
+            ->assertRedirect(route('monitoring.product-slowmoving.index', ['mode' => 'warehouse']));
+
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.store-slowstock.index'))
+            ->assertRedirect(route('monitoring.product-slowmoving.index', ['mode' => 'store']));
+
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.stok-mendekati-kedaluwarsa.index'))
+            ->assertRedirect(route('monitoring.product-slowmoving.index', ['mode' => 'all', 'dataset' => 'expiring']));
+    }
+
+    public function test_store_payment_transactions_expose_payment_method_cashier_and_change(): void
+    {
+        $response = $this->actingAs($this->admin())
+            ->get(route('monitoring.store-payment-transactions.index', [
+                'start_date' => '2026-10-01',
+                'end_date' => '2026-11-07',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Monitoring/Report'));
+
+        $rows = $response->viewData('page')['props']['data']['rows']['data'] ?? [];
+
+        if ($rows === []) {
+            $this->markTestSkipped('Belum ada transaksi pembayaran store.');
+        }
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->has('data.rows.data.0.payment_methods')
+            ->has('data.rows.data.0.cashier_name')
+            ->has('data.rows.data.0.change_amount'));
+    }
+
+    public function test_promo_loyalty_report_combines_promo_point_referral_and_voucher_menus(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.promo-loyalty.index', [
+                'start_date' => '2026-10-01',
+                'end_date' => '2026-11-07',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('data.filters.start_date', '2026-10-01')
+                ->where('data.filters.end_date', '2026-11-07')
+                ->has('data.promoRows')
+                ->has('data.pointRows')
+                ->has('data.pointMutationRows')
+                ->has('data.referralRows')
+                ->has('data.promoUsageRows')
+                ->has('data.voucherUsageRows')
+                ->has('data.redeemPointRows'));
+
+        $this->actingAs($this->admin())
+            ->get(route('monitoring.promo-loyalty.index', ['dataset' => 'promoUsageRows']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('data.activeDataset', 'promoUsageRows'));
+
+        $redirects = [
+            'monitoring.promo-acquisition.index' => 'promoRows',
+            'monitoring.promo-usage.index' => 'promoUsageRows',
+            'monitoring.referral-score-report.index' => 'referralRows',
+            'monitoring.customer-loyalty-points-report.index' => 'pointMutationRows',
+            'monitoring.redeem-point-report.index' => 'redeemPointRows',
+            'reports.voucher.index' => 'voucherUsageRows',
+        ];
+
+        foreach ($redirects as $route => $dataset) {
+            $this->actingAs($this->admin())
+                ->get(route($route))
+                ->assertRedirect(route('monitoring.promo-loyalty.index', ['dataset' => $dataset]));
         }
     }
 }

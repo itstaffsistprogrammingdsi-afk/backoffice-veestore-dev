@@ -20,6 +20,8 @@ interface Props {
     stores: Option[];
     products: Option[];
     recentPromos: PromoRow[];
+    voucherContexts: string[];
+    canCreateVoucher: boolean;
     urls: { index: string; store: string };
 }
 
@@ -55,7 +57,24 @@ const form = useForm({
     max_discount: '',
     all_products: false,
     product_ids: [] as string[],
+    create_voucher: props.canCreateVoucher,
+    voucher_name: '',
+    voucher_type: '',
+    voucher_value: '',
+    voucher_min_purchase: '',
+    voucher_max_discount: '',
+    voucher_usage_limit: '',
+    voucher_distribution_type: 'public',
+    voucher_contexts: ['store_checkout'] as string[],
+    voucher_is_active: true,
 });
+
+const voucherContextLabels: Record<string, string> = {
+    ecommerce_checkout: 'Ecommerce Checkout',
+    ecommerce_shipping: 'Ecommerce Shipping',
+    store_checkout: 'Store Checkout',
+    store_customer_return: 'Retur Customer Toko',
+};
 
 const submit = () => {
     form.post(props.urls.store, {
@@ -74,7 +93,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div>
                 <span class="promo-eyebrow">Promo / Setup</span>
                 <h1>Pengaturan Promo</h1>
-                <p>Buat promo, diskon, dan target produk dalam satu alur.</p>
+                <p>Buat promo, diskon, target produk, dan voucher dalam satu alur.</p>
             </div>
         </div>
 
@@ -143,6 +162,78 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div class="card promo-card mt-3">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <h6 class="mb-0">Voucher</h6>
+                    <div class="form-check mb-0">
+                        <input id="create-voucher" v-model="form.create_voucher" class="form-check-input" type="checkbox" :disabled="!props.canCreateVoucher" />
+                        <label class="form-check-label" for="create-voucher">Buat voucher sekaligus</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p v-if="!props.canCreateVoucher" class="text-muted small mb-0">Anda tidak memiliki izin membuat voucher.</p>
+                    <template v-else-if="form.create_voucher">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Nama Voucher</label>
+                                <input v-model="form.voucher_name" class="form-control" placeholder="Mengikuti nama promo" />
+                                <div v-if="form.errors.voucher_name" class="text-danger small">{{ form.errors.voucher_name }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Tipe Voucher</label>
+                                <select v-model="form.voucher_type" class="form-select">
+                                    <option value="">Ikuti tipe diskon</option>
+                                    <option value="percentage">Percentage</option>
+                                    <option value="fixed">Fixed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Nilai Voucher</label>
+                                <input v-model="form.voucher_value" class="form-control" type="number" min="0" placeholder="Ikuti nilai diskon" />
+                                <div v-if="form.errors.voucher_value" class="text-danger small">{{ form.errors.voucher_value }}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Min Belanja</label>
+                                <input v-model="form.voucher_min_purchase" class="form-control" type="number" min="0" placeholder="Ikuti min belanja" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Max Diskon</label>
+                                <input v-model="form.voucher_max_discount" class="form-control" type="number" min="0" placeholder="Ikuti max diskon" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Batas Pemakaian</label>
+                                <input v-model="form.voucher_usage_limit" class="form-control" type="number" min="1" :required="form.voucher_distribution_type === 'unique_code'" />
+                                <div v-if="form.errors.voucher_usage_limit" class="text-danger small">{{ form.errors.voucher_usage_limit }}</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Distribusi</label>
+                                <select v-model="form.voucher_distribution_type" class="form-select">
+                                    <option value="public">Public</option>
+                                    <option value="unique_code">Unique Code</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Konteks Voucher</label>
+                                <div class="d-flex flex-wrap gap-3">
+                                    <div v-for="context in props.voucherContexts" :key="context" class="form-check">
+                                        <input :id="`voucher-context-${context}`" v-model="form.voucher_contexts" class="form-check-input" type="checkbox" :value="context" />
+                                        <label class="form-check-label" :for="`voucher-context-${context}`">{{ voucherContextLabels[context] ?? context }}</label>
+                                    </div>
+                                </div>
+                                <div v-if="form.errors.voucher_contexts" class="text-danger small">{{ form.errors.voucher_contexts }}</div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input id="voucher-active" v-model="form.voucher_is_active" class="form-check-input" type="checkbox" />
+                                    <label class="form-check-label" for="voucher-active">Voucher aktif</label>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                    <p v-else class="text-muted small mb-0">Aktifkan untuk membuat voucher dengan data promo dan diskon di atas.</p>
                 </div>
             </div>
 

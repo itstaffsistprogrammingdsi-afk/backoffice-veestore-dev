@@ -2,17 +2,17 @@
 
 Dokumen ini dihasilkan dari `php artisan route:list --json` pada Laravel 13.39.0. Hanya route aplikasi yang memakai controller `App\Http\Controllers` yang dicatat. Route framework (Ignition, Sanctum, redirect legacy) tidak dimasukkan.
 
-Total route aplikasi: **307**
+Total route aplikasi: **301**
 
 ## Ringkasan per modul
 
 | Modul | Route | GET | Non-GET | Auth | Ber-permission |
 |---|---:|---:|---:|---:|---:|
 | Master Data | 114 | 35 | 79 | 114 | 98 |
-| Monitoring | 111 | 105 | 6 | 111 | 22 |
-| Reports | 31 | 22 | 9 | 31 | 2 |
+| Monitoring | 104 | 98 | 6 | 104 | 18 |
+| Reports | 30 | 21 | 9 | 30 | 2 |
 | Management | 13 | 6 | 7 | 13 | 0 |
-| Settings | 8 | 4 | 4 | 8 | 0 |
+| Settings | 10 | 5 | 5 | 10 | 0 |
 | Auth | 6 | 3 | 3 | 0 | 0 |
 | Branch Operations | 4 | 2 | 2 | 4 | 0 |
 | Ecommerce | 4 | 3 | 1 | 4 | 0 |
@@ -22,7 +22,7 @@ Total route aplikasi: **307**
 | Loyalty | 3 | 3 | 0 | 3 | 3 |
 | Report Export | 3 | 3 | 0 | 3 | 0 |
 | Dashboard | 1 | 1 | 0 | 1 | 0 |
-| **Total** | **307** | **192** | **115** | **301** | **127** |
+| **Total** | **301** | **185** | **116** | **295** | **123** |
 
 ## Daftar route per modul
 
@@ -134,6 +134,7 @@ Total route aplikasi: **307**
 | PUT | `/master-data/users/{user}` | `master-data.users.update` | `UserManageController@update` | auth | - |
 | PATCH | `/master-data/users/{user}/toggle-active` | `master-data.users.toggle-active` | `UserManageController@toggleActive` | auth | - |
 | GET | `/master-data/vouchers` | `master-data.vouchers.index` | `VoucherController@index` | auth | view master-data-vouchers |
+| POST | `/master-data/vouchers/scan` | `master-data.vouchers.scan` | `VoucherController@scan` | auth | create master-data-vouchers |
 | POST | `/master-data/vouchers` | `master-data.vouchers.store` | `VoucherController@store` | auth | create master-data-vouchers |
 | DELETE | `/master-data/vouchers/{key}` | `master-data.vouchers.destroy` | `VoucherController@destroy` | auth | delete master-data-vouchers |
 | PUT | `/master-data/vouchers/{key}` | `master-data.vouchers.update` | `VoucherController@update` | auth | update master-data-vouchers |
@@ -164,7 +165,6 @@ Total route aplikasi: **307**
 | GET | `/monitoring/cashier-shift-report/transaction/{paymentId}/items` | `monitoring.cashier-shift-report.transaction-items` | `CashierShiftReportController@transactionItems` | auth | - |
 | GET | `/monitoring/cashier-shift-report/{cashierSession}/detail` | `monitoring.cashier-shift-report.detail` | `CashierShiftReportController@detail` | auth | - |
 | GET | `/monitoring/cashier-shift-report/{cashierSession}/detail-export` | `monitoring.cashier-shift-report.detail-export` | `CashierShiftReportController@detailExport` | auth | - |
-| GET | `/monitoring/customer-loyalty-points-report` | `monitoring.customer-loyalty-points-report.index` | `CustomerLoyaltyPointsReportController@index` | auth | - |
 | GET | `/monitoring/customer-loyalty-points-report/export` | `monitoring.customer-loyalty-points-report.export` | `CustomerLoyaltyPointsReportController@export` | auth | - |
 | GET | `/monitoring/customer-membership` | `monitoring.customer-membership.index` | `CustomerMembershipMonitoringController@index` | auth | - |
 | GET | `/monitoring/data-customer` | `monitoring.data-customer.index` | `MonitoringDataCustomerController@index` | auth | - |
@@ -201,21 +201,19 @@ Total route aplikasi: **307**
 | GET | `/monitoring/product-aging/{productId}/detail` | `monitoring.product-aging.detail` | `ProductAgingMonitoringController@detail` | auth | - |
 | GET | `/monitoring/product-slowmoving` | `monitoring.product-slowmoving.index` | `ProductSlowmovingController@index` | auth | view monitoring-product-slowmoving |
 | GET | `/monitoring/product-slowmoving/export-dead` | `monitoring.product-slowmoving.export-dead` | `ProductSlowmovingController@exportDead` | auth | view monitoring-product-slowmoving |
+| GET | `/monitoring/product-slowmoving/export-expiring` | `monitoring.product-slowmoving.export-expiring` | `ProductSlowmovingController@exportExpiring` | auth | view monitoring-product-slowmoving |
+| GET | `/monitoring/product-slowmoving/export-fast` | `monitoring.product-slowmoving.export-fast` | `ProductSlowmovingController@exportFast` | auth | view monitoring-product-slowmoving |
 | GET | `/monitoring/product-slowmoving/export-slow` | `monitoring.product-slowmoving.export-slow` | `ProductSlowmovingController@exportSlow` | auth | view monitoring-product-slowmoving |
 | GET | `/monitoring/produk-terlaris` | `monitoring.produk-terlaris.index` | `ProdukTerlarisController@index` | auth | - |
 | GET | `/monitoring/produk-terlaris/export` | `monitoring.produk-terlaris.export` | `ProdukTerlarisController@export` | auth | - |
-| GET | `/monitoring/promo-usage` | `monitoring.promo-usage.index` | `PromoUsageController@index` | auth | - |
 | GET | `/monitoring/promo-usage/export` | `monitoring.promo-usage.export` | `PromoUsageController@export` | auth | - |
 | GET | `/monitoring/quality-control` | `monitoring.quality-control.index` | `MonitoringCommandCenterController@qualityControl` | auth | - |
-| GET | `/monitoring/redeem-point-report` | `monitoring.redeem-point-report.index` | `RedeemPointReportController@index` | auth | - |
+| GET | `/monitoring/promo-loyalty` | `monitoring.promo-loyalty.index` | `PromoLoyaltyReportController@index` | auth | - |
+| GET | `/monitoring/promo-loyalty/export` | `monitoring.promo-loyalty.export` | `PromoLoyaltyReportController@export` | auth | - |
 | GET | `/monitoring/redeem-point-report/export` | `monitoring.redeem-point-report.export` | `RedeemPointReportController@export` | auth | - |
-| GET | `/monitoring/referral-score-report` | `monitoring.referral-score-report.index` | `ReferralScoreReportController@index` | auth | - |
 | GET | `/monitoring/referral-score-report/export` | `monitoring.referral-score-report.export` | `ReferralScoreReportController@export` | auth | - |
 | GET | `/monitoring/request-voucher` | `monitoring.request-voucher.index` | `MonitoringVoucherRequestController@index` | auth | - |
 | GET | `/monitoring/request-voucher/export` | `monitoring.request-voucher.export` | `MonitoringVoucherRequestController@export` | auth | - |
-| GET | `/monitoring/slow-deadstock` | `monitoring.slow-deadstock.index` | `SlowDeadstockController@index` | auth | view monitoring-slow-deadstock |
-| GET | `/monitoring/slow-deadstock/export-dead` | `monitoring.slow-deadstock.export-dead` | `SlowDeadstockController@exportDead` | auth | view monitoring-slow-deadstock |
-| GET | `/monitoring/slow-deadstock/export-slow` | `monitoring.slow-deadstock.export-slow` | `SlowDeadstockController@exportSlow` | auth | view monitoring-slow-deadstock |
 | GET | `/monitoring/stok-barier-cabang` | `monitoring.stok-barier-cabang.index` | `StoreStockBarrierController@index` | auth | - |
 | POST | `/monitoring/stok-barier-cabang` | `monitoring.stok-barier-cabang.store` | `StoreStockBarrierController@store` | auth | - |
 | DELETE | `/monitoring/stok-barier-cabang/{barrier}` | `monitoring.stok-barier-cabang.destroy` | `StoreStockBarrierController@destroy` | auth | - |
@@ -224,7 +222,6 @@ Total route aplikasi: **307**
 | POST | `/monitoring/stok-barier-gudang` | `monitoring.stok-barier-gudang.store` | `WarehouseStockBarrierController@store` | auth | - |
 | DELETE | `/monitoring/stok-barier-gudang/{stok_barier_gudang}` | `monitoring.stok-barier-gudang.destroy` | `WarehouseStockBarrierController@destroy` | auth | - |
 | PUT|PATCH | `/monitoring/stok-barier-gudang/{stok_barier_gudang}` | `monitoring.stok-barier-gudang.update` | `WarehouseStockBarrierController@update` | auth | - |
-| GET | `/monitoring/stok-mendekati-kedaluwarsa` | `monitoring.stok-mendekati-kedaluwarsa.index` | `ExpiringStockMonitoringController@index` | auth | - |
 | GET | `/monitoring/stok-percabang` | `monitoring.stok-percabang` | `StokPercabangController@index` | auth | - |
 | GET | `/monitoring/stok-percabang/export` | `monitoring.stok-percabang.export` | `StokPercabangController@export` | auth | - |
 | GET | `/monitoring/stok-percabang/reservations` | `monitoring.stok-percabang.reservations` | `StokPercabangController@reservationDetails` | auth | - |
@@ -239,9 +236,6 @@ Total route aplikasi: **307**
 | GET | `/monitoring/store-payment-transactions/export` | `monitoring.store-payment-transactions.export` | `StorePaymentTransactionController@export` | auth | view monitoring-store-payment-transactions |
 | GET | `/monitoring/store-return-requests` | `monitoring.store-return-requests.index` | `StoreReturnRequestController@index` | auth | - |
 | GET | `/monitoring/store-return-requests/export` | `monitoring.store-return-requests.export` | `StoreReturnRequestController@export` | auth | - |
-| GET | `/monitoring/store-slowstock` | `monitoring.store-slowstock.index` | `StoreSlowstockController@index` | auth | view monitoring-store-slowstock |
-| GET | `/monitoring/store-slowstock/export-dead` | `monitoring.store-slowstock.export-dead` | `StoreSlowstockController@exportDead` | auth | view monitoring-store-slowstock |
-| GET | `/monitoring/store-slowstock/export-slow` | `monitoring.store-slowstock.export-slow` | `StoreSlowstockController@exportSlow` | auth | view monitoring-store-slowstock |
 | GET | `/monitoring/store-stock-opnames` | `monitoring.store-stock-opnames.index` | `StoreStockOpnameReportController@index` | auth | - |
 | GET | `/monitoring/store-stock-opnames/export` | `monitoring.store-stock-opnames.export` | `StoreStockOpnameReportController@export` | auth | - |
 | GET | `/monitoring/store-stock-opnames/{sessionItemId}/rfid-detail` | `monitoring.store-stock-opnames.rfid-detail` | `StoreStockOpnameReportController@rfidDetail` | auth | - |
@@ -289,11 +283,8 @@ Total route aplikasi: **307**
 | PATCH | `/reports/order-cabang/{order}/request` | `reports.order-cabang.request` | `OrderCabangController@requestSubmit` | auth | - |
 | GET | `/reports/retur-cabang` | `reports.retur-cabang.index` | `StoreReturnApprovalController@index` | auth | - |
 | GET | `/reports/retur-cabang/{return}` | `reports.retur-cabang.show` | `StoreReturnApprovalController@show` | auth | - |
-| PATCH | `/reports/retur-cabang/{return}/approve` | `reports.retur-cabang.approve` | `StoreReturnApprovalController@approve` | auth | - |
-| PATCH | `/reports/retur-cabang/{return}/reject` | `reports.retur-cabang.reject` | `StoreReturnApprovalController@reject` | auth | - |
 | GET | `/reports/supplier-products` | `reports.supplier-products.index` | `SupplierProductController@index` | auth | view supplier-product |
 | GET | `/reports/supplier-products/export` | `reports.supplier-products.export` | `SupplierProductController@export` | auth | view supplier-product |
-| GET | `/reports/voucher` | `reports.voucher.index` | `VoucherReportController@index` | auth | - |
 | GET | `/reports/voucher-export` | `reports.voucher.export` | `VoucherReportController@export` | auth | - |
 | GET | `/reports/voucher/{id}/detail` | `reports.voucher.detail` | `VoucherReportController@detail` | auth | - |
 
@@ -327,6 +318,8 @@ Total route aplikasi: **307**
 | POST | `/settings/app/customer-loyalty-point-transaction-reward` | `settings.app.customer-loyalty-point-transaction-reward.update` | `CustomerLoyaltyPointTransactionRewardController@update` | auth | - |
 | GET | `/settings/app/points` | `settings.points.edit` | `PointSettingController@edit` | auth | - |
 | POST | `/settings/app/points` | `settings.points.update` | `PointSettingController@update` | auth | - |
+| GET | `/settings/app/stock-barrier-alerts` | `settings.stock-barrier-alerts.edit` | `StockBarrierAlertSettingController@edit` | auth | - |
+| POST | `/settings/app/stock-barrier-alerts` | `settings.stock-barrier-alerts.update` | `StockBarrierAlertSettingController@update` | auth | - |
 
 ### Auth
 
@@ -401,4 +394,4 @@ Total route aplikasi: **307**
 
 | Method | URI | Name | Controller | Auth | Permission |
 |---|---|---|---|---|---|
-| GET | `/dashboard` | `dashboard-analytics` | `Analytics@index` | auth | - |
+| GET | `/dashboard` | `dashboard-analytics` | Redirect to `reports.business-overview.index` (legacy) | auth | - |

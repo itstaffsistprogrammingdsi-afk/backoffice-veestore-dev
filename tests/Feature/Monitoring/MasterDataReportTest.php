@@ -25,7 +25,7 @@ class MasterDataReportTest extends TestCase
             'monitoring.warehouse-user-audit.index' => ['rows', 'userSummary', 'summary'],
             'monitoring.stock-opname-variance.index' => ['rows', 'opnameItems', 'storeSummary', 'periodRows', 'reasonRows', 'summary'],
             'monitoring.stock-movements.index' => ['rows', 'dailyRows', 'monthlyRows', 'summary'],
-            'monitoring.promo-acquisition.index' => ['rows', 'pointRows', 'referralRows', 'summary'],
+            'monitoring.promo-loyalty.index' => ['promoRows', 'pointRows', 'referralRows', 'summary'],
             'monitoring.user-monitoring.index' => ['rows', 'dailyRows', 'appSummary', 'summary'],
         ];
 
@@ -51,12 +51,12 @@ class MasterDataReportTest extends TestCase
                 ->where('urls.approve', route('monitoring.stock-opname-variance.approve', ['id' => '__ID__'])));
 
         $this->actingAs($admin)
-            ->get(route('monitoring.referral-score-report.index'))
+            ->get(route('monitoring.promo-loyalty.index', ['dataset' => 'referralRows']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Monitoring/Report')
-                ->has('data.affiliateRows')
-                ->has('data.summary.total_affiliate_points'));
+                ->where('data.activeDataset', 'referralRows')
+                ->has('data.referralRows'));
     }
 
     public function test_report_navigation_contains_new_menus(): void

@@ -32,6 +32,13 @@ class StockBarrierAlertMonitorService
 
         try {
             $result = $this->scanAndPersist();
+            $periodKey = $result['periodic_period_key'] ?? null;
+            unset($result['periodic_period_key']);
+
+            if ($periodKey !== null) {
+                $this->markPeriodicDigestHandled($periodKey);
+            }
+
             $result['email_failures'] = $this->sendPendingEmails();
 
             return $result;
@@ -49,6 +56,8 @@ class StockBarrierAlertMonitorService
         $scanId = (string) Str::uuid();
         $now = now();
         $newCounts = [];
+        $schedule = StockBarrierEmailSchedule::current();
+        $periodKey = $this->duePeriodicDigestKey($schedule, $now);
 
         $backoffice->beginTransaction();
 
@@ -167,7 +176,11 @@ class StockBarrierAlertMonitorService
                     'updated_at' => $now,
                 ]);
 
-            $this->queueDigest($backoffice, $newCounts, $newItems, $now);
+            if ($schedule->isInstant()) {
+                $this->queueDigest($backoffice, $newCounts, $newItems, $now);
+            } elseif ($periodKey !== null) {
+                $this->queuePeriodicDigest($backoffice, $schedule, $periodKey, $now);
+            }
 
             $activeCount = (int) $backoffice->table('stock_barrier_alert_states')
                 ->where('is_active', true)
@@ -180,6 +193,7 @@ class StockBarrierAlertMonitorService
                 'active_count' => $activeCount,
                 'new_count' => array_sum($newCounts),
                 'email_failures' => 0,
+                'periodic_period_key' => $periodKey,
             ];
         } catch (Throwable $exception) {
             $backoffice->rollBack();
@@ -262,17 +276,32 @@ class StockBarrierAlertMonitorService
 
     private function newTransitionItems($backoffice): array
     {
+        return $this->alertItems($backoffice, onlyNew: true);
+    }
+
+    private function activeAlertItems($backoffice): array
+    {
+        return $this->alertItems($backoffice, onlyNew: false);
+    }
+
+    private function alertItems($backoffice, bool $onlyNew): array
+    {
         $items = [];
 
         foreach (['store', 'warehouse'] as $scope) {
-            $items[$scope] = $backoffice->table('stock_barrier_alert_scan as scan')
-                ->leftJoin('stock_barrier_alert_states as state', function ($join) {
+            $query = $backoffice->table('stock_barrier_alert_scan as scan');
+
+            if ($onlyNew) {
+                $query->leftJoin('stock_barrier_alert_states as state', function ($join) {
                     $join->on('state.scope_type', '=', 'scan.scope_type')
                         ->on('state.location_id', '=', 'scan.location_id')
                         ->on('state.product_id', '=', 'scan.product_id')
                         ->where('state.is_active', true);
                 })
-                ->whereNull('state.id')
+                    ->whereNull('state.id');
+            }
+
+            $items[$scope] = $query
                 ->where('scan.scope_type', $scope)
                 ->orderBy('scan.location_name')
                 ->orderBy('scan.product_name')
@@ -295,9 +324,78 @@ class StockBarrierAlertMonitorService
         return $items;
     }
 
-    private function queueDigest($backoffice, array $newCounts, array $itemsByScope, $now): void
+    private function activeAlertCounts($backoffice): array
     {
-        if (array_sum($newCounts) === 0) {
+        return $backoffice->table('stock_barrier_alert_scan')
+            ->select('scope_type')
+            ->selectRaw('COUNT(*)::int AS alert_count')
+            ->groupBy('scope_type')
+            ->pluck('alert_count', 'scope_type')
+            ->map(fn ($count) => (int) $count)
+            ->all();
+    }
+
+    private function duePeriodicDigestKey(StockBarrierEmailSchedule $schedule, $now): ?string
+    {
+        if ($schedule->isInstant()) {
+            return null;
+        }
+
+        $periodKey = $schedule->duePeriodKey($now);
+
+        if ($periodKey === null) {
+            return null;
+        }
+
+        $lastDigest = Settings::get(StockBarrierEmailSchedule::LAST_DIGEST_KEY, []);
+        $lastPeriodKey = is_array($lastDigest) ? ($lastDigest['period_key'] ?? null) : null;
+
+        return $lastPeriodKey === $periodKey ? null : $periodKey;
+    }
+
+    private function queuePeriodicDigest(
+        $backoffice,
+        StockBarrierEmailSchedule $schedule,
+        string $periodKey,
+        $now
+    ): void {
+        $counts = $this->activeAlertCounts($backoffice);
+
+        if (array_sum($counts) === 0) {
+            return;
+        }
+
+        $this->queueDigest(
+            $backoffice,
+            $counts,
+            $this->activeAlertItems($backoffice),
+            $now,
+            $schedule->mode,
+            $periodKey
+        );
+    }
+
+    private function markPeriodicDigestHandled(string $periodKey): void
+    {
+        try {
+            Settings::set(StockBarrierEmailSchedule::LAST_DIGEST_KEY, [
+                'period_key' => $periodKey,
+                'handled_at' => now()->toIso8601String(),
+            ]);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function queueDigest(
+        $backoffice,
+        array $counts,
+        array $itemsByScope,
+        $now,
+        string $mode = StockBarrierEmailSchedule::MODE_INSTANT,
+        ?string $periodKey = null
+    ): void {
+        if (array_sum($counts) === 0) {
             return;
         }
 
@@ -307,7 +405,7 @@ class StockBarrierAlertMonitorService
             ->values()
             ->all();
 
-        foreach ($newCounts as $scope => $count) {
+        foreach ($counts as $scope => $count) {
             $recipients = collect($additionalRecipients)
                 ->merge($this->authorizedUserEmails([$scope]))
                 ->unique()
@@ -315,8 +413,9 @@ class StockBarrierAlertMonitorService
                 ->all();
 
             if ($recipients === []) {
-                Log::warning('Stok barrier baru terdeteksi, tetapi tidak ada user berizin dengan email yang valid.', [
+                Log::warning('Stok barrier terdeteksi, tetapi tidak ada user berizin dengan email yang valid.', [
                     'scope' => $scope,
+                    'mode' => $mode,
                 ]);
 
                 continue;
@@ -326,6 +425,9 @@ class StockBarrierAlertMonitorService
                 'id' => (string) Str::uuid(),
                 'recipients' => json_encode($recipients, JSON_THROW_ON_ERROR),
                 'payload' => json_encode([
+                    'mode' => $mode,
+                    'period_key' => $periodKey,
+                    'generated_at' => $now->toIso8601String(),
                     'counts' => [$scope => (int) $count],
                     'items' => $itemsByScope[$scope] ?? [],
                     'sample_limit' => self::EMAIL_SAMPLE_LIMIT,

@@ -20,17 +20,30 @@ interface GreetingTemplate {
     placeholders: string[];
 }
 
+interface BirthdayVoucher {
+    id: string;
+    name: string;
+    code: string;
+    type: string;
+    value: number;
+    distribution_type: string;
+    valid_until: string | null;
+    available_codes_count: number | null;
+}
+
 interface Props {
     customers: BirthdayCustomer[];
     total: number;
     monthLabel: string;
     template: GreetingTemplate;
     sendUrl: string;
+    vouchers?: BirthdayVoucher[];
     title?: string;
     subtitle?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
+    vouchers: () => [],
     title: 'Ulang Tahun',
     subtitle: 'Pelanggan yang dapat disapa pada momen ulang tahunnya.',
 });
@@ -43,12 +56,26 @@ const mode = ref<'single' | 'bulk'>('single');
 const selectedCustomer = ref<BirthdayCustomer | null>(null);
 const subject = ref('');
 const message = ref('');
+const voucherId = ref('');
 const processing = ref(false);
 const errors = ref<Record<string, string>>({});
 const subjectInput = ref<HTMLInputElement | null>(null);
 
 const emailRecipients = computed(() => props.customers.filter(customer => Boolean(customer.email)));
 const previewCustomer = computed(() => selectedCustomer.value ?? emailRecipients.value[0] ?? null);
+const recipientCount = computed(() => mode.value === 'single' ? 1 : emailRecipients.value.length);
+const selectedVoucher = computed(() => props.vouchers.find(voucher => voucher.id === voucherId.value) ?? null);
+
+const uniqueCodesInsufficient = (voucher: BirthdayVoucher) =>
+    voucher.distribution_type === 'unique_code' && (voucher.available_codes_count ?? 0) < recipientCount.value;
+
+const voucherOptionLabel = (voucher: BirthdayVoucher) => {
+    if (voucher.distribution_type === 'unique_code') {
+        return `${voucher.name} - kode unik (${formatNumber(voucher.available_codes_count ?? 0)} tersedia)`;
+    }
+
+    return `${voucher.name} - ${voucher.code}`;
+};
 
 const personalize = (text: string, customer: BirthdayCustomer | null) =>
     text
@@ -80,6 +107,7 @@ const openGreeting = (customer: BirthdayCustomer) => {
     selectedCustomer.value = customer;
     subject.value = props.template.subject;
     message.value = props.template.message;
+    voucherId.value = '';
     errors.value = {};
     isOpen.value = true;
 };
@@ -91,6 +119,7 @@ const openBulk = () => {
     selectedCustomer.value = null;
     subject.value = props.template.subject;
     message.value = props.template.message;
+    voucherId.value = '';
     errors.value = {};
     isOpen.value = true;
 };
@@ -117,6 +146,7 @@ const submit = () => {
             customer_ids: customerIds,
             subject: subject.value,
             message: message.value,
+            voucher_id: voucherId.value || null,
         },
         {
             preserveScroll: true,
@@ -276,6 +306,40 @@ onBeforeUnmount(() => {
                         <div v-if="errors.message" class="invalid-feedback">{{ errors.message }}</div>
                     </div>
 
+                    <div v-if="props.vouchers.length > 0" class="mb-3">
+                        <label class="form-label" for="birthday-voucher">Lampirkan Voucher (opsional)</label>
+                        <select
+                            id="birthday-voucher"
+                            v-model="voucherId"
+                            class="form-select"
+                            :class="{ 'is-invalid': errors.voucher_id }"
+                        >
+                            <option value="">Tanpa voucher</option>
+                            <option
+                                v-for="voucher in props.vouchers"
+                                :key="voucher.id"
+                                :value="voucher.id"
+                                :disabled="uniqueCodesInsufficient(voucher)"
+                            >
+                                {{ voucherOptionLabel(voucher) }}
+                            </option>
+                        </select>
+                        <div v-if="errors.voucher_id" class="invalid-feedback">{{ errors.voucher_id }}</div>
+
+                        <div v-if="selectedVoucher" class="birthday-voucher-hint">
+                            <i class="mdi" :class="selectedVoucher.distribution_type === 'unique_code' ? 'mdi-ticket-confirmation-outline' : 'mdi-ticket-percent-outline'"></i>
+                            <span v-if="selectedVoucher.distribution_type === 'unique_code'">
+                                Setiap penerima akan menerima satu kode unik yang berbeda.
+                            </span>
+                            <span v-else>
+                                Kode voucher yang sama akan dikirim ke seluruh penerima.
+                            </span>
+                            <template v-if="selectedVoucher.valid_until">
+                                Berlaku hingga {{ formatDate(selectedVoucher.valid_until) }}.
+                            </template>
+                        </div>
+                    </div>
+
                     <div class="birthday-placeholders">
                         <span>Placeholder otomatis:</span>
                         <code v-for="placeholder in props.template.placeholders" :key="placeholder">{{ placeholder }}</code>
@@ -288,6 +352,18 @@ onBeforeUnmount(() => {
                         </span>
                         <strong>{{ previewSubject }}</strong>
                         <p class="birthday-preview-body">{{ previewMessage }}</p>
+                        <div v-if="selectedVoucher" class="birthday-preview-voucher">
+                            <i class="mdi mdi-ticket-percent-outline"></i>
+                            <span>
+                                Voucher: <strong>{{ selectedVoucher.name }}</strong>
+                                <template v-if="selectedVoucher.distribution_type === 'unique_code'">
+                                    (kode unik dipilih otomatis saat email dikirim)
+                                </template>
+                                <template v-else>
+                                    (kode {{ selectedVoucher.code }})
+                                </template>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -338,6 +414,8 @@ onBeforeUnmount(() => {
 .birthday-preview-label { display: block; margin-bottom: 0.4rem; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
 .birthday-preview strong { display: block; font-size: 0.84rem; }
 .birthday-preview-body { margin: 0.35rem 0 0; color: var(--app-ink); font-size: 0.8rem; line-height: 1.55; white-space: pre-line; }
+.birthday-preview-voucher { display: flex; align-items: flex-start; gap: 0.35rem; margin-top: 0.6rem; padding-top: 0.55rem; border-top: 1px dashed var(--app-border); color: var(--app-muted); font-size: 0.76rem; line-height: 1.5; }
+.birthday-voucher-hint { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.45rem; color: var(--app-muted); font-size: 0.74rem; }
 @media (max-width: 575.98px) {
     .birthday-card header { align-items: flex-start; flex-direction: column; }
     .birthday-actions { justify-content: flex-start; }

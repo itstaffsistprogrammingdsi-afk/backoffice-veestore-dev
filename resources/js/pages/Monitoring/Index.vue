@@ -8,10 +8,17 @@ import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 defineOptions({ layout: AppLayout });
 
 interface MonitoringItem { name: string; url: string; icon?: string | null }
-interface MonitoringGroup { name: string; description?: string; icon?: string; items: MonitoringItem[] }
+interface MonitoringGroup {
+    name: string;
+    description?: string;
+    icon?: string;
+    source?: 'monitoring' | 'reports';
+    items: MonitoringItem[];
+}
 
 const props = defineProps<{
     monitoringGroups: MonitoringGroup[];
+    reportGroups: MonitoringGroup[];
     overviewUrl: string;
     storeTransferReconciliation: StoreTransferReconciliation;
     storeTransferReportUrl: string;
@@ -21,12 +28,32 @@ const search = ref('');
 
 const normalizedSearch = computed(() => search.value.trim().toLowerCase());
 
+const inventoryGroups = computed<MonitoringGroup[]>(() => {
+    const seen = new Set<string>();
+
+    return [...props.monitoringGroups, ...props.reportGroups]
+        .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => {
+                const path = item.url.replace(window.location.origin, '').replace(/\/$/, '') || '/';
+
+                if (seen.has(path)) {
+                    return false;
+                }
+
+                seen.add(path);
+                return true;
+            }),
+        }))
+        .filter((group) => group.items.length > 0);
+});
+
 const filteredGroups = computed(() => {
     const needle = normalizedSearch.value;
 
-    if (!needle) return props.monitoringGroups;
+    if (!needle) return inventoryGroups.value;
 
-    return props.monitoringGroups
+    return inventoryGroups.value
         .map((group) => {
             const groupMatches = group.name.toLowerCase().includes(needle);
             const items = groupMatches
@@ -38,7 +65,7 @@ const filteredGroups = computed(() => {
         .filter((group) => group.items.length > 0);
 });
 
-const totalItems = computed(() => props.monitoringGroups.reduce((total, group) => total + group.items.length, 0));
+const totalItems = computed(() => inventoryGroups.value.reduce((total, group) => total + group.items.length, 0));
 const visibleItems = computed(() => filteredGroups.value.reduce((total, group) => total + group.items.length, 0));
 </script>
 
@@ -49,7 +76,7 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
             <div class="monitoring-header-copy">
                 <span class="monitoring-eyebrow">Laporan</span>
                 <h1>Monitoring Command Center</h1>
-                <p>Akses seluruh laporan operasional dari satu tempat.</p>
+                <p>Akses seluruh menu monitoring dan laporan dari satu tempat.</p>
             </div>
 
             <div class="monitoring-header-tools">
@@ -58,16 +85,16 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
                     Ringkasan Usaha
                 </Link>
                 <div class="monitoring-search">
-                    <label for="monitoring-search-input" class="visually-hidden">Cari submenu monitoring</label>
-                <i class="mdi mdi-magnify monitoring-search-icon" aria-hidden="true"></i>
-                <input
-                    id="monitoring-search-input"
-                    v-model="search"
-                    type="search"
-                    class="form-control"
-                    placeholder="Cari submenu monitoring..."
-                    autocomplete="off"
-                />
+                    <label for="monitoring-search-input" class="visually-hidden">Cari menu monitoring dan laporan</label>
+                    <i class="mdi mdi-magnify monitoring-search-icon" aria-hidden="true"></i>
+                    <input
+                        id="monitoring-search-input"
+                        v-model="search"
+                        type="search"
+                        class="form-control"
+                        placeholder="Cari menu monitoring dan laporan..."
+                        autocomplete="off"
+                    />
                     <button
                         v-if="search"
                         type="button"
@@ -150,7 +177,7 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
         </section>
 
         <div class="monitoring-meta">
-            <span>{{ totalItems }} submenu monitoring</span>
+            <span>{{ totalItems }} menu monitoring &amp; laporan</span>
             <span v-if="normalizedSearch">Menampilkan {{ visibleItems }} hasil untuk "{{ search.trim() }}"</span>
         </div>
 
@@ -160,7 +187,9 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
                     <div class="card-body">
                         <div class="monitoring-card-head">
                             <div class="monitoring-icon"><i class="mdi" :class="group.icon ?? 'mdi-chart-box-outline'"></i></div>
-                            <span class="monitoring-count">{{ group.items.length }} menu</span>
+                            <span class="monitoring-count">
+                                {{ group.source === 'reports' ? 'Reports' : 'Monitoring' }} · {{ group.items.length }} menu
+                            </span>
                         </div>
                         <h3>{{ group.name }}</h3>
                         <p>{{ group.description ?? 'Kumpulan laporan monitoring.' }}</p>
@@ -176,7 +205,7 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
 
         <div v-else class="monitoring-empty">
             <i class="mdi mdi-file-search-outline" aria-hidden="true"></i>
-            <strong>Tidak ada submenu yang cocok</strong>
+            <strong>Tidak ada menu yang cocok</strong>
             <p>Coba kata kunci lain, misalnya penjualan, pesanan, stok, atau logistik.</p>
             <button type="button" class="btn btn-sm btn-primary" @click="search = ''">Reset pencarian</button>
         </div>

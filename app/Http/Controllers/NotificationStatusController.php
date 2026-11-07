@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\BranchOperationNotificationService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class NotificationStatusController extends Controller
 {
@@ -63,13 +63,13 @@ class NotificationStatusController extends Controller
     ): RedirectResponse {
         $notificationService->markRead($key);
 
-        $redirect = (string) $request->query('redirect', route('dashboard-analytics'));
+        $redirect = (string) $request->query('redirect', route('reports.business-overview.index'));
         $parsed = parse_url($redirect);
         $isRelative = str_starts_with($redirect, '/');
         $isSameHost = isset($parsed['host']) && $parsed['host'] === $request->getHost();
 
         if (! $isRelative && ! $isSameHost) {
-            $redirect = route('dashboard-analytics');
+            $redirect = route('reports.business-overview.index');
         }
 
         return redirect()->to($redirect);

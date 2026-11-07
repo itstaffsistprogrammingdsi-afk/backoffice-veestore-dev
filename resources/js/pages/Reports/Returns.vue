@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -41,7 +40,6 @@ interface Paginator<T> {
 interface Props {
     returns: Paginator<ReturnRow>;
     stores: Option[];
-    warehouses: Option[];
     statuses: string[];
     filters: {
         q: string;
@@ -52,17 +50,11 @@ interface Props {
     urls: {
         index: string;
         show: string;
-        approve: string;
-        reject: string;
+        approval: string;
     };
 }
 
 const props = defineProps<Props>();
-const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
-    value: warehouse.id,
-    label: warehouse.name,
-})));
-
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
@@ -78,7 +70,16 @@ const selected = ref<ReturnRow | null>(null);
 const header = ref<Record<string, any> | null>(null);
 const details = ref<DetailRow[]>([]);
 const loading = ref(false);
-const warehouseId = ref('');
+
+const approvalUrl = computed(() => {
+    const params = new URLSearchParams({ status: 'all' });
+
+    if (selected.value?.return_number) {
+        params.set('q', selected.value.return_number);
+    }
+
+    return `${props.urls.approval}?${params.toString()}`;
+});
 
 const apply = () => {
     router.get(props.urls.index, {
@@ -108,7 +109,6 @@ const openReturn = async (row: ReturnRow) => {
         const data = await response.json();
         header.value = data.header ?? null;
         details.value = data.details ?? [];
-        warehouseId.value = data.header?.warehouse_id ?? '';
     } finally {
         loading.value = false;
     }
@@ -118,21 +118,6 @@ const closeReturn = () => {
     selected.value = null;
     header.value = null;
     details.value = [];
-};
-
-const decide = (action: 'approve' | 'reject') => {
-    if (!selected.value) return;
-
-    if (action === 'reject' && !window.confirm('Reject retur ini?')) return;
-
-    const payload = action === 'approve'
-        ? { warehouse_id: warehouseId.value, approved_qty: Object.fromEntries(details.value.map((detail) => [detail.product_id, detail.qty_requested])) }
-        : {};
-
-    router.patch(props.urls[action].replace('__ID__', selected.value.id), payload, {
-        preserveScroll: true,
-        onSuccess: closeReturn,
-    });
 };
 
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '-';
@@ -179,7 +164,7 @@ const exportReturns = () => downloadExcelTable('Retur-Cabang', 'Retur Cabang', [
             <div>
                 <span class="report-eyebrow">Reports</span>
                 <h1>Retur Cabang</h1>
-                <p>Permintaan retur dari toko ke gudang.</p>
+                <p>Pantau permintaan retur dari toko ke gudang. Approval dilakukan di halaman Operasional.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportReturns">
                 <i class="mdi mdi-file-excel-outline me-1"></i>Ekspor Excel
@@ -213,7 +198,7 @@ const exportReturns = () => downloadExcelTable('Retur-Cabang', 'Retur Cabang', [
                             <td>{{ row.warehouse_name ?? '-' }}</td>
                             <td><span class="badge" :class="statusClass(row.status)">{{ row.status }}</span></td>
                             <td>{{ row.approved_by_name ?? '-' }}</td>
-                            <td><button class="btn btn-sm btn-outline-primary" type="button" @click="openReturn(row)">Kelola</button></td>
+                            <td><button class="btn btn-sm btn-outline-primary" type="button" @click="openReturn(row)">Lihat</button></td>
                         </tr>
                         <tr v-if="returns.data.length === 0"><td colspan="7" class="report-empty">Belum ada retur.</td></tr>
                     </tbody>
@@ -230,15 +215,18 @@ const exportReturns = () => downloadExcelTable('Retur-Cabang', 'Retur Cabang', [
             <div class="card-body">
                 <div v-if="loading" class="text-muted">Memuat detail...</div>
                 <template v-else>
-                    <div class="row g-2 align-items-end mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Warehouse untuk approve</label>
-                            <SearchableSelect v-model="warehouseId" :options="warehouseOptions" placeholder="Pilih warehouse" search-placeholder="Cari warehouse..." />
-                        </div>
-                        <div class="col-md-8 d-flex gap-2">
-                            <button class="btn btn-sm btn-success" type="button" @click="decide('approve')">Approve</button>
-                            <button class="btn btn-sm btn-outline-danger" type="button" @click="decide('reject')">Reject</button>
-                        </div>
+                    <div class="alert alert-info d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
+                        <span>Halaman laporan hanya untuk melihat data retur. Keputusan approval dilakukan di Operasional.</span>
+                        <a :href="approvalUrl" class="btn btn-sm btn-primary">
+                            <i class="mdi mdi-clipboard-check-outline me-1"></i>Buka Persetujuan Retur
+                        </a>
+                    </div>
+
+                    <div v-if="header" class="row g-2 mb-3">
+                        <div class="col-md-3"><small class="text-muted d-block">Store</small><strong>{{ header.store_name ?? '-' }}</strong></div>
+                        <div class="col-md-3"><small class="text-muted d-block">Warehouse</small><strong>{{ header.warehouse_name ?? '-' }}</strong></div>
+                        <div class="col-md-3"><small class="text-muted d-block">Status</small><strong>{{ header.status ?? '-' }}</strong></div>
+                        <div class="col-md-3"><small class="text-muted d-block">Disetujui oleh</small><strong>{{ header.approved_by_name ?? '-' }}</strong></div>
                     </div>
 
                     <div class="table-responsive">

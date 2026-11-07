@@ -41,7 +41,44 @@ interface Props {
         reservations?: string;
         approve?: string;
         reject?: string;
+        email_alert_settings?: string;
     };
+}
+
+interface FinanceReconciliation {
+    expected_net: number;
+    actual_net: number;
+    difference: number;
+    clamped_discount: number;
+    unexplained_difference: number;
+    is_balanced: boolean;
+}
+
+interface FinanceBreakdownValues {
+    gross_sales: number;
+    product_discount: number;
+    net_after_product_discount: number;
+    voucher_discount: number;
+    net_sales: number;
+    base_price: number;
+    gross_profit: number;
+    gross_margin_percent: number;
+    product_discount_percent: number;
+    voucher_discount_percent: number;
+    effective_discount_percent: number;
+    transactions: number;
+    qty: number;
+    average_net_per_transaction: number;
+    reconciliation: FinanceReconciliation;
+}
+
+interface FinanceChannel extends FinanceBreakdownValues {
+    key: string;
+    label: string;
+}
+
+interface FinanceSummary extends FinanceBreakdownValues {
+    channels?: FinanceChannel[];
 }
 
 interface FilterOption {
@@ -288,6 +325,8 @@ const ALLOWED_FILTERS = new Set([
     'min_damage_count',
     'per_page',
     'exception_only',
+    'slow_max_qty',
+    'expiry_days',
     'province_code',
     'regency_code',
     'district_code',
@@ -381,6 +420,8 @@ const FILTER_LABELS: Record<string, string> = {
     group_by: 'Kelompokkan',
     promo: 'Promo',
     aging_bucket: 'Rentang Aging',
+    slow_max_qty: 'Batas Qty Slow Moving',
+    expiry_days: 'Batas Hari Kedaluwarsa',
     mutation_type: 'Tipe Mutasi',
     app_type: 'Tipe Aplikasi',
     device: 'Device',
@@ -450,7 +491,7 @@ const DATE_KEYS = new Set([
     'to',
 ]);
 
-const NUMBER_KEYS = new Set(['min', 'min_move_count', 'min_damage_count', 'min_age_days']);
+const NUMBER_KEYS = new Set(['min', 'min_move_count', 'min_damage_count', 'min_age_days', 'slow_max_qty']);
 
 const OPTION_SOURCES: Record<string, { keys: string[]; labels?: string[] }> = {
     store_id: { keys: ['stores'] },
@@ -583,6 +624,13 @@ const PRESET_OPTIONS: Record<string, FilterOption[]> = {
         { value: '1', label: 'Aktif' },
         { value: '0', label: 'Tidak aktif' },
     ],
+    expiry_days: [
+        { value: '30', label: '30 hari' },
+        { value: '90', label: '90 hari' },
+        { value: '180', label: '180 hari' },
+        { value: '365', label: '365 hari' },
+        { value: '730', label: '730 hari' },
+    ],
     exception_only: [{ value: '1', label: 'Hanya data anomali' }],
     scope: [
         { value: 'warehouse', label: 'Warehouse' },
@@ -646,7 +694,13 @@ const DATASET_LABELS: Record<string, string> = {
     fraudAlerts: 'Peringatan Fraud',
     checks: 'Hasil Pemeriksaan Data',
     slow: 'Produk Lambat Terjual',
+    fast: 'Produk Cepat Terjual',
     dead: 'Produk Tidak Terjual',
+    expiring: 'Mendekati Kedaluwarsa',
+    promoRows: 'Ringkasan Promo & Voucher',
+    pointMutationRows: 'Poin per Customer',
+    promoUsageRows: 'Promo Usage',
+    redeemPointRows: 'Redeem Point',
     supplierRows: 'Ringkasan Kinerja Supplier',
     productRisks: 'Produk Berisiko',
     monthlyTrend: 'Tren Bulanan',
@@ -683,7 +737,7 @@ const DATASET_LABELS: Record<string, string> = {
     dailyRows: 'Rekap Harian',
     monthlyRows: 'Rekap Bulanan',
     pointRows: 'Poin per Jenis Mutasi',
-    referralRows: 'Referral per Status',
+    referralRows: 'Referral & Afiliasi',
     appSummary: 'Akses per Aplikasi',
     voucherUsageRows: 'Voucher Terpakai',
     opnameItems: 'Rincian Item Opname',
@@ -695,8 +749,14 @@ const DATASET_DESCRIPTIONS: Record<string, string> = {
     logs: 'Riwayat aktivitas sistem. Bukan data transaksi penjualan.',
     fraudAlerts: 'Peringatan yang perlu diverifikasi oleh tim terkait.',
     checks: 'Hasil pemeriksaan kualitas dan kelengkapan data.',
-    slow: 'Produk dengan pergerakan penjualan lambat.',
-    dead: 'Produk tanpa pergerakan penjualan pada periode analisis.',
+    slow: 'Produk dengan penjualan rendah pada periode analisis.',
+    fast: 'Produk dengan penjualan tinggi pada periode analisis.',
+    dead: 'Produk tanpa penjualan pada periode analisis, tetapi masih memiliki stok.',
+    expiring: 'Produk dengan tanggal kedaluwarsa dalam batas hari yang dipilih, termasuk yang sudah kedaluwarsa.',
+    promoRows: 'Ringkasan pemakaian voucher dan promo pada periode terpilih.',
+    pointMutationRows: 'Saldo dan mutasi poin per customer.',
+    promoUsageRows: 'Rincian pemakaian promo dan diskon pada pesanan ecommerce.',
+    redeemPointRows: 'Rekap redeem poin per customer pada periode terpilih.',
     supplierRows: 'Agregasi kinerja supplier, bukan daftar transaksi.',
     productRisks: 'Produk dengan indikasi risiko operasional.',
     monthlyTrend: 'Agregasi per bulan. Jangan dijumlahkan dengan daftar transaksi.',
@@ -733,7 +793,7 @@ const DATASET_DESCRIPTIONS: Record<string, string> = {
     dailyRows: 'Pergerakan stok yang diagregasi per hari.',
     monthlyRows: 'Pergerakan stok yang diagregasi per bulan.',
     pointRows: 'Penerimaan dan pemakaian poin per jenis mutasi.',
-    referralRows: 'Jumlah referral dan akun unik per status.',
+    referralRows: 'Daftar referral beserta referrer, referee, dan statusnya.',
     appSummary: 'Jumlah akses dan pengguna unik per aplikasi, termasuk WMS.',
     voucherUsageRows: 'Voucher yang sudah digunakan pada periode ini.',
     opnameItems: 'Rincian item per sesi stok opname beserta nilai selisih.',
@@ -751,7 +811,16 @@ const DATASET_ORDER = [
     'barriers',
     'logs',
     'slow',
+    'fast',
     'dead',
+    'expiring',
+    'promoRows',
+    'pointRows',
+    'pointMutationRows',
+    'referralRows',
+    'promoUsageRows',
+    'voucherUsageRows',
+    'redeemPointRows',
     'supplierRows',
     'checks',
     'fraudAlerts',
@@ -783,10 +852,7 @@ const DATASET_ORDER = [
     'reasonRows',
     'dailyRows',
     'monthlyRows',
-    'pointRows',
-    'referralRows',
     'appSummary',
-    'voucherUsageRows',
     'opnameItems',
 ];
 
@@ -802,6 +868,14 @@ const COLUMN_LABELS: Record<string, string> = {
     shipping_number: 'No. Resi',
     product_code: 'Kode Produk',
     product_name: 'Nama Produk',
+    category_name: 'Kategori',
+    qty_sold: 'Qty Terjual / Keluar',
+    qty_stock: 'Qty Stok',
+    product_price: 'Harga Produk',
+    stock_value: 'Nilai Stok',
+    last_sold_at: 'Terakhir Terjual / Keluar',
+    movement_status: 'Status Pergerakan',
+    expiry_status: 'Status Kedaluwarsa',
     customer_name: 'Customer',
     store_name: 'Cabang',
     warehouse_name: 'Gudang',
@@ -839,13 +913,26 @@ const COLUMN_LABELS: Record<string, string> = {
     grand_total: 'Grand Total',
     detail_value: 'Nilai Detail',
     total_amount: 'Total Pembayaran',
-    gross_sales: 'Omzet Kotor',
+    gross_sales: 'Omset Kotor',
     net_after_product_discount: 'Setelah Diskon Produk',
-    final_paid_amount: 'Omzet Bersih',
+    final_paid_amount: 'Omset Bersih',
     product_discount_amount: 'Diskon Produk',
     allocated_order_discount: 'Voucher / Poin',
     total_discount_amount: 'Total Potongan',
     base_price_total: 'Nilai Harga Dasar',
+    total_transaksi: 'Total Transaksi',
+    total_omset_kotor: 'Omset Kotor',
+    total_omset_bersih: 'Omset Bersih',
+    total_omset: 'Total Omset Bersih',
+    total_diskon_produk: 'Diskon Produk',
+    total_voucher_promo: 'Voucher / Poin',
+    total_harga_awal: 'Omset Kotor',
+    total_harga_akhir: 'Omset Bersih',
+    total_harga_base: 'Nilai Harga Dasar',
+    total_omset_kotor_store: 'Omset Store POS (Bersih)',
+    total_omset_kotor_ecommerce: 'Omset Ecommerce (Bersih)',
+    laba_kotor: 'Laba Kotor',
+    margin_kotor_percent: 'Margin Kotor',
     paid_amount: 'Nominal Dibayar',
     total_nominal: 'Nilai Stok',
     total_qty: 'Total Qty',
@@ -1050,6 +1137,17 @@ const COLUMN_LABELS: Record<string, string> = {
     change_gap: 'Selisih Kembalian',
     payment_gap: 'Selisih Penjualan vs Pembayaran',
     payment_methods: 'Metode Pembayaran',
+    change_amount: 'Uang Kembalian',
+    ecommerce_used: 'Dipakai Ecommerce',
+    store_used: 'Dipakai Store',
+    used_total: 'Total Dipakai',
+    payment_source: 'Sumber Pembayaran',
+    payment_detail_amount: 'Nominal Metode',
+    payment_real_date: 'Waktu Pembayaran',
+    tax_amount: 'Pajak',
+    voucher_discount: 'Diskon Voucher',
+    used_discounts: 'Diskon Terpakai',
+    total_product_rows: 'Jumlah Baris Produk',
     method_count: 'Jumlah Metode',
     detail_total: 'Total Tercatat',
     expected_amount: 'Nominal Seharusnya',
@@ -1176,6 +1274,7 @@ const CURRENCY_KEYS = new Set([
     'total_nominal',
     'product_price',
     'total_value',
+    'stock_value',
     'payment_fee',
     'shipping_cost',
     'max_discount',
@@ -1193,6 +1292,26 @@ const CURRENCY_KEYS = new Set([
     'total_shipping',
     'gross_sales',
     'net_sales',
+    'gross_profit',
+    'laba_kotor',
+    'base_price',
+    'total_base_price',
+    'total_gross_sales',
+    'total_net_after_product_discount',
+    'total_final_paid',
+    'total_product_discount',
+    'total_voucher_discount',
+    'total_harga_awal',
+    'total_harga_akhir',
+    'total_harga_base',
+    'total_harga_order_store',
+    'total_omset',
+    'total_omset_kotor',
+    'total_omset_bersih',
+    'total_omset_kotor_store',
+    'total_omset_kotor_ecommerce',
+    'total_diskon_produk',
+    'total_voucher_promo',
     'available_voucher_value',
     'used_voucher_value',
     'difference_value',
@@ -1572,6 +1691,7 @@ const visibleFilterFields = computed<FilterField[]>(() =>
 
         if (field.key === 'store_id') {
             return !(
+                mode === 'all' ||
                 mode === 'warehouse' ||
                 scope === 'warehouse' ||
                 source === 'warehouse' ||
@@ -1582,6 +1702,7 @@ const visibleFilterFields = computed<FilterField[]>(() =>
 
         if (field.key === 'warehouse_id') {
             return !(
+                mode === 'all' ||
                 mode === 'store' ||
                 scope === 'store' ||
                 source === 'store' ||
@@ -1599,6 +1720,11 @@ const visibleFilterKeys = computed(() => new Set(visibleFilterFields.value.map((
 watch(
     () => [filterValues.mode, filterValues.scope, filterValues.source, filterValues.handled_type],
     () => {
+        if (filterValues.mode === 'all') {
+            filterValues.store_id = '';
+            filterValues.warehouse_id = '';
+        }
+
         if (filterValues.mode === 'warehouse' || filterValues.scope === 'warehouse' || filterValues.source === 'warehouse' || filterValues.handled_type === 'warehouse') {
             filterValues.store_id = '';
         }
@@ -1702,6 +1828,20 @@ const datasets = computed<Dataset[]>(() => {
 
 const currentDatasetKey = ref<string | null>(null);
 
+const requestedDatasetKey = computed(() => {
+    if (typeof props.data?.activeDataset === 'string' && props.data.activeDataset !== '') {
+        return props.data.activeDataset;
+    }
+
+    if (isObject(props.filters)) {
+        const dataset = (props.filters as Record<string, unknown>).dataset;
+
+        if (typeof dataset === 'string') return dataset;
+    }
+
+    return '';
+});
+
 const activeDataset = computed<Dataset | null>(() => {
     const list = datasets.value;
 
@@ -1710,13 +1850,24 @@ const activeDataset = computed<Dataset | null>(() => {
     return list.find((dataset) => dataset.key === currentDatasetKey.value) ?? list[0];
 });
 
+let lastRequestedDataset = '';
+
 watch(
-    datasets,
-    (list) => {
+    [datasets, requestedDatasetKey],
+    ([list, requested]) => {
         if (list.length === 0) {
             currentDatasetKey.value = null;
+            lastRequestedDataset = requested;
             return;
         }
+
+        if (requested !== '' && requested !== lastRequestedDataset && list.some((dataset) => dataset.key === requested)) {
+            lastRequestedDataset = requested;
+            currentDatasetKey.value = requested;
+            return;
+        }
+
+        lastRequestedDataset = requested;
 
         if (!currentDatasetKey.value || !list.some((dataset) => dataset.key === currentDatasetKey.value)) {
             currentDatasetKey.value = list[0].key;
@@ -1938,6 +2089,13 @@ const summaryLabel = (key: string): string => {
         damaged_items: 'Item Rusak',
         returned_items: 'Item Retur',
         total_referral: 'Total Referral',
+        success_referral: 'Referral Berhasil',
+        referral_success_rate: 'Tingkat Keberhasilan Referral',
+        voucher_users: 'Akun Pemakai Voucher',
+        voucher_usages: 'Pemakaian Voucher',
+        voucher_discount_value: 'Nilai Diskon Voucher',
+        point_users: 'Akun Pemakai Poin',
+        point_mutations: 'Mutasi Poin',
         total_success: 'Berhasil',
         total_pending: 'Pending',
         total_point_in: 'Poin Masuk',
@@ -1947,9 +2105,14 @@ const summaryLabel = (key: string): string => {
         urgent_quantity: 'Qty Segera Expired',
         upcoming_quantity: 'Qty Akan Expired',
         slow_count: 'Slow Moving',
+        fast_count: 'Fast Moving',
         dead_count: 'Deadstock',
+        expiring_count: 'Mendekati Kedaluwarsa',
         slow_qty: 'Qty Slow Moving',
+        fast_qty: 'Qty Fast Moving',
         dead_qty: 'Qty Deadstock',
+        expiring_qty: 'Qty Mendekati Kedaluwarsa',
+        expired_qty: 'Qty Sudah Kedaluwarsa',
         total_store: 'Total Store',
         total_warehouse: 'Total Warehouse',
         total_good: 'Kondisi Baik',
@@ -2000,13 +2163,20 @@ const summaryLabel = (key: string): string => {
         total_cash_transactions: 'Transaksi Tunai',
         total_non_cash_transactions: 'Transaksi Non-Tunai',
         total_receivable_amount: 'Piutang Rekanan',
-        total_gross_sales: 'Omzet Kotor',
+        total_gross_sales: 'Omset Kotor',
         total_net_after_product_discount: 'Setelah Diskon Produk',
-        total_final_paid: 'Omzet Bersih',
+        total_final_paid: 'Omset Bersih',
         total_product_discount: 'Diskon Produk',
         total_voucher_discount: 'Voucher / Poin',
         total_discount_amount: 'Total Potongan',
         total_base_price: 'Nilai Harga Dasar',
+        average_net_transaction: 'Rata-rata Omset Bersih',
+        total_omset_kotor: 'Omset Kotor',
+        total_omset_bersih: 'Omset Bersih',
+        total_diskon_produk: 'Diskon Produk',
+        total_voucher_promo: 'Voucher / Poin',
+        laba_kotor: 'Laba Kotor',
+        margin_kotor_percent: 'Margin Kotor',
         total_store_customer: 'Customer Store',
         total_ecommerce_customer: 'Customer Ecommerce',
         slow_total_nominal: 'Nilai Slow Moving',
@@ -2099,6 +2269,101 @@ const formatCurrency = (value: number): string =>
     }).format(value);
 
 const formatPercent = (value: number): string => `${formatNumber(value)}%`;
+
+const financeSummary = computed<FinanceSummary | null>(() => {
+    const finance = props.data?.finance;
+
+    return isObject(finance) ? (finance as FinanceSummary) : null;
+});
+
+const financeFlow = computed(() => {
+    const finance = financeSummary.value;
+
+    if (!finance) return [];
+
+    return [
+        {
+            key: 'gross',
+            label: 'Omset Kotor',
+            value: formatCurrency(finance.gross_sales),
+            note: 'Harga jual sebelum potongan',
+            tone: 'accent',
+        },
+        {
+            key: 'product-discount',
+            label: 'Diskon Produk',
+            value: `- ${formatCurrency(finance.product_discount)}`,
+            note: `${formatPercent(finance.product_discount_percent)} dari omset kotor`,
+            tone: 'deduction',
+        },
+        {
+            key: 'after-product-discount',
+            label: 'Setelah Diskon Produk',
+            value: formatCurrency(finance.net_after_product_discount),
+            note: 'Omset kotor dikurangi diskon produk, minimum 0',
+            tone: 'neutral',
+        },
+        {
+            key: 'voucher-discount',
+            label: 'Voucher / Poin',
+            value: `- ${formatCurrency(finance.voucher_discount)}`,
+            note: `${formatPercent(finance.voucher_discount_percent)} dari omset kotor`,
+            tone: 'deduction',
+        },
+        {
+            key: 'net',
+            label: 'Omset Bersih',
+            value: formatCurrency(finance.net_sales),
+            note: 'Pendapatan setelah seluruh potongan',
+            tone: 'success',
+        },
+    ];
+});
+
+const financeKpis = computed(() => {
+    const finance = financeSummary.value;
+
+    if (!finance) return [];
+
+    return [
+        {
+            key: 'base-price',
+            label: 'Nilai Harga Dasar',
+            value: formatCurrency(finance.base_price),
+            note: 'Harga base produk, acuan laba kotor',
+        },
+        {
+            key: 'gross-profit',
+            label: 'Laba Kotor',
+            value: formatCurrency(finance.gross_profit),
+            note: 'Omset bersih dikurangi nilai harga dasar',
+        },
+        {
+            key: 'margin',
+            label: 'Margin Kotor',
+            value: formatPercent(finance.gross_margin_percent),
+            note: 'Laba kotor dibagi omset bersih',
+        },
+        {
+            key: 'effective-discount',
+            label: 'Diskon Efektif',
+            value: formatPercent(finance.effective_discount_percent),
+            note: 'Total potongan dibagi omset kotor',
+        },
+        {
+            key: 'average-net',
+            label: 'Rata-rata Omset Bersih',
+            value: formatCurrency(finance.average_net_per_transaction),
+            note: 'Omset bersih dibagi transaksi unik',
+        },
+        {
+            key: 'transactions',
+            label: 'Transaksi',
+            value: formatNumber(finance.transactions),
+            note: `${formatNumber(finance.qty)} barang terjual`,
+        },
+    ];
+});
 
 const formatDateValue = (value: unknown, key: string): string => {
     if (value === null || value === undefined || value === '') return '-';
@@ -2307,6 +2572,9 @@ const COLUMN_PRIORITY: Record<string, number> = {
     opname_code: 0,
     transaction_number: 0,
     shipping_number: 0,
+    payment_methods: 0,
+    payment_method_code: 0,
+    payment_method_name: 0,
     product_code: 0,
     product_name: 0,
     customer_name: 0,
@@ -2347,6 +2615,8 @@ const COLUMN_PRIORITY: Record<string, number> = {
     is_overtime: 1,
     is_active: 1,
     is_guest: 1,
+    change_amount: 1,
+    payment_change: 1,
     occurred_at: 2,
     logged_at: 2,
     performed_at: 2,
@@ -2573,7 +2843,7 @@ const exportUrl = computed(() => {
 
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(props.filters as Record<string, unknown>)) {
-        if (key !== 'per_page' && key !== 'page' && value !== '' && value !== null && value !== undefined) {
+        if (key !== 'per_page' && key !== 'page' && key !== 'dataset' && value !== '' && value !== null && value !== undefined) {
             params.set(key, String(value));
         }
     }
@@ -2738,6 +3008,10 @@ const selectDataset = (key: string) => {
                     <i class="mdi mdi-database-outline" aria-hidden="true"></i>
                     {{ new Intl.NumberFormat('id-ID').format(recordCount) }} data
                 </span>
+                <Link v-if="props.urls.email_alert_settings" :href="props.urls.email_alert_settings" class="monitor-back-link">
+                    <i class="mdi mdi-email-alert-outline" aria-hidden="true"></i>
+                    Jadwal Email Alert
+                </Link>
                 <Link href="/monitoring" class="monitor-back-link">
                     <i class="mdi mdi-arrow-left" aria-hidden="true"></i>
                     Command Center
@@ -2839,7 +3113,7 @@ const selectDataset = (key: string) => {
         <nav
             v-if="props.data?.omsetTab && props.data?.omsetUrls"
             class="monitor-omset-tabs"
-            aria-label="Jenis laporan omzet"
+            aria-label="Jenis laporan omset"
         >
             <Link
                 :href="props.data.omsetUrls.cabang"
@@ -2848,7 +3122,7 @@ const selectDataset = (key: string) => {
                 :aria-current="props.data.omsetTab === 'cabang' ? 'page' : undefined"
             >
                 <i class="mdi mdi-chart-bar" aria-hidden="true"></i>
-                Omzet per Cabang
+                Omset per Cabang
             </Link>
             <Link
                 :href="props.data.omsetUrls.kotor"
@@ -2857,7 +3131,7 @@ const selectDataset = (key: string) => {
                 :aria-current="props.data.omsetTab === 'kotor' ? 'page' : undefined"
             >
                 <i class="mdi mdi-chart-areaspline" aria-hidden="true"></i>
-                Omzet Kotor &amp; Bersih
+                Omset Kotor &amp; Bersih
             </Link>
         </nav>
 
@@ -2965,7 +3239,166 @@ const selectDataset = (key: string) => {
             </div>
         </section>
 
-        <section v-if="summaryCards.length" class="monitor-summary" aria-label="Ringkasan data">
+        <section v-if="financeSummary" class="card monitor-card monitor-finance" aria-labelledby="monitor-finance-title">
+            <div class="card-body">
+                <div class="monitor-finance-head">
+                    <div>
+                        <h2 id="monitor-finance-title" class="monitor-section-title">
+                            <i class="mdi mdi-finance" aria-hidden="true"></i>
+                            Ringkasan Keuangan
+                        </h2>
+                        <p>Angka mengikuti filter aktif. Alur di bawah menunjukkan asal setiap angka, dari harga jual sampai omset bersih.</p>
+                    </div>
+                    <span
+                        class="monitor-finance-badge"
+                        :class="financeSummary.reconciliation.is_balanced ? 'is-balanced' : 'is-warning'"
+                    >
+                        <i
+                            class="mdi"
+                            :class="financeSummary.reconciliation.is_balanced ? 'mdi-check-circle-outline' : 'mdi-alert-circle-outline'"
+                            aria-hidden="true"
+                        ></i>
+                        {{ financeSummary.reconciliation.is_balanced ? 'Rekonsiliasi cocok' : 'Perlu dicek' }}
+                    </span>
+                </div>
+
+                <p v-if="financeSummary.base_price <= 0" class="monitor-finance-alert" role="status">
+                    <i class="mdi mdi-alert-outline" aria-hidden="true"></i>
+                    Nilai harga dasar belum tersedia untuk periode ini, sehingga laba kotor dan margin belum dapat dibaca sebagai laba sebenarnya.
+                </p>
+
+                <ol class="monitor-finance-flow" aria-label="Alur perhitungan omset">
+                    <li
+                        v-for="step in financeFlow"
+                        :key="step.key"
+                        class="monitor-finance-step"
+                        :class="`is-${step.tone}`"
+                    >
+                        <span>{{ step.label }}</span>
+                        <strong>{{ step.value }}</strong>
+                        <small>{{ step.note }}</small>
+                    </li>
+                </ol>
+
+                <div class="monitor-finance-kpis">
+                    <article v-for="item in financeKpis" :key="item.key" class="monitor-finance-kpi">
+                        <span>{{ item.label }}</span>
+                        <strong>{{ item.value }}</strong>
+                        <small>{{ item.note }}</small>
+                    </article>
+                </div>
+
+                <div
+                    class="monitor-finance-check"
+                    :class="financeSummary.reconciliation.is_balanced ? 'is-balanced' : 'is-warning'"
+                >
+                    <div>
+                        <strong>Rekonsiliasi angka</strong>
+                        <p>
+                            Setelah Diskon Produk - Voucher/Poin =
+                            {{ formatCurrency(financeSummary.reconciliation.expected_net) }}.
+                            Omset Bersih tercatat {{ formatCurrency(financeSummary.reconciliation.actual_net) }}.
+                        </p>
+                    </div>
+                    <div class="monitor-finance-check-notes">
+                        <span v-if="financeSummary.reconciliation.clamped_discount > 0">
+                            Potongan dibatasi 0: {{ formatCurrency(financeSummary.reconciliation.clamped_discount) }}
+                        </span>
+                        <span v-if="financeSummary.reconciliation.unexplained_difference < 0">
+                            Selisih tak terjelaskan: {{ formatCurrency(financeSummary.reconciliation.unexplained_difference) }}
+                        </span>
+                        <span
+                            v-if="financeSummary.reconciliation.is_balanced && financeSummary.reconciliation.clamped_discount <= 0"
+                        >
+                            Tidak ada selisih
+                        </span>
+                    </div>
+                </div>
+
+                <div v-if="financeSummary.channels?.length" class="monitor-finance-channels">
+                    <h3>Rincian per kanal</h3>
+                    <div class="table-responsive">
+                        <table class="table monitor-finance-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Kanal</th>
+                                    <th scope="col" class="text-end">Omset Kotor</th>
+                                    <th scope="col" class="text-end">Diskon Produk</th>
+                                    <th scope="col" class="text-end">Voucher / Poin</th>
+                                    <th scope="col" class="text-end">Omset Bersih</th>
+                                    <th scope="col" class="text-end">Nilai Harga Dasar</th>
+                                    <th scope="col" class="text-end">Laba Kotor</th>
+                                    <th scope="col" class="text-end">Margin</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="channel in financeSummary.channels" :key="channel.key">
+                                    <td>
+                                        <strong>{{ channel.label }}</strong>
+                                        <small>{{ formatNumber(channel.transactions) }} transaksi</small>
+                                    </td>
+                                    <td class="text-end">{{ formatCurrency(channel.gross_sales) }}</td>
+                                    <td class="text-end">{{ formatCurrency(channel.product_discount) }}</td>
+                                    <td class="text-end">{{ formatCurrency(channel.voucher_discount) }}</td>
+                                    <td class="text-end"><strong>{{ formatCurrency(channel.net_sales) }}</strong></td>
+                                    <td class="text-end">{{ formatCurrency(channel.base_price) }}</td>
+                                    <td class="text-end">{{ formatCurrency(channel.gross_profit) }}</td>
+                                    <td class="text-end">{{ formatPercent(channel.gross_margin_percent) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <details class="monitor-finance-method">
+                    <summary>Cara membaca dan sumber data</summary>
+                    <dl class="monitor-finance-definitions">
+                        <div>
+                            <dt>Omset Kotor</dt>
+                            <dd>Harga jual barang sebelum diskon produk, voucher, poin, atau diskon pesanan. Untuk ecommerce, qty dikalikan harga jual.</dd>
+                        </div>
+                        <div>
+                            <dt>Diskon Produk</dt>
+                            <dd>Potongan per barang yang tercatat pada detail transaksi.</dd>
+                        </div>
+                        <div>
+                            <dt>Setelah Diskon Produk</dt>
+                            <dd>Omset kotor dikurangi diskon produk (minimum 0), sebelum voucher, poin, atau diskon pesanan.</dd>
+                        </div>
+                        <div>
+                            <dt>Voucher / Poin</dt>
+                            <dd>Porsi voucher, poin, atau diskon pesanan yang dialokasikan proporsional ke setiap barang.</dd>
+                        </div>
+                        <div>
+                            <dt>Omset Bersih</dt>
+                            <dd>Pendapatan penjualan setelah seluruh potongan. Bukan kas final karena biaya pembayaran, ongkir, dan pajak tidak dikurangkan di sini.</dd>
+                        </div>
+                        <div>
+                            <dt>Nilai Harga Dasar</dt>
+                            <dd>Harga base produk pada periode transaksi. Jika harga base tidak tersedia, nilainya 0 sehingga laba kotor bisa tampak lebih tinggi.</dd>
+                        </div>
+                        <div>
+                            <dt>Laba Kotor</dt>
+                            <dd>Omset bersih dikurangi nilai harga dasar. Belum termasuk biaya operasional, payment fee, ongkir, atau pajak.</dd>
+                        </div>
+                        <div>
+                            <dt>Margin Kotor dan Diskon Efektif</dt>
+                            <dd>Margin kotor = laba kotor dibagi omset bersih. Diskon efektif = total potongan dibagi omset kotor.</dd>
+                        </div>
+                        <div>
+                            <dt>Cakupan data</dt>
+                            <dd>POS hanya pembayaran lunas dan detail non-void. Ecommerce hanya order non-cancelled dengan pembayaran lunas. Retur, void, dan transaksi belum dibayar tidak masuk.</dd>
+                        </div>
+                        <div>
+                            <dt>Rekonsiliasi</dt>
+                            <dd>Potongan yang melebihi harga jual dibatasi 0 dan dilaporkan terpisah sebagai potongan dibatasi. Selisih tak terjelaskan berarti angka omset bersih tidak sesuai rumus dan perlu diperiksa.</dd>
+                        </div>
+                    </dl>
+                </details>
+            </div>
+        </section>
+
+        <section v-if="summaryCards.length && !financeSummary" class="monitor-summary" aria-label="Ringkasan data">
             <article
                 v-for="card in summaryCards"
                 :key="card.key"
@@ -2981,7 +3414,7 @@ const selectDataset = (key: string) => {
                 </div>
             </article>
         </section>
-        <p v-if="summaryCards.length" class="monitor-summary-note">
+        <p v-if="summaryCards.length && !financeSummary" class="monitor-summary-note">
             <i class="mdi mdi-information-outline" aria-hidden="true"></i>
             Angka ringkasan mengikuti filter aktif. Tabel di bawah menampilkan rincian, bukan penjumlahan tambahan.
         </p>
@@ -4203,5 +4636,290 @@ const selectDataset = (key: string) => {
 @media (max-width: 767.98px) {
     .monitor-detail-grid { grid-template-columns: 1fr; }
     .monitor-modal-backdrop { padding: 0.5rem; }
+}
+
+.monitor-finance {
+    margin-bottom: 1rem;
+}
+
+.monitor-finance .card-body {
+    padding: 1rem 1.1rem;
+}
+
+.monitor-finance-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.monitor-finance-head p {
+    max-width: 72ch;
+    margin: 0.2rem 0 0;
+    color: var(--app-muted);
+    font-size: 0.8rem;
+}
+
+.monitor-finance-badge {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.monitor-finance-badge.is-balanced,
+.monitor-finance-check.is-balanced {
+    background: var(--app-success-bg);
+    color: var(--app-success-ink);
+}
+
+.monitor-finance-badge.is-warning,
+.monitor-finance-check.is-warning {
+    background: var(--app-warning-bg);
+    color: var(--app-warning-ink);
+}
+
+.monitor-finance-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0.8rem 0 0;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--app-warning-ink) 28%, var(--app-border));
+    border-radius: 0.55rem;
+    background: var(--app-warning-bg);
+    color: var(--app-warning-ink);
+    font-size: 0.78rem;
+}
+
+.monitor-finance-flow {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding: 0;
+    list-style: none;
+}
+
+.monitor-finance-step,
+.monitor-finance-kpi {
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.65rem;
+    background: var(--app-surface-2);
+}
+
+.monitor-finance-step span,
+.monitor-finance-kpi span {
+    display: block;
+    color: var(--app-muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.monitor-finance-step strong,
+.monitor-finance-kpi strong {
+    display: block;
+    margin-top: 0.2rem;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+
+.monitor-finance-step small,
+.monitor-finance-kpi small {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--app-muted);
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
+.monitor-finance-step.is-accent {
+    border-color: color-mix(in srgb, var(--app-accent) 32%, var(--app-border));
+    background: var(--app-accent-soft);
+}
+
+.monitor-finance-step.is-accent strong {
+    color: var(--app-accent-ink);
+}
+
+.monitor-finance-step.is-deduction {
+    border-color: color-mix(in srgb, var(--app-warning-ink) 28%, var(--app-border));
+    background: var(--app-warning-bg);
+}
+
+.monitor-finance-step.is-deduction strong {
+    color: var(--app-warning-ink);
+}
+
+.monitor-finance-step.is-success {
+    border-color: color-mix(in srgb, var(--app-success-ink) 28%, var(--app-border));
+    background: var(--app-success-bg);
+}
+
+.monitor-finance-step.is-success strong {
+    color: var(--app-success-ink);
+}
+
+.monitor-finance-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.monitor-finance-check {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.6rem;
+    font-size: 0.78rem;
+}
+
+.monitor-finance-check > div {
+    min-width: 0;
+}
+
+.monitor-finance-check strong {
+    display: block;
+    font-size: 0.76rem;
+}
+
+.monitor-finance-check p {
+    margin: 0.15rem 0 0;
+    color: inherit;
+}
+
+.monitor-finance-check-notes {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 0.15rem;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.monitor-finance-channels {
+    margin-bottom: 0.75rem;
+}
+
+.monitor-finance-channels h3 {
+    margin: 0 0 0.4rem;
+    font-size: 0.86rem;
+}
+
+.monitor-finance-table th {
+    padding: 0.5rem 0.6rem;
+    background: var(--app-surface-2);
+    color: var(--app-muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.monitor-finance-table td {
+    padding: 0.55rem 0.6rem;
+    border-color: var(--app-border);
+    color: var(--app-ink);
+    font-size: 0.78rem;
+    vertical-align: middle;
+}
+
+.monitor-finance-table small {
+    display: block;
+    color: var(--app-muted);
+    font-size: 0.68rem;
+}
+
+.monitor-finance-method {
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.monitor-finance-method summary {
+    color: var(--app-accent-ink);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.monitor-finance-method summary:focus-visible {
+    border-radius: 0.25rem;
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
+.monitor-finance-definitions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem 0.9rem;
+    margin: 0.75rem 0 0;
+}
+
+.monitor-finance-definitions > div {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.55rem;
+    background: var(--app-surface-2);
+}
+
+.monitor-finance-definitions dt {
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.monitor-finance-definitions dd {
+    margin: 0.15rem 0 0;
+    color: var(--app-muted);
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+@media (max-width: 1199.98px) {
+    .monitor-finance-flow,
+    .monitor-finance-kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767.98px) {
+    .monitor-finance-head,
+    .monitor-finance-check {
+        flex-direction: column;
+    }
+
+    .monitor-finance-flow,
+    .monitor-finance-definitions {
+        grid-template-columns: 1fr;
+    }
+
+    .monitor-finance-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .monitor-finance-check-notes {
+        text-align: left;
+        white-space: normal;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .monitor-finance-kpis {
+        grid-template-columns: 1fr;
+    }
 }
 </style>

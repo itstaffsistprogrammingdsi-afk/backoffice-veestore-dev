@@ -103,6 +103,17 @@ interface GreetingTemplate {
     placeholders: string[];
 }
 
+interface BirthdayVoucher {
+    id: string;
+    name: string;
+    code: string;
+    type: string;
+    value: number;
+    distribution_type: string;
+    valid_until: string | null;
+    available_codes_count: number | null;
+}
+
 interface Summary {
     totalCustomers: number;
     registeredCustomers: number;
@@ -158,6 +169,7 @@ interface Props {
     birthdayCustomers: BirthdayRow[];
     birthdayGreeting: {
         template: GreetingTemplate;
+        vouchers: BirthdayVoucher[];
     };
     rows: Paginator<CustomerRow>;
     urls: {
@@ -337,6 +349,7 @@ const visitUrl = (row: CustomerRow) => `${props.urls.customers}?q=${encodeURICom
                     :total="props.summary.birthdayThisMonth"
                     :month-label="props.birthdayMonthLabel"
                     :template="props.birthdayGreeting.template"
+                    :vouchers="props.birthdayGreeting.vouchers"
                     :send-url="props.urls.birthday_greeting"
                 />
             </div>

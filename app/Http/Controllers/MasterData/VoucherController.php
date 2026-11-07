@@ -5,12 +5,19 @@ namespace App\Http\Controllers\MasterData;
 use App\Http\Controllers\Controller;
 use App\Models\Voucher;
 use App\Models\VoucherCode;
+use App\Services\VoucherCodeGenerator;
+use App\Services\VoucherImageExtractor;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Throwable;
 
 class VoucherController extends Controller
 {
@@ -30,7 +37,7 @@ class VoucherController extends Controller
     public function __construct()
     {
         $this->middleware('permission:view master-data-vouchers')->only(['index', 'voucherCodes']);
-        $this->middleware('permission:create master-data-vouchers')->only(['store']);
+        $this->middleware('permission:create master-data-vouchers')->only(['store', 'scan']);
         $this->middleware('permission:update master-data-vouchers')->only(['update', 'printUniqueCodes', 'updateVoucherCodeStatus']);
         $this->middleware('permission:delete master-data-vouchers')->only(['destroy']);
     }
@@ -55,6 +62,7 @@ class VoucherController extends Controller
             'searchPlaceholder' => 'Cari voucher...',
             'items' => $vouchers,
             'columns' => [
+                ['key' => 'voucher_image_url', 'label' => 'Gambar', 'type' => 'image'],
                 ['key' => 'code', 'label' => 'Kode'],
                 ['key' => 'name', 'label' => 'Nama'],
                 ['key' => 'type', 'label' => 'Tipe'],
@@ -77,6 +85,13 @@ class VoucherController extends Controller
                 ['key' => 'distribution_type', 'label' => 'Distribusi', 'type' => 'select', 'required' => true, 'options' => collect(self::DISTRIBUTION_TYPES)->map(fn ($value) => ['value' => $value, 'label' => $value])->values()->all()],
                 ['key' => 'contexts', 'label' => 'Konteks', 'type' => 'multiselect', 'required' => true, 'options' => collect($availableContexts)->map(fn ($value) => ['value' => $value, 'label' => $value])->values()->all()],
                 ['key' => 'is_active', 'label' => 'Aktif', 'type' => 'select', 'options' => [['value' => '1', 'label' => 'Ya'], ['value' => '0', 'label' => 'Tidak']]],
+            ],
+            'scan' => [
+                'url' => route('master-data.vouchers.scan'),
+                'field' => 'voucher_image',
+                'imageUrlKey' => 'voucher_image_url',
+                'title' => 'Upload Gambar Voucher',
+                'hint' => 'Unggah foto atau desain voucher (JPG, PNG, atau WEBP, maksimal 5 MB). Sistem akan membaca nama, tipe, nilai, masa berlaku, dan batas pemakaian secara otomatis.',
             ],
             'filters' => ['q' => $q],
             'rowActions' => [
@@ -104,8 +119,10 @@ class VoucherController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, VoucherImageExtractor $extractor)
     {
+        $this->autoFillFromImage($request, $extractor);
+
         // ✅ normalize contexts lebih dulu supaya validasi konsisten
         $request->merge([
             'contexts' => $this->normalizeContexts($request->input('contexts')),
@@ -113,7 +130,8 @@ class VoucherController extends Controller
 
         $data = $this->validated($request);
         // Kode voucher master selalu dibuat oleh backend, bukan dari input form.
-        $data['code'] = $this->generateVoucherCode();
+        $codeGenerator = app(VoucherCodeGenerator::class);
+        $data['code'] = $codeGenerator->generateMasterCode();
         $data['is_active'] = $request->boolean('is_active');
         $data['valid_from'] = $this->parseDateTime($request->input('valid_from'));
         $data['valid_until'] = $this->parseDateTime($request->input('valid_until'));
@@ -127,34 +145,66 @@ class VoucherController extends Controller
         $selected = (array) $request->input('contexts', []);
         $this->validateContextsAgainstAllowed($selected);
 
-        DB::transaction(function () use ($data, $selected) {
+        $imagePath = $this->storeVoucherImage($request->file('voucher_image'));
+        if ($imagePath) {
+            $data['voucher_image_path'] = $imagePath;
+        }
 
-            // ✅ jangan biarkan context "" masuk ke tabel vouchers
-            // Kalau pivot ada, simpan di pivot saja
-            if ($this->hasPivotTable()) {
-                $data['context'] = null; // aman walau kolom enum
-            } else {
-                // fallback: jika kolom vouchers.context itu ENUM, dia hanya bisa 1 value
-                // jadi ambil 1 context saja, dan kalau kosong -> NULL (bukan string kosong)
-                $data['context'] = ! empty($selected) ? $selected[0] : null;
-            }
+        try {
+            DB::transaction(function () use ($data, $selected, $codeGenerator) {
 
-            /** @var Voucher $voucher */
-            $voucher = Voucher::create($data);
+                // ✅ jangan biarkan context "" masuk ke tabel vouchers
+                // Kalau pivot ada, simpan di pivot saja
+                if ($this->hasPivotTable()) {
+                    $data['context'] = null; // aman walau kolom enum
+                } else {
+                    // fallback: jika kolom vouchers.context itu ENUM, dia hanya bisa 1 value
+                    // jadi ambil 1 context saja, dan kalau kosong -> NULL (bukan string kosong)
+                    $data['context'] = ! empty($selected) ? $selected[0] : null;
+                }
 
-            // For unique-code distribution, usage_limit is also the initial
-            // number of individual voucher codes to issue.
-            if ($voucher->distribution_type === 'unique_code') {
-                $this->generateVoucherCodes($voucher, (int) $voucher->usage_limit);
-            }
+                /** @var Voucher $voucher */
+                $voucher = Voucher::create($data);
 
-            if ($this->hasPivotTable()) {
-                $this->syncVoucherContexts($voucher->id, $selected);
-            }
-        });
+                // For unique-code distribution, usage_limit is also the initial
+                // number of individual voucher codes to issue.
+                if ($voucher->distribution_type === 'unique_code') {
+                    $codeGenerator->generateCodes($voucher, (int) $voucher->usage_limit);
+                }
+
+                if ($this->hasPivotTable()) {
+                    $this->syncVoucherContexts($voucher->id, $selected);
+                }
+            });
+        } catch (Throwable $exception) {
+            $this->deleteVoucherImage($imagePath);
+
+            throw $exception;
+        }
 
         return redirect()->route('master-data.vouchers.index')
             ->with('success', 'Voucher berhasil dibuat.');
+    }
+
+    public function scan(Request $request, VoucherImageExtractor $extractor): JsonResponse
+    {
+        $payload = $request->validate([
+            'voucher_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.(int) config('voucher.image.max_kb', 5120)],
+        ], [
+            'voucher_image.required' => 'Pilih gambar voucher terlebih dahulu.',
+            'voucher_image.image' => 'File harus berupa gambar.',
+            'voucher_image.mimes' => 'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
+            'voucher_image.max' => 'Ukuran gambar maksimal '.(int) config('voucher.image.max_kb', 5120).' KB.',
+        ], [
+            'voucher_image' => 'Gambar voucher',
+        ]);
+
+        $data = $extractor->extract($payload['voucher_image']);
+
+        return response()->json([
+            'data' => $data,
+            'warnings' => $this->scanWarnings($data),
+        ]);
     }
 
     /** Return already-issued codes in a printer-friendly voucher sheet. */
@@ -257,38 +307,54 @@ class VoucherController extends Controller
         $selected = (array) $request->input('contexts', []);
         $this->validateContextsAgainstAllowed($selected);
 
-        DB::transaction(function () use ($voucher, $data, $selected) {
+        $oldImagePath = $voucher->voucher_image_path;
+        $newImagePath = $this->storeVoucherImage($request->file('voucher_image'));
+        if ($newImagePath) {
+            $data['voucher_image_path'] = $newImagePath;
+        }
 
-            if ($this->hasPivotTable()) {
-                $data['context'] = null;
-            } else {
-                $data['context'] = ! empty($selected) ? $selected[0] : null;
-            }
+        try {
+            DB::transaction(function () use ($voucher, $data, $selected) {
 
-            $voucher->update($data);
-
-            // Existing unique codes always inherit the master voucher expiry.
-            // `valid_from` remains the master validity start because voucher_codes
-            // only has an `expires_at` column in the current schema.
-            VoucherCode::where('voucher_id', $voucher->id)->update([
-                'expires_at' => $voucher->valid_until,
-            ]);
-
-            // Raising the limit issues only the additional codes required.
-            // Existing/printed codes are intentionally never deleted when a
-            // limit is lowered, preserving auditability and customer access.
-            if ($voucher->distribution_type === 'unique_code' && $voucher->usage_limit) {
-                $existingCodes = VoucherCode::where('voucher_id', $voucher->id)->count();
-                $missingCodes = max(0, (int) $voucher->usage_limit - $existingCodes);
-                if ($missingCodes > 0) {
-                    $this->generateVoucherCodes($voucher, $missingCodes);
+                if ($this->hasPivotTable()) {
+                    $data['context'] = null;
+                } else {
+                    $data['context'] = ! empty($selected) ? $selected[0] : null;
                 }
-            }
 
-            if ($this->hasPivotTable()) {
-                $this->syncVoucherContexts($voucher->id, $selected);
-            }
-        });
+                $voucher->update($data);
+
+                // Existing unique codes always inherit the master voucher expiry.
+                // `valid_from` remains the master validity start because voucher_codes
+                // only has an `expires_at` column in the current schema.
+                VoucherCode::where('voucher_id', $voucher->id)->update([
+                    'expires_at' => $voucher->valid_until,
+                ]);
+
+                // Raising the limit issues only the additional codes required.
+                // Existing/printed codes are intentionally never deleted when a
+                // limit is lowered, preserving auditability and customer access.
+                if ($voucher->distribution_type === 'unique_code' && $voucher->usage_limit) {
+                    $existingCodes = VoucherCode::where('voucher_id', $voucher->id)->count();
+                    $missingCodes = max(0, (int) $voucher->usage_limit - $existingCodes);
+                    if ($missingCodes > 0) {
+                        app(VoucherCodeGenerator::class)->generateCodes($voucher, $missingCodes);
+                    }
+                }
+
+                if ($this->hasPivotTable()) {
+                    $this->syncVoucherContexts($voucher->id, $selected);
+                }
+            });
+        } catch (Throwable $exception) {
+            $this->deleteVoucherImage($newImagePath);
+
+            throw $exception;
+        }
+
+        if ($newImagePath) {
+            $this->deleteVoucherImage($oldImagePath);
+        }
 
         return redirect()->route('master-data.vouchers.index')
             ->with('success', 'Voucher berhasil diperbarui.');
@@ -300,12 +366,16 @@ class VoucherController extends Controller
             ? Voucher::where('id', $key)->firstOrFail()
             : Voucher::where('code', $key)->firstOrFail();
 
+        $imagePath = $voucher->voucher_image_path;
+
         DB::transaction(function () use ($voucher) {
             if ($this->hasPivotTable()) {
                 DB::table($this->pivotFqn())->where('voucher_id', $voucher->id)->delete();
             }
             $voucher->delete();
         });
+
+        $this->deleteVoucherImage($imagePath);
 
         return redirect()->route('master-data.vouchers.index')
             ->with('success', 'Voucher berhasil dihapus.');
@@ -325,6 +395,7 @@ class VoucherController extends Controller
             'code' => ['nullable', 'string', 'max:100', Rule::unique('vouchers', 'code')->ignore($ignoreId)],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
+            'voucher_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.(int) config('voucher.image.max_kb', 5120)],
             'type' => ['required', $typeRule],
             'value' => ['required', 'numeric', 'min:0'],
             // Batas maksimal diskon bersifat opsional, termasuk untuk voucher percentage.
@@ -344,9 +415,14 @@ class VoucherController extends Controller
                 ['required', 'string', 'distinct'],
                 ! empty($allowed) ? [Rule::in($allowed)] : []
             ),
-        ], [], [
+        ], [
+            'voucher_image.image' => 'File gambar voucher harus berupa gambar.',
+            'voucher_image.mimes' => 'Format gambar voucher harus JPG, JPEG, PNG, atau WEBP.',
+            'voucher_image.max' => 'Ukuran gambar voucher maksimal '.(int) config('voucher.image.max_kb', 5120).' KB.',
+        ], [
             'code' => 'Kode',
             'name' => 'Nama',
+            'voucher_image' => 'Gambar Voucher',
             'type' => 'Tipe',
             'value' => 'Nilai',
             'max_discount' => 'Maks. Diskon',
@@ -368,9 +444,111 @@ class VoucherController extends Controller
         }
         try {
             return Carbon::parse($value);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
+    }
+
+    /* ======================= Voucher Image Helpers ======================= */
+
+    private function autoFillFromImage(Request $request, VoucherImageExtractor $extractor): void
+    {
+        if (! $request->hasFile('voucher_image')) {
+            return;
+        }
+
+        $needsExtraction = ! $request->filled('name')
+            || ! $request->filled('type')
+            || ! $request->filled('value');
+
+        if (! $needsExtraction) {
+            return;
+        }
+
+        try {
+            $extracted = $extractor->extract($request->file('voucher_image'));
+        } catch (Throwable) {
+            return;
+        }
+
+        foreach ([
+            'name',
+            'description',
+            'type',
+            'value',
+            'max_discount',
+            'min_purchase',
+            'valid_from',
+            'valid_until',
+            'usage_limit',
+            'distribution_type',
+        ] as $key) {
+            if ($request->filled($key)) {
+                continue;
+            }
+
+            $value = $extracted[$key] ?? null;
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $request->merge([$key => $value]);
+        }
+
+        if (! $request->filled('contexts') && ! empty($extracted['contexts'])) {
+            $request->merge(['contexts' => $extracted['contexts']]);
+        }
+    }
+
+    private function storeVoucherImage(?UploadedFile $image): ?string
+    {
+        if (! $image) {
+            return null;
+        }
+
+        $path = Storage::disk((string) config('voucher.image.disk', 'public'))
+            ->putFile((string) config('voucher.image.directory', 'voucher-images'), $image);
+
+        if (! $path) {
+            throw ValidationException::withMessages([
+                'voucher_image' => 'Gambar voucher gagal disimpan. Silakan coba lagi.',
+            ]);
+        }
+
+        return $path;
+    }
+
+    private function deleteVoucherImage(?string $path): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        Storage::disk((string) config('voucher.image.disk', 'public'))->delete($path);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, string>
+     */
+    private function scanWarnings(array $data): array
+    {
+        $warnings = [];
+
+        if (empty($data['contexts'])) {
+            $warnings[] = 'Konteks pemakaian tidak terbaca dari gambar. Pilih konteks secara manual.';
+        }
+
+        if (empty($data['valid_until'])) {
+            $warnings[] = 'Masa berlaku tidak terbaca dari gambar. Periksa kembali tanggal berakhir.';
+        }
+
+        if (is_int($data['confidence'] ?? null) && $data['confidence'] < 60) {
+            $warnings[] = 'Hasil pembacaan gambar kurang yakin. Periksa kembali semua data sebelum menyimpan.';
+        }
+
+        return $warnings;
     }
 
     /* ======================= Pivot Helpers ======================= */
@@ -497,52 +675,5 @@ class VoucherController extends Controller
         }
 
         return $map;
-    }
-
-    protected function generateUniqueCode(string $voucherCode): string
-    {
-        $prefix = Str::upper(preg_replace('/[^A-Za-z0-9]/', '', $voucherCode));
-        $prefix = Str::substr($prefix ?: 'VOUCHER', 0, 12);
-
-        for ($attempt = 0; $attempt < 20; $attempt++) {
-            $code = $prefix.'-'.Str::upper(Str::random(8));
-            if (! VoucherCode::where('code', $code)->exists()) {
-                return $code;
-            }
-        }
-
-        throw new \RuntimeException('Gagal membuat kode voucher unik. Silakan coba lagi.');
-    }
-
-    /**
-     * Persist and return a requested number of individual, printable codes.
-     */
-    protected function generateVoucherCodes(Voucher $voucher, int $quantity): array
-    {
-        $codes = [];
-        for ($i = 0; $i < $quantity; $i++) {
-            $codes[] = VoucherCode::create([
-                'voucher_id' => $voucher->id,
-                'code' => $this->generateUniqueCode($voucher->code),
-                // Individual codes start active and can be controlled separately.
-                'is_active' => true,
-                // Always inherit the master voucher expiry.
-                'expires_at' => $voucher->valid_until,
-            ]);
-        }
-
-        return $codes;
-    }
-
-    protected function generateVoucherCode(): string
-    {
-        for ($attempt = 0; $attempt < 20; $attempt++) {
-            $code = 'VCR-'.now()->format('Ymd').'-'.Str::upper(Str::random(6));
-            if (! Voucher::where('code', $code)->exists()) {
-                return $code;
-            }
-        }
-
-        throw new \RuntimeException('Gagal membuat kode voucher otomatis. Silakan coba lagi.');
     }
 }

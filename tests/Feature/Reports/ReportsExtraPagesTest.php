@@ -3,6 +3,7 @@
 namespace Tests\Feature\Reports;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\InteractsWithBackofficeAdmin;
 use Tests\TestCase;
@@ -24,17 +25,11 @@ class ReportsExtraPagesTest extends TestCase
                 ->has('urls'));
     }
 
-    public function test_voucher_report_page_uses_inertia(): void
+    public function test_voucher_report_page_redirects_to_unified_promo_loyalty_report(): void
     {
         $this->actingAs($this->admin())
             ->get(route('reports.voucher.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Reports/Voucher')
-                ->has('vouchers')
-                ->has('voucherList')
-                ->has('filters')
-                ->has('urls'));
+            ->assertRedirect(route('monitoring.promo-loyalty.index', ['dataset' => 'voucherUsageRows']));
     }
 
     public function test_crm_pages_use_inertia(): void
@@ -124,7 +119,7 @@ class ReportsExtraPagesTest extends TestCase
                 ->has('urls'));
     }
 
-    public function test_retur_cabang_page_uses_inertia(): void
+    public function test_retur_cabang_page_is_read_only_and_links_to_operations_approval(): void
     {
         $this->actingAs($this->admin())
             ->get(route('reports.retur-cabang.index'))
@@ -133,9 +128,16 @@ class ReportsExtraPagesTest extends TestCase
                 ->component('Reports/Returns')
                 ->has('returns')
                 ->has('stores')
-                ->has('warehouses')
                 ->has('statuses')
                 ->has('filters')
-                ->has('urls'));
+                ->where('urls.approval', route('operations.store-returns.index'))
+                ->missing('urls.approve')
+                ->missing('urls.reject'));
+    }
+
+    public function test_retur_cabang_does_not_register_duplicate_approval_routes(): void
+    {
+        $this->assertFalse(Route::has('reports.retur-cabang.approve'));
+        $this->assertFalse(Route::has('reports.retur-cabang.reject'));
     }
 }

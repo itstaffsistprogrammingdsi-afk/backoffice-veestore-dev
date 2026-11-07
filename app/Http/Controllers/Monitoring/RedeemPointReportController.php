@@ -2,16 +2,27 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\RedeemPointReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class RedeemPointReportController extends Controller
 {
     public function index(Request $request)
+    {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Redeem Point Report',
+            'description' => 'Laporan monitoring.',
+            'data' => $this->reportData($request),
+            'filters' => request()->query(),
+            'urls' => ['index' => url()->current(), 'export' => route('monitoring.redeem-point-report.export')],
+        ]);
+    }
+
+    public function reportData(Request $request): array
     {
         $filters = $this->filters($request);
 
@@ -31,7 +42,7 @@ class RedeemPointReportController extends Controller
 
         $rows = DB::query()
             ->fromSub(clone $baseQuery, 'x')
-            ->selectRaw("
+            ->selectRaw('
                 x.customer_id,
                 MAX(x.customer_name) AS customer_name,
                 MAX(x.customer_email) AS customer_email,
@@ -41,7 +52,7 @@ class RedeemPointReportController extends Controller
                 COUNT(x.id)::int AS total_mutations,
                 COALESCE(SUM(x.redeem_points), 0)::numeric AS total_redeem_points,
                 MAX(x.created_at) AS last_redeem_at
-            ")
+            ')
             ->groupBy('x.customer_id')
             ->orderByDesc(DB::raw('MAX(x.created_at)'))
             ->paginate($filters['per_page'])
@@ -56,7 +67,7 @@ class RedeemPointReportController extends Controller
 
         $detailMutations = collect();
 
-        if (!empty($customerIds)) {
+        if (! empty($customerIds)) {
             $detailMutations = DB::query()
                 ->fromSub(clone $baseQuery, 'x')
                 ->select([
@@ -134,10 +145,7 @@ class RedeemPointReportController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email', 'wa_number']);
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Redeem Point Report',
-            'description' => 'Laporan monitoring.',
-            'data' => [
+        return [
             'rows' => $rows,
             'detailMutations' => $detailMutations,
             'latestRows' => $latestRows,
@@ -151,15 +159,12 @@ class RedeemPointReportController extends Controller
             'from' => $filters['from'],
             'to' => $filters['to'],
             'perPage' => $filters['per_page'],
-        ],
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current(), 'export' => route('monitoring.redeem-point-report.export')],
-        ]);
+        ];
     }
 
     public function export(Request $request)
     {
-        $filename = 'redeem-point-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'redeem-point-report-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new RedeemPointReportExport($request), $filename);
     }
@@ -168,7 +173,7 @@ class RedeemPointReportController extends Controller
     {
         $perPage = (int) $request->query('per_page', 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 

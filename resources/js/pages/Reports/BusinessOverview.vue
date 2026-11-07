@@ -3,14 +3,19 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, reactive } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
+import SearchableSelect from '@/components/SearchableSelect.vue';
 import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
 import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface Filters {
+    period: string;
     date_from: string;
     date_to: string;
+    channel: string;
+    store_id: string | null;
+    warehouse_id: string | null;
 }
 
 interface SalesSummary {
@@ -40,6 +45,7 @@ interface StoreRow {
     store_name: string;
     revenue: number;
     transactions: number;
+    buyers: number;
 }
 
 interface ProductRow {
@@ -129,6 +135,9 @@ interface PendingQueues {
 
 interface Props {
     filters: Filters;
+    periodOptions: Array<{ value: string; label: string }>;
+    stores: Array<Record<string, any>>;
+    warehouses: Array<Record<string, any>>;
     generated_at: string;
     sales: {
         summary: SalesSummary;
@@ -136,6 +145,15 @@ interface Props {
         trend: TrendRow[];
         top_stores: StoreRow[];
         top_products: ProductRow[];
+    };
+    customers: {
+        summary: {
+            new_members: number;
+            store_members: number;
+            ecommerce_members: number;
+            visits: number;
+            unique_visitors: number;
+        };
     };
     orders: {
         summary: OrdersSummary;
@@ -169,6 +187,9 @@ interface Props {
         slow_moving: string;
         aging: string;
         monitoring: string;
+        crm: string;
+        demographics: string;
+        preference: string;
     };
 }
 
@@ -177,46 +198,97 @@ const props = defineProps<Props>();
 const form = reactive({
     date_from: props.filters.date_from ?? '',
     date_to: props.filters.date_to ?? '',
+    channel: props.filters.channel ?? 'all',
+    store_id: props.filters.store_id ?? '',
+    warehouse_id: props.filters.warehouse_id ?? '',
 });
 
-const applyRange = () => {
-    router.get(props.urls.index, {
-        date_from: form.date_from || undefined,
-        date_to: form.date_to || undefined,
-    }, { preserveScroll: true, replace: true });
+watch(() => props.filters, (filters) => {
+    form.date_from = filters.date_from ?? '';
+    form.date_to = filters.date_to ?? '';
+    form.channel = filters.channel ?? 'all';
+    form.store_id = filters.store_id ?? '';
+    form.warehouse_id = filters.warehouse_id ?? '';
+}, { deep: true });
+
+const storeOptions = computed(() => props.stores.map((store) => ({
+    value: String(store.id),
+    label: String(store.name ?? '-'),
+})));
+
+const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
+    value: String(warehouse.id),
+    label: String(warehouse.name ?? '-'),
+})));
+
+const activePeriodLabel = computed(
+    () => props.periodOptions.find((option) => option.value === props.filters.period)?.label ?? 'Rentang kustom',
+);
+
+const baseQuery = () => ({
+    channel: form.channel || undefined,
+    store_id: form.store_id || undefined,
+    warehouse_id: form.warehouse_id || undefined,
+});
+
+const navigate = (params: Record<string, string | undefined>) => {
+    router.get(props.urls.index, { ...baseQuery(), ...params }, {
+        preserveScroll: true,
+        replace: true,
+    });
 };
 
-const setPreset = (preset: '7d' | '30d' | '90d' | 'this_month' | 'last_month') => {
-    const today = new Date();
-    const format = (date: Date) => [
-        date.getFullYear(),
-        String(date.getMonth() + 1).padStart(2, '0'),
-        String(date.getDate()).padStart(2, '0'),
-    ].join('-');
+const applyPeriod = (period: string) => {
+    navigate({ period });
+};
 
-    let from = new Date(today);
-    let to = new Date(today);
-
-    if (preset === '7d' || preset === '30d' || preset === '90d') {
-        const days = preset === '7d' ? 7 : preset === '30d' ? 30 : 90;
-        from.setDate(today.getDate() - (days - 1));
-    } else if (preset === 'this_month') {
-        from = new Date(today.getFullYear(), today.getMonth(), 1);
-    } else {
-        from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        to = new Date(today.getFullYear(), today.getMonth(), 0);
-    }
-
-    form.date_from = format(from);
-    form.date_to = format(to);
-    applyRange();
+const applyRange = () => {
+    navigate({
+        period: 'custom',
+        date_from: form.date_from || undefined,
+        date_to: form.date_to || undefined,
+    });
 };
 
 const resetRange = () => {
     form.date_from = '';
     form.date_to = '';
+    form.channel = 'all';
+    form.store_id = '';
+    form.warehouse_id = '';
     router.get(props.urls.index, {}, { preserveScroll: true, replace: true });
 };
+
+const customerCards = computed(() => [
+    {
+        label: 'Member Baru',
+        value: formatNumber(props.customers.summary.new_members),
+        hint: 'Registrasi pada periode ini',
+        icon: 'mdi-account-plus-outline',
+        tone: 'accent',
+    },
+    {
+        label: 'Member Store',
+        value: formatNumber(props.customers.summary.store_members),
+        hint: 'Registrasi melalui toko',
+        icon: 'mdi-storefront-outline',
+        tone: 'info',
+    },
+    {
+        label: 'Member Ecommerce',
+        value: formatNumber(props.customers.summary.ecommerce_members),
+        hint: 'Registrasi melalui ecommerce',
+        icon: 'mdi-cart-outline',
+        tone: 'success',
+    },
+    {
+        label: 'Kunjungan Toko',
+        value: formatNumber(props.customers.summary.visits),
+        hint: `${formatNumber(props.customers.summary.unique_visitors)} pengunjung unik`,
+        icon: 'mdi-account-clock-outline',
+        tone: 'neutral',
+    },
+]);
 
 const salesCards = computed(() => [
     {
@@ -364,8 +436,9 @@ const exportOverview = () => {
         ...Object.entries(props.sales.summary).map(([metric, value]) => ({ section: 'Penjualan', metric, value })),
         ...props.sales.channels.map((row) => ({ section: 'Channel', metric: row.label, value: row.revenue, transactions: row.transactions, share_percent: row.share })),
         ...props.sales.trend.map((row) => ({ section: 'Tren Penjualan', metric: row.date, value: row.revenue, transactions: row.transactions })),
-        ...props.sales.top_stores.map((row) => ({ section: 'Store Teratas', metric: row.store_name, value: row.revenue, transactions: row.transactions })),
+        ...props.sales.top_stores.map((row) => ({ section: 'Store Teratas', metric: row.store_name, value: row.revenue, transactions: row.transactions, buyers: row.buyers })),
         ...props.sales.top_products.map((row) => ({ section: 'Produk Teratas', metric: row.product_name, product_code: row.product_code, category: row.category_name, quantity: row.qty, transactions: row.transactions })),
+        ...Object.entries(props.customers.summary).map(([metric, value]) => ({ section: 'Pelanggan', metric, value })),
         ...Object.entries(props.orders.summary).map(([metric, value]) => ({ section: 'Pesanan', metric, value })),
         ...props.orders.ecommerce_statuses.map((row) => ({ section: 'Status Ecommerce', metric: row.label, status: row.status, count: row.count, share_percent: row.share })),
         ...props.orders.store_order_statuses.map((row) => ({ section: 'Status Order Store', metric: row.label, status: row.status, count: row.count, share_percent: row.share })),
@@ -387,6 +460,7 @@ const exportOverview = () => {
         { key: 'status', label: 'Status' },
         { key: 'type', label: 'Jenis' },
         { key: 'transactions', label: 'Transaksi' },
+        { key: 'buyers', label: 'Pembeli' },
         { key: 'quantity', label: 'Kuantitas' },
         { key: 'documents', label: 'Dokumen' },
         { key: 'units', label: 'Unit' },
@@ -402,8 +476,12 @@ const exportOverview = () => {
     ], rows, {
         title: 'Ringkasan Usaha',
         filters: [
+            { label: 'Periode', value: activePeriodLabel.value },
             { label: 'Dari', value: props.filters.date_from },
             { label: 'Sampai', value: props.filters.date_to },
+            { label: 'Kanal', value: props.filters.channel === 'all' ? 'Semua kanal' : props.filters.channel === 'store' ? 'Toko' : 'E-commerce' },
+            { label: 'Toko', value: props.stores.find((store) => String(store.id) === String(props.filters.store_id))?.name ?? 'Semua toko' },
+            { label: 'Gudang', value: props.warehouses.find((warehouse) => String(warehouse.id) === String(props.filters.warehouse_id))?.name ?? 'Semua gudang' },
         ],
         currencyColumns: ['amount'],
     });
@@ -437,38 +515,62 @@ const exportOverview = () => {
         </section>
 
         <section class="overview-filter" aria-label="Filter periode ringkasan">
-            <form class="row g-2 align-items-end" @submit.prevent="applyRange">
-                <div class="col-6 col-md-3 col-xl-2">
-                    <label class="form-label" for="overview-date-from">Dari tanggal</label>
-                    <input id="overview-date-from" v-model="form.date_from" class="form-control form-control-sm" type="date" :max="form.date_to || undefined" />
-                </div>
-                <div class="col-6 col-md-3 col-xl-2">
-                    <label class="form-label" for="overview-date-to">Sampai tanggal</label>
-                    <input id="overview-date-to" v-model="form.date_to" class="form-control form-control-sm" type="date" :min="form.date_from || undefined" />
-                </div>
-                <div class="col-12 col-md-6 col-xl-4">
-                    <span class="overview-preset-label">Pilih cepat</span>
-                    <div class="overview-presets">
-                        <button type="button" class="overview-preset" @click="setPreset('7d')">7 hari</button>
-                        <button type="button" class="overview-preset" @click="setPreset('30d')">30 hari</button>
-                        <button type="button" class="overview-preset" @click="setPreset('90d')">90 hari</button>
-                        <button type="button" class="overview-preset" @click="setPreset('this_month')">Bulan ini</button>
-                        <button type="button" class="overview-preset" @click="setPreset('last_month')">Bulan lalu</button>
+            <form @submit.prevent="applyRange">
+                <div class="row g-2 align-items-end">
+                    <div class="col-6 col-md-3 col-xl-2">
+                        <label class="form-label" for="overview-date-from">Dari tanggal</label>
+                        <input id="overview-date-from" v-model="form.date_from" class="form-control form-control-sm" type="date" :max="form.date_to || undefined" />
+                    </div>
+                    <div class="col-6 col-md-3 col-xl-2">
+                        <label class="form-label" for="overview-date-to">Sampai tanggal</label>
+                        <input id="overview-date-to" v-model="form.date_to" class="form-control form-control-sm" type="date" :min="form.date_from || undefined" />
+                    </div>
+                    <div class="col-6 col-md-3 col-xl-2">
+                        <label class="form-label" for="overview-channel">Kanal</label>
+                        <select id="overview-channel" v-model="form.channel" class="form-select form-select-sm">
+                            <option value="all">Semua kanal</option>
+                            <option value="store">Toko</option>
+                            <option value="ecommerce">E-commerce</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3 col-xl-3">
+                        <label class="form-label" for="overview-store">Toko</label>
+                        <SearchableSelect id="overview-store" aria-label="Toko" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
+                    </div>
+                    <div class="col-12 col-md-6 col-xl-3">
+                        <label class="form-label" for="overview-warehouse">Gudang</label>
+                        <SearchableSelect id="overview-warehouse" aria-label="Gudang" v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua gudang" search-placeholder="Cari gudang..." />
                     </div>
                 </div>
-                <div class="col-12 col-xl-4 d-flex flex-wrap gap-2 justify-content-xl-end">
-                    <button class="btn btn-sm btn-primary" type="submit">
-                        <i class="mdi mdi-filter-outline me-1"></i>
-                        Terapkan
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="resetRange">
-                        <i class="mdi mdi-refresh me-1"></i>
-                        Reset
-                    </button>
+                <div class="row g-2 align-items-end mt-1">
+                    <div class="col-12 col-xl-7">
+                        <span class="overview-preset-label">Pilih cepat</span>
+                        <div class="overview-presets">
+                            <button
+                                v-for="option in props.periodOptions"
+                                :key="option.value"
+                                type="button"
+                                class="overview-preset"
+                                :class="{ 'is-active': props.filters.period === option.value }"
+                                :aria-pressed="props.filters.period === option.value"
+                                @click="applyPeriod(option.value)"
+                            >{{ option.label }}</button>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-5 d-flex flex-wrap gap-2 justify-content-xl-end">
+                        <button class="btn btn-sm btn-primary" type="submit">
+                            <i class="mdi mdi-filter-outline me-1"></i>
+                            Terapkan
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" @click="resetRange">
+                            <i class="mdi mdi-refresh me-1"></i>
+                            Reset
+                        </button>
+                    </div>
                 </div>
             </form>
             <div class="overview-period-note">
-                <span>Periode data: <strong>{{ formatDate(props.filters.date_from) }} – {{ formatDate(props.filters.date_to) }}</strong></span>
+                <span>Periode data: <strong>{{ activePeriodLabel }} · {{ formatDate(props.filters.date_from) }} – {{ formatDate(props.filters.date_to) }}</strong></span>
                 <span>Terakhir dihitung: {{ generatedLabel }}</span>
             </div>
         </section>
@@ -479,13 +581,16 @@ const exportOverview = () => {
                 <strong>Cara membaca angka</strong>
             </div>
             <div class="row g-2">
-                <div class="col-md-4">
+                <div class="col-md-6 col-xl-3">
                     <p><strong>Penjualan</strong> dihitung dari pembayaran berstatus lunas, bukan dari status pesanan. Angka POS dan Ecommerce sudah dipisahkan.</p>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6 col-xl-3">
                     <p><strong>Pesanan</strong> dihitung dari tanggal pesanan dibuat, termasuk yang belum dibayar. Karena itu jumlah pesanan tidak sama dengan transaksi lunas.</p>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6 col-xl-3">
+                    <p><strong>Pelanggan</strong> menghitung member baru berdasarkan tanggal registrasi dan kunjungan toko berdasarkan waktu check-in pada periode terpilih.</p>
+                </div>
+                <div class="col-md-6 col-xl-3">
                     <p><strong>Stok</strong> adalah posisi saat ini. Inbound, outbound, dan retur adalah dokumen pada periode yang dipilih, bukan saldo stok.</p>
                 </div>
             </div>
@@ -493,8 +598,9 @@ const exportOverview = () => {
 
         <nav class="overview-anchors" aria-label="Bagian ringkasan">
             <a href="#penjualan">Penjualan</a>
+            <a href="#pelanggan">Pelanggan</a>
             <a href="#pesanan">Pesanan</a>
-            <a href="#stok-logistik">Stok & Logistik</a>
+            <a href="#stok-logistik">Stok &amp; Logistik</a>
         </nav>
 
         <section id="penjualan" class="overview-section" aria-labelledby="sales-title">
@@ -587,12 +693,13 @@ const exportOverview = () => {
                         <div v-if="props.sales.top_stores.length" class="table-responsive">
                             <table class="table align-middle mb-0 overview-table">
                                 <thead>
-                                    <tr><th scope="col">Cabang</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Penjualan</th></tr>
+                                    <tr><th scope="col">Cabang</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Pembeli</th><th scope="col" class="text-end">Penjualan</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="row in props.sales.top_stores" :key="row.store_name">
                                         <td>{{ row.store_name }}</td>
                                         <td class="text-end">{{ formatNumber(row.transactions) }}</td>
+                                        <td class="text-end">{{ formatNumber(row.buyers) }}</td>
                                         <td class="text-end"><strong>{{ formatCurrency(row.revenue) }}</strong></td>
                                     </tr>
                                 </tbody>
@@ -619,6 +726,34 @@ const exportOverview = () => {
                             </div>
                         </div>
                         <p v-else class="overview-empty">Belum ada produk terjual.</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section id="pelanggan" class="overview-section" aria-labelledby="customers-title">
+            <div class="overview-section-head">
+                <div>
+                    <span class="overview-section-kicker">Pelanggan</span>
+                    <h2 id="customers-title">Pertumbuhan member dan kunjungan</h2>
+                    <p>Member baru dan aktivitas kunjungan toko pada periode yang dipilih.</p>
+                </div>
+                <div class="overview-section-links">
+                    <Link :href="props.urls.crm">CRM</Link>
+                    <Link :href="props.urls.demographics">Demografi</Link>
+                    <Link :href="props.urls.preference">Preferensi</Link>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div v-for="card in customerCards" :key="card.label" class="col-6 col-xl-3">
+                    <article class="overview-kpi" :class="`is-${card.tone}`">
+                        <span class="overview-kpi-icon"><i class="mdi" :class="card.icon"></i></span>
+                        <div>
+                            <span class="overview-kpi-label">{{ card.label }}</span>
+                            <strong class="overview-kpi-value">{{ card.value }}</strong>
+                            <small>{{ card.hint }}</small>
+                        </div>
                     </article>
                 </div>
             </div>
@@ -842,6 +977,7 @@ const exportOverview = () => {
 .overview-presets { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .overview-preset { padding: 0.28rem 0.55rem; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-surface-2); color: var(--app-ink); font-size: 0.72rem; font-weight: 600; }
 .overview-preset:hover { border-color: var(--app-accent); color: var(--app-accent-ink); }
+.overview-preset.is-active { border-color: var(--app-accent); background: var(--app-accent-soft); color: var(--app-accent-ink); }
 .overview-period-note { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--app-border); color: var(--app-muted); font-size: 0.75rem; }
 .overview-guide { padding: 0.9rem 1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface-2); }
 .overview-guide-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.45rem; color: var(--app-accent-ink); font-size: 0.82rem; }

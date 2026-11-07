@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Monitoring;
 
 use App\Domain\WarehouseOperations\Queries\StoreTransferReconciliationQuery;
 use App\Http\Controllers\Controller;
+use App\Support\Navigation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,12 +14,15 @@ use Inertia\Inertia;
 
 class MonitoringCommandCenterController extends Controller
 {
+    private const AWAITING_SHIPMENT_STATUSES = ['pending', 'paid', 'processed', 'processing', 'packing', 'on_hold'];
+
     public function index(StoreTransferReconciliationQuery $storeTransfers)
     {
         $monitoringGroups = $this->monitoringGroups();
 
         return Inertia::render('Monitoring/Index', [
             'monitoringGroups' => $monitoringGroups,
+            'reportGroups' => $this->reportGroups(),
             'overviewUrl' => route('reports.business-overview.index'),
             'storeTransferReconciliation' => $storeTransfers->build(null, null, 'unresolved', 5),
             'storeTransferReportUrl' => route('monitoring.warehouse-outbound.index', [
@@ -83,6 +87,7 @@ class MonitoringCommandCenterController extends Controller
                     'name' => $group['name'] ?? 'Monitoring',
                     'icon' => $groupIcons[$group['slug'] ?? ''] ?? 'mdi-monitor-eye-outline',
                     'description' => $groupDescriptions[$group['slug'] ?? ''] ?? 'Akses fitur monitoring pada kategori ini.',
+                    'source' => 'monitoring',
                     'items' => $items,
                 ];
             })
@@ -120,6 +125,46 @@ class MonitoringCommandCenterController extends Controller
                 ];
             })
             ->filter(fn (array $group) => ! empty($group['items']))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Reports di sidebar memakai registry route yang sama dengan navigasi
+     * aplikasi. Command Center ikut menampilkan registry ini agar report
+     * yang tidak berada di verticalMenu.json tetap mudah ditemukan.
+     */
+    private function reportGroups(): array
+    {
+        $reportsArea = collect(Navigation::forUser(auth()->user())['areas'] ?? [])
+            ->firstWhere('key', 'reports');
+
+        if (! is_array($reportsArea)) {
+            return [];
+        }
+
+        return collect($reportsArea['groups'] ?? [])
+            ->map(function (array $group) {
+                $items = collect($group['items'] ?? [])
+                    ->reject(fn (array $item) => ($item['route'] ?? null) === 'monitoring.command-center.index')
+                    ->map(fn (array $item) => [
+                        'name' => $item['label'] ?? 'Laporan',
+                        'url' => $item['url'] ?? null,
+                    ])
+                    ->filter(fn (array $item) => ! empty($item['url']))
+                    ->values()
+                    ->all();
+
+                return [
+                    'slug' => 'reports-'.str($group['label'] ?? 'reports')->slug(),
+                    'name' => 'Laporan: '.($group['label'] ?? 'Lainnya'),
+                    'icon' => $group['icon'] ?? 'mdi-file-chart-outline',
+                    'description' => 'Laporan yang tersedia untuk area ini.',
+                    'source' => 'reports',
+                    'items' => $items,
+                ];
+            })
+            ->filter(fn (array $group) => $group['items'] !== [])
             ->values()
             ->all();
     }
@@ -428,6 +473,8 @@ class MonitoringCommandCenterController extends Controller
             'per_page' => $this->normalizePerPage($request->query('per_page'), 20),
         ];
 
+        $awaitingShipmentStatuses = "'".implode("','", self::AWAITING_SHIPMENT_STATUSES)."'";
+
         $baseQuery = DB::table('ecommerce_orders as eo')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->leftJoin('stores as s', 's.id', '=', 'eo.handled_by_store_id')
@@ -439,7 +486,7 @@ class MonitoringCommandCenterController extends Controller
                 'w.name as warehouse_name',
                 DB::raw("
                     CASE
-                        WHEN LOWER(eo.status::text) IN ('pending','paid','processed','processing','packing','shipped','on_hold')
+                        WHEN LOWER(eo.status::text) IN ({$awaitingShipmentStatuses})
                             AND eo.created_at < NOW() - INTERVAL '24 hours'
                         THEN 'Lewat 24 Jam'
                         ELSE NULL
@@ -493,7 +540,7 @@ class MonitoringCommandCenterController extends Controller
                 })
                 ->count(),
             'over_24h' => (clone $summaryQuery)
-                ->whereRaw("LOWER(status::text) IN ('pending','paid','processed','processing','packing','shipped','on_hold')")
+                ->whereRaw("LOWER(status::text) IN ({$awaitingShipmentStatuses})")
                 ->where('created_at', '<', now()->subDay())
                 ->count(),
         ];

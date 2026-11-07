@@ -12,6 +12,17 @@ class PromoAcquisitionReportController extends Controller
 {
     public function index(Request $request)
     {
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Laporan Promo, Voucher, Poin & Referral',
+            'description' => 'Ukur berapa akun yang mengambil voucher, memakai poin, dan berhasil mengajak referral pada periode yang dipilih.',
+            'data' => $this->reportData($request),
+            'filters' => $request->query(),
+            'urls' => ['index' => url()->current()],
+        ]);
+    }
+
+    public function reportData(Request $request): array
+    {
         $filters = $this->filters($request);
         $start = Carbon::parse($filters['start_date'])->startOfDay();
         $end = Carbon::parse($filters['end_date'])->endOfDay();
@@ -163,20 +174,14 @@ class PromoAcquisitionReportController extends Controller
             ->limit(10)
             ->get();
 
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Laporan Promo, Voucher, Poin & Referral',
-            'description' => 'Ukur berapa akun yang mengambil voucher, memakai poin, dan berhasil mengajak referral pada periode yang dipilih.',
-            'data' => [
-                'rows' => $voucherRows,
-                'pointRows' => $pointRows,
-                'referralRows' => $referralRows,
-                'topCustomerRows' => $topCustomerRows,
-                'summary' => $summary,
-                'filters' => $filters,
-            ],
-            'filters' => $request->query(),
-            'urls' => ['index' => url()->current()],
-        ]);
+        return [
+            'rows' => $voucherRows,
+            'pointRows' => $pointRows,
+            'referralRows' => $referralRows,
+            'topCustomerRows' => $topCustomerRows,
+            'summary' => $summary,
+            'filters' => $filters,
+        ];
     }
 
     private function filters(Request $request): array

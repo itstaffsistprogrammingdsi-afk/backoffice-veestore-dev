@@ -101,7 +101,7 @@ class StoreReturnApprovalQuery
                         });
                 });
             })
-            ->when($status === 'pending', fn ($inner) => $inner->whereIn('r.status', ['requested', 'pending_approval']))
+            ->when($status === 'pending', fn ($inner) => $inner->whereIn('r.status', ['requested', 'pending_approval', 'partial_approved']))
             ->when($status !== '' && $status !== 'all' && $status !== 'pending', fn ($inner) => $inner->where('r.status', $status))
             ->when($storeId, fn ($inner) => $inner->where('r.store_id', $storeId))
             ->when($from, fn ($inner) => $inner->whereRaw('r.created_at::date >= ?', [$from]))
@@ -285,7 +285,7 @@ class StoreReturnApprovalQuery
         $today = now()->toDateString();
 
         $pending = DB::table('store_returns')
-            ->whereIn('status', ['requested', 'pending_approval'])
+            ->whereIn('status', ['requested', 'pending_approval', 'partial_approved'])
             ->pluck('id');
 
         $pendingItems = $pending->isEmpty()

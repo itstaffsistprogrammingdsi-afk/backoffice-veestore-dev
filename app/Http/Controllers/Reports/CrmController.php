@@ -125,6 +125,7 @@ class CrmController extends Controller
         return Inertia::render('Reports/CrmDemographics', $data + [
             'birthdayGreeting' => [
                 'template' => $greeting->template(),
+                'vouchers' => $greeting->availableVouchers(),
             ],
             'urls' => [
                 'index' => route('reports.crm.demographics'),
@@ -149,6 +150,7 @@ class CrmController extends Controller
             $request->validated('customer_ids'),
             $request->validated('subject'),
             $request->validated('message'),
+            $request->validated('voucher_id'),
         );
 
         return back()->with(

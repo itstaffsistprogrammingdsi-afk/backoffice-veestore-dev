@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes; // << gunakan bila ada deleted_at
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -23,6 +24,7 @@ class Voucher extends Model
         'code',
         'name',
         'description',
+        'voucher_image_path',
         'type',
         'value',
         'max_discount',
@@ -48,6 +50,18 @@ class Voucher extends Model
         'is_active'    => 'boolean',
         'deleted_at'   => 'datetime',
     ];
+
+    protected $appends = ['voucher_image_url'];
+
+    public function getVoucherImageUrlAttribute(): ?string
+    {
+        if (! $this->voucher_image_path) {
+            return null;
+        }
+
+        return Storage::disk((string) config('voucher.image.disk', 'public'))
+            ->url((string) $this->voucher_image_path);
+    }
 
     public function voucherCodes(): HasMany
     {

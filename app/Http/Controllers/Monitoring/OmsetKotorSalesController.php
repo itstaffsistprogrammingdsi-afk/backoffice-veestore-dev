@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use App\Domain\Analytics\Support\FinancialBreakdown;
 use App\Exports\OmsetKotorSalesExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -73,6 +74,16 @@ class OmsetKotorSalesController extends Controller
             promo: $promo
         );
 
+        $finance = $this->getFinancialSummary(
+            channel: $channel,
+            productId: $productId,
+            customerId: $customerId,
+            q: $q,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo,
+            promo: $promo
+        );
+
         $rows = match ($groupBy) {
             'daily' => $this->getDailyRows(
                 channel: $channel,
@@ -108,10 +119,11 @@ class OmsetKotorSalesController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Kotor & Bersih',
-            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin.',
+            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin. Hanya transaksi lunas; retur, void, dan order batal tidak masuk.',
             'data' => [
                 'rows' => $rows,
                 'summary' => $summary,
+                'finance' => $finance,
                 'products' => $products,
                 'customers' => $customers,
                 'channel' => $channel,
@@ -209,13 +221,24 @@ class OmsetKotorSalesController extends Controller
             ')
             ->first();
 
+        $finance = $this->getFinancialSummary(
+            channel: $channel,
+            productId: $productId,
+            customerId: $customerId,
+            q: $q,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo,
+            promo: $promo
+        );
+
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Kotor & Bersih',
-            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin.',
+            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin. Hanya transaksi lunas; retur, void, dan order batal tidak masuk.',
             'data' => [
                 'product' => $product,
                 'rows' => $rows,
                 'summary' => $summary,
+                'finance' => $finance,
                 'channel' => $channel,
                 'customerId' => $customerId,
                 'q' => $q,
@@ -328,7 +351,7 @@ class OmsetKotorSalesController extends Controller
                 eod.ecommerce_order_id,
                 SUM(
                     COALESCE(
-                        eod.total_price,
+                        NULLIF(eod.total_price, 0),
                         (COALESCE(eod.product_price, 0) * COALESCE(eod.quantity, 0)) - COALESCE(eod.total_discount, 0)
                     )
                 ) as order_item_net_total
@@ -567,7 +590,7 @@ class OmsetKotorSalesController extends Controller
                     ROUND(
                         (
                             COALESCE(
-                                eod.total_price,
+                                NULLIF(eod.total_price, 0),
                                 ({$ecommerceGrossSql}) - COALESCE(eod.total_discount, 0)
                             ) / order_net.order_item_net_total
                         ) * GREATEST(COALESCE(eo.discount_total, 0), 0),
@@ -761,6 +784,70 @@ class OmsetKotorSalesController extends Controller
                 SUM(x.allocated_order_discount) as total_voucher_discount
             ')
             ->first();
+    }
+
+    private function getFinancialSummary(
+        string $channel = 'all',
+        ?string $productId = null,
+        ?string $customerId = null,
+        ?string $q = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        string $promo = 'all'
+    ): array {
+        $channelRows = DB::query()
+            ->fromSub(
+                $this->buildTransactionBaseQuery(
+                    channel: $channel,
+                    productId: $productId,
+                    customerId: $customerId,
+                    q: $q,
+                    dateFrom: $dateFrom,
+                    dateTo: $dateTo,
+                    promo: $promo
+                ),
+                'x'
+            )
+            ->selectRaw('
+                x.channel,
+                COUNT(DISTINCT x.transaction_id) as transactions,
+                COALESCE(SUM(x.qty), 0) as qty,
+                COALESCE(SUM(x.gross_sales), 0) as gross_sales,
+                COALESCE(SUM(x.product_discount_amount), 0) as product_discount,
+                COALESCE(SUM(x.net_after_product_discount), 0) as net_after_product_discount,
+                COALESCE(SUM(x.allocated_order_discount), 0) as voucher_discount,
+                COALESCE(SUM(x.final_paid_amount), 0) as net_sales,
+                COALESCE(SUM(x.base_price_total), 0) as base_price
+            ')
+            ->groupBy('x.channel')
+            ->get()
+            ->map(fn (object $row): array => (array) $row)
+            ->all();
+
+        $totals = [
+            'transactions' => array_sum(array_column($channelRows, 'transactions')),
+            'qty' => array_sum(array_column($channelRows, 'qty')),
+            'gross_sales' => array_sum(array_column($channelRows, 'gross_sales')),
+            'product_discount' => array_sum(array_column($channelRows, 'product_discount')),
+            'net_after_product_discount' => array_sum(array_column($channelRows, 'net_after_product_discount')),
+            'voucher_discount' => array_sum(array_column($channelRows, 'voucher_discount')),
+            'net_sales' => array_sum(array_column($channelRows, 'net_sales')),
+            'base_price' => array_sum(array_column($channelRows, 'base_price')),
+        ];
+
+        return [
+            ...FinancialBreakdown::make(
+                $totals['gross_sales'],
+                $totals['product_discount'],
+                $totals['voucher_discount'],
+                $totals['net_sales'],
+                $totals['base_price'],
+                $totals['transactions'],
+                $totals['qty'],
+                $totals['net_after_product_discount']
+            ),
+            'channels' => FinancialBreakdown::channels($channelRows),
+        ];
     }
 
     private function getProductRows(

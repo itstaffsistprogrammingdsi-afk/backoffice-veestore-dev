@@ -48,7 +48,10 @@ class StoreStockBarrierController extends Controller
             'filters'  => $filters,
         ],
             'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
+            'urls' => [
+                'index' => url()->current(),
+                'email_alert_settings' => route('settings.stock-barrier-alerts.edit'),
+            ],
         ]);
     }
 

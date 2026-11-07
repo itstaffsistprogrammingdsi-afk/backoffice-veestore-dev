@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\DB;
 
 class BusinessOverviewQuery
 {
+    private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'last_month', 'custom'];
+
     private const ECOMMERCE_STATUS_LABELS = [
         'pending' => 'Menunggu pembayaran',
         'paid' => 'Sudah dibayar',
@@ -54,6 +56,7 @@ class BusinessOverviewQuery
             'filters' => $filters,
             'generated_at' => now()->toIso8601String(),
             'sales' => $this->sales($filters),
+            'customers' => $this->customers($filters),
             'orders' => $this->orders($filters),
             'inventory' => $this->inventory($filters),
         ];
@@ -160,20 +163,86 @@ class BusinessOverviewQuery
 
     private function normalizeFilters(array $input): array
     {
-        $defaultFrom = CarbonImmutable::now()->subDays(29)->toDateString();
-        $defaultTo = CarbonImmutable::now()->toDateString();
+        $period = trim((string) ($input['period'] ?? ''));
 
-        $from = $this->normalizeDate($input['date_from'] ?? null) ?: $defaultFrom;
-        $to = $this->normalizeDate($input['date_to'] ?? null) ?: $defaultTo;
+        if (! in_array($period, self::PERIOD_VALUES, true)) {
+            $period = null;
+        }
+
+        $hasCustomRange = $this->normalizeDate($input['date_from'] ?? null) !== ''
+            || $this->normalizeDate($input['date_to'] ?? null) !== '';
+
+        if ($period === null) {
+            $period = $hasCustomRange ? 'custom' : 'month';
+        }
+
+        if ($period === 'custom') {
+            $defaultFrom = CarbonImmutable::now()->subDays(29)->toDateString();
+            $defaultTo = CarbonImmutable::now()->toDateString();
+            $from = $this->normalizeDate($input['date_from'] ?? null) ?: $defaultFrom;
+            $to = $this->normalizeDate($input['date_to'] ?? null) ?: $defaultTo;
+        } else {
+            [$from, $to] = $this->periodRange($period);
+        }
 
         if ($from > $to) {
             [$from, $to] = [$to, $from];
         }
 
+        $channel = $input['channel'] ?? 'all';
+
+        if (! in_array($channel, ['all', 'store', 'ecommerce'], true)) {
+            $channel = 'all';
+        }
+
         return [
+            'period' => $period,
             'date_from' => $from,
             'date_to' => $to,
+            'channel' => $channel,
+            'store_id' => $this->normalizeNullableString($input['store_id'] ?? null),
+            'warehouse_id' => $this->normalizeNullableString($input['warehouse_id'] ?? null),
         ];
+    }
+
+    private function periodRange(string $period): array
+    {
+        $now = CarbonImmutable::now();
+
+        return match ($period) {
+            'today' => [$now->toDateString(), $now->toDateString()],
+            'week' => [
+                $now->startOfWeek(CarbonImmutable::MONDAY)->toDateString(),
+                $now->endOfWeek(CarbonImmutable::SUNDAY)->toDateString(),
+            ],
+            'month' => [
+                $now->startOfMonth()->toDateString(),
+                $now->endOfMonth()->toDateString(),
+            ],
+            'year' => [
+                $now->startOfYear()->toDateString(),
+                $now->endOfYear()->toDateString(),
+            ],
+            'last_month' => [
+                $now->subMonthNoOverflow()->startOfMonth()->toDateString(),
+                $now->subMonthNoOverflow()->endOfMonth()->toDateString(),
+            ],
+            default => [
+                $now->startOfMonth()->toDateString(),
+                $now->endOfMonth()->toDateString(),
+            ],
+        };
+    }
+
+    private function normalizeNullableString(mixed $value): ?string
+    {
+        if (! is_scalar($value)) {
+            return null;
+        }
+
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     private function sales(array $filters): array
@@ -208,16 +277,23 @@ class BusinessOverviewQuery
             ->all();
 
         $stores = $this->salesQuery($filters)
-            ->selectRaw('store_id, store_name, COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue, COUNT(*)::int AS transactions')
+            ->selectRaw('
+                store_id,
+                store_name,
+                COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue,
+                COUNT(*)::int AS transactions,
+                COUNT(DISTINCT customer_id)::int AS buyers
+            ')
             ->groupBy('store_id', 'store_name')
             ->orderByDesc('revenue')
-            ->limit(5)
+            ->limit(10)
             ->get()
             ->map(fn ($row) => [
                 'store_id' => $row->store_id,
                 'store_name' => $row->store_name,
                 'revenue' => (float) $row->revenue,
                 'transactions' => (int) $row->transactions,
+                'buyers' => (int) $row->buyers,
             ])
             ->values()
             ->all();
@@ -276,16 +352,64 @@ class BusinessOverviewQuery
         ];
     }
 
+    private function customers(array $filters): array
+    {
+        $from = $this->startOfDay($filters['date_from']);
+        $to = $this->endOfDay($filters['date_to']);
+
+        $members = DB::table('customers')
+            ->whereBetween('created_at', [$from, $to])
+            ->whereNull('deleted_at')
+            ->whereIn('registration_channel', ['store', 'ecommerce'])
+            ->when($filters['channel'] !== 'all', fn ($query) => $query->where('registration_channel', $filters['channel']))
+            ->when($filters['store_id'], function ($query) use ($filters) {
+                $query->where('registration_channel', 'store')
+                    ->where('registration_source_id', $filters['store_id']);
+            })
+            ->selectRaw("
+                COUNT(*)::int AS new_members,
+                COUNT(*) FILTER (WHERE registration_channel = 'store')::int AS store_members,
+                COUNT(*) FILTER (WHERE registration_channel = 'ecommerce')::int AS ecommerce_members
+            ")
+            ->first();
+
+        $visits = DB::table('store_customer_visits')
+            ->whereBetween('check_in_at', [$from, $to])
+            ->when($filters['store_id'], fn ($query) => $query->where('store_id', $filters['store_id']))
+            ->selectRaw('COUNT(*)::int AS visits, COUNT(DISTINCT customer_id)::int AS unique_visitors')
+            ->first();
+
+        return [
+            'summary' => [
+                'new_members' => (int) ($members->new_members ?? 0),
+                'store_members' => (int) ($members->store_members ?? 0),
+                'ecommerce_members' => (int) ($members->ecommerce_members ?? 0),
+                'visits' => (int) ($visits->visits ?? 0),
+                'unique_visitors' => (int) ($visits->unique_visitors ?? 0),
+            ],
+        ];
+    }
+
     private function orders(array $filters): array
     {
-        $ecommerceStatuses = $this->statusRows(
-            DB::table('ecommerce_orders')
-                ->whereBetween('created_at', [$this->startOfDay($filters['date_from']), $this->endOfDay($filters['date_to'])])
-                ->selectRaw('status::text AS status, COUNT(*)::int AS total')
-                ->groupByRaw('status::text')
-                ->orderByDesc('total'),
-            self::ECOMMERCE_STATUS_LABELS
-        );
+        $from = $this->startOfDay($filters['date_from']);
+        $to = $this->endOfDay($filters['date_to']);
+        $channel = $filters['channel'];
+
+        $ecommerceStatuses = [];
+
+        if (in_array($channel, ['all', 'ecommerce'], true)) {
+            $ecommerceStatuses = $this->statusRows(
+                DB::table('ecommerce_orders')
+                    ->whereBetween('created_at', [$from, $to])
+                    ->when($filters['store_id'], fn ($query) => $query->where('handled_by_store_id', $filters['store_id']))
+                    ->when($filters['warehouse_id'], fn ($query) => $query->where('handled_by_warehouse_id', $filters['warehouse_id']))
+                    ->selectRaw('status::text AS status, COUNT(*)::int AS total')
+                    ->groupByRaw('status::text')
+                    ->orderByDesc('total'),
+                self::ECOMMERCE_STATUS_LABELS
+            );
+        }
 
         $statusCount = function (array $rows, string $status): int {
             foreach ($rows as $row) {
@@ -302,29 +426,44 @@ class BusinessOverviewQuery
         $ecommerceCancelled = $statusCount($ecommerceStatuses, 'cancelled');
         $ecommerceOpen = max(0, $ecommerceTotal - $ecommerceCompleted - $ecommerceCancelled);
         $ecommercePendingPayment = $statusCount($ecommerceStatuses, 'pending');
-        $ecommerceNeedAttention = DB::table('ecommerce_orders')
-            ->whereBetween('created_at', [$this->startOfDay($filters['date_from']), $this->endOfDay($filters['date_to'])])
-            ->whereIn(DB::raw('LOWER(status::text)'), ['paid', 'processed', 'packing', 'shipped', 'on_hold'])
-            ->where('created_at', '<', now()->subDay())
-            ->count();
+        $ecommerceNeedAttention = 0;
 
-        $storeOrderStatuses = $this->statusRows(
-            DB::table('store_orders')
-                ->whereBetween('created_at', [$this->startOfDay($filters['date_from']), $this->endOfDay($filters['date_to'])])
-                ->selectRaw('status::text AS status, COUNT(*)::int AS total')
-                ->groupByRaw('status::text')
-                ->orderByDesc('total'),
-            self::STORE_ORDER_STATUS_LABELS
-        );
+        if (in_array($channel, ['all', 'ecommerce'], true)) {
+            $ecommerceNeedAttention = DB::table('ecommerce_orders')
+                ->whereBetween('created_at', [$from, $to])
+                ->whereIn(DB::raw('LOWER(status::text)'), ['paid', 'processed', 'packing', 'shipped', 'on_hold'])
+                ->where('created_at', '<', now()->subDay())
+                ->when($filters['store_id'], fn ($query) => $query->where('handled_by_store_id', $filters['store_id']))
+                ->when($filters['warehouse_id'], fn ($query) => $query->where('handled_by_warehouse_id', $filters['warehouse_id']))
+                ->count();
+        }
 
-        $returnStatuses = $this->statusRows(
-            DB::table('store_returns')
-                ->whereBetween('created_at', [$this->startOfDay($filters['date_from']), $this->endOfDay($filters['date_to'])])
-                ->selectRaw('status::text AS status, COUNT(*)::int AS total')
-                ->groupByRaw('status::text')
-                ->orderByDesc('total'),
-            self::RETURN_STATUS_LABELS
-        );
+        $storeOrderStatuses = [];
+        $returnStatuses = [];
+
+        if (in_array($channel, ['all', 'store'], true)) {
+            $storeOrderStatuses = $this->statusRows(
+                DB::table('store_orders')
+                    ->whereBetween('created_at', [$from, $to])
+                    ->when($filters['store_id'], fn ($query) => $query->where('store_id', $filters['store_id']))
+                    ->when($filters['warehouse_id'], fn ($query) => $query->where('warehouse_id', $filters['warehouse_id']))
+                    ->selectRaw('status::text AS status, COUNT(*)::int AS total')
+                    ->groupByRaw('status::text')
+                    ->orderByDesc('total'),
+                self::STORE_ORDER_STATUS_LABELS
+            );
+
+            $returnStatuses = $this->statusRows(
+                DB::table('store_returns')
+                    ->whereBetween('created_at', [$from, $to])
+                    ->when($filters['store_id'], fn ($query) => $query->where('store_id', $filters['store_id']))
+                    ->when($filters['warehouse_id'], fn ($query) => $query->where('warehouse_id', $filters['warehouse_id']))
+                    ->selectRaw('status::text AS status, COUNT(*)::int AS total')
+                    ->groupByRaw('status::text')
+                    ->orderByDesc('total'),
+                self::RETURN_STATUS_LABELS
+            );
+        }
 
         return [
             'summary' => [
@@ -357,6 +496,7 @@ class BusinessOverviewQuery
             ->join('warehouses as w', 'w.id', '=', 'wi.warehouse_id')
             ->whereNull('w.deleted_at')
             ->whereRaw("LOWER(i.status::text) = 'warehouse_stock'")
+            ->when($filters['warehouse_id'], fn ($query) => $query->where('wi.warehouse_id', $filters['warehouse_id']))
             ->selectRaw('
                 COUNT(i.id)::int AS units,
                 COUNT(DISTINCT i.product_id)::int AS skus,
@@ -369,6 +509,7 @@ class BusinessOverviewQuery
             ->join('stores as s', 's.id', '=', 'si.store_id')
             ->whereNull('s.deleted_at')
             ->whereIn(DB::raw('LOWER(i.status::text)'), ['store_stock', 'store_display'])
+            ->when($filters['store_id'], fn ($query) => $query->where('si.store_id', $filters['store_id']))
             ->selectRaw('
                 COUNT(i.id)::int AS units,
                 COUNT(DISTINCT i.product_id)::int AS skus,
@@ -388,8 +529,8 @@ class BusinessOverviewQuery
             ")
             ->first();
 
-        $warehouseLow = $this->lowStockQuery('warehouse');
-        $storeLow = $this->lowStockQuery('store');
+        $warehouseLow = $this->lowStockQuery('warehouse', $filters);
+        $storeLow = $this->lowStockQuery('store', $filters);
         $warehouseSample = $this->lowStockSample($warehouseLow);
         $storeSample = $this->lowStockSample($storeLow);
 
@@ -422,7 +563,7 @@ class BusinessOverviewQuery
         }
 
         $result['logistics'] = $this->logisticsActivity($filters);
-        $result['pending_queues'] = $this->pendingQueues();
+        $result['pending_queues'] = $this->pendingQueues($filters);
 
         return $result;
     }
@@ -446,6 +587,7 @@ class BusinessOverviewQuery
             ->join('stores as s', 's.id', '=', 'v.store_id')
             ->whereNull('s.deleted_at')
             ->whereRaw('paid_visits.sold_at::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['store_id'], fn ($query) => $query->where('v.store_id', $filters['store_id']))
             ->selectRaw("
                 'POS'::text AS channel,
                 v.id AS transaction_id,
@@ -463,6 +605,7 @@ class BusinessOverviewQuery
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
             ->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
             ->whereRaw('COALESCE(p.completed_at, eo.created_at)::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['store_id'], fn ($query) => $query->where('eo.handled_by_store_id', $filters['store_id']))
             ->selectRaw("
                 'Ecommerce'::text AS channel,
                 eo.id AS transaction_id,
@@ -473,7 +616,13 @@ class BusinessOverviewQuery
                 COALESCE(p.total_amount, eo.grand_total, 0)::numeric(18,2) AS amount
             ");
 
-        return DB::query()->fromSub($pos->unionAll($ecommerce), 'sales');
+        $sales = match ($filters['channel']) {
+            'store' => $pos,
+            'ecommerce' => $ecommerce,
+            default => $pos->unionAll($ecommerce),
+        };
+
+        return DB::query()->fromSub($sales, 'sales');
     }
 
     private function productSalesQuery(array $filters): Builder
@@ -501,6 +650,7 @@ class BusinessOverviewQuery
             ->whereRaw("COALESCE(detail.void_status, '') <> 'void'")
             ->whereNotNull('product.id')
             ->whereRaw('paid_visits.paid_at::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['store_id'], fn ($query) => $query->where('visit.store_id', $filters['store_id']))
             ->selectRaw('
                 store.id AS store_id,
                 store.code AS store_code,
@@ -523,6 +673,7 @@ class BusinessOverviewQuery
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
             ->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
             ->whereRaw('COALESCE(p.completed_at, eo.created_at)::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['store_id'], fn ($query) => $query->where('eo.handled_by_store_id', $filters['store_id']))
             ->selectRaw('
                 eo.handled_by_store_id AS store_id,
                 store.code AS store_code,
@@ -535,7 +686,13 @@ class BusinessOverviewQuery
                 GREATEST(COALESCE(detail.quantity, 0), 0)::int AS qty
             ');
 
-        return DB::query()->fromSub($pos->unionAll($ecommerce), 'product_sales');
+        $productSales = match ($filters['channel']) {
+            'store' => $pos,
+            'ecommerce' => $ecommerce,
+            default => $pos->unionAll($ecommerce),
+        };
+
+        return DB::query()->fromSub($productSales, 'product_sales');
     }
 
     private function statusRows(Builder $query, array $labels): array
@@ -563,65 +720,79 @@ class BusinessOverviewQuery
     {
         $from = $this->startOfDay($filters['date_from']);
         $to = $this->endOfDay($filters['date_to']);
+        $items = collect();
 
-        $ecommerce = DB::table('ecommerce_orders as eo')
-            ->leftJoin('stores as s', 's.id', '=', 'eo.handled_by_store_id')
-            ->leftJoin('warehouses as w', 'w.id', '=', 'eo.handled_by_warehouse_id')
-            ->whereBetween('eo.created_at', [$from, $to])
-            ->whereIn(DB::raw('LOWER(eo.status::text)'), ['paid', 'processed', 'packing', 'shipped', 'on_hold'])
-            ->where('eo.created_at', '<', now()->subDay())
-            ->selectRaw("
-                'Pesanan Ecommerce'::text AS type,
-                COALESCE(eo.order_number, eo.id::text) AS reference,
-                eo.status::text AS status,
-                ROUND(EXTRACT(EPOCH FROM (NOW() - eo.created_at)) / 3600)::int AS age_hours,
-                COALESCE(eo.grand_total, 0)::numeric(18,2) AS amount,
-                COALESCE(s.name, w.name, '-') AS partner
-            ")
-            ->orderBy('eo.created_at')
-            ->limit(8)
-            ->get();
+        if (in_array($filters['channel'], ['all', 'ecommerce'], true)) {
+            $items = $items->merge(
+                DB::table('ecommerce_orders as eo')
+                    ->leftJoin('stores as s', 's.id', '=', 'eo.handled_by_store_id')
+                    ->leftJoin('warehouses as w', 'w.id', '=', 'eo.handled_by_warehouse_id')
+                    ->whereBetween('eo.created_at', [$from, $to])
+                    ->whereIn(DB::raw('LOWER(eo.status::text)'), ['paid', 'processed', 'packing', 'shipped', 'on_hold'])
+                    ->where('eo.created_at', '<', now()->subDay())
+                    ->when($filters['store_id'], fn ($query) => $query->where('eo.handled_by_store_id', $filters['store_id']))
+                    ->when($filters['warehouse_id'], fn ($query) => $query->where('eo.handled_by_warehouse_id', $filters['warehouse_id']))
+                    ->selectRaw("
+                        'Pesanan Ecommerce'::text AS type,
+                        COALESCE(eo.order_number, eo.id::text) AS reference,
+                        eo.status::text AS status,
+                        ROUND(EXTRACT(EPOCH FROM (NOW() - eo.created_at)) / 3600)::int AS age_hours,
+                        COALESCE(eo.grand_total, 0)::numeric(18,2) AS amount,
+                        COALESCE(s.name, w.name, '-') AS partner
+                    ")
+                    ->orderBy('eo.created_at')
+                    ->limit(8)
+                    ->get()
+            );
+        }
 
-        $storeOrders = DB::table('store_orders as so')
-            ->leftJoin('stores as s', 's.id', '=', 'so.store_id')
-            ->leftJoin('warehouses as w', 'w.id', '=', 'so.warehouse_id')
-            ->whereBetween('so.created_at', [$from, $to])
-            ->whereNotIn(DB::raw('LOWER(so.status::text)'), ['received', 'cancelled', 'rejected'])
-            ->where('so.created_at', '<', now()->subDay())
-            ->selectRaw("
-                'Permintaan Store'::text AS type,
-                COALESCE(so.order_number, so.id::text) AS reference,
-                so.status::text AS status,
-                ROUND(EXTRACT(EPOCH FROM (NOW() - so.created_at)) / 3600)::int AS age_hours,
-                NULL::numeric AS amount,
-                COALESCE(s.name, w.name, '-') AS partner
-            ")
-            ->orderBy('so.created_at')
-            ->limit(8)
-            ->get();
+        if (in_array($filters['channel'], ['all', 'store'], true)) {
+            $items = $items->merge(
+                DB::table('store_orders as so')
+                    ->leftJoin('stores as s', 's.id', '=', 'so.store_id')
+                    ->leftJoin('warehouses as w', 'w.id', '=', 'so.warehouse_id')
+                    ->whereBetween('so.created_at', [$from, $to])
+                    ->whereNotIn(DB::raw('LOWER(so.status::text)'), ['received', 'cancelled', 'rejected'])
+                    ->where('so.created_at', '<', now()->subDay())
+                    ->when($filters['store_id'], fn ($query) => $query->where('so.store_id', $filters['store_id']))
+                    ->when($filters['warehouse_id'], fn ($query) => $query->where('so.warehouse_id', $filters['warehouse_id']))
+                    ->selectRaw("
+                        'Permintaan Store'::text AS type,
+                        COALESCE(so.order_number, so.id::text) AS reference,
+                        so.status::text AS status,
+                        ROUND(EXTRACT(EPOCH FROM (NOW() - so.created_at)) / 3600)::int AS age_hours,
+                        NULL::numeric AS amount,
+                        COALESCE(s.name, w.name, '-') AS partner
+                    ")
+                    ->orderBy('so.created_at')
+                    ->limit(8)
+                    ->get()
+            );
 
-        $returns = DB::table('store_returns as sr')
-            ->leftJoin('stores as s', 's.id', '=', 'sr.store_id')
-            ->leftJoin('warehouses as w', 'w.id', '=', 'sr.warehouse_id')
-            ->whereBetween('sr.created_at', [$from, $to])
-            ->whereNotIn(DB::raw('LOWER(sr.status::text)'), ['received', 'rejected', 'close', 'cancelled'])
-            ->where('sr.created_at', '<', now()->subDay())
-            ->selectRaw("
-                'Retur Store'::text AS type,
-                COALESCE(sr.return_number, sr.id::text) AS reference,
-                sr.status::text AS status,
-                ROUND(EXTRACT(EPOCH FROM (NOW() - sr.created_at)) / 3600)::int AS age_hours,
-                NULL::numeric AS amount,
-                COALESCE(s.name, w.name, '-') AS partner
-            ")
-            ->orderBy('sr.created_at')
-            ->limit(8)
-            ->get();
+            $items = $items->merge(
+                DB::table('store_returns as sr')
+                    ->leftJoin('stores as s', 's.id', '=', 'sr.store_id')
+                    ->leftJoin('warehouses as w', 'w.id', '=', 'sr.warehouse_id')
+                    ->whereBetween('sr.created_at', [$from, $to])
+                    ->whereNotIn(DB::raw('LOWER(sr.status::text)'), ['received', 'rejected', 'close', 'cancelled'])
+                    ->where('sr.created_at', '<', now()->subDay())
+                    ->when($filters['store_id'], fn ($query) => $query->where('sr.store_id', $filters['store_id']))
+                    ->when($filters['warehouse_id'], fn ($query) => $query->where('sr.warehouse_id', $filters['warehouse_id']))
+                    ->selectRaw("
+                        'Retur Store'::text AS type,
+                        COALESCE(sr.return_number, sr.id::text) AS reference,
+                        sr.status::text AS status,
+                        ROUND(EXTRACT(EPOCH FROM (NOW() - sr.created_at)) / 3600)::int AS age_hours,
+                        NULL::numeric AS amount,
+                        COALESCE(s.name, w.name, '-') AS partner
+                    ")
+                    ->orderBy('sr.created_at')
+                    ->limit(8)
+                    ->get()
+            );
+        }
 
-        return collect()
-            ->merge($ecommerce)
-            ->merge($storeOrders)
-            ->merge($returns)
+        return $items
             ->map(function ($row) {
                 $status = (string) $row->status;
 
@@ -644,7 +815,7 @@ class BusinessOverviewQuery
             ->all();
     }
 
-    private function lowStockQuery(string $type): Builder
+    private function lowStockQuery(string $type, array $filters): Builder
     {
         $warehouse = $type === 'warehouse';
 
@@ -669,6 +840,7 @@ class BusinessOverviewQuery
                 })
                 ->whereNull('w.deleted_at')
                 ->whereRaw("LOWER(i.status::text) = 'warehouse_stock'")
+                ->when($filters['warehouse_id'], fn ($query) => $query->where('wi.warehouse_id', $filters['warehouse_id']))
                 ->selectRaw("
                     'Gudang'::text AS location_type,
                     w.name AS location_name,
@@ -698,6 +870,7 @@ class BusinessOverviewQuery
             })
             ->whereNull('s.deleted_at')
             ->whereIn(DB::raw('LOWER(i.status::text)'), ['store_stock', 'store_display'])
+            ->when($filters['store_id'], fn ($query) => $query->where('si.store_id', $filters['store_id']))
             ->selectRaw("
                 'Cabang'::text AS location_type,
                 s.name AS location_name,
@@ -744,19 +917,26 @@ class BusinessOverviewQuery
     {
         $from = $this->startOfDay($filters['date_from']);
         $to = $this->endOfDay($filters['date_to']);
+        $warehouse = $filters['warehouse_id'] ? ['warehouse_id' => $filters['warehouse_id']] : [];
+        $store = $filters['store_id'] ? ['store_id' => $filters['store_id']] : [];
 
         return [
-            'warehouse_inbound' => $this->documentSummary('warehouse_inbounds', 'quantity_item', $from, $to),
-            'warehouse_outbound' => $this->documentSummary('warehouse_outbounds', 'quantity_item', $from, $to),
-            'store_inbound' => $this->documentSummary('store_inbounds', 'quantity_item', $from, $to),
-            'store_outbound' => $this->documentSummary('store_outbounds', 'item_quantity', $from, $to),
-            'store_return' => $this->documentSummary('store_returns', null, $from, $to),
+            'warehouse_inbound' => $this->documentSummary('warehouse_inbounds', 'quantity_item', $from, $to, $warehouse),
+            'warehouse_outbound' => $this->documentSummary('warehouse_outbounds', 'quantity_item', $from, $to, $warehouse),
+            'store_inbound' => $this->documentSummary('store_inbounds', 'quantity_item', $from, $to, $store),
+            'store_outbound' => $this->documentSummary('store_outbounds', 'item_quantity', $from, $to, $store),
+            'store_return' => $this->documentSummary('store_returns', null, $from, $to, $store + $warehouse),
         ];
     }
 
-    private function documentSummary(string $table, ?string $quantityColumn, string $from, string $to): array
+    private function documentSummary(string $table, ?string $quantityColumn, string $from, string $to, array $conditions = []): array
     {
         $query = DB::table($table)->whereBetween('created_at', [$from, $to]);
+
+        foreach ($conditions as $column => $value) {
+            $query->where($column, $value);
+        }
+
         $row = $query->selectRaw(
             'COUNT(*)::int AS documents'.($quantityColumn ? ", COALESCE(SUM({$quantityColumn}), 0)::int AS units" : ', 0::int AS units')
         )->first();
@@ -767,7 +947,7 @@ class BusinessOverviewQuery
         ];
     }
 
-    private function pendingQueues(): array
+    private function pendingQueues(array $filters): array
     {
         $storeTransferOutbound = DB::table('warehouse_outbound_details')
             ->selectRaw('warehouse_outbound_id, COUNT(*)::int as outbound_qty')
@@ -781,12 +961,17 @@ class BusinessOverviewQuery
             ->groupBy('si.order_id');
 
         return [
-            'warehouse_outbound_unreleased' => DB::table('warehouse_outbounds')->whereNull('released_at')->count(),
+            'warehouse_outbound_unreleased' => DB::table('warehouse_outbounds')
+                ->whereNull('released_at')
+                ->when($filters['warehouse_id'], fn ($query) => $query->where('warehouse_id', $filters['warehouse_id']))
+                ->count(),
             'store_inbound_pending_qc' => DB::table('store_inbounds')
                 ->whereRaw('LOWER(qc_status::text) = ?', ['pending'])
+                ->when($filters['store_id'], fn ($query) => $query->where('store_id', $filters['store_id']))
                 ->count(),
             'store_inbound_partial_qc' => DB::table('store_inbounds')
                 ->whereRaw('LOWER(qc_status::text) = ?', ['partial_passed'])
+                ->when($filters['store_id'], fn ($query) => $query->where('store_id', $filters['store_id']))
                 ->count(),
             'store_transfer_not_recorded' => DB::table('warehouse_outbounds as wo')
                 ->join('store_orders as so', 'so.id', '=', 'wo.order_id')
@@ -795,6 +980,8 @@ class BusinessOverviewQuery
                 ->whereRaw("(LOWER(wo.outbound_type::text) = 'store' OR LOWER(wo.order_ref::text) = 'store')")
                 ->whereNotNull('wo.released_at')
                 ->whereRaw('COALESCE(received.received_qty, 0) < COALESCE(outbound.outbound_qty, 0)')
+                ->when($filters['warehouse_id'], fn ($query) => $query->where('wo.warehouse_id', $filters['warehouse_id']))
+                ->when($filters['store_id'], fn ($query) => $query->where('so.store_id', $filters['store_id']))
                 ->count(),
         ];
     }

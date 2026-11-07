@@ -90,6 +90,83 @@ class StoreReturnApprovalTest extends TestCase
         $this->assertSame(3, DB::table('store_return_details')->where('store_return_id', $returnId)->where('status', 'approved')->count());
     }
 
+    public function test_partially_approved_return_stays_in_pending_queue(): void
+    {
+        $admin = $this->admin();
+        $fixture = $this->fixture();
+        $returnId = $this->makeReturn($admin, $fixture['store'], $fixture['product'], 3);
+
+        $this->actingAs($admin)
+            ->patch(route('operations.store-returns.approve', ['return' => $returnId]), [
+                'warehouse_id' => $fixture['warehouse']->id,
+                'items' => [
+                    ['product_id' => $fixture['product']->id, 'qty' => 1],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->get(route('operations.store-returns.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rows.data', fn ($rows) => collect($rows)->contains(
+                    fn (array $row) => $row['id'] === $returnId
+                ))
+                ->where('stats.pending', fn (int $pending) => $pending >= 1));
+    }
+
+    public function test_fully_approved_return_leaves_pending_queue(): void
+    {
+        $admin = $this->admin();
+        $fixture = $this->fixture();
+        $returnId = $this->makeReturn($admin, $fixture['store'], $fixture['product'], 2);
+
+        $this->actingAs($admin)
+            ->patch(route('operations.store-returns.approve', ['return' => $returnId]), [
+                'warehouse_id' => $fixture['warehouse']->id,
+                'items' => [
+                    ['product_id' => $fixture['product']->id, 'qty' => 2],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->get(route('operations.store-returns.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('rows.data', fn ($rows) => ! collect($rows)->contains(
+                    fn (array $row) => $row['id'] === $returnId
+                )));
+    }
+
+    public function test_partially_approved_return_cannot_be_rejected_entirely(): void
+    {
+        $admin = $this->admin();
+        $fixture = $this->fixture();
+        $returnId = $this->makeReturn($admin, $fixture['store'], $fixture['product'], 3);
+
+        $this->actingAs($admin)
+            ->patch(route('operations.store-returns.approve', ['return' => $returnId]), [
+                'warehouse_id' => $fixture['warehouse']->id,
+                'items' => [
+                    ['product_id' => $fixture['product']->id, 'qty' => 1],
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->patch(route('operations.store-returns.reject', ['return' => $returnId]), [
+                'note' => 'Tolak sisa retur.',
+            ])
+            ->assertSessionHasErrors('items');
+
+        $this->assertSame('partial_approved', DB::table('store_returns')->where('id', $returnId)->value('status'));
+        $this->assertSame(1, DB::table('store_return_details')->where('store_return_id', $returnId)->where('status', 'approved')->count());
+        $this->assertSame(2, DB::table('store_return_details')->where('store_return_id', $returnId)->where('status', 'in_review')->count());
+    }
+
     public function test_return_approval_cannot_exceed_remaining_quantity(): void
     {
         $admin = $this->admin();

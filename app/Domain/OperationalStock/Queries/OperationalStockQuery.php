@@ -26,7 +26,7 @@ class OperationalStockQuery
         'no_barrier' => 4,
     ];
 
-    public function build(string $q, ?string $warehouseId): array
+    public function build(string $q, ?string $warehouseId, ?string $movement = null): array
     {
         $warehouses = DB::table('warehouses')
             ->whereNull('deleted_at')
@@ -125,7 +125,7 @@ class OperationalStockQuery
             $ageDays = $this->ageDays($row['oldest_stock_at']);
             $daysToExpiry = $this->daysToExpiry($row['earliest_expired_date']);
             $fefo = $this->fefoMeta($daysToExpiry);
-            $movement = $this->movementMeta((int) $row['on_hand'], $outbound);
+            $movementMeta = $this->movementMeta((int) $row['on_hand'], $outbound);
 
             $map[$key] = [
                 ...$row,
@@ -134,9 +134,9 @@ class OperationalStockQuery
                 'fefo_status' => $fefo['status'],
                 'fefo_label' => $fefo['label'],
                 'outbound_30d' => $outbound,
-                'movement_category' => $movement['category'],
-                'movement_label' => $movement['label'],
-                'cover_days' => $movement['cover_days'],
+                'movement_category' => $movementMeta['category'],
+                'movement_label' => $movementMeta['label'],
+                'cover_days' => $movementMeta['cover_days'],
             ];
         }
 
@@ -190,8 +190,17 @@ class OperationalStockQuery
             ])
             ->values();
 
+        $summaryProducts = $products;
+
+        if ($movement !== null) {
+            $products = $products
+                ->where('movement_category', $movement)
+                ->values();
+        }
+
         $importNeeds = $flatRows
             ->whereIn('status', ['below', 'near'])
+            ->when($movement !== null, fn (Collection $rows) => $rows->whereIn('product_id', $products->pluck('product_id')))
             ->sortBy(fn (array $row) => [
                 self::STATUS_PRIORITIES[$row['status']],
                 -$row['suggested_import_qty'],
@@ -222,7 +231,7 @@ class OperationalStockQuery
             'transferReconciliation' => app(StoreTransferReconciliationQuery::class)
                 ->build(null, $warehouseId, 'unresolved', 10),
             'summary' => [
-                'sku_total' => $products->count(),
+                'sku_total' => $summaryProducts->count(),
                 'warehouse_stock_count' => $flatRows
                     ->where('on_hand', '>', 0)
                     ->pluck('warehouse_id')
@@ -231,9 +240,9 @@ class OperationalStockQuery
                 'below_barrier_count' => $flatRows->where('status', 'below')->count(),
                 'near_barrier_count' => $flatRows->where('status', 'near')->count(),
                 'import_product_count' => $importNeeds->pluck('product_id')->unique()->count(),
-                'slow_product_count' => $products->where('movement_category', 'slow')->count(),
-                'fast_product_count' => $products->where('movement_category', 'fast')->count(),
-                'normal_product_count' => $products->where('movement_category', 'normal')->count(),
+                'slow_product_count' => $summaryProducts->where('movement_category', 'slow')->count(),
+                'fast_product_count' => $summaryProducts->where('movement_category', 'fast')->count(),
+                'normal_product_count' => $summaryProducts->where('movement_category', 'normal')->count(),
                 'expiring_90_count' => $expiring90,
                 'expired_count' => $expired,
                 'missing_stock_qty' => (int) $missingStock->sum('qty'),
@@ -244,7 +253,7 @@ class OperationalStockQuery
                     'bucket_181_365' => $flatRows->sum('qty_181_365'),
                     'bucket_gt_365' => $flatRows->sum('qty_gt_365'),
                 ],
-                'reconciliation' => $this->reconciliation($products, $warehouseId),
+                'reconciliation' => $this->reconciliation($summaryProducts, $warehouseId),
             ],
         ];
     }

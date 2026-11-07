@@ -120,7 +120,7 @@ class BranchExpansionReportController extends Controller
             ->when($filters['province_code'] !== '', fn ($q) => $q->where('c.province_code', $filters['province_code']))
             ->when($filters['regency_code'] !== '', fn ($q) => $q->where('c.regency_code', $filters['regency_code']))
             ->when($filters['district_code'] !== '', fn ($q) => $q->where('c.district_code', $filters['district_code']))
-            ->when($filters['q'] !== '', function ($q) use ($filters) {
+            ->when($filters['q'] !== '', function ($q) use ($filters, $isVillage) {
                 $like = '%'.$filters['q'].'%';
 
                 $q->where(function ($search) use ($like, $isVillage) {
