@@ -169,41 +169,6 @@ class MonitoringCommandCenterController extends Controller
             ->all();
     }
 
-    public function warehouseOutbound(Request $request)
-    {
-        $query = DB::table('warehouse_outbounds as wo')
-            ->leftJoin('warehouses as w', 'w.id', '=', 'wo.warehouse_id')
-            ->leftJoin('couriers as c', 'c.id', '=', 'wo.courier_id')
-            ->leftJoin('users as u', 'u.id', '=', 'wo.user_id')
-            ->select([
-                'wo.*', 'w.name as warehouse_name', 'c.name as courier_name', 'u.name as user_name',
-                DB::raw('(SELECT COUNT(*) FROM warehouse_outbound_details wod WHERE wod.warehouse_outbound_id = wo.id) AS scanned_items'),
-            ]);
-
-        $this->applySearch($query, $request, ['wo.invoice_number', 'wo.delivery_order_number', 'wo.order_number', 'wo.shipping_number']);
-        if ($request->filled('status')) {
-            $request->string('status')->toString() === 'released'
-                ? $query->whereNotNull('wo.released_at')
-                : $query->whereNull('wo.released_at');
-        }
-
-        $rows = $query->orderByDesc('wo.created_at')->paginate(20)->withQueryString();
-        $summary = [
-            'total' => $this->countTable('warehouse_outbounds'),
-            'unreleased' => $this->countWhere('warehouse_outbounds', 'released_at IS NULL'),
-            'without_awb' => $this->countWhere('warehouse_outbounds', "released_at IS NOT NULL AND NULLIF(shipping_number, '') IS NULL"),
-            'today' => $this->countWhere('warehouse_outbounds', 'created_at::date = CURRENT_DATE'),
-        ];
-
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Operations Warehouse Outbound',
-            'description' => 'Laporan monitoring.',
-            'data' => compact('rows', 'summary'),
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
-        ]);
-    }
-
     public function qualityControl(Request $request)
     {
         $filters = [
@@ -673,36 +638,6 @@ class MonitoringCommandCenterController extends Controller
         ]);
     }
 
-    private function systemHealth(): array
-    {
-        $sources = [
-            ['name' => 'POS / Store', 'table' => 'payments', 'column' => 'created_at'],
-            ['name' => 'Ecommerce', 'table' => 'ecommerce_orders', 'column' => 'created_at'],
-            ['name' => 'Warehouse', 'table' => 'warehouse_qc', 'column' => 'created_at'],
-            ['name' => 'Aktivitas User', 'table' => 'session_logs', 'column' => 'logged_at'],
-        ];
-
-        return collect($sources)->map(function ($source) {
-            $last = Schema::hasTable($source['table'])
-                ? DB::table($source['table'])->max($source['column'])
-                : null;
-            $age = $last ? now()->diffInHours(Carbon::parse($last)) : null;
-
-            return $source + [
-                'last_activity' => $last,
-                'status' => $age === null ? 'Belum ada data' : ($age <= 24 ? 'Aktif' : ($age <= 72 ? 'Perlu dicek' : 'Tidak aktif')),
-                'tone' => $age === null ? 'secondary' : ($age <= 24 ? 'success' : ($age <= 72 ? 'warning' : 'danger')),
-            ];
-        })->all();
-    }
-
-    private function pushAlert($alerts, int $count, string $severity, string $title, string $description, string $url): void
-    {
-        if ($count > 0) {
-            $alerts->push(compact('count', 'severity', 'title', 'description', 'url'));
-        }
-    }
-
     private function normalizeDate(mixed $value): ?string
     {
         if (! is_string($value) || trim($value) === '') {
@@ -721,11 +656,6 @@ class MonitoringCommandCenterController extends Controller
         $perPage = (int) ($value ?: $default);
 
         return in_array($perPage, [10, 20, 25, 50, 100], true) ? $perPage : $default;
-    }
-
-    private function countTable(string $table): int
-    {
-        return Schema::hasTable($table) ? DB::table($table)->count() : 0;
     }
 
     private function countWhere(string $table, string $condition): int

@@ -14,17 +14,21 @@ class BirthdayGreetingTest extends TestCase
 {
     use DatabaseTransactions, InteractsWithBackofficeAdmin;
 
-    public function test_operations_demographics_page_exposes_birthday_greeting_template(): void
+    public function test_operations_demographics_redirects_to_reports_demographics(): void
     {
         $this->actingAs($this->admin())
             ->get(route('operations.customers.demographics'))
+            ->assertRedirect(route('reports.crm.demographics'));
+
+        $this->actingAs($this->admin())
+            ->get(route('reports.crm.demographics'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Operations/CustomerDemographics')
+                ->component('Reports/CrmDemographics')
                 ->has('birthdayGreeting.template.subject')
                 ->has('birthdayGreeting.template.message')
                 ->has('birthdayGreeting.template.placeholders')
-                ->where('urls.birthday_greeting', route('operations.customers.demographics.birthday-greeting')));
+                ->where('urls.birthdayGreeting', route('reports.crm.demographics.birthday-greeting')));
     }
 
     public function test_birthday_greeting_can_be_sent_from_operations_page(): void

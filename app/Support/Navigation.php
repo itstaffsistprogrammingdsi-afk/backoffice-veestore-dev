@@ -71,7 +71,6 @@ class Navigation
                     ['Persetujuan Pesanan Toko', 'operations.store-orders.index', 'mdi-clipboard-check-outline', 'view branch-order-cabang'],
                     ['Persetujuan Retur Toko', 'operations.store-returns.index', 'mdi-backup-restore', 'view branch-retur-cabang'],
                     ['Pelanggan dan Kunjungan', 'operations.customers.index', 'mdi-account-group-outline', null],
-                    ['Demografi Pelanggan', 'operations.customers.demographics', 'mdi-account-details-outline', null],
                     ['Persetujuan Cetak Ulang Label', 'branch-operations.request-label.index', 'mdi-tag-check-outline', null],
                     ['Permintaan Voucher', 'branch-operations.request-voucher.index', 'mdi-ticket-confirmation-outline', null],
                 ]),
@@ -220,7 +219,6 @@ class Navigation
                 'icon' => 'mdi-clipboard-check-outline',
                 'items' => self::items($user, [
                     ['Pesanan Cabang', 'reports.order-cabang.index', 'mdi-clipboard-list-outline', null],
-                    ['Retur Cabang', 'reports.retur-cabang.index', 'mdi-keyboard-return', null],
                     ['Order Handled', 'monitoring.order-handled.index', 'mdi-clipboard-check-multiple-outline', null],
                     ['Fulfillment & SLA', 'monitoring.fulfillment-control.index', 'mdi-truck-check-outline', null],
                     ['Permintaan Barang Toko', 'monitoring.store-order-requests.index', 'mdi-cart-arrow-down', null],

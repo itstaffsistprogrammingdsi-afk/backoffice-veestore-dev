@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Monitoring;
 
 use App\Http\Controllers\Controller;
+use App\Support\Concerns\NormalizesDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class EcommerceOrderFulfillmentController extends Controller
 {
+    use NormalizesDate;
+
     public function index(Request $request)
     {
         return Inertia::render('Monitoring/Report', [
@@ -371,31 +374,6 @@ class EcommerceOrderFulfillmentController extends Controller
         }
 
         return 'rt.id::text';
-    }
-
-    private function normalizeDate($date): ?string
-    {
-        if ($date === null) {
-            return null;
-        }
-
-        $date = trim((string) $date);
-
-        if ($date === '') {
-            return null;
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
-            [$day, $month, $year] = explode('/', $date);
-
-            return "{$year}-{$month}-{$day}";
-        }
-
-        return null;
     }
 
     private function normalizeNullableString($value): ?string

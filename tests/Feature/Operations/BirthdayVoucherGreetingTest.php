@@ -25,10 +25,10 @@ class BirthdayVoucherGreetingTest extends TestCase
         $voucher = $this->voucher(['distribution_type' => 'public']);
 
         $this->actingAs($this->admin())
-            ->get(route('operations.customers.demographics'))
+            ->get(route('reports.crm.demographics'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Operations/CustomerDemographics')
+                ->component('Reports/CrmDemographics')
                 ->has('birthdayGreeting.vouchers')
                 ->where('birthdayGreeting.vouchers', fn ($vouchers) => collect($vouchers)
                     ->contains(fn (array $item) => $item['id'] === $voucher->id)));

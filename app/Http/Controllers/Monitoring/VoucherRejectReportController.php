@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\VoucherRejectReportExport;
 use App\Http\Controllers\Controller;
+use App\Support\Concerns\NormalizesDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class VoucherRejectReportController extends Controller
 {
+    use NormalizesDate;
+
     public function index(Request $request)
     {
         $filters = $this->getFilters($request);
@@ -30,7 +33,7 @@ class VoucherRejectReportController extends Controller
 
         $detailItems = collect();
 
-        if (!empty($requestIds)) {
+        if (! empty($requestIds)) {
             $detailItems = DB::table('store_voucher_request_details as svrd')
                 ->leftJoin('products as p', 'p.id', '=', 'svrd.product_id')
                 ->leftJoin('items as i', 'i.id', '=', 'svrd.item_id')
@@ -65,21 +68,21 @@ class VoucherRejectReportController extends Controller
             'title' => 'Voucher Reject Report',
             'description' => 'Laporan monitoring.',
             'data' => [
-            'rows' => $rows,
-            'detailItems' => $detailItems,
-            'summary' => $summary,
+                'rows' => $rows,
+                'detailItems' => $detailItems,
+                'summary' => $summary,
 
-            'q' => $filters['q'],
-            'storeId' => $filters['store_id'],
-            'status' => $filters['status'],
-            'from' => $filters['from'],
-            'to' => $filters['to'],
-            'perPage' => $filters['per_page'],
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
+                'q' => $filters['q'],
+                'storeId' => $filters['store_id'],
+                'status' => $filters['status'],
+                'from' => $filters['from'],
+                'to' => $filters['to'],
+                'perPage' => $filters['per_page'],
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
 
-            'stores' => $stores,
-            'statuses' => $statuses,
-        ],
+                'stores' => $stores,
+                'statuses' => $statuses,
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.voucher-reject-report.export')],
         ]);
@@ -87,7 +90,7 @@ class VoucherRejectReportController extends Controller
 
     public function export(Request $request)
     {
-        $filename = 'voucher-reject-report-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'voucher-reject-report-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new VoucherRejectReportExport($request), $filename);
     }
@@ -97,13 +100,13 @@ class VoucherRejectReportController extends Controller
         $status = $this->normalizeNullableString($request->query('status'));
         $allowedStatuses = ['pending', 'approved', 'rejected'];
 
-        if ($status && !in_array($status, $allowedStatuses, true)) {
+        if ($status && ! in_array($status, $allowedStatuses, true)) {
             $status = null;
         }
 
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -154,13 +157,13 @@ class VoucherRejectReportController extends Controller
                 'v.is_active',
                 'v.context',
 
-                DB::raw("
+                DB::raw('
                     (
                         SELECT COUNT(*)
                         FROM store_voucher_request_details svrd_count
                         WHERE svrd_count.store_voucher_request_id = svr.id
                     )::int as total_items
-                "),
+                '),
 
                 DB::raw("
                     CASE svr.status::text
@@ -273,31 +276,6 @@ class VoucherRejectReportController extends Controller
         $query->whereBetween(DB::raw('svr.request_date::date'), [$from, $to]);
     }
 
-    private function normalizeDate($date): ?string
-    {
-        if ($date === null) {
-            return null;
-        }
-
-        $date = trim((string) $date);
-
-        if ($date === '') {
-            return null;
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
-            [$day, $month, $year] = explode('/', $date);
-
-            return "{$year}-{$month}-{$day}";
-        }
-
-        return null;
-    }
-
     private function normalizeNullableString($value): ?string
     {
         if ($value === null) {
@@ -311,7 +289,7 @@ class VoucherRejectReportController extends Controller
 
     private function applyDeletedAtFilter($query, string $table, ?string $alias = null): void
     {
-        if (!Schema::hasColumn($table, 'deleted_at')) {
+        if (! Schema::hasColumn($table, 'deleted_at')) {
             return;
         }
 

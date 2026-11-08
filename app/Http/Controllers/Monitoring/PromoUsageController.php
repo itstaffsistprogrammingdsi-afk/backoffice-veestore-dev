@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Monitoring;
 
 use App\Http\Controllers\Controller;
 use App\Services\ReportExportService;
+use App\Support\Concerns\NormalizesDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -11,6 +12,8 @@ use Inertia\Inertia;
 
 class PromoUsageController extends Controller
 {
+    use NormalizesDate;
+
     public function index(Request $request)
     {
         return Inertia::render('Monitoring/Report', [
@@ -409,31 +412,6 @@ class PromoUsageController extends Controller
         }
 
         $query->whereBetween(DB::raw('o.created_at::date'), [$from, $to]);
-    }
-
-    private function normalizeDate($date): ?string
-    {
-        if ($date === null) {
-            return null;
-        }
-
-        $date = trim((string) $date);
-
-        if ($date === '') {
-            return null;
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
-            [$day, $month, $year] = explode('/', $date);
-
-            return "{$year}-{$month}-{$day}";
-        }
-
-        return null;
     }
 
     private function normalizeNullableString($value): ?string

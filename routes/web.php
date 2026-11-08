@@ -95,7 +95,6 @@ use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
 use App\Http\Controllers\Monitoring\WarehouseUserAuditReportController;
 // Reports
 use App\Http\Controllers\NotificationStatusController;
-use App\Http\Controllers\Operations\CustomerDemographicsOperationsController;
 use App\Http\Controllers\Operations\CustomerVisitOperationsController;
 use App\Http\Controllers\Operations\InboundController;
 use App\Http\Controllers\Operations\OperationalStockController;
@@ -113,7 +112,6 @@ use App\Http\Controllers\Reports\CustomerPreferenceController;
 use App\Http\Controllers\Reports\HistoryCustomerController;
 use App\Http\Controllers\Reports\OrderCabangController;
 // Settings
-use App\Http\Controllers\Reports\StoreReturnApprovalController;
 use App\Http\Controllers\Reports\SupplierProductController;
 use App\Http\Controllers\Reports\VoucherReportController;
 use App\Http\Controllers\ReportsHubController;
@@ -175,11 +173,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/operations/inbound', InboundController::class)->name('operations.inbound.index');
     Route::get('/operations/outbound', OutboundController::class)->name('operations.outbound.index');
     Route::get('/operations/customers', CustomerVisitOperationsController::class)->name('operations.customers.index');
-    Route::get('/operations/customers/demographics', CustomerDemographicsOperationsController::class)
+
+    // Legacy aliases: demografi pelanggan hanya punya satu implementasi di Reports/CRM.
+    Route::get('/operations/customers/demographics', fn () => redirect()->route('reports.crm.demographics', request()->query()))
         ->name('operations.customers.demographics');
-    Route::get('/operations/customers/demographics/export', [CustomerDemographicsOperationsController::class, 'export'])
+    Route::get('/operations/customers/demographics/export', fn () => redirect()->route('reports.crm.demographics.export', request()->query()))
         ->name('operations.customers.demographics.export');
-    Route::post('/operations/customers/demographics/birthday-greeting', [CustomerDemographicsOperationsController::class, 'sendBirthdayGreeting'])
+    Route::post('/operations/customers/demographics/birthday-greeting', [CrmController::class, 'sendBirthdayGreeting'])
         ->name('operations.customers.demographics.birthday-greeting');
     Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
@@ -309,7 +309,6 @@ Route::middleware('auth')->group(function () {
         Route::post('suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
         Route::put('suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
         Route::delete('suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
-        Route::get('suppliers/{supplier}/edit', [SupplierController::class, 'edit'])->name('suppliers.edit');
 
         Route::get('warehouses', [WarehouseController::class, 'index'])->name('warehouses.index');
         Route::post('warehouses', [WarehouseController::class, 'store'])->name('warehouses.store');
@@ -397,7 +396,6 @@ Route::middleware('auth')->group(function () {
         Route::put('product-prices/{product_price}', [ProductPriceController::class, 'update'])->name('product-prices.update');
         Route::delete('product-prices/{product_price}', [ProductPriceController::class, 'destroy'])->name('product-prices.destroy');
         Route::post('product-prices/check-duplicate', [ProductPriceController::class, 'checkDuplicate'])->name('product-prices.check-duplicate');
-        Route::get('api/product-prices/{id}', [ProductPriceController::class, 'getUsedTypes']);
 
         Route::get('products-diskons', [ProductDiscountController::class, 'index'])->name('products-diskons.index');
         Route::post('products-diskons', [ProductDiscountController::class, 'store'])->name('products-diskons.store');
@@ -448,7 +446,7 @@ Route::middleware('auth')->group(function () {
         Route::put('diskons/{discount}', [DiscountController::class, 'update'])->whereUuid('discount')->name('diskons.update');
         Route::delete('diskons/{discount}', [DiscountController::class, 'destroy'])->whereUuid('discount')->name('diskons.destroy');
 
-        Route::permanentRedirect('discounts', 'diskons');
+        Route::permanentRedirect('discounts', 'diskons')->name('discounts.legacy');
 
         Route::get('ecommerce-banners', [EcommerceBannerController::class, 'index'])->name('ecommerce-banners.index');
         Route::post('ecommerce-banners', [EcommerceBannerController::class, 'store'])->name('ecommerce-banners.store');
@@ -459,7 +457,6 @@ Route::middleware('auth')->group(function () {
         Route::post('users', [UserManageController::class, 'store'])->name('users.store');
         Route::put('users/{user}', [UserManageController::class, 'update'])->name('users.update');
         Route::delete('users/{user}', [UserManageController::class, 'destroy'])->name('users.destroy');
-        Route::patch('users/{user}/toggle-active', [UserManageController::class, 'toggleActive'])->name('users.toggle-active');
 
         Route::get('partners', [PartnerController::class, 'index'])->name('partners.index');
         Route::post('partners', [PartnerController::class, 'store'])->name('partners.store');
@@ -510,7 +507,7 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('management')->name('management.')->group(function () {
-        Route::resource('roles-backoffice', BackofficeRoleController::class)->except(['show']);
+        Route::resource('roles-backoffice', BackofficeRoleController::class)->except(['show', 'create', 'edit']);
 
         Route::get('user-roles', [UserRoleController::class, 'index'])->name('user-roles.index');
         Route::post('user-roles/{user}/sync', [UserRoleController::class, 'sync'])->name('user-roles.sync');
@@ -775,9 +772,6 @@ Route::middleware('auth')->group(function () {
 
         Route::get('anomali-item', [AnomalyItemMonitoringController::class, 'index'])
             ->name('anomali-item.index');
-        Route::get('anomali-item/{item}/location-history', [AnomalyItemMonitoringController::class, 'locationHistory'])
-            ->whereUuid('item')
-            ->name('anomali-item.location-history');
         Route::get('anomali-item/{item}/location-history-json', [AnomalyItemMonitoringController::class, 'locationHistoryJson'])
             ->whereUuid('item')
             ->name('anomali-item.location-history-json');
@@ -1041,29 +1035,12 @@ Route::middleware('auth')->group(function () {
 
         Route::prefix('order-cabang')->name('order-cabang.')->group(function () {
             Route::get('/', [OrderCabangController::class, 'index'])->name('index');
-            Route::post('/', [OrderCabangController::class, 'store'])->name('store');
 
             Route::get('stock', [OrderCabangController::class, 'stockByWarehouse'])->name('stock');
-
-            Route::put('{order}', [OrderCabangController::class, 'update'])
-                ->whereUuid('order')
-                ->name('update');
-
-            Route::delete('{order}', [OrderCabangController::class, 'destroy'])
-                ->whereUuid('order')
-                ->name('destroy');
 
             Route::patch('{order}/request', [OrderCabangController::class, 'requestSubmit'])
                 ->whereUuid('order')
                 ->name('request');
-
-            Route::patch('{order}/approve', [OrderCabangController::class, 'approve'])
-                ->whereUuid('order')
-                ->name('approve');
-
-            Route::patch('{order}/reject', [OrderCabangController::class, 'reject'])
-                ->whereUuid('order')
-                ->name('reject');
 
             Route::patch('{order}/receive', [OrderCabangController::class, 'receive'])
                 ->whereUuid('order')
@@ -1074,13 +1051,17 @@ Route::middleware('auth')->group(function () {
                 ->name('show');
         });
 
-        Route::prefix('retur-cabang')->name('retur-cabang.')->group(function () {
-            Route::get('/', [StoreReturnApprovalController::class, 'index'])->name('index');
+        // Legacy alias: retur cabang hanya punya satu halaman kerja di Operations.
+        Route::get('retur-cabang', function () {
+            $query = request()->query();
+            $query['status'] = $query['status'] ?? 'all';
 
-            Route::get('{return}', [StoreReturnApprovalController::class, 'show'])
-                ->whereUuid('return')
-                ->name('show');
-        });
+            return redirect()->route('operations.store-returns.index', $query);
+        })->name('retur-cabang.index');
+
+        Route::get('retur-cabang/{return}', [OperationsStoreReturnApprovalController::class, 'show'])
+            ->whereUuid('return')
+            ->name('retur-cabang.show');
 
         Route::get('history-customer', [HistoryCustomerController::class, 'index'])
             ->name('history-customer.index');

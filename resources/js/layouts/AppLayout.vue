@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
+import MenuSearch from '@/components/MenuSearch.vue';
 import { currentLocale, switchLocale as changeLocale } from '@/i18n';
 
 interface NavItem {
@@ -368,6 +369,15 @@ const closeMobileForNavigation = () => {
     closeMobile(false);
 };
 
+const onMenuSearchOpen = () => {
+    closeUserMenu();
+    breadcrumbMenuOpen.value = false;
+
+    if (mobileOpen.value) {
+        closeMobile(false);
+    }
+};
+
 const closeUserMenu = (restoreFocus = false) => {
     if (!userMenuOpen.value) return;
     userMenuOpen.value = false;
@@ -663,6 +673,8 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <MenuSearch :areas="navigation.areas" @open="onMenuSearchOpen" />
+
                     <div class="locale-toggle" role="group" aria-label="Bahasa antarmuka">
                         <button
                             v-for="option in localeOptions"
@@ -1419,6 +1431,12 @@ onBeforeUnmount(() => {
 @media (min-width: 1400px) {
     .app-content {
         padding: 2rem 2.5rem;
+    }
+}
+
+@media (max-width: 479.98px) {
+    .app-title {
+        display: none;
     }
 }
 

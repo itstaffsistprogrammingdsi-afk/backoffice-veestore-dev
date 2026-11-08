@@ -80,28 +80,14 @@ class StoreOperationsPagesTest extends TestCase
                 ->has('urls'));
     }
 
-    public function test_customer_demographics_operations_page_uses_inertia(): void
+    public function test_customer_demographics_operations_route_redirects_to_reports(): void
     {
         $this->actingAs($this->admin())
             ->get(route('operations.customers.demographics'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Operations/CustomerDemographics')
-                ->has('filters')
-                ->has('summary')
-                ->has('genderRows')
-                ->has('ageRows')
-                ->has('tierRows')
-                ->has('provinceRows')
-                ->has('regencyRows')
-                ->has('districtRows')
-                ->has('villageRows')
-                ->has('registrationTrend')
-                ->has('birthdayCustomers')
-                ->has('birthdayGreeting.template')
-                ->has('rows')
-                ->where('urls.index', route('operations.customers.demographics'))
-                ->where('urls.export', route('operations.customers.demographics.export'))
-                ->where('urls.birthday_greeting', route('operations.customers.demographics.birthday-greeting')));
+            ->assertRedirect(route('reports.crm.demographics'));
+
+        $this->actingAs($this->admin())
+            ->get(route('operations.customers.demographics.export'))
+            ->assertRedirect(route('reports.crm.demographics.export'));
     }
 }

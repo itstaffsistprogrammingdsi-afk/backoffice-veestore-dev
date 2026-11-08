@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import SearchableSelect from '@/components/SearchableSelect.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -45,8 +44,6 @@ interface Paginator<T> {
 interface Props {
     orders: Paginator<OrderRow>;
     stores: Option[];
-    warehouses: Option[];
-    products: Array<Option & { code?: string | null }>;
     statuses: string[];
     filters: {
         q: string;
@@ -57,18 +54,13 @@ interface Props {
     urls: {
         index: string;
         show: string;
-        approve: string;
-        reject: string;
+        approval: string;
         receive: string;
         request: string;
     };
 }
 
 const props = defineProps<Props>();
-const warehouseOptions = computed(() => props.warehouses.map((warehouse) => ({
-    value: warehouse.id,
-    label: warehouse.name,
-})));
 
 
 const page = usePage();
@@ -84,8 +76,6 @@ const form = reactive({
 const selected = ref<OrderRow | null>(null);
 const details = ref<DetailRow[]>([]);
 const loading = ref(false);
-const warehouseId = ref('');
-const approvedQty = reactive<Record<string, number>>({});
 const receivedQty = reactive<Record<string, number>>({});
 
 const apply = () => {
@@ -109,7 +99,6 @@ const openOrder = async (order: OrderRow) => {
     selected.value = order;
     details.value = [];
     loading.value = true;
-    warehouseId.value = order.warehouse?.id ?? '';
 
     try {
         const response = await fetch(props.urls.show.replace('__ID__', order.id), {
@@ -120,7 +109,6 @@ const openOrder = async (order: OrderRow) => {
         details.value = data.details ?? [];
 
         for (const detail of details.value) {
-            approvedQty[detail.id] = detail.approved_qty || detail.requested_qty;
             receivedQty[detail.id] = detail.received_qty || detail.approved_qty || 0;
         }
     } finally {
@@ -133,23 +121,12 @@ const closeOrder = () => {
     details.value = [];
 };
 
-const action = (type: 'request' | 'reject' | 'approve' | 'receive') => {
+const action = (type: 'request' | 'receive') => {
     if (!selected.value) {
         return;
     }
 
-    if (type === 'reject' && !window.confirm('Reject order ini?')) {
-        return;
-    }
-
     let payload: Record<string, any> = {};
-
-    if (type === 'approve') {
-        payload = {
-            warehouse_id: warehouseId.value,
-            approved_qty: Object.fromEntries(details.value.map((detail) => [detail.id, [approvedQty[detail.id] ?? detail.requested_qty]])),
-        };
-    }
 
     if (type === 'receive') {
         payload = {
@@ -257,31 +234,25 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                 <div v-if="loading" class="text-muted">Memuat detail...</div>
                 <template v-else>
                     <div class="row g-2 align-items-end mb-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Warehouse untuk approve</label>
-                            <SearchableSelect v-model="warehouseId" :options="warehouseOptions" placeholder="Pilih warehouse" search-placeholder="Cari warehouse..." />
-                        </div>
                         <div class="col-md-8 d-flex flex-wrap gap-2">
                             <button class="btn btn-sm btn-outline-secondary" type="button" @click="action('request')">Request</button>
-                            <button class="btn btn-sm btn-success" type="button" @click="action('approve')">Approve</button>
-                            <button class="btn btn-sm btn-outline-danger" type="button" @click="action('reject')">Reject</button>
                             <button class="btn btn-sm btn-primary" type="button" @click="action('receive')">Receive</button>
+                            <a :href="props.urls.approval" class="btn btn-sm btn-success">Approve di antrean operasional</a>
                         </div>
                     </div>
 
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
-                            <thead><tr><th>Produk</th><th class="text-end">Requested</th><th class="text-end">Approved</th><th class="text-end">Received</th><th class="text-end">Approve Qty</th><th class="text-end">Receive Qty</th></tr></thead>
+                            <thead><tr><th>Produk</th><th class="text-end">Requested</th><th class="text-end">Approved</th><th class="text-end">Received</th><th class="text-end">Receive Qty</th></tr></thead>
                             <tbody>
                                 <tr v-for="detail in details" :key="detail.id">
                                     <td>{{ detail.product?.name ?? detail.product_id ?? '-' }}</td>
                                     <td class="text-end">{{ detail.requested_qty }}</td>
                                     <td class="text-end">{{ detail.approved_qty }}</td>
                                     <td class="text-end">{{ detail.received_qty }}</td>
-                                    <td class="text-end"><input v-model.number="approvedQty[detail.id]" class="form-control form-control-sm text-end" type="number" min="0" :max="detail.requested_qty" style="max-width: 100px; margin-left: auto;" /></td>
                                     <td class="text-end"><input v-model.number="receivedQty[detail.id]" class="form-control form-control-sm text-end" type="number" min="0" :max="detail.approved_qty" style="max-width: 100px; margin-left: auto;" /></td>
                                 </tr>
-                                <tr v-if="details.length === 0"><td colspan="6" class="report-empty">Belum ada detail.</td></tr>
+                                <tr v-if="details.length === 0"><td colspan="5" class="report-empty">Belum ada detail.</td></tr>
                             </tbody>
                         </table>
                     </div>

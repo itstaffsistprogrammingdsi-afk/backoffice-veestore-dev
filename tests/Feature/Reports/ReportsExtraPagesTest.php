@@ -113,31 +113,23 @@ class ReportsExtraPagesTest extends TestCase
                 ->component('Reports/OrderCabang')
                 ->has('orders')
                 ->has('stores')
-                ->has('warehouses')
                 ->has('statuses')
                 ->has('filters')
                 ->has('urls'));
     }
 
-    public function test_retur_cabang_page_is_read_only_and_links_to_operations_approval(): void
+    public function test_retur_cabang_redirects_to_operations_approval_queue(): void
     {
         $this->actingAs($this->admin())
             ->get(route('reports.retur-cabang.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Reports/Returns')
-                ->has('returns')
-                ->has('stores')
-                ->has('statuses')
-                ->has('filters')
-                ->where('urls.approval', route('operations.store-returns.index'))
-                ->missing('urls.approve')
-                ->missing('urls.reject'));
+            ->assertRedirect(route('operations.store-returns.index', ['status' => 'all']));
     }
 
     public function test_retur_cabang_does_not_register_duplicate_approval_routes(): void
     {
         $this->assertFalse(Route::has('reports.retur-cabang.approve'));
         $this->assertFalse(Route::has('reports.retur-cabang.reject'));
+        $this->assertTrue(Route::has('operations.store-returns.approve'));
+        $this->assertTrue(Route::has('operations.store-returns.reject'));
     }
 }

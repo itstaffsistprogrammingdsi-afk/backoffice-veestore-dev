@@ -60,7 +60,7 @@ Root `/` sekarang mengarah ke area operasional untuk user yang sudah login.
 
 ### 2.4 Root view auth
 
-Auth memakai `resources/views/auth.blade.php` dan tidak memakai sidebar operasional.
+Auth memakai root view `resources/views/app.blade.php` yang sama; sidebar hanya dirender oleh `AppLayout.vue`, bukan oleh root view.
 
 ## 3. UI dan UX
 

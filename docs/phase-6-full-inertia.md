@@ -35,7 +35,7 @@ Memindahkan seluruh halaman bisnis dari Blade ke Inertia + Vue 3 + TypeScript. T
 | Reports | `/reports/crm/customers/{id}` | `Reports/CrmCustomerProfile` |
 | Reports | `/reports/history-customer` | `Reports/HistoryCustomer` |
 | Reports | `/reports/order-cabang` | `Reports/OrderCabang` |
-| Reports | `/reports/retur-cabang` | `Reports/Returns` |
+| Reports | `/reports/retur-cabang` | Redirect ke `operations.store-returns` (audit duplikasi 2026-11-07) |
 | Master Data | `/master-data/partners` | `MasterData/SimpleCrud` |
 | Master Data | `/master-data/memberships` | `MasterData/SimpleCrud` |
 | Master Data | `/master-data/payment-methods` | `MasterData/SimpleCrud` |
@@ -74,7 +74,7 @@ Blade view Settings, Loyalty, Management, Report Export, Branch Operations, Ecom
 Tidak ada halaman bisnis yang masih memakai Blade. Yang tersisa hanya:
 
 - `resources/views/app.blade.php` sebagai root Inertia.
-- `resources/views/auth.blade.php` sebagai root halaman auth.
+- Root view auth memakai `resources/views/app.blade.php` yang sama.
 - Layout/partials lama, error page, dan pagination vendor yang tidak menjadi halaman aplikasi.
 
 ## 4. Pola migrasi per modul

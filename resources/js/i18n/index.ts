@@ -319,6 +319,10 @@ const translator = createTranslator(
   Object.entries(englishToIndonesian).map(([source, translation]) => ({ source, translation })),
 );
 
+export const translateText = (value: string, target: Locale = currentLocale.value): string => (
+  translator.translate(value, target) ?? value
+);
+
 const attributeNames = ['placeholder', 'title', 'aria-label', 'alt', 'data-label'];
 const skippedTags = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA']);
 const observerConfig: MutationObserverInit = {

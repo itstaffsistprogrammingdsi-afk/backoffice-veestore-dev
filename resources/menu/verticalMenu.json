@@ -196,11 +196,6 @@
           "slug": "branch-order-cabang"
         },
         {
-          "url": "reports/retur-cabang",
-          "name": "Returns",
-          "slug": "branch-retur-cabang"
-        },
-        {
           "url": "branch-operations/request-label",
           "name": "Request Label",
           "slug": "branch-request-label"
@@ -301,7 +296,6 @@
         },
         {
           "name": "Rekomendasi Cabang",
-          "slug": "monitoring-branch-expansion",
           "submenu": [
             {
               "url": "monitoring/branch-expansion",
@@ -424,11 +418,6 @@
               "url": "monitoring/audit-wms-opnames",
               "name": "WMS Stok Opname",
               "slug": "monitoring-audit-wms-opnames"
-            },
-            {
-              "url": "monitoring/barcode-request-report",
-              "name": "Laporan Cetak Ulang Label",
-              "slug": "monitoring-barcode-request-report"
             }
           ]
         },

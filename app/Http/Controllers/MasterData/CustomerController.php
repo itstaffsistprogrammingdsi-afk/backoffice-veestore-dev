@@ -28,7 +28,7 @@ class CustomerController extends Controller
             ->only(['store']);
 
         $this->middleware('permission:update master-customer')
-            ->only(['update']);
+            ->only(['update', 'destroy']);
     }
 
     public function index(Request $request)
@@ -310,6 +310,15 @@ class CustomerController extends Controller
                     'name' => 'Customer gagal diperbarui. Silakan coba kembali.',
                 ]);
         }
+    }
+
+    public function destroy(Customer $customer): RedirectResponse
+    {
+        $customer->delete();
+
+        return redirect()
+            ->route('master-data.customers.index')
+            ->with('success', 'Customer berhasil dihapus.');
     }
 
     private function rules(

@@ -134,12 +134,6 @@ parameters:
 			path: app/Http/Controllers/Reports/VoucherReportController.php
 
 		-
-			message: '#^Array has 2 duplicate keys with value ''address'' \(''address'', ''address''\)\.$#'
-			identifier: array.duplicateKey
-			count: 1
-			path: app/Http/Controllers/dashboard/Analytics.php
-
-		-
 			message: '#^Class App\\Models\\EcommerceOrderShippingAddress not found\.$#'
 			identifier: class.notFound
 			count: 1

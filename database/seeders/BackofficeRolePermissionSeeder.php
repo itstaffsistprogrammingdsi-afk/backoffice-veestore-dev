@@ -22,6 +22,7 @@ class BackofficeRolePermissionSeeder extends Seeder
             'view master-customer',
             'create master-customer',
             'update master-customer',
+            'view branch-retur-cabang',
             'approve management-label-requests',
             'manage label-print-requests',
             'create label-print-requests',

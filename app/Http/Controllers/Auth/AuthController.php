@@ -21,8 +21,6 @@ class AuthController extends Controller
             return redirect()->route('reports.business-overview.index');
         }
 
-        Inertia::setRootView('auth');
-
         return Inertia::render('Auth/Login', [
             'urls' => [
                 'login' => route('login.attempt'),
@@ -33,8 +31,6 @@ class AuthController extends Controller
 
     public function showForgotPassword()
     {
-        Inertia::setRootView('auth');
-
         return Inertia::render('Auth/ForgotPassword', [
             'urls' => [
                 'login' => route('auth-login-basic'),
@@ -156,8 +152,6 @@ class AuthController extends Controller
         if (Auth::check()) {
             return redirect()->route('reports.business-overview.index');
         }
-
-        Inertia::setRootView('auth');
 
         return Inertia::render('Auth/Register', [
             'urls' => [

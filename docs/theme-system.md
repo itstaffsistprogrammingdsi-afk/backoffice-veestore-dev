@@ -16,7 +16,7 @@ File utama:
 - `resources/js/layouts/AppLayout.vue`
 - `resources/js/components/AuthShell.vue`
 - `resources/views/app.blade.php`
-- `resources/views/auth.blade.php`
+- `resources/views/app.blade.php` (termasuk halaman auth)
 
 Cara kerja:
 

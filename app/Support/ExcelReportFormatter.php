@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class ExcelReportFormatter
 {
     private const CURRENCY_HEADER = '/\b(total|nominal|amount|harga|price|omset|omzet|revenue|pendapatan|income|pemasukan|sales|spending|belanja|penjualan|paid|payment|discount|diskon|pajak|tax|saldo|cost|biaya|cash|tunai|piutang|refund|kembalian|profit|komisi|margin|subtotal|purchase)\b/i';
+
     private const NON_CURRENCY_HEADER = '/\b(qty|quantity|jumlah transaksi|jumlah produk|count|persentase|percentage|percent|share|poin|stock|stok|date|tanggal|time|waktu|at|id|order|pesanan|produk|product|item|sku|transaction|transaksi|customer|visitor|cashier|session|aging|days|hari|request|shift|baris|row)\b/i';
 
     private const FILTER_LABELS = [
@@ -22,17 +23,16 @@ class ExcelReportFormatter
     public static function handle(BeforeWriting $event): void
     {
         $routeName = request()->route()?->getName() ?? '';
-        $isReportRoute = Str::startsWith($routeName, ['monitoring.', 'reports.'])
-            || $routeName === 'operations.customers.demographics.export';
+        $isReportRoute = Str::startsWith($routeName, ['monitoring.', 'reports.']);
 
-        if (!$isReportRoute) {
+        if (! $isReportRoute) {
             return;
         }
 
         $filters = self::filtersFromRequest(request()->query());
         $spreadsheet = $event->getWriter()->getDelegate();
 
-        if (!$spreadsheet instanceof Spreadsheet) {
+        if (! $spreadsheet instanceof Spreadsheet) {
             return;
         }
 
@@ -91,7 +91,7 @@ class ExcelReportFormatter
         $lastColumn = Coordinate::stringFromColumnIndex($lastColumnIndex);
         $row = $insertAt;
 
-        if (!$hasTitle) {
+        if (! $hasTitle) {
             $sheet->setCellValue('A'.$row, $title);
 
             if ($lastColumnIndex > 1) {
@@ -106,7 +106,7 @@ class ExcelReportFormatter
             $row++;
         }
 
-        if (!$hasFilters) {
+        if (! $hasFilters) {
             $sheet->setCellValue('A'.$row, 'Filter diterapkan');
             $sheet->setCellValue('B'.$row, count($filters) > 0 ? count($filters).' filter' : 'Semua data');
             if ($lastColumnIndex > 2) {
@@ -131,7 +131,7 @@ class ExcelReportFormatter
             ]);
         }
 
-        if (!$hasTitle && $hasFilters && $lastColumnIndex > 1) {
+        if (! $hasTitle && $hasFilters && $lastColumnIndex > 1) {
             // The existing filter block moves down when a title is inserted.
             $sheet->mergeCells('A'.$insertAt.':'.$lastColumn.$insertAt);
         }

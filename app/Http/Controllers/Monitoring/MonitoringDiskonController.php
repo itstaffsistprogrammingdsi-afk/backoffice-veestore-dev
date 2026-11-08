@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\MonitoringDiskonExport;
 use App\Http\Controllers\Controller;
+use App\Support\Concerns\NormalizesDate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class MonitoringDiskonController extends Controller
 {
+    use NormalizesDate;
+
     public function index(Request $request)
     {
         $filters = $this->getFilters($request);
@@ -28,23 +31,23 @@ class MonitoringDiskonController extends Controller
             'title' => 'Diskon',
             'description' => 'Laporan monitoring.',
             'data' => [
-            'rows' => $rows,
-            'summary' => $summary,
+                'rows' => $rows,
+                'summary' => $summary,
 
-            'name' => $filters['name'],
-            'type' => $filters['type'],
-            'isActive' => $filters['is_active'],
-            'periodStatus' => $filters['period_status'],
-            'startDate' => $filters['start_date'],
-            'endDate' => $filters['end_date'],
-            'perPage' => $filters['per_page'],
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
+                'name' => $filters['name'],
+                'type' => $filters['type'],
+                'isActive' => $filters['is_active'],
+                'periodStatus' => $filters['period_status'],
+                'startDate' => $filters['start_date'],
+                'endDate' => $filters['end_date'],
+                'perPage' => $filters['per_page'],
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
 
-            'types' => [
-                'percentage' => 'Percentage',
-                'fixed' => 'Fixed',
+                'types' => [
+                    'percentage' => 'Percentage',
+                    'fixed' => 'Fixed',
+                ],
             ],
-        ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.diskon.export')],
         ]);
@@ -63,7 +66,7 @@ class MonitoringDiskonController extends Controller
             'end_date' => $filters['end_date'],
         ]);
 
-        $filename = 'monitoring-diskon-' . now()->format('Ymd_His') . '.xlsx';
+        $filename = 'monitoring-diskon-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(new MonitoringDiskonExport($request), $filename);
     }
@@ -72,7 +75,7 @@ class MonitoringDiskonController extends Controller
     {
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -153,7 +156,7 @@ class MonitoringDiskonController extends Controller
         $this->applyFilters($query, $filters);
 
         return $query
-            ->selectRaw("
+            ->selectRaw('
                 COUNT(d.id)::int as total_discount,
 
                 COUNT(
@@ -216,7 +219,7 @@ class MonitoringDiskonController extends Controller
                 )::int as total_inactive_discount,
 
                 COALESCE(SUM(COALESCE(d.usage_count, 0)), 0)::int as total_usage_count
-            ")
+            ')
             ->first();
     }
 
@@ -257,16 +260,16 @@ class MonitoringDiskonController extends Controller
                             ->whereNotNull('d.valid_until')
                             ->whereRaw('CURRENT_TIMESTAMP BETWEEN d.valid_from AND d.valid_until');
                     })
-                    ->orWhere(function ($sub) {
-                        $sub->whereNull('d.valid_from')
-                            ->whereNotNull('d.valid_until')
-                            ->whereRaw('CURRENT_TIMESTAMP <= d.valid_until');
-                    })
-                    ->orWhere(function ($sub) {
-                        $sub->whereNotNull('d.valid_from')
-                            ->whereNull('d.valid_until')
-                            ->whereRaw('CURRENT_TIMESTAMP >= d.valid_from');
-                    });
+                        ->orWhere(function ($sub) {
+                            $sub->whereNull('d.valid_from')
+                                ->whereNotNull('d.valid_until')
+                                ->whereRaw('CURRENT_TIMESTAMP <= d.valid_until');
+                        })
+                        ->orWhere(function ($sub) {
+                            $sub->whereNotNull('d.valid_from')
+                                ->whereNull('d.valid_until')
+                                ->whereRaw('CURRENT_TIMESTAMP >= d.valid_from');
+                        });
                 });
             }
 
@@ -287,31 +290,6 @@ class MonitoringDiskonController extends Controller
         }
     }
 
-    private function normalizeDate($date): ?string
-    {
-        if ($date === null) {
-            return null;
-        }
-
-        $date = trim((string) $date);
-
-        if ($date === '') {
-            return null;
-        }
-
-        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $date;
-        }
-
-        if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $date)) {
-            [$day, $month, $year] = explode('/', $date);
-
-            return "{$year}-{$month}-{$day}";
-        }
-
-        return null;
-    }
-
     private function normalizeNullableString($value): ?string
     {
         if ($value === null) {
@@ -325,7 +303,7 @@ class MonitoringDiskonController extends Controller
 
     private function applyDeletedAtFilter($query, string $table, ?string $alias = null): void
     {
-        if (!Schema::hasColumn($table, 'deleted_at')) {
+        if (! Schema::hasColumn($table, 'deleted_at')) {
             return;
         }
 

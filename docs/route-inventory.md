@@ -1,5 +1,7 @@
 # Inventaris Route
 
+> Catatan: dokumen ini snapshot lama. Jumlah dan daftar route aktual sudah berubah setelah audit duplikasi. Lihat `docs/duplication-audit.md` dan jalankan `php artisan route:list` untuk kondisi terbaru.
+
 Dokumen ini dihasilkan dari `php artisan route:list --json` pada Laravel 13.39.0. Hanya route aplikasi yang memakai controller `App\Http\Controllers` yang dicatat. Route framework (Ignition, Sanctum, redirect legacy) tidak dimasukkan.
 
 Total route aplikasi: **301**
