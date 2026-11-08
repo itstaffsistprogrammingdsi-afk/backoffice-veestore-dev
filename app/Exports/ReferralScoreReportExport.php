@@ -23,12 +23,17 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
         $q = trim((string) $request->query('q', ''));
         $status = $request->query('status');
         $referrerId = $request->query('referrer_id');
+        $storeId = $request->query('store_id');
         $from = $request->query('from') ?: now()->startOfMonth()->toDateString();
         $to = $request->query('to') ?: now()->toDateString();
 
         $query = DB::table('referrals as r')
             ->leftJoin('customers as referrer', 'referrer.id', '=', 'r.referrer_id')
             ->leftJoin('customers as referee', 'referee.id', '=', 'r.referee_id')
+            ->leftJoin('stores as referrer_store', function ($join) {
+                $join->whereRaw('referrer_store.id::text = referrer.registration_source_id')
+                    ->where('referrer.registration_channel', '=', 'store');
+            })
             ->leftJoin('referrer_scores as rs', 'rs.customer_id', '=', 'r.referrer_id')
             ->select([
                 'r.id',
@@ -41,6 +46,7 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
                 'referrer.name as referrer_name',
                 'referrer.email as referrer_email',
                 'referrer.wa_number as referrer_wa_number',
+                'referrer_store.name as referrer_branch_name',
 
                 'referee.name as referee_name',
                 'referee.email as referee_email',
@@ -71,6 +77,9 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
             ->when($referrerId, function ($qBuilder) use ($referrerId) {
                 $qBuilder->where('r.referrer_id', $referrerId);
             })
+            ->when($storeId, function ($qBuilder) use ($storeId) {
+                $qBuilder->whereRaw('referrer_store.id::text = ?', [$storeId]);
+            })
             ->whereBetween(DB::raw('r.created_at::date'), [$from, $to])
             ->orderByDesc('r.created_at')
             ->orderBy('referrer.name');
@@ -82,10 +91,16 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
             $referrerName = DB::table('customers')->where('id', $referrerId)->value('name') ?? '-';
         }
 
+        $storeName = '-';
+        if ($storeId) {
+            $storeName = DB::table('stores')->where('id', $storeId)->value('name') ?? '-';
+        }
+
         $this->filters = [
             'q' => $q,
             'status' => $status ?: '-',
             'referrer_name' => $referrerName,
+            'store_name' => $storeName,
             'from' => $from,
             'to' => $to,
         ];
@@ -104,6 +119,7 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
             ['Tanggal Export', ': ' . now()->format('d-m-Y H:i:s')],
             ['Pencarian', ': ' . ($this->filters['q'] ?: '-')],
             ['Referrer', ': ' . ($this->filters['referrer_name'] ?: '-')],
+            ['Cabang Referrer', ': ' . ($this->filters['store_name'] ?: '-')],
             ['Status', ': ' . ($this->filters['status'] ?: '-')],
             ['Tanggal', ': ' . ($this->filters['from'] ?: '-') . ' s/d ' . ($this->filters['to'] ?: '-')],
             [''],
@@ -120,6 +136,7 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
                 'No. WA Referee',
                 'Code Used',
                 'Status',
+                'Cabang Referrer',
             ],
         ];
 
@@ -137,6 +154,7 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
                 $row->referee_wa_number ?? '',
                 $row->code_used ?? '',
                 $row->status ?? '',
+                $row->referrer_branch_name ?? '-',
             ];
         }
 
@@ -145,12 +163,12 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
 
     public function styles(Worksheet $sheet)
     {
-        $headerRow = 9;
+        $headerRow = 10;
         $lastRow = $sheet->getHighestRow();
 
-        $sheet->mergeCells('A1:L1');
+        $sheet->mergeCells('A1:M1');
 
-        $sheet->getStyle('A1:L1')->applyFromArray([
+        $sheet->getStyle('A1:M1')->applyFromArray([
             'font' => [
                 'bold' => true,
                 'size' => 14,
@@ -160,7 +178,7 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
             ],
         ]);
 
-        $sheet->getStyle("A{$headerRow}:L{$headerRow}")->applyFromArray([
+        $sheet->getStyle("A{$headerRow}:M{$headerRow}")->applyFromArray([
             'font' => [
                 'bold' => true,
                 'color' => ['rgb' => 'FFFFFF'],
@@ -180,7 +198,7 @@ class ReferralScoreReportExport implements FromArray, ShouldAutoSize, WithStyles
             ],
         ]);
 
-        $sheet->getStyle("A{$headerRow}:L{$lastRow}")->applyFromArray([
+        $sheet->getStyle("A{$headerRow}:M{$lastRow}")->applyFromArray([
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,

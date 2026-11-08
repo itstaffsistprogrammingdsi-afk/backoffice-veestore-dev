@@ -34,6 +34,7 @@ class PromoLoyaltyReportController extends Controller
                 'to' => $filters['end_date'],
                 'q' => $filters['q'],
                 'status' => $filters['status'],
+                'store_id' => $filters['store_id'],
             ])
         );
 
@@ -134,6 +135,7 @@ class PromoLoyaltyReportController extends Controller
                     'to' => $filters['end_date'],
                     'q' => $filters['q'],
                     'status' => $filters['status'],
+                    'store_id' => $filters['store_id'],
                 ])
             ),
             'promoUsageRows' => app(PromoUsageController::class)->export(

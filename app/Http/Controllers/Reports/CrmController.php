@@ -88,6 +88,24 @@ class CrmController extends Controller
             $customersQuery->selectRaw('0 as current_balance');
         }
 
+        if (Schema::hasTable('stores') && Schema::hasColumn('customers', 'registration_source_id')) {
+            $customersQuery
+                ->leftJoin('stores as registration_store', function ($join) {
+                    $join->whereRaw('registration_store.id::text = customers.registration_source_id')
+                        ->where('customers.registration_channel', '=', 'store');
+                })
+                ->selectRaw("
+                    CASE
+                        WHEN customers.registration_channel = 'ecommerce' THEN 'E-commerce'
+                        WHEN customers.registration_channel = 'store'
+                            THEN COALESCE(registration_store.name, 'Store tidak diketahui')
+                        ELSE '-'
+                    END as registration_source_name
+                ");
+        } else {
+            $customersQuery->selectRaw("'-' as registration_source_name");
+        }
+
         $customers = $customersQuery
             ->when($q !== '', function ($query) use ($q) {
                 $like = "%{$q}%";

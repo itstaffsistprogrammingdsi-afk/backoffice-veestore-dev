@@ -4,6 +4,7 @@ import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
 import MenuSearch from '@/components/MenuSearch.vue';
+import NotificationBell from '@/components/NotificationBell.vue';
 import { currentLocale, switchLocale as changeLocale } from '@/i18n';
 
 interface NavItem {
@@ -69,6 +70,9 @@ const switchLocale = (value: string) => {
 };
 
 const navigation = computed<Navigation>(() => (page.props.navigation ?? { areas: [] }) as Navigation);
+const notificationSummaryUrl = computed(
+    () => (page.props.notificationSummaryUrl as string | undefined) ?? '/notifications/summary',
+);
 const branding = computed<Branding>(() => (
     page.props.branding ?? {
         name: 'VeeStore',
@@ -689,6 +693,8 @@ onBeforeUnmount(() => {
                         </button>
                     </div>
 
+                    <NotificationBell :summary-url="notificationSummaryUrl" />
+
                     <button
                         class="theme-toggle"
                         type="button"
@@ -710,6 +716,19 @@ onBeforeUnmount(() => {
                     </button>
 
                     <div v-show="userMenuOpen" id="app-user-menu" class="app-user-menu" role="group" aria-label="Menu akun">
+                        <div class="app-user-locale d-sm-none" role="group" aria-label="Bahasa antarmuka">
+                            <button
+                                v-for="option in localeOptions"
+                                :key="`user-locale-${option.value}`"
+                                type="button"
+                                :class="{ 'is-active': locale === option.value }"
+                                :aria-pressed="locale === option.value"
+                                :title="option.value === 'id' ? 'Bahasa Indonesia' : 'English'"
+                                @click="switchLocale(option.value)"
+                            >
+                                {{ option.label }}
+                            </button>
+                        </div>
                         <button type="button" :disabled="isLoggingOut" @click="logout">
                             <i class="mdi mdi-logout me-1" aria-hidden="true"></i>
                             {{ isLoggingOut ? 'Keluar...' : 'Keluar' }}
@@ -1322,6 +1341,31 @@ onBeforeUnmount(() => {
     background: var(--app-surface-2);
 }
 
+.app-user-locale {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.15rem 0.1rem 0.45rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.app-user-menu .app-user-locale button {
+    flex: 1;
+    justify-content: center;
+    width: auto;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--app-border);
+    color: var(--app-muted);
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.app-user-menu .app-user-locale button.is-active {
+    border-color: var(--app-accent);
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
+}
+
 .app-content {
     width: 100%;
     min-width: 0;
@@ -1441,6 +1485,10 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 575.98px) {
+    .app-topbar .locale-toggle {
+        display: none;
+    }
+
     .app-menu-button,
     .theme-toggle {
         width: 44px;

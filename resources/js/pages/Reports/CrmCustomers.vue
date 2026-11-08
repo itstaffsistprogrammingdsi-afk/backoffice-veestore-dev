@@ -14,6 +14,9 @@ interface CustomerRow {
     email: string | null;
     wa_number: string | null;
     current_balance: string | number;
+    created_at: string | null;
+    registration_channel: string | null;
+    registration_source_name: string | null;
 }
 
 interface Paginator<T> {
@@ -44,8 +47,32 @@ const reset = () => {
 
 const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').format(Number(value ?? 0));
 
+const formatDate = (value: string | null) => {
+    if (!value) return '-';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return '-';
+
+    return new Intl.DateTimeFormat('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    }).format(date);
+};
+
+const formatRegistrationChannel = (value: string | null) => {
+    if (value === 'store') return 'Toko';
+    if (value === 'ecommerce') return 'E-commerce';
+
+    return value || '-';
+};
+
 const exportCustomers = () => downloadExcelTable('CRM-Customer-Profiles', 'Customer Profiles', [
     { key: 'name', label: 'Customer' },
+    { key: 'created_at', label: 'Tanggal Daftar' },
+    { key: 'registration_channel', label: 'Channel Registrasi' },
+    { key: 'registration_source_name', label: 'Sumber Registrasi' },
     { key: 'email', label: 'Email' },
     { key: 'wa_number', label: 'Nomor WA' },
     { key: 'current_balance', label: 'Poin' },
@@ -82,16 +109,19 @@ const exportCustomers = () => downloadExcelTable('CRM-Customer-Profiles', 'Custo
         <div class="card report-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Customer</th><th>Email</th><th>WA</th><th class="text-end">Poin</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th>Customer</th><th>Daftar</th><th>Channel</th><th>Sumber</th><th>Email</th><th>WA</th><th class="text-end">Poin</th><th class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <tr v-for="row in customers.data" :key="row.id">
                             <td class="fw-semibold">{{ row.name ?? '-' }}</td>
+                            <td class="text-nowrap">{{ formatDate(row.created_at) }}</td>
+                            <td>{{ formatRegistrationChannel(row.registration_channel) }}</td>
+                            <td>{{ row.registration_source_name ?? '-' }}</td>
                             <td>{{ row.email ?? '-' }}</td>
                             <td>{{ row.wa_number ?? '-' }}</td>
                             <td class="text-end">{{ formatNumber(row.current_balance) }}</td>
                             <td class="text-end"><Link :href="props.urls.profile.replace('__ID__', row.id)" class="btn btn-sm btn-outline-primary">Profil</Link></td>
                         </tr>
-                        <tr v-if="customers.data.length === 0"><td colspan="5" class="report-empty">Belum ada customer.</td></tr>
+                        <tr v-if="customers.data.length === 0"><td colspan="8" class="report-empty">Belum ada customer.</td></tr>
                     </tbody>
                 </table>
             </div>

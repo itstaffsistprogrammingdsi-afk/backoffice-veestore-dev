@@ -38,6 +38,7 @@ class HandleInertiaRequests extends Middleware
                 ['value' => 'id', 'label' => 'ID'],
                 ['value' => 'en', 'label' => 'EN'],
             ],
+            'notificationSummaryUrl' => route('notifications.summary'),
             'navigation' => fn () => Navigation::forUser($request->user()),
             'promoModule' => fn () => PromoModuleNavigation::forRequest($request),
             'masterDataModule' => fn () => MasterDataModuleNavigation::forRequest($request),

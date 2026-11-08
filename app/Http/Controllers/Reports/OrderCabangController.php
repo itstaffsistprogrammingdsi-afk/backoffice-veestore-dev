@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reports;
 use App\Http\Controllers\Controller;
 use App\Models\StoreOrder;
 use App\Services\StockReservationService;
+use App\Services\StoreOrderNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -177,7 +178,7 @@ class OrderCabangController extends Controller
         ]);
     }
 
-    public function requestSubmit(StoreOrder $order)
+    public function requestSubmit(StoreOrder $order, StoreOrderNotifier $notifier)
     {
         if (! $order->isEditable()) {
             return back()->withErrors(['status' => 'Order tidak bisa di-request.']);
@@ -187,6 +188,8 @@ class OrderCabangController extends Controller
             'status' => 'requested',
             'requested_at' => now(),
         ]);
+
+        $notifier->requested($order->fresh(['store', 'warehouse']));
 
         return back()->with('success', 'Pesanan dikirim untuk persetujuan.');
     }

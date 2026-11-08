@@ -13,10 +13,21 @@ class ReferralScoreReportController extends Controller
 {
     public function index(Request $request)
     {
+        $data = $this->reportData($request);
+
+        $data['filters'] = [
+            'q' => $data['q'],
+            'status' => $data['status'],
+            'referrer_id' => $data['referrerId'],
+            'store_id' => $data['storeId'],
+            'from' => $data['from'],
+            'to' => $data['to'],
+        ];
+
         return Inertia::render('Monitoring/Report', [
             'title' => 'Referral & Afiliasi',
-            'description' => 'Pantau referral, referrer, status transaksi pertama, dan poin afiliasi yang diperoleh.',
-            'data' => $this->reportData($request),
+            'description' => 'Pantau referral, referrer, status transaksi pertama, cabang registrasi, dan poin afiliasi yang diperoleh.',
+            'data' => $data,
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.referral-score-report.export')],
         ]);
@@ -27,6 +38,7 @@ class ReferralScoreReportController extends Controller
         $q = trim((string) $request->query('q', ''));
         $status = $this->normalizeNullableString($request->query('status'));
         $referrerId = $this->normalizeNullableString($request->query('referrer_id'));
+        $storeId = $this->normalizeNullableString($request->query('store_id'));
 
         $from = $request->query('from') ?: now()->startOfMonth()->toDateString();
         $to = $request->query('to') ?: now()->toDateString();
@@ -39,6 +51,7 @@ class ReferralScoreReportController extends Controller
             q: $q,
             status: $status,
             referrerId: $referrerId,
+            storeId: $storeId,
             from: $from,
             to: $to
         );
@@ -163,6 +176,7 @@ class ReferralScoreReportController extends Controller
                 x.created_at,
                 x.referrer_name,
                 x.referrer_email,
+                x.referrer_branch_name,
                 x.referee_name,
                 x.referee_email,
                 x.referrer_score
@@ -192,6 +206,11 @@ class ReferralScoreReportController extends Controller
             ->distinct()
             ->orderBy('status')
             ->pluck('status');
+
+        $stores = DB::table('stores')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
 
         $affiliatePoints = DB::table('customer_loyalty_point_mutations')
             ->whereRaw("type::text IN ('referral_register','referral_first_tx')")
@@ -236,10 +255,12 @@ class ReferralScoreReportController extends Controller
             'q',
             'status',
             'referrerId',
+            'storeId',
             'from',
             'to',
             'referrers',
             'statuses',
+            'stores',
             'summary',
             'topReferrers',
             'topReferrerChartRows',
@@ -262,12 +283,17 @@ class ReferralScoreReportController extends Controller
         string $q = '',
         ?string $status = null,
         ?string $referrerId = null,
+        ?string $storeId = null,
         ?string $from = null,
         ?string $to = null
     ) {
         $query = DB::table('referrals as r')
             ->leftJoin('customers as referrer', 'referrer.id', '=', 'r.referrer_id')
             ->leftJoin('customers as referee', 'referee.id', '=', 'r.referee_id')
+            ->leftJoin('stores as referrer_store', function ($join) {
+                $join->whereRaw('referrer_store.id::text = referrer.registration_source_id')
+                    ->where('referrer.registration_channel', '=', 'store');
+            })
             ->leftJoin('referrer_scores as rs', 'rs.customer_id', '=', 'r.referrer_id')
             ->select([
                 'r.id',
@@ -281,6 +307,8 @@ class ReferralScoreReportController extends Controller
                 'referrer.name as referrer_name',
                 'referrer.email as referrer_email',
                 'referrer.wa_number as referrer_wa_number',
+                'referrer.registration_channel as referrer_registration_channel',
+                'referrer_store.name as referrer_branch_name',
 
                 'referee.name as referee_name',
                 'referee.email as referee_email',
@@ -318,6 +346,10 @@ class ReferralScoreReportController extends Controller
 
         if ($referrerId) {
             $query->where('r.referrer_id', $referrerId);
+        }
+
+        if ($storeId) {
+            $query->whereRaw('referrer_store.id::text = ?', [$storeId]);
         }
 
         if ($from && $to) {

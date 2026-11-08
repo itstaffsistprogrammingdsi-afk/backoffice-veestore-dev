@@ -6,6 +6,7 @@ use App\Domain\StoreOperations\Actions\ApproveStoreOrder;
 use App\Domain\StoreOperations\Support\WarehouseStockAvailability;
 use App\Http\Controllers\Controller;
 use App\Models\StoreOrder;
+use App\Services\StoreOrderNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -263,7 +264,8 @@ class StoreOrderApprovalController extends Controller
     public function approve(
         Request $request,
         StoreOrder $order,
-        ApproveStoreOrder $approveStoreOrder
+        ApproveStoreOrder $approveStoreOrder,
+        StoreOrderNotifier $notifier
     ): RedirectResponse {
         $data = $request->validate([
             'allocations' => ['required', 'array', 'min:1'],
@@ -278,6 +280,12 @@ class StoreOrderApprovalController extends Controller
 
         $result = $approveStoreOrder->handle($order, $data['allocations'], Auth::id());
 
+        $notifier->statusChanged(
+            $order->fresh(['store', 'warehouse']),
+            (string) ($result['status'] ?? 'approved'),
+            $result['order_numbers'] ?? []
+        );
+
         $total = number_format($result['total_allocated'], 0, ',', '.');
         $orderCount = count($result['order_ids']);
         $message = $orderCount > 1
@@ -287,7 +295,7 @@ class StoreOrderApprovalController extends Controller
         return back()->with('success', $message);
     }
 
-    public function reject(StoreOrder $order): RedirectResponse
+    public function reject(StoreOrder $order, StoreOrderNotifier $notifier): RedirectResponse
     {
         if (strtolower((string) $order->status) !== 'requested') {
             return back()->withErrors([
@@ -315,6 +323,8 @@ class StoreOrderApprovalController extends Controller
                     ]);
             }
         });
+
+        $notifier->statusChanged($order->fresh(['store', 'warehouse']), 'rejected');
 
         return back()->with('success', 'Pesanan ditolak. Stok yang sempat dipesan sudah dilepaskan.');
     }

@@ -121,6 +121,7 @@ use App\Http\Controllers\Settings\AffiliatePointsInviterController;
 use App\Http\Controllers\Settings\CustomerLoyaltyPointTransactionRewardController;
 use App\Http\Controllers\Settings\PointSettingController;
 use App\Http\Controllers\Settings\StockBarrierAlertSettingController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -862,9 +863,10 @@ Route::middleware('auth')->group(function () {
                 ->name('transaction-items');
         });
 
-        Route::get('referral-score-report', fn () => redirect()->route('monitoring.promo-loyalty.index', [
-            'dataset' => 'referralRows',
-        ]))->name('referral-score-report.index');
+        Route::get('referral-score-report', fn (Request $request) => redirect()->route('monitoring.promo-loyalty.index', array_merge(
+            $request->query(),
+            ['dataset' => 'referralRows']
+        )))->name('referral-score-report.index');
 
         Route::get('referral-score-report/export', [ReferralScoreReportController::class, 'export'])
             ->name('referral-score-report.export');

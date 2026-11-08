@@ -162,6 +162,15 @@ class StoreController extends Controller
                         'required',
                         'string',
                         'max:150',
+                        function (
+                            string $attribute,
+                            mixed $value,
+                            Closure $fail
+                        ): void {
+                            if ($this->storeNameExists((string) $value)) {
+                                $fail('Nama store sudah digunakan.');
+                            }
+                        },
                     ],
                     'address' => [
                         'required',
@@ -256,21 +265,26 @@ class StoreController extends Controller
             );
 
             DB::transaction(function () use ($request, $data): void {
+                $normalizedName = $this->normalizeText(
+                    $data['name']
+                );
+
                 $normalizedAddress = $this->normalizeAddress(
                     $data['address']
                 );
 
-                /*
-                 * Mencegah dua request bersamaan menyimpan alamat sama.
-                 * Tidak perlu mengubah struktur database.
-                 */
+                $this->lockNormalizedStoreName($normalizedName);
+
                 $this->lockNormalizedAddress(
                     $normalizedAddress
                 );
 
-                /*
-                 * Periksa ulang setelah lock diperoleh.
-                 */
+                if ($this->storeNameExists($normalizedName)) {
+                    throw ValidationException::withMessages([
+                        'name' => 'Nama store sudah digunakan.',
+                    ]);
+                }
+
                 if (
                     $this->addressExists(
                         $normalizedAddress
@@ -368,6 +382,15 @@ class StoreController extends Controller
                         'required',
                         'string',
                         'max:150',
+                        function (
+                            string $attribute,
+                            mixed $value,
+                            Closure $fail
+                        ) use ($store): void {
+                            if ($this->storeNameExists((string) $value, (string) $store->getKey())) {
+                                $fail('Nama store sudah digunakan.');
+                            }
+                        },
                     ],
                     'address' => [
                         'required',
@@ -463,9 +486,15 @@ class StoreController extends Controller
             );
 
             DB::transaction(function () use ($request, $store, $data): void {
+                $normalizedName = $this->normalizeText(
+                    $data['name']
+                );
+
                 $normalizedAddress = $this->normalizeAddress(
                     $data['address']
                 );
+
+                $this->lockNormalizedStoreName($normalizedName);
 
                 $this->lockNormalizedAddress(
                     $normalizedAddress
@@ -475,6 +504,12 @@ class StoreController extends Controller
                     ->whereKey($store->getKey())
                     ->lockForUpdate()
                     ->firstOrFail();
+
+                if ($this->storeNameExists($normalizedName, (string) $lockedStore->getKey())) {
+                    throw ValidationException::withMessages([
+                        'name' => 'Nama store sudah digunakan.',
+                    ]);
+                }
 
                 if (
                     $this->addressExists(
@@ -600,6 +635,48 @@ class StoreController extends Controller
      * - jalan sudirman no. 10
      * - " Jalan   Sudirman No. 10 "
      */
+    private function storeNameExists(
+        string $name,
+        ?string $ignoreId = null
+    ): bool {
+        $normalizedName = mb_strtolower(
+            $this->normalizeText($name),
+            'UTF-8'
+        );
+
+        return Store::query()
+            ->when(
+                $ignoreId !== null,
+                fn ($query) => $query->whereKeyNot($ignoreId)
+            )
+            ->whereRaw(
+                'LOWER(TRIM(name)) = ?',
+                [$normalizedName]
+            )
+            ->exists();
+    }
+
+    private function lockNormalizedStoreName(
+        string $name
+    ): void {
+        if (
+            DB::connection()->getDriverName()
+            !== 'pgsql'
+        ) {
+            return;
+        }
+
+        $normalizedName = mb_strtolower(
+            $this->normalizeText($name),
+            'UTF-8'
+        );
+
+        DB::select(
+            'SELECT pg_advisory_xact_lock(hashtext(?))',
+            ['store-name:'.$normalizedName]
+        );
+    }
+
     private function addressExists(
         string $address,
         ?string $ignoreId = null
