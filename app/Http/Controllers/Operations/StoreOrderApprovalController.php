@@ -92,6 +92,13 @@ class StoreOrderApprovalController extends Controller
             ->withSum('details', 'requested_qty')
             ->withSum('details', 'approved_qty')
             ->withSum('details', 'received_qty')
+            ->addSelect([
+                'reserved_qty' => DB::table('stock_reservations')
+                    ->selectRaw('COALESCE(SUM(quantity), 0)')
+                    ->whereColumn('reference_id', 'store_orders.id')
+                    ->where('reference_type', 'store_order')
+                    ->where('status', 'active'),
+            ])
             ->when($q !== '', function ($query) use ($q): void {
                 $query->where(function ($inner) use ($q): void {
                     $inner->where('order_number', 'ILIKE', "%{$q}%")
@@ -142,6 +149,7 @@ class StoreOrderApprovalController extends Controller
                 'requested_qty' => (int) ($order->details_sum_requested_qty ?? 0),
                 'approved_qty' => (int) ($order->details_sum_approved_qty ?? 0),
                 'received_qty' => (int) ($order->details_sum_received_qty ?? 0),
+                'reserved_qty' => (int) ($order->reserved_qty ?? 0),
             ]);
 
         return Inertia::render('Operations/StoreOrderApproval', [
@@ -201,7 +209,7 @@ class StoreOrderApprovalController extends Controller
             ->values()
             ->all();
 
-        $stock = $availability->forProducts($warehouses->pluck('id')->all(), $productIds);
+        $stock = $availability->forProducts($warehouses->pluck('id')->all(), $productIds, (string) $order->id);
 
         $isEditable = strtolower((string) $order->status) === 'requested';
         $creatorName = $order->created_by

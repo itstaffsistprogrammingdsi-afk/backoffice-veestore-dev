@@ -3,6 +3,7 @@
 namespace App\Domain\StoreOperations\Actions;
 
 use App\Domain\StoreOperations\Support\WarehouseStockAvailability;
+use App\Services\StoreOrderReservationService;
 use App\Models\StoreOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -12,7 +13,8 @@ use Illuminate\Validation\ValidationException;
 class ApproveStoreOrder
 {
     public function __construct(
-        private readonly WarehouseStockAvailability $availability
+        private readonly WarehouseStockAvailability $availability,
+        private readonly StoreOrderReservationService $reservations
     ) {}
 
     /**
@@ -34,6 +36,13 @@ class ApproveStoreOrder
             }
 
             $lockedOrder->load('details');
+
+            /*
+             * Reservasi yang dibuat saat order masuk dilepas di dalam transaksi.
+             * Jika approval gagal, rollback mengembalikan reservasi tersebut.
+             */
+            $this->reservations->release($lockedOrder, 'Released before approval allocation');
+
             $details = $lockedOrder->details->keyBy(fn ($detail): string => (string) $detail->id);
 
             if ($details->isEmpty()) {

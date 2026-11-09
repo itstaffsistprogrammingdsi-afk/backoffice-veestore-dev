@@ -263,6 +263,15 @@ class OmsetKotorSalesController extends Controller
         ]);
     }
 
+    public function financialSummary(string $dateFrom, string $dateTo, string $channel = 'all'): array
+    {
+        return $this->getFinancialSummary(
+            channel: $channel,
+            dateFrom: $dateFrom,
+            dateTo: $dateTo
+        );
+    }
+
     public function export(Request $request)
     {
         $channel = $this->normalizeNullableString($request->query('channel')) ?? 'all';

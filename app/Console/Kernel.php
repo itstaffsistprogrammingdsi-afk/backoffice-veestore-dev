@@ -19,6 +19,10 @@ class Kernel extends ConsoleKernel
         $schedule->command('backoffice:notify-store-orders')
             ->everyFiveMinutes()
             ->withoutOverlapping(5);
+
+        $schedule->command('backoffice:reserve-store-orders')
+            ->everyFiveMinutes()
+            ->withoutOverlapping(5);
     }
 
     /**

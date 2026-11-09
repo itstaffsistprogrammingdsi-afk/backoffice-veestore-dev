@@ -29,6 +29,7 @@ interface OrderRow {
     requested_qty: number;
     approved_qty: number;
     received_qty: number;
+    reserved_qty: number;
 }
 
 interface StockCell {
@@ -786,6 +787,9 @@ onBeforeUnmount(() => {
                             <td class="d-none d-md-table-cell">
                                 <strong>{{ formatNumber(order.requested_qty) }} pcs</strong>
                                 <small class="approval-subvalue">{{ formatNumber(order.details_count) }} produk</small>
+                                <small v-if="order.reserved_qty > 0" class="approval-subvalue approval-reserved">
+                                    {{ formatNumber(order.reserved_qty) }} pcs direservasi
+                                </small>
                             </td>
                             <td class="d-none d-lg-table-cell">
                                 <strong :class="{ 'approval-muted-strong': !order.warehouse }">{{ order.warehouse?.name ?? 'Belum dipilih' }}</strong>
@@ -1073,6 +1077,7 @@ onBeforeUnmount(() => {
 .approval-table td { padding: 0.8rem 0.9rem; border-color: var(--app-border); color: var(--app-ink); }
 .approval-order-link { padding: 0; border: 0; background: transparent; color: var(--app-accent-ink); font-weight: 700; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
 .approval-subvalue { display: block; color: var(--app-muted); font-size: 0.73rem; }
+.approval-reserved { color: var(--app-accent-ink); font-weight: 700; }
 .approval-muted-strong { color: var(--app-muted); font-weight: 600; }
 .approval-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.85rem 1.1rem; border-top: 1px solid var(--app-border); }
 .approval-empty { display: grid; place-items: center; gap: 0.35rem; padding: 3rem 1rem; color: var(--app-muted); text-align: center; }
