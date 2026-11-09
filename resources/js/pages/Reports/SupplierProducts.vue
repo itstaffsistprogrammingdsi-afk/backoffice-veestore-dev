@@ -22,6 +22,9 @@ interface Row {
     product_codes: string | null;
     qty_inbound: string | number;
     stok_now: string | number;
+    stok_good: string | number;
+    stok_bad: string | number;
+    stok_value: string | number;
     last_inbound_date: string | null;
 }
 
@@ -47,6 +50,9 @@ interface Summary {
     total_products: number;
     total_qty_inbound: number;
     total_stock: number;
+    total_good: number;
+    total_bad: number;
+    total_stock_value: number;
     products_with_stock: number;
     products_without_stock: number;
 }
@@ -148,6 +154,13 @@ const exportUrl = computed(() => {
 const formatNumber = (value: number | string | null | undefined) =>
     new Intl.NumberFormat('id-ID').format(Number(value ?? 0));
 
+const formatCurrency = (value: number | string | null | undefined) =>
+    new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0,
+    }).format(Number(value ?? 0));
+
 const formatDate = (value: string | null) => {
     if (!value) {
         return '-';
@@ -161,13 +174,16 @@ const formatDate = (value: string | null) => {
 };
 
 const summaryCards = computed(() => [
-    { label: 'Relasi Supplier Produk', value: props.summary.total_relations },
-    { label: 'Supplier', value: props.summary.total_suppliers },
-    { label: 'Produk', value: props.summary.total_products },
-    { label: 'Total Qty Inbound', value: props.summary.total_qty_inbound },
-    { label: 'Stok Saat Ini', value: props.summary.total_stock },
-    { label: 'Produk Ada Stok', value: props.summary.products_with_stock },
-    { label: 'Produk Tanpa Stok', value: props.summary.products_without_stock },
+    { label: 'Relasi Supplier Produk', value: formatNumber(props.summary.total_relations) },
+    { label: 'Supplier', value: formatNumber(props.summary.total_suppliers) },
+    { label: 'Produk', value: formatNumber(props.summary.total_products) },
+    { label: 'Total Qty Inbound', value: formatNumber(props.summary.total_qty_inbound) },
+    { label: 'Stok Saat Ini', value: formatNumber(props.summary.total_stock) },
+    { label: 'Stok Baik', value: formatNumber(props.summary.total_good) },
+    { label: 'Stok Rusak', value: formatNumber(props.summary.total_bad) },
+    { label: 'Nilai Stok', value: formatCurrency(props.summary.total_stock_value) },
+    { label: 'Produk Ada Stok', value: formatNumber(props.summary.products_with_stock) },
+    { label: 'Produk Tanpa Stok', value: formatNumber(props.summary.products_without_stock) },
 ]);
 </script>
 
@@ -192,7 +208,7 @@ const summaryCards = computed(() => [
                 <div class="card report-card h-100">
                     <div class="card-body">
                         <div class="report-label">{{ card.label }}</div>
-                        <div class="report-value">{{ formatNumber(card.value) }}</div>
+                        <div class="report-value">{{ card.value }}</div>
                     </div>
                 </div>
             </div>
@@ -303,6 +319,9 @@ const summaryCards = computed(() => [
                             <th>Kode</th>
                             <th class="text-end">Qty Inbound</th>
                             <th class="text-end">Stok</th>
+                            <th class="text-end">Baik</th>
+                            <th class="text-end">Rusak</th>
+                            <th class="text-end">Nilai Stok</th>
                             <th>Terakhir Diterima</th>
                         </tr>
                     </thead>
@@ -314,10 +333,13 @@ const summaryCards = computed(() => [
                             <td>{{ row.product_codes ?? '-' }}</td>
                             <td class="text-end">{{ formatNumber(row.qty_inbound) }}</td>
                             <td class="text-end">{{ formatNumber(row.stok_now) }}</td>
+                            <td class="text-end">{{ formatNumber(row.stok_good) }}</td>
+                            <td class="text-end">{{ formatNumber(row.stok_bad) }}</td>
+                            <td class="text-end">{{ formatCurrency(row.stok_value) }}</td>
                             <td>{{ formatDate(row.last_inbound_date) }}</td>
                         </tr>
                         <tr v-if="rows.data.length === 0">
-                            <td colspan="7" class="report-empty">Belum ada data.</td>
+                            <td colspan="10" class="report-empty">Belum ada data.</td>
                         </tr>
                     </tbody>
                 </table>

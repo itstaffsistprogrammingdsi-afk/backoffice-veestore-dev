@@ -3,10 +3,25 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { Head, Link } from '@inertiajs/vue3';
+import { computed, reactive, ref, watch } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
+
+interface Filters {
+    period: string;
+    date_from: string;
+    date_to: string;
+    channel: string;
+    store_id: string | null;
+    warehouse_id: string | null;
+}
 
 interface Props {
+    filters: Filters;
+    periodOptions: Array<{ value: string; label: string }>;
     summary: {
+        gross_revenue: number;
+        net_revenue: number;
         revenue: number;
         transactions: number;
         average_transaction: number;
@@ -25,6 +40,7 @@ interface Props {
         expiring_90_units: number;
     };
     urls: {
+        hub: string;
         overview: string;
         assistant: string;
         monitoring: string;
@@ -46,13 +62,83 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const currency = (value: number) => new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-}).format(value);
+const form = reactive({
+    date_from: props.filters.date_from ?? '',
+    date_to: props.filters.date_to ?? '',
+});
 
-const formatNumber = (value: number) => new Intl.NumberFormat('id-ID').format(value);
+const showCustom = ref(props.filters.period === 'custom');
+
+watch(() => props.filters, (filters) => {
+    form.date_from = filters.date_from ?? '';
+    form.date_to = filters.date_to ?? '';
+    showCustom.value = filters.period === 'custom';
+}, { deep: true });
+
+const activePeriodLabel = computed(
+    () => props.periodOptions.find((option) => option.value === props.filters.period)?.label ?? 'Rentang kustom',
+);
+
+const channelOptions = [
+    { value: 'all', label: 'Semua kanal' },
+    { value: 'store', label: 'Toko' },
+    { value: 'ecommerce', label: 'E-commerce' },
+];
+
+const activeChannelLabel = computed(
+    () => channelOptions.find((option) => option.value === props.filters.channel)?.label ?? 'Semua kanal',
+);
+
+const buildQuery = (period: string, channel: string, dateFrom = '', dateTo = '') => {
+    const query: Record<string, string> = { period };
+
+    if (channel !== 'all') {
+        query.channel = channel;
+    }
+
+    if (period === 'custom') {
+        query.date_from = dateFrom || props.filters.date_from;
+        query.date_to = dateTo || props.filters.date_to;
+    }
+
+    return query;
+};
+
+const overviewUrl = computed(() => {
+    const search = new URLSearchParams(buildQuery(
+        props.filters.period,
+        props.filters.channel,
+        props.filters.date_from,
+        props.filters.date_to,
+    )).toString();
+
+    return search ? `${props.urls.overview}?${search}` : props.urls.overview;
+});
+
+const navigate = (params: Record<string, string>) => {
+    router.get(props.urls.hub, params, { preserveScroll: true, replace: true });
+};
+
+const applyPeriod = (period: string) => {
+    showCustom.value = false;
+    navigate(buildQuery(period, props.filters.channel));
+};
+
+const applyChannel = (channel: string) => {
+    navigate(buildQuery(props.filters.period, channel, form.date_from, form.date_to));
+};
+
+const openCustom = () => {
+    showCustom.value = true;
+};
+
+const applyCustom = () => {
+    navigate(buildQuery('custom', props.filters.channel, form.date_from, form.date_to));
+};
+
+const resetPeriod = () => {
+    navigate(buildQuery('month', props.filters.channel));
+};
 
 const modules = [
     { title: 'VEE Assistant', description: 'Tanya data operasional dengan bahasa natural dan jawaban dari data terkini.', icon: 'mdi-chat-processing-outline', url: 'assistant', action: 'Buka VEE' },
@@ -85,19 +171,109 @@ const modules = [
                     Mulai dari ringkasan penjualan, pesanan, dan stok &amp; logistik, lalu telusuri detail ke monitoring.
                 </p>
             </div>
-            <Link :href="props.urls.overview" class="hub-primary">
+            <Link :href="overviewUrl" class="hub-primary">
                 <i class="mdi mdi-view-dashboard-outline me-1"></i>
                 Buka Ringkasan Usaha
             </Link>
         </section>
 
+        <section class="hub-filter" aria-label="Filter periode laporan">
+            <div class="hub-filter-head">
+                <div class="hub-filter-current">
+                    <span class="hub-filter-label">Periode laporan</span>
+                    <strong>{{ activePeriodLabel }}</strong>
+                    <span class="hub-filter-range">{{ formatDate(props.filters.date_from) }} - {{ formatDate(props.filters.date_to) }}</span>
+                </div>
+                <button v-if="props.filters.period !== 'month'" type="button" class="hub-filter-reset" @click="resetPeriod">
+                    <i class="mdi mdi-refresh me-1"></i>
+                    Kembali ke bulan ini
+                </button>
+            </div>
+
+            <form class="hub-filter-form" @submit.prevent="applyCustom">
+                <div class="hub-presets" role="group" aria-label="Pilih periode cepat">
+                    <button
+                        v-for="option in props.periodOptions"
+                        :key="option.value"
+                        type="button"
+                        class="hub-preset"
+                        :class="{ 'is-active': props.filters.period === option.value }"
+                        :aria-pressed="props.filters.period === option.value"
+                        @click="applyPeriod(option.value)"
+                    >{{ option.label }}</button>
+                    <button
+                        type="button"
+                        class="hub-preset"
+                        :class="{ 'is-active': props.filters.period === 'custom' }"
+                        :aria-pressed="props.filters.period === 'custom'"
+                        @click="openCustom"
+                    >Rentang kustom</button>
+                </div>
+
+                <div class="hub-filter-channels">
+                    <span class="hub-filter-label">Kanal</span>
+                    <div class="hub-presets" role="group" aria-label="Filter kanal penjualan">
+                        <button
+                            v-for="option in channelOptions"
+                            :key="option.value"
+                            type="button"
+                            class="hub-preset"
+                            :class="{ 'is-active': props.filters.channel === option.value }"
+                            :aria-pressed="props.filters.channel === option.value"
+                            @click="applyChannel(option.value)"
+                        >{{ option.label }}</button>
+                    </div>
+                </div>
+
+                <div v-if="showCustom" class="hub-custom">
+                    <div class="hub-custom-field">
+                        <label class="form-label" for="hub-date-from">Dari tanggal</label>
+                        <input
+                            id="hub-date-from"
+                            v-model="form.date_from"
+                            class="form-control form-control-sm"
+                            type="date"
+                            required
+                            :max="form.date_to || undefined"
+                        />
+                    </div>
+                    <div class="hub-custom-field">
+                        <label class="form-label" for="hub-date-to">Sampai tanggal</label>
+                        <input
+                            id="hub-date-to"
+                            v-model="form.date_to"
+                            class="form-control form-control-sm"
+                            type="date"
+                            required
+                            :min="form.date_from || undefined"
+                        />
+                    </div>
+                    <div class="hub-custom-actions">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="mdi mdi-filter-outline me-1"></i>
+                            Terapkan
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="showCustom = false">
+                            Batal
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <p class="hub-filter-note">
+                Omset kotor dari harga jual sebelum diskon, omset bersih setelah diskon produk dan voucher (tanpa ongkir). Kanal memfilter omzet, transaksi, pembeli, dan order. Stok menipis selalu kondisi saat ini.
+            </p>
+        </section>
+
         <div class="row g-3 mb-3">
             <div v-for="stat in [
-                { label: 'Omzet 30 hari', value: currency(summary.revenue) },
+                { label: `Omset Kotor (${activePeriodLabel})`, value: formatCurrency(summary.gross_revenue) },
+                { label: `Omset Bersih (${activePeriodLabel})`, value: formatCurrency(summary.net_revenue) },
                 { label: 'Transaksi', value: formatNumber(summary.transactions) },
+                { label: 'Pembeli', value: formatNumber(summary.buyers) },
                 { label: 'Stok menipis', value: formatNumber(inventory.low_stock_alerts) },
                 { label: 'Order terbuka', value: formatNumber(orders.ecommerce_open + orders.store_order_open + orders.return_open) }
-            ]" :key="stat.label" class="col-6 col-xl-3">
+            ]" :key="stat.label" class="col-6 col-md-4 col-xl-2">
                 <div class="hub-stat">
                     <span>{{ stat.label }}</span>
                     <strong>{{ stat.value }}</strong>
@@ -111,7 +287,7 @@ const modules = [
                 { title: 'Pesanan', description: 'Status pesanan, antrean SLA, permintaan store, dan retur.', anchor: 'pesanan', icon: 'mdi-clipboard-check-outline' },
                 { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' }
             ]" :key="domain.title" class="col-md-4">
-                <a :href="`${props.urls.overview}#${domain.anchor}`" class="hub-domain">
+                <a :href="`${overviewUrl}#${domain.anchor}`" class="hub-domain">
                     <span class="hub-domain-icon"><i class="mdi" :class="domain.icon"></i></span>
                     <div>
                         <h3>{{ domain.title }}</h3>
@@ -145,9 +321,28 @@ const modules = [
 .hub-hero h2 { margin: 0 0 0.4rem; font-size: 1.7rem; max-width: 36rem; }
 .hub-hero p { margin: 0; color: var(--app-hero-muted); max-width: 40rem; }
 .hub-primary { display: inline-flex; align-items: center; padding: 0.7rem 1rem; border-radius: 0.6rem; background: var(--app-accent-strong); color: var(--app-on-accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
+.hub-filter { padding: 1rem 1.1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); }
+.hub-filter-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; }
+.hub-filter-current { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.6rem; }
+.hub-filter-label { color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.hub-filter-current strong { font-size: 1rem; }
+.hub-filter-range { color: var(--app-muted); font-size: 0.78rem; }
+.hub-filter-reset { padding: 0.2rem; border: 0; background: none; color: var(--app-accent-ink); font-size: 0.78rem; font-weight: 600; }
+.hub-filter-reset:hover { text-decoration: underline; }
+.hub-filter-form { margin-top: 0.75rem; }
+.hub-filter-channels { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.6rem; margin-top: 0.6rem; }
+.hub-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.hub-preset { min-height: 2rem; padding: 0.3rem 0.7rem; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-surface-2); color: var(--app-ink); font-size: 0.78rem; font-weight: 600; }
+.hub-preset:hover { border-color: var(--app-accent); color: var(--app-accent-ink); }
+.hub-preset.is-active { border-color: var(--app-accent); background: var(--app-accent-soft); color: var(--app-accent-ink); }
+.hub-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--app-border); }
+.hub-custom-field { flex: 1 1 11rem; min-width: 0; }
+.hub-custom-field .form-label { margin-bottom: 0.25rem; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.hub-custom-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.hub-filter-note { margin: 0.6rem 0 0; color: var(--app-muted); font-size: 0.75rem; }
 .hub-stat { height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
 .hub-stat span { display: block; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.hub-stat strong { display: block; margin-top: 0.25rem; font-size: 1.45rem; }
+.hub-stat strong { display: block; margin-top: 0.25rem; font-size: 1.3rem; line-height: 1.2; overflow-wrap: anywhere; }
 .hub-domain { display: flex; align-items: flex-start; gap: 0.75rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); color: var(--app-ink); text-decoration: none; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
 .hub-domain:hover { border-color: var(--app-accent); }
 .hub-domain-icon { display: grid; flex: 0 0 auto; width: 2.3rem; height: 2.3rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.2rem; }
@@ -160,5 +355,14 @@ const modules = [
 .hub-card p { margin: 0 0 1rem; color: var(--app-muted); font-size: 0.9rem; line-height: 1.55; }
 .hub-card-link { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--app-accent-ink); font-weight: 700; text-decoration: none; }
 .hub-card-link:hover { text-decoration: underline; }
-@media (max-width: 767.98px) { .hub-hero { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 767.98px) {
+    .hub-hero { align-items: flex-start; flex-direction: column; }
+    .hub-filter-head { align-items: flex-start; flex-direction: column; }
+    .hub-filter-channels { align-items: flex-start; flex-direction: column; }
+    .hub-preset { min-height: 2.75rem; padding: 0.5rem 0.85rem; }
+    .hub-filter-reset { min-height: 2.75rem; }
+    .hub-custom-field { flex-basis: 100%; }
+    .hub-custom-actions { width: 100%; }
+    .hub-custom-actions .btn { flex: 1 1 auto; min-height: 2.75rem; }
+}
 </style>

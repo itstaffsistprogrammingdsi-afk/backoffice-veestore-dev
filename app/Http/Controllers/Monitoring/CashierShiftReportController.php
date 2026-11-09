@@ -53,6 +53,7 @@ class CashierShiftReportController extends Controller
                 COALESCE(SUM(CASE WHEN x.cashier_status = 'closed' THEN 1 ELSE 0 END), 0)::int as today_closed_sessions,
                 COALESCE(SUM(x.total_receivable_amount), 0)::numeric as today_receivable_amount,
                 COALESCE(SUM(x.total_change_amount), 0)::numeric as today_change_amount,
+                COALESCE(SUM(x.total_discount_amount), 0)::numeric as today_total_discount,
                 COALESCE(SUM(x.opening_cash), 0)::numeric as today_opening_cash,
                 COALESCE(SUM(x.closing_cash_system), 0)::numeric as today_system_cash,
                 COALESCE(SUM(x.closing_cash_physical), 0)::numeric as today_physical_cash,
@@ -80,6 +81,10 @@ class CashierShiftReportController extends Controller
                 COALESCE(SUM(CASE WHEN x.cashier_status = 'closed' THEN 1 ELSE 0 END), 0)::int as total_closed_sessions,
                 COALESCE(SUM(x.total_receivable_amount), 0)::numeric as total_receivable_amount,
                 COALESCE(SUM(x.total_change_amount), 0)::numeric as total_change_amount,
+                COALESCE(SUM(x.total_product_discount), 0)::numeric as total_product_discount,
+                COALESCE(SUM(x.total_voucher_discount), 0)::numeric as total_voucher_discount,
+                COALESCE(SUM(x.total_point_discount), 0)::numeric as total_point_discount,
+                COALESCE(SUM(x.total_discount_amount), 0)::numeric as total_discount_amount,
                 COALESCE(SUM(x.opening_cash), 0)::numeric as total_opening_cash,
                 COALESCE(SUM(x.closing_cash_system), 0)::numeric as total_system_cash,
                 COALESCE(SUM(x.closing_cash_physical), 0)::numeric as total_physical_cash,
@@ -575,6 +580,38 @@ class CashierShiftReportController extends Controller
             ')
             ->groupBy('svp.cashier_session_id');
 
+        /*
+        |--------------------------------------------------------------------------
+        | Total diskon per cashier session
+        |--------------------------------------------------------------------------
+        | Diskon produk dihitung dari detail keranjang, sedangkan voucher dan
+        | poin dihitung sekali per keranjang agar tidak terduplikasi.
+        */
+        $cartDiscountSub = DB::table('store_carts as sc')
+            ->leftJoin('store_cart_details as scd', 'scd.cart_id', '=', 'sc.id')
+            ->where(function ($query): void {
+                $query->whereNull('scd.void_status')
+                    ->orWhere('scd.void_status', '!=', 'void');
+            })
+            ->select([
+                'sc.id',
+                'sc.visit_id',
+                'sc.voucher_discount',
+                'sc.point_amount',
+            ])
+            ->selectRaw('COALESCE(SUM(COALESCE(scd.discount_amount, 0)), 0)::numeric as product_discount')
+            ->groupBy('sc.id', 'sc.visit_id', 'sc.voucher_discount', 'sc.point_amount');
+
+        $discountSub = DB::table('store_visit_payments as svp')
+            ->joinSub($cartDiscountSub, 'cart', function ($join): void {
+                $join->on('cart.visit_id', '=', 'svp.visit_id');
+            })
+            ->select('svp.cashier_session_id')
+            ->selectRaw('COALESCE(SUM(cart.product_discount), 0)::numeric as total_product_discount')
+            ->selectRaw('COALESCE(SUM(cart.voucher_discount), 0)::numeric as total_voucher_discount')
+            ->selectRaw('COALESCE(SUM(cart.point_amount), 0)::numeric as total_point_discount')
+            ->groupBy('svp.cashier_session_id');
+
         $paymentSummarySub = DB::table('cashier_session_payment_summaries as csps')
             ->join('payment_methods as pm', 'pm.id', '=', 'csps.payment_method_id')
             ->selectRaw("
@@ -597,6 +634,9 @@ class CashierShiftReportController extends Controller
             ->join('users as u', 'u.id', '=', 'cs.user_id')
             ->leftJoinSub($changeSub, 'chg', function ($join) {
                 $join->on('chg.cashier_session_id', '=', 'cs.id');
+            })
+            ->leftJoinSub($discountSub, 'disc', function ($join) {
+                $join->on('disc.cashier_session_id', '=', 'cs.id');
             })
             ->leftJoinSub($paymentSummarySub, 'pay_sum', function ($join) {
                 $join->on('pay_sum.cashier_session_id', '=', 'cs.id');
@@ -690,6 +730,14 @@ class CashierShiftReportController extends Controller
                 COALESCE(pay_sum.total_non_cash_transactions, 0)::int as total_non_cash_transactions,
                 COALESCE(pay_sum.total_receivable_amount, 0)::numeric as total_receivable_amount,
                 COALESCE(chg.total_change_amount, 0)::numeric as total_change_amount,
+                COALESCE(disc.total_product_discount, 0)::numeric as total_product_discount,
+                COALESCE(disc.total_voucher_discount, 0)::numeric as total_voucher_discount,
+                COALESCE(disc.total_point_discount, 0)::numeric as total_point_discount,
+                (
+                    COALESCE(disc.total_product_discount, 0)
+                    + COALESCE(disc.total_voucher_discount, 0)
+                    + COALESCE(disc.total_point_discount, 0)
+                )::numeric as total_discount_amount,
                 1::int as total_sessions
             ");
     }
@@ -739,6 +787,10 @@ class CashierShiftReportController extends Controller
                 COALESCE(SUM(x.total_non_cash_transactions), 0)::int as total_non_cash_transactions,
                 COALESCE(SUM(x.total_receivable_amount), 0)::numeric as total_receivable_amount,
                 COALESCE(SUM(x.total_change_amount), 0)::numeric as total_change_amount,
+                COALESCE(SUM(x.total_product_discount), 0)::numeric as total_product_discount,
+                COALESCE(SUM(x.total_voucher_discount), 0)::numeric as total_voucher_discount,
+                COALESCE(SUM(x.total_point_discount), 0)::numeric as total_point_discount,
+                COALESCE(SUM(x.total_discount_amount), 0)::numeric as total_discount_amount,
                 COALESCE(SUM(x.cash_difference), 0)::numeric as total_cash_difference
             ")
             ->groupByRaw('DATE(x.opened_at), x.store_id, x.store_name, x.shift_id, x.shift_name, x.shift_code, x.shift_start_time');

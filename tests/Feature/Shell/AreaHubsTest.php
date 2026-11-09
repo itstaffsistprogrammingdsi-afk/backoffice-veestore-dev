@@ -35,9 +35,66 @@ class AreaHubsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Reports/Index')
+                ->has('filters')
                 ->has('summary')
+                ->has('summary.gross_revenue')
+                ->has('summary.net_revenue')
+                ->has('summary.revenue')
                 ->has('urls')
+                ->where('filters.period', 'month')
+                ->where('filters.channel', 'all')
+                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'year'])
+                ->where('urls.hub', route('reports.index'))
                 ->where('urls.overview', route('reports.business-overview.index'))
                 ->where('urls.preference', route('reports.crm.customer-preference.index')));
+    }
+
+    public function test_reports_area_hub_accepts_quick_period_filters(): void
+    {
+        $admin = $this->admin();
+
+        foreach (['today', 'week', 'month', 'year'] as $period) {
+            $this->actingAs($admin)
+                ->get(route('reports.index', ['period' => $period]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('Reports/Index')
+                    ->where('filters.period', $period)
+                    ->has('filters.date_from')
+                    ->has('filters.date_to'));
+        }
+    }
+
+    public function test_reports_area_hub_accepts_custom_range(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('reports.index', [
+                'period' => 'custom',
+                'date_from' => '2026-10-01',
+                'date_to' => '2026-10-31',
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/Index')
+                ->where('filters.period', 'custom')
+                ->where('filters.date_from', '2026-10-01')
+                ->where('filters.date_to', '2026-10-31'));
+    }
+
+    public function test_reports_area_hub_accepts_channel_filter(): void
+    {
+        $admin = $this->admin();
+
+        foreach (['store', 'ecommerce'] as $channel) {
+            $this->actingAs($admin)
+                ->get(route('reports.index', ['period' => 'month', 'channel' => $channel]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->component('Reports/Index')
+                    ->where('filters.channel', $channel)
+                    ->has('summary.gross_revenue')
+                    ->has('summary.net_revenue')
+                    ->has('summary.revenue'));
+        }
     }
 }

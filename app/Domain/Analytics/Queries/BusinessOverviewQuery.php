@@ -262,6 +262,22 @@ class BusinessOverviewQuery
         $posRevenue = (float) ($summaryRow->pos_revenue ?? 0);
         $ecommerceRevenue = (float) ($summaryRow->ecommerce_revenue ?? 0);
 
+        $grossRow = $this->grossSalesQuery($filters)->selectRaw("
+            COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
+            COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue,
+            COALESCE(SUM(gross_amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_gross_revenue,
+            COALESCE(SUM(net_amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_net_revenue,
+            COALESCE(SUM(gross_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_gross_revenue,
+            COALESCE(SUM(net_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_net_revenue
+        ")->first();
+
+        $grossRevenue = (float) ($grossRow->gross_revenue ?? 0);
+        $netRevenue = (float) ($grossRow->net_revenue ?? 0);
+        $posGrossRevenue = (float) ($grossRow->pos_gross_revenue ?? 0);
+        $posNetRevenue = (float) ($grossRow->pos_net_revenue ?? 0);
+        $ecommerceGrossRevenue = (float) ($grossRow->ecommerce_gross_revenue ?? 0);
+        $ecommerceNetRevenue = (float) ($grossRow->ecommerce_net_revenue ?? 0);
+
         $trend = $this->salesQuery($filters)
             ->selectRaw('sold_at::date AS date, COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue, COUNT(*)::int AS transactions')
             ->groupByRaw('sold_at::date')
@@ -325,6 +341,8 @@ class BusinessOverviewQuery
 
         return [
             'summary' => [
+                'gross_revenue' => $grossRevenue,
+                'net_revenue' => $netRevenue,
                 'revenue' => $revenue,
                 'transactions' => $transactions,
                 'average_transaction' => $transactions > 0 ? $revenue / $transactions : 0,
@@ -334,6 +352,8 @@ class BusinessOverviewQuery
                 [
                     'key' => 'pos',
                     'label' => 'POS / Store',
+                    'gross_revenue' => $posGrossRevenue,
+                    'net_revenue' => $posNetRevenue,
                     'revenue' => $posRevenue,
                     'transactions' => (int) ($summaryRow->pos_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($posRevenue / $revenue) * 100) : 0,
@@ -341,6 +361,8 @@ class BusinessOverviewQuery
                 [
                     'key' => 'ecommerce',
                     'label' => 'Ecommerce',
+                    'gross_revenue' => $ecommerceGrossRevenue,
+                    'net_revenue' => $ecommerceNetRevenue,
                     'revenue' => $ecommerceRevenue,
                     'transactions' => (int) ($summaryRow->ecommerce_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($ecommerceRevenue / $revenue) * 100) : 0,
@@ -623,6 +645,106 @@ class BusinessOverviewQuery
         };
 
         return DB::query()->fromSub($sales, 'sales');
+    }
+
+    private function grossSalesQuery(array $filters): Builder
+    {
+        $paidVisits = DB::table('store_visit_payments as svp')
+            ->join('payments as p', 'p.id', '=', 'svp.payment_id')
+            ->whereNull('p.deleted_at')
+            ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
+            ->selectRaw('svp.visit_id, MIN(COALESCE(p.completed_at, p.created_at)) AS sold_at')
+            ->groupBy('svp.visit_id');
+
+        $cartNet = DB::table('store_cart_details as scd')
+            ->whereRaw("COALESCE(scd.void_status, '') <> 'void'")
+            ->selectRaw('
+                scd.cart_id,
+                SUM(GREATEST(COALESCE(scd.product_price_amount, 0) - COALESCE(scd.discount_amount, 0), 0)) AS cart_item_net_total
+            ')
+            ->groupBy('scd.cart_id');
+
+        $orderNet = DB::table('ecommerce_order_details as eod')
+            ->selectRaw('
+                eod.ecommerce_order_id,
+                SUM(
+                    COALESCE(
+                        NULLIF(eod.total_price, 0),
+                        (COALESCE(eod.product_price, 0) * COALESCE(eod.quantity, 0)) - COALESCE(eod.total_discount, 0)
+                    )
+                ) AS order_item_net_total
+            ')
+            ->groupBy('eod.ecommerce_order_id');
+
+        $storeSellingPrice = 'COALESCE(NULLIF(scd.product_price_amount, 0), price.price, 0)';
+        $storeLineNet = "GREATEST({$storeSellingPrice} - COALESCE(scd.discount_amount, 0), 0)";
+        $storeOrderDiscount = "
+            CASE
+                WHEN COALESCE(cart_net.cart_item_net_total, 0) > 0 THEN
+                    ROUND(
+                        ({$storeLineNet} / cart_net.cart_item_net_total)
+                        * (COALESCE(sc.voucher_discount, 0) + COALESCE(sc.point_amount, 0)),
+                        2
+                    )
+                ELSE 0
+            END
+        ";
+
+        $pos = DB::table('store_cart_details as scd')
+            ->join('store_carts as sc', 'sc.id', '=', 'scd.cart_id')
+            ->join('store_customer_visits as v', 'v.id', '=', 'sc.visit_id')
+            ->join('stores as s', 's.id', '=', 'v.store_id')
+            ->joinSub($paidVisits, 'paid_visits', 'paid_visits.visit_id', '=', 'sc.visit_id')
+            ->leftJoin('product_prices as price', 'price.id', '=', 'scd.product_price_id')
+            ->leftJoinSub($cartNet, 'cart_net', 'cart_net.cart_id', '=', 'sc.id')
+            ->whereNull('s.deleted_at')
+            ->whereRaw("COALESCE(scd.void_status, '') <> 'void'")
+            ->whereRaw('paid_visits.sold_at::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['store_id'], fn ($query) => $query->where('v.store_id', $filters['store_id']))
+            ->selectRaw("
+                'POS'::text AS channel,
+                ({$storeSellingPrice})::numeric(18,2) AS gross_amount,
+                GREATEST(({$storeLineNet}) - ({$storeOrderDiscount}), 0)::numeric(18,2) AS net_amount
+            ");
+
+        $ecommerceSellingPrice = 'COALESCE(NULLIF(eod.product_price, 0), price.price, 0)';
+        $ecommerceGross = "({$ecommerceSellingPrice} * GREATEST(COALESCE(eod.quantity, 0), 0))";
+        $ecommerceLineNet = "COALESCE(NULLIF(eod.total_price, 0), ({$ecommerceGross}) - COALESCE(eod.total_discount, 0))";
+        $ecommerceOrderDiscount = "
+            CASE
+                WHEN COALESCE(order_net.order_item_net_total, 0) > 0 THEN
+                    ROUND(
+                        ({$ecommerceLineNet} / order_net.order_item_net_total)
+                        * GREATEST(COALESCE(eo.discount_total, 0), 0),
+                        2
+                    )
+                ELSE 0
+            END
+        ";
+
+        $ecommerce = DB::table('ecommerce_order_details as eod')
+            ->join('ecommerce_orders as eo', 'eo.id', '=', 'eod.ecommerce_order_id')
+            ->join('payments as p', 'p.id', '=', 'eo.payment_id')
+            ->leftJoin('product_prices as price', 'price.id', '=', 'eod.product_price_id')
+            ->leftJoinSub($orderNet, 'order_net', 'order_net.ecommerce_order_id', '=', 'eo.id')
+            ->whereNull('p.deleted_at')
+            ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
+            ->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
+            ->whereRaw('COALESCE(p.completed_at, eo.created_at)::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
+            ->when($filters['store_id'], fn ($query) => $query->where('eo.handled_by_store_id', $filters['store_id']))
+            ->selectRaw("
+                'Ecommerce'::text AS channel,
+                ({$ecommerceGross})::numeric(18,2) AS gross_amount,
+                GREATEST(({$ecommerceLineNet}) - ({$ecommerceOrderDiscount}), 0)::numeric(18,2) AS net_amount
+            ");
+
+        $grossSales = match ($filters['channel']) {
+            'store' => $pos,
+            'ecommerce' => $ecommerce,
+            default => $pos->unionAll($ecommerce),
+        };
+
+        return DB::query()->fromSub($grossSales, 'gross_sales');
     }
 
     private function productSalesQuery(array $filters): Builder

@@ -14,8 +14,11 @@ class StockReservationService
      * telah diterima tidak lagi dihitung sebagai "Dipesan" meski penerimaan
      * dilakukan sebagian.
      */
-    public function remainingByLocation(string $handlerType)
-    {
+    public function remainingByLocation(
+        string $handlerType,
+        ?string $excludeReferenceType = null,
+        ?string $excludeReferenceId = null
+    ) {
         if (! Schema::hasTable('stock_reservations')) {
             return DB::query()
                 ->selectRaw('NULL::uuid as location_id, NULL::uuid as product_id, 0::int as qty_reserved')
@@ -50,6 +53,13 @@ class StockReservationService
             END)::int as qty_reserved")
             ->where('sr.handler_type', $handlerType)
             ->where('sr.status', 'active')
+            ->when(
+                $excludeReferenceType !== null && $excludeReferenceId !== null,
+                fn ($query) => $query->whereRaw(
+                    'NOT (sr.reference_type = ? AND sr.reference_id::text = ?)',
+                    [$excludeReferenceType, $excludeReferenceId]
+                )
+            )
             ->groupBy('sr.handler_id', 'sr.product_id');
     }
 

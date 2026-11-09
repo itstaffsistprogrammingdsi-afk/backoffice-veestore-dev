@@ -13,10 +13,18 @@ class ReportsHubController extends Controller
         $data = $overview->build($request->query());
 
         return Inertia::render('Reports/Index', [
+            'filters' => $data['filters'],
+            'periodOptions' => [
+                ['value' => 'today', 'label' => 'Hari ini'],
+                ['value' => 'week', 'label' => 'Minggu ini'],
+                ['value' => 'month', 'label' => 'Bulan ini'],
+                ['value' => 'year', 'label' => 'Tahun ini'],
+            ],
             'summary' => $data['sales']['summary'],
             'orders' => $data['orders']['summary'],
             'inventory' => $data['inventory']['summary'],
             'urls' => [
+                'hub' => route('reports.index'),
                 'overview' => route('reports.business-overview.index'),
                 'assistant' => route('ai-assistant.index'),
                 'monitoring' => route('monitoring.command-center.index'),

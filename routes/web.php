@@ -12,7 +12,9 @@ use App\Http\Controllers\Loyalty\CustomerLoyaltyPointController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointMutationController;
 // Master Data
 use App\Http\Controllers\Management\BackofficeRoleController;
+use App\Http\Controllers\Management\BrandListingController;
 use App\Http\Controllers\Management\LabelPrintRequestApprovalController;
+use App\Http\Controllers\Management\PresentationReadinessController;
 use App\Http\Controllers\Management\RolePermissionController;
 use App\Http\Controllers\Management\UserRoleController;
 use App\Http\Controllers\MasterData\BrandController;
@@ -54,6 +56,8 @@ use App\Http\Controllers\Monitoring\CustomerMembershipMonitoringController;
 use App\Http\Controllers\Monitoring\EcommerceOrderFulfillmentController;
 use App\Http\Controllers\Monitoring\EcommercePaymentController;
 use App\Http\Controllers\Monitoring\EmployeeShiftAttendanceController;
+use App\Http\Controllers\Monitoring\FifoFefoPriorityReportController;
+use App\Http\Controllers\Monitoring\MasterChangeHistoryReportController;
 use App\Http\Controllers\Monitoring\MonitoringCommandCenterController;
 use App\Http\Controllers\Monitoring\MonitoringDataCustomerController;
 use App\Http\Controllers\Monitoring\MonitoringDiskonController;
@@ -63,6 +67,7 @@ use App\Http\Controllers\Monitoring\OmsetCabangController;
 use App\Http\Controllers\Monitoring\OmsetKotorSalesController;
 use App\Http\Controllers\Monitoring\OrderHandledController;
 use App\Http\Controllers\Monitoring\PaymentIncomeRealtimeController;
+use App\Http\Controllers\Monitoring\PaymentSlaReportController;
 use App\Http\Controllers\Monitoring\PendingTransactionReportController;
 use App\Http\Controllers\Monitoring\PhysicalStockAccumulationController;
 use App\Http\Controllers\Monitoring\ProductAgingMonitoringController;
@@ -91,6 +96,7 @@ use App\Http\Controllers\Monitoring\VoidCancelCustomerReportController;
 use App\Http\Controllers\Monitoring\VoucherRejectReportController;
 use App\Http\Controllers\Monitoring\WarehouseInboundController;
 use App\Http\Controllers\Monitoring\WarehouseOutboundController;
+use App\Http\Controllers\Monitoring\WarehouseLossDamageReportController;
 use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
 use App\Http\Controllers\Monitoring\WarehouseUserAuditReportController;
 // Reports
@@ -103,6 +109,7 @@ use App\Http\Controllers\Operations\StoreInboundOperationsController;
 use App\Http\Controllers\Operations\StoreOrderApprovalController;
 use App\Http\Controllers\Operations\StoreOutboundOperationsController;
 use App\Http\Controllers\Operations\StoreReturnApprovalController as OperationsStoreReturnApprovalController;
+use App\Http\Controllers\Operations\StoreSampleGimmickController;
 use App\Http\Controllers\Operations\StoreStockOperationsController;
 use App\Http\Controllers\OperationsHubController;
 use App\Http\Controllers\ReportExportController;
@@ -111,6 +118,9 @@ use App\Http\Controllers\Reports\CrmController;
 use App\Http\Controllers\Reports\CustomerPreferenceController;
 use App\Http\Controllers\Reports\HistoryCustomerController;
 use App\Http\Controllers\Reports\OrderCabangController;
+use App\Http\Controllers\Reports\PriceMarginController;
+use App\Http\Controllers\Reports\ProfitLossController;
+use App\Http\Controllers\Reports\ReceivablePayableController;
 // Settings
 use App\Http\Controllers\Reports\SupplierProductController;
 use App\Http\Controllers\Reports\VoucherReportController;
@@ -183,6 +193,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/operations/customers/demographics/birthday-greeting', [CrmController::class, 'sendBirthdayGreeting'])
         ->name('operations.customers.demographics.birthday-greeting');
     Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
+    Route::get('/operations/sample-gimmick', [StoreSampleGimmickController::class, 'index'])->name('operations.sample-gimmick.index');
+    Route::post('/operations/sample-gimmick/mark', [StoreSampleGimmickController::class, 'mark'])->name('operations.sample-gimmick.mark');
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
     Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
     Route::prefix('operations/store-orders')->name('operations.store-orders.')->group(function () {
@@ -525,6 +537,29 @@ Route::middleware('auth')->group(function () {
             ->name('request-labels.approve');
         Route::put('request-labels/{id}/reject', [LabelPrintRequestApprovalController::class, 'reject'])
             ->name('request-labels.reject');
+
+        Route::get('presentation-readiness', [PresentationReadinessController::class, 'index'])
+            ->name('presentation-readiness.index');
+        Route::post('presentation-readiness/archive-products', [PresentationReadinessController::class, 'archiveProducts'])
+            ->name('presentation-readiness.archive-products');
+        Route::post('presentation-readiness/archive-stores', [PresentationReadinessController::class, 'archiveStores'])
+            ->name('presentation-readiness.archive-stores');
+        Route::post('presentation-readiness/archive-warehouses', [PresentationReadinessController::class, 'archiveWarehouses'])
+            ->name('presentation-readiness.archive-warehouses');
+
+        Route::prefix('brand-listings')->name('brand-listings.')->group(function () {
+            Route::get('/', [BrandListingController::class, 'index'])->name('index');
+            Route::post('/', [BrandListingController::class, 'store'])->name('store');
+            Route::get('{id}/download', [BrandListingController::class, 'download'])
+                ->whereUuid('id')
+                ->name('download');
+            Route::put('{id}/approve', [BrandListingController::class, 'approve'])
+                ->whereUuid('id')
+                ->name('approve');
+            Route::put('{id}/reject', [BrandListingController::class, 'reject'])
+                ->whereUuid('id')
+                ->name('reject');
+        });
     });
 
     /*
@@ -561,6 +596,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('audit-center', [MonitoringCommandCenterController::class, 'auditCenter'])
             ->name('audit-center.index');
+
+        Route::get('master-change-history', [MasterChangeHistoryReportController::class, 'index'])
+            ->name('master-change-history.index');
+
+        Route::get('overnight-price-adjustment', [MasterChangeHistoryReportController::class, 'overnight'])
+            ->name('overnight-price-adjustment.index');
         Route::get('data-quality', [MonitoringCommandCenterController::class, 'dataQuality'])
             ->name('data-quality.index');
         Route::get('supplier-insight', [SupplierInsightController::class, 'index'])
@@ -580,6 +621,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('warehouse-user-audit', [WarehouseUserAuditReportController::class, 'index'])
             ->name('warehouse-user-audit.index');
+
+        Route::get('warehouse-loss-damage', [WarehouseLossDamageReportController::class, 'index'])
+            ->name('warehouse-loss-damage.index');
 
         Route::get('stock-opname-variance', [StockOpnameVarianceReportController::class, 'index'])
             ->name('stock-opname-variance.index');
@@ -822,6 +866,12 @@ Route::middleware('auth')->group(function () {
         Route::get('tracking-barang/{product}', [TrackingBarangController::class, 'detail'])
             ->name('tracking-barang.detail');
 
+        Route::get('fifo-fefo-priority', [FifoFefoPriorityReportController::class, 'index'])
+            ->name('fifo-fefo-priority.index');
+
+        Route::get('payment-sla', [PaymentSlaReportController::class, 'index'])
+            ->name('payment-sla.index');
+
         Route::get('product-aging', [ProductAgingMonitoringController::class, 'index'])
             ->name('product-aging.index');
 
@@ -976,6 +1026,25 @@ Route::middleware('auth')->group(function () {
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('business-overview', [BusinessOverviewController::class, 'index'])
             ->name('business-overview.index');
+
+        Route::get('price-margin', [PriceMarginController::class, 'index'])
+            ->name('price-margin.index');
+
+        Route::get('profit-loss', [ProfitLossController::class, 'index'])
+            ->name('profit-loss.index');
+
+        Route::get('receivable-payable', [ReceivablePayableController::class, 'index'])
+            ->name('receivable-payable.index');
+        Route::post('receivable-payable', [ReceivablePayableController::class, 'store'])
+            ->name('receivable-payable.store');
+        Route::patch('receivable-payable/status', [ReceivablePayableController::class, 'updateStatus'])
+            ->name('receivable-payable.status');
+        Route::delete('receivable-payable', [ReceivablePayableController::class, 'destroy'])
+            ->name('receivable-payable.destroy');
+        Route::post('profit-loss/expenses', [ProfitLossController::class, 'addExpense'])
+            ->name('profit-loss.add-expense');
+        Route::delete('profit-loss/expenses', [ProfitLossController::class, 'deleteExpense'])
+            ->name('profit-loss.delete-expense');
 
         Route::get('crm', [CrmController::class, 'index'])->name('crm.index');
 

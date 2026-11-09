@@ -17,8 +17,11 @@ class WarehouseStockAvailability
      * @param  array<int, string>  $productIds
      * @return array<string, array<string, array<string, int>>>
      */
-    public function forProducts(array $warehouseIds, array $productIds): array
-    {
+    public function forProducts(
+        array $warehouseIds,
+        array $productIds,
+        ?string $excludeReferenceId = null
+    ): array {
         $warehouseIds = $this->uuidValues($warehouseIds);
         $productIds = $this->uuidValues($productIds);
 
@@ -42,7 +45,11 @@ class WarehouseStockAvailability
             ")
             ->get();
 
-        $reserved = $this->reservations->remainingByLocation('warehouse')
+        $reserved = $this->reservations->remainingByLocation(
+            'warehouse',
+            $excludeReferenceId !== null ? 'store_order' : null,
+            $excludeReferenceId
+        )
             ->get()
             ->filter(fn ($row): bool => in_array((string) $row->location_id, $warehouseIds, true)
                 && in_array((string) $row->product_id, $productIds, true))

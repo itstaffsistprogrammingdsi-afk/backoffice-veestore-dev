@@ -36,6 +36,10 @@ class PartnerController extends Controller
         $status = in_array($status, array_keys(Partner::STATUS_LABELS), true) ? $status : null;
 
         $items = Partner::query()
+            ->where(function ($query) {
+                $query->whereNull('billing_cycle')
+                    ->orWhere('billing_cycle', '!=', 'brand_listing');
+            })
             ->when($q !== '', function ($w) use ($q) {
                 $needle = mb_strtolower($q);
                 $w->where(function ($sub) use ($needle) {
@@ -131,7 +135,10 @@ class PartnerController extends Controller
 
     private function validatePartner(Request $request, ?Partner $partner = null): array
     {
-        $uniqueName = Rule::unique('partners', 'name');
+        $uniqueName = Rule::unique('partners', 'name')
+            ->where(fn ($query) => $query
+                ->whereNull('billing_cycle')
+                ->orWhere('billing_cycle', '!=', 'brand_listing'));
 
         if ($partner) {
             $uniqueName->ignore($partner->getKey(), 'id');

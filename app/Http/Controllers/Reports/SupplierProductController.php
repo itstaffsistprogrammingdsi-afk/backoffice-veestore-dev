@@ -37,6 +37,9 @@ class SupplierProductController extends Controller
             ->selectRaw('COUNT(DISTINCT product_name)::bigint as total_products')
             ->selectRaw('COALESCE(SUM(qty_inbound), 0)::bigint as total_qty_inbound')
             ->selectRaw('COALESCE(SUM(stok_now), 0)::bigint as total_stock')
+            ->selectRaw('COALESCE(SUM(stok_good), 0)::bigint as total_good')
+            ->selectRaw('COALESCE(SUM(stok_bad), 0)::bigint as total_bad')
+            ->selectRaw('COALESCE(SUM(stok_value), 0)::numeric as total_stock_value')
             ->selectRaw('COUNT(*) FILTER (WHERE stok_now > 0)::bigint as products_with_stock')
             ->selectRaw('COUNT(*) FILTER (WHERE stok_now <= 0)::bigint as products_without_stock')
             ->first();
@@ -201,9 +204,26 @@ class SupplierProductController extends Controller
 
     private function buildReportQuery(array $filters): Builder
     {
+        $latestBasePrices = DB::query()
+            ->fromSub(
+                DB::table('product_prices')
+                    ->whereRaw("LOWER(price_type::text) = 'base'")
+                    ->select('product_id', 'price')
+                    ->selectRaw('ROW_NUMBER() OVER (PARTITION BY product_id ORDER BY valid_from DESC NULLS LAST, created_at DESC) AS row_rank'),
+                'ranked_prices'
+            )
+            ->where('row_rank', 1);
+
         $stockNowByProduct = DB::table('items as it')
+            ->leftJoin('item_conditions as ic', 'ic.id', '=', 'it.current_condition_id')
+            ->leftJoinSub($latestBasePrices, 'base_price', function ($join): void {
+                $join->on('base_price.product_id', '=', 'it.product_id');
+            })
             ->select('it.product_id')
             ->selectRaw('COUNT(*)::bigint as stok_now')
+            ->selectRaw("COUNT(*) FILTER (WHERE LOWER(COALESCE(ic.status::text, ic.name)) IN ('good', 'good_after_repair'))::bigint as stok_good")
+            ->selectRaw("COUNT(*) FILTER (WHERE LOWER(COALESCE(ic.status::text, ic.name)) = 'bad')::bigint as stok_bad")
+            ->selectRaw('(COUNT(*) * COALESCE(MAX(base_price.price), 0))::numeric as stok_value')
             ->whereIn(DB::raw('it.status::text'), ['warehouse_stock'])
             ->groupBy('it.product_id');
 
@@ -249,6 +269,9 @@ class SupplierProductController extends Controller
             ->selectRaw('MAX(ib.last_inbound_date) as last_inbound_date')
             ->selectRaw('SUM(ib.inbound_rows)::bigint as inbound_rows')
             ->selectRaw('COALESCE(SUM(stk.stok_now), 0)::bigint as stok_now')
+            ->selectRaw('COALESCE(SUM(stk.stok_good), 0)::bigint as stok_good')
+            ->selectRaw('COALESCE(SUM(stk.stok_bad), 0)::bigint as stok_bad')
+            ->selectRaw('COALESCE(SUM(stk.stok_value), 0)::numeric as stok_value')
             ->groupBy(
                 'ib.supplier_id',
                 'ib.supplier_name',
