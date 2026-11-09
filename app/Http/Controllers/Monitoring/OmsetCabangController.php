@@ -658,6 +658,7 @@ class OmsetCabangController extends Controller
 
         return DB::table('store_order_details as sod')
             ->join('store_orders as so', 'so.id', '=', 'sod.store_order_id')
+            ->whereRaw("COALESCE(so.order_number, '') NOT LIKE 'TRF-%'")
             ->join('stores as s', 's.id', '=', 'so.store_id')
             ->join('products as p', 'p.id', '=', 'sod.product_id')
             ->selectRaw("

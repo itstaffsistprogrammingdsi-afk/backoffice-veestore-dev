@@ -61,6 +61,7 @@ class OrderCabangController extends Controller
         }
 
         $orders = StoreOrder::with(['store:id,name', 'warehouse:id,name'])
+            ->whereRaw("COALESCE(order_number, '') NOT LIKE 'TRF-%'")
             ->withSum('details', 'requested_qty')
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where('order_number', 'ILIKE', "%{$q}%");
@@ -99,6 +100,8 @@ class OrderCabangController extends Controller
 
     public function show(StoreOrder $order)
     {
+        $this->ensureNotTransfer($order);
+
         $order->load([
             'store:id,name',
             'warehouse:id,name',
@@ -181,6 +184,8 @@ class OrderCabangController extends Controller
 
     public function requestSubmit(StoreOrder $order, StoreOrderNotifier $notifier, StoreOrderReservationService $reservations)
     {
+        $this->ensureNotTransfer($order);
+
         if (! $order->isEditable()) {
             return back()->withErrors(['status' => 'Order tidak bisa di-request.']);
         }
@@ -242,6 +247,8 @@ class OrderCabangController extends Controller
 
     public function receive(Request $request, StoreOrder $order, StockReservationService $reservations)
     {
+        $this->ensureNotTransfer($order);
+
         if (! in_array(strtolower((string) $order->status), ['approved', 'partial_approved', 'processing', 'packing', 'shipped', 'partial_received'], true)) {
             return back()->withErrors(['status' => 'Order belum dapat diterima. Pastikan order sudah disetujui terlebih dahulu.']);
         }
@@ -299,6 +306,11 @@ class OrderCabangController extends Controller
         });
 
         return back()->with('success', 'Penerimaan disimpan. Qty dipesan berkurang sesuai qty yang sudah diterima.');
+    }
+
+    private function ensureNotTransfer(StoreOrder $order): void
+    {
+        abort_if(str_starts_with((string) $order->order_number, 'TRF-'), 404);
     }
 
     private function getStockDataByProduct(string $warehouseId, array $productIds = []): array

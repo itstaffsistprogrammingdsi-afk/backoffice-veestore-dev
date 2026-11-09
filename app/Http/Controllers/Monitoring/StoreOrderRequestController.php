@@ -195,6 +195,7 @@ class StoreOrderRequestController extends Controller
             ->leftJoin('warehouses as w', 'w.id', '=', 'so.warehouse_id')
             ->leftJoin('store_order_details as sod', 'sod.store_order_id', '=', 'so.id')
             ->leftJoin('products as p', 'p.id', '=', 'sod.product_id')
+            ->whereRaw("COALESCE(so.order_number, '') NOT LIKE 'TRF-%'")
             ->whereBetween(DB::raw('COALESCE(so.requested_at, so.created_at)'), [$start, $end])
             ->select([
                 'so.id as store_order_id',

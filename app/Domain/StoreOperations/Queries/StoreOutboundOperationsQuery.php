@@ -92,6 +92,10 @@ class StoreOutboundOperationsQuery
             ->leftJoin('store_returns as sr', 'sr.id', '=', 'so.store_return_id')
             ->when($hasCouriers, fn ($query) => $query->leftJoin('couriers as c', 'c.id', '=', 'so.courier_id'))
             ->whereNull('s.deleted_at')
+            ->where(function ($query): void {
+                $query->whereRaw("COALESCE(so.outbound_type::text, '') <> 'transfer'")
+                    ->orWhereNotNull('so.shipment_date');
+            })
             ->when($storeId, fn ($query) => $query->where('so.store_id', $storeId))
             ->when($channel, fn ($query) => $query->where('so.outbound_type', $channel))
             ->when($applyStatus && $status === 'missing_shipping', fn ($query) => $query

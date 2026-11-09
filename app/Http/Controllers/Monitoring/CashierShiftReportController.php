@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use App\Domain\StoreOperations\Support\CashierShiftResolver;
 use App\Exports\CashierShiftReportDetailExport;
 use App\Exports\CashierShiftReportExport;
 use App\Http\Controllers\Controller;
@@ -14,6 +15,10 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CashierShiftReportController extends Controller
 {
+    public function __construct(
+        private readonly CashierShiftResolver $shiftResolver
+    ) {}
+
     public function index(Request $request)
     {
         $filters = $this->getFilters($request);
@@ -626,8 +631,8 @@ class CashierShiftReportController extends Controller
             ")
             ->groupBy('csps.cashier_session_id');
 
-        $attendanceShiftSub = $this->buildAttendanceShiftSubquery();
-        $scheduledShiftSub = $this->buildScheduledShiftSubquery();
+        $attendanceShiftSub = $this->shiftResolver->attendanceShiftSubquery();
+        $scheduledShiftSub = $this->shiftResolver->scheduledShiftSubquery();
 
         return DB::table('cashier_sessions as cs')
             ->join('stores as s', 's.id', '=', 'cs.store_id')
@@ -742,28 +747,6 @@ class CashierShiftReportController extends Controller
             ");
     }
 
-    private function buildAttendanceShiftSubquery()
-    {
-        return DB::table('store_attendances as sa')
-            ->join('store_attendance_shifts as shift', 'shift.id', '=', 'sa.attendance_shift_id')
-            ->selectRaw('
-                DISTINCT ON (sa.store_id, sa.user_id, sa.date)
-                sa.store_id,
-                sa.user_id,
-                sa.date as shift_date,
-                shift.id as shift_id,
-                shift.name as shift_name,
-                shift.code as shift_code,
-                shift.start_time as shift_start_time
-            ')
-            ->whereNotNull('sa.attendance_shift_id')
-            ->orderBy('sa.store_id')
-            ->orderBy('sa.user_id')
-            ->orderBy('sa.date')
-            ->orderByDesc('sa.clock_in_at')
-            ->orderBy('shift.start_time');
-    }
-
     private function buildDailyShiftReportQuery($baseQuery)
     {
         return DB::query()
@@ -794,30 +777,6 @@ class CashierShiftReportController extends Controller
                 COALESCE(SUM(x.cash_difference), 0)::numeric as total_cash_difference
             ")
             ->groupByRaw('DATE(x.opened_at), x.store_id, x.store_name, x.shift_id, x.shift_name, x.shift_code, x.shift_start_time');
-    }
-
-    private function buildScheduledShiftSubquery()
-    {
-        return DB::table('store_shift_schedule_details as detail')
-            ->join('store_shift_schedules as schedule', 'schedule.id', '=', 'detail.store_shift_schedule_id')
-            ->join('store_attendance_shifts as shift', 'shift.id', '=', 'detail.attendance_shift_id')
-            ->selectRaw('
-                DISTINCT ON (schedule.store_id, detail.user_id, detail.schedule_date)
-                schedule.store_id,
-                detail.user_id,
-                detail.schedule_date as shift_date,
-                shift.id as shift_id,
-                shift.name as shift_name,
-                shift.code as shift_code,
-                shift.start_time as shift_start_time
-            ')
-            ->whereNotNull('detail.attendance_shift_id')
-            ->where('detail.is_day_off', false)
-            ->where('detail.is_national_holiday', false)
-            ->orderBy('schedule.store_id')
-            ->orderBy('detail.user_id')
-            ->orderBy('detail.schedule_date')
-            ->orderBy('shift.start_time');
     }
 
     private function accessibleStoreIds(): array
