@@ -53,8 +53,10 @@ use App\Http\Controllers\Monitoring\CashierShiftReportController;
 use App\Http\Controllers\Monitoring\CustomerLoyaltyAccountReportController;
 use App\Http\Controllers\Monitoring\CustomerLoyaltyPointsReportController;
 use App\Http\Controllers\Monitoring\CustomerMembershipMonitoringController;
+use App\Http\Controllers\Monitoring\DiscountSyncController;
 use App\Http\Controllers\Monitoring\EcommerceOrderFulfillmentController;
 use App\Http\Controllers\Monitoring\EcommercePaymentController;
+use App\Http\Controllers\Monitoring\EdcBcaReportController;
 use App\Http\Controllers\Monitoring\EmployeeShiftAttendanceController;
 use App\Http\Controllers\Monitoring\FifoFefoPriorityReportController;
 use App\Http\Controllers\Monitoring\MasterChangeHistoryReportController;
@@ -77,6 +79,7 @@ use App\Http\Controllers\Monitoring\PromoLoyaltyReportController;
 use App\Http\Controllers\Monitoring\PromoUsageController;
 use App\Http\Controllers\Monitoring\RedeemPointReportController;
 use App\Http\Controllers\Monitoring\ReferralScoreReportController;
+use App\Http\Controllers\Monitoring\ShiftPurchaseReportController;
 use App\Http\Controllers\Monitoring\StockMovementReportController;
 use App\Http\Controllers\Monitoring\StockOpnameVarianceReportController;
 use App\Http\Controllers\Monitoring\StokPercabangController;
@@ -95,8 +98,8 @@ use App\Http\Controllers\Monitoring\UserMonitoringController;
 use App\Http\Controllers\Monitoring\VoidCancelCustomerReportController;
 use App\Http\Controllers\Monitoring\VoucherRejectReportController;
 use App\Http\Controllers\Monitoring\WarehouseInboundController;
-use App\Http\Controllers\Monitoring\WarehouseOutboundController;
 use App\Http\Controllers\Monitoring\WarehouseLossDamageReportController;
+use App\Http\Controllers\Monitoring\WarehouseOutboundController;
 use App\Http\Controllers\Monitoring\WarehouseStockBarrierController;
 use App\Http\Controllers\Monitoring\WarehouseUserAuditReportController;
 // Reports
@@ -111,6 +114,7 @@ use App\Http\Controllers\Operations\StoreOutboundOperationsController;
 use App\Http\Controllers\Operations\StoreReturnApprovalController as OperationsStoreReturnApprovalController;
 use App\Http\Controllers\Operations\StoreSampleGimmickController;
 use App\Http\Controllers\Operations\StoreStockOperationsController;
+use App\Http\Controllers\Operations\StoreTransferController;
 use App\Http\Controllers\OperationsHubController;
 use App\Http\Controllers\ReportExportController;
 use App\Http\Controllers\Reports\BusinessOverviewController;
@@ -129,6 +133,7 @@ use App\Http\Controllers\ReportsHubController;
 use App\Http\Controllers\Settings\AffiliatePointsInviteeController;
 use App\Http\Controllers\Settings\AffiliatePointsInviterController;
 use App\Http\Controllers\Settings\CustomerLoyaltyPointTransactionRewardController;
+use App\Http\Controllers\Settings\IntegrationController;
 use App\Http\Controllers\Settings\PointSettingController;
 use App\Http\Controllers\Settings\StockBarrierAlertSettingController;
 use Illuminate\Http\Request;
@@ -197,6 +202,29 @@ Route::middleware('auth')->group(function () {
     Route::post('/operations/sample-gimmick/mark', [StoreSampleGimmickController::class, 'mark'])->name('operations.sample-gimmick.mark');
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
     Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
+    Route::prefix('operations/store-transfers')->name('operations.store-transfers.')->group(function () {
+        Route::get('/', [StoreTransferController::class, 'index'])->name('index');
+        Route::get('stock', [StoreTransferController::class, 'stock'])->name('stock');
+        Route::post('/', [StoreTransferController::class, 'store'])->name('store');
+        Route::get('{transfer}', [StoreTransferController::class, 'show'])
+            ->whereUuid('transfer')
+            ->name('show');
+        Route::patch('{transfer}/approve', [StoreTransferController::class, 'approve'])
+            ->whereUuid('transfer')
+            ->name('approve');
+        Route::patch('{transfer}/ship', [StoreTransferController::class, 'ship'])
+            ->whereUuid('transfer')
+            ->name('ship');
+        Route::patch('{transfer}/receive', [StoreTransferController::class, 'receive'])
+            ->whereUuid('transfer')
+            ->name('receive');
+        Route::patch('{transfer}/reject', [StoreTransferController::class, 'reject'])
+            ->whereUuid('transfer')
+            ->name('reject');
+        Route::patch('{transfer}/cancel', [StoreTransferController::class, 'cancel'])
+            ->whereUuid('transfer')
+            ->name('cancel');
+    });
     Route::prefix('operations/store-orders')->name('operations.store-orders.')->group(function () {
         Route::get('/', [StoreOrderApprovalController::class, 'index'])->name('index');
         Route::get('{order}', [StoreOrderApprovalController::class, 'show'])
@@ -297,6 +325,12 @@ Route::middleware('auth')->group(function () {
             'app/affiliate-points/invitee',
             [AffiliatePointsInviteeController::class, 'update']
         )->name('app.affiliate-points.invitee.update');
+
+        Route::get('integrations', [IntegrationController::class, 'edit'])
+            ->name('integrations.edit');
+
+        Route::post('integrations/verify', [IntegrationController::class, 'verify'])
+            ->name('integrations.verify');
     });
 
     /*
@@ -747,6 +781,14 @@ Route::middleware('auth')->group(function () {
         Route::get('store-payment-transactions/export', [StorePaymentTransactionController::class, 'export'])
             ->name('store-payment-transactions.export');
 
+        Route::prefix('edc-bca')->name('edc-bca.')->group(function () {
+            Route::get('/', [EdcBcaReportController::class, 'index'])
+                ->name('index');
+
+            Route::get('/export', [EdcBcaReportController::class, 'export'])
+                ->name('export');
+        });
+
         Route::prefix('payment-income-realtime')
             ->name('payment-income-realtime.')
             ->group(function () {
@@ -814,6 +856,14 @@ Route::middleware('auth')->group(function () {
 
         Route::get('diskon/export', [MonitoringDiskonController::class, 'export'])
             ->name('diskon.export');
+
+        Route::prefix('discount-sync')->name('discount-sync.')->group(function () {
+            Route::get('/', [DiscountSyncController::class, 'index'])
+                ->name('index');
+
+            Route::post('/', [DiscountSyncController::class, 'sync'])
+                ->name('sync');
+        });
 
         Route::get('anomali-item', [AnomalyItemMonitoringController::class, 'index'])
             ->name('anomali-item.index');
@@ -895,6 +945,17 @@ Route::middleware('auth')->group(function () {
                 'warehouse_id' => request()->query('warehouse_id'),
             ]));
         })->name('stok-mendekati-kedaluwarsa.index');
+
+        Route::prefix('shift-purchases')->name('shift-purchases.')->group(function () {
+            Route::get('/', [ShiftPurchaseReportController::class, 'index'])
+                ->name('index');
+
+            Route::get('/detail', [ShiftPurchaseReportController::class, 'detail'])
+                ->name('detail');
+
+            Route::get('/export', [ShiftPurchaseReportController::class, 'export'])
+                ->name('export');
+        });
 
         Route::prefix('cashier-shift-report')->name('cashier-shift-report.')->group(function () {
             Route::get('/', [CashierShiftReportController::class, 'index'])

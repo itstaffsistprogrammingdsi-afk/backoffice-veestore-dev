@@ -182,6 +182,7 @@ class TransactionAnomalyReportController extends Controller
     private function flowRows(Carbon $start, Carbon $end, string $storeId): Collection
     {
         $requested = DB::table('store_orders as so')
+            ->whereRaw("COALESCE(so.order_number, '') NOT LIKE 'TRF-%'")
             ->join('store_order_details as d', 'd.store_order_id', '=', 'so.id')
             ->whereRaw("LOWER(so.status::text) NOT IN ('draft','rejected','cancelled')")
             ->whereBetween(DB::raw('COALESCE(so.requested_at, so.created_at)'), [$start, $end])

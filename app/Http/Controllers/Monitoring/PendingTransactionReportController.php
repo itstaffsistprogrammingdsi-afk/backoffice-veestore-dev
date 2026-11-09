@@ -156,6 +156,7 @@ class PendingTransactionReportController extends Controller
             ");
 
         $storeOrder = DB::table('store_orders as so')
+            ->whereRaw("COALESCE(so.order_number, '') NOT LIKE 'TRF-%'")
             ->join('stores as s', 's.id', '=', 'so.store_id')
             ->leftJoin('warehouses as w', 'w.id', '=', 'so.warehouse_id')
             ->leftJoin('users as creator', 'creator.id', '=', 'so.created_by')

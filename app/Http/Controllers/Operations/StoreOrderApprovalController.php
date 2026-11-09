@@ -83,6 +83,7 @@ class StoreOrderApprovalController extends Controller
         }
 
         $ordersQuery = StoreOrder::query()
+            ->whereRaw("COALESCE(order_number, '') NOT LIKE 'TRF-%'")
             ->with([
                 'store:id,name,code',
                 'warehouse:id,name,code',
@@ -189,6 +190,8 @@ class StoreOrderApprovalController extends Controller
         StoreOrder $order,
         WarehouseStockAvailability $availability
     ): JsonResponse {
+        $this->ensureNotTransfer($order);
+
         $order->load([
             'store:id,name,code',
             'warehouse:id,name,code',
@@ -275,6 +278,8 @@ class StoreOrderApprovalController extends Controller
         ApproveStoreOrder $approveStoreOrder,
         StoreOrderNotifier $notifier
     ): RedirectResponse {
+        $this->ensureNotTransfer($order);
+
         $data = $request->validate([
             'allocations' => ['required', 'array', 'min:1'],
             'allocations.*.detail_id' => ['required', 'uuid'],
@@ -305,6 +310,8 @@ class StoreOrderApprovalController extends Controller
 
     public function reject(StoreOrder $order, StoreOrderNotifier $notifier): RedirectResponse
     {
+        $this->ensureNotTransfer($order);
+
         if (strtolower((string) $order->status) !== 'requested') {
             return back()->withErrors([
                 'allocations' => 'Hanya pesanan berstatus menunggu persetujuan yang dapat ditolak.',
@@ -341,25 +348,36 @@ class StoreOrderApprovalController extends Controller
     {
         $today = now()->toDateString();
 
+        $storeOrderScope = fn ($query) => $query->whereRaw("COALESCE(order_number, '') NOT LIKE 'TRF-%'");
+
         return [
-            'pending' => StoreOrder::query()->where('status', 'requested')->count(),
+            'pending' => StoreOrder::query()->where($storeOrderScope)->where('status', 'requested')->count(),
             'pending_qty' => (int) DB::table('store_order_details as sod')
                 ->join('store_orders as so', 'so.id', '=', 'sod.store_order_id')
+                ->whereRaw("COALESCE(so.order_number, '') NOT LIKE 'TRF-%'")
                 ->where('so.status', 'requested')
                 ->sum('sod.requested_qty'),
             'approved_today' => StoreOrder::query()
+                ->where($storeOrderScope)
                 ->where('status', 'approved')
                 ->whereDate('approved_at', $today)
                 ->count(),
             'partial_today' => StoreOrder::query()
+                ->where($storeOrderScope)
                 ->where('status', 'partial_approved')
                 ->whereDate('approved_at', $today)
                 ->count(),
             'rejected_today' => StoreOrder::query()
+                ->where($storeOrderScope)
                 ->where('status', 'rejected')
                 ->whereDate('updated_at', $today)
                 ->count(),
         ];
+    }
+
+    private function ensureNotTransfer(StoreOrder $order): void
+    {
+        abort_if(str_starts_with((string) $order->order_number, 'TRF-'), 404);
     }
 
     private function normalizeDate(mixed $value): ?string
