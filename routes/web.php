@@ -200,6 +200,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/operations/store-stock', StoreStockOperationsController::class)->name('operations.store-stock.index');
     Route::get('/operations/sample-gimmick', [StoreSampleGimmickController::class, 'index'])->name('operations.sample-gimmick.index');
     Route::post('/operations/sample-gimmick/mark', [StoreSampleGimmickController::class, 'mark'])->name('operations.sample-gimmick.mark');
+    Route::prefix('operations/sample-gimmick/requests')->name('operations.sample-gimmick.requests.')->group(function () {
+        Route::post('/{requestId}/approve', [StoreSampleGimmickController::class, 'approve'])->whereUuid('requestId')->name('approve');
+        Route::post('/{requestId}/reject', [StoreSampleGimmickController::class, 'reject'])->whereUuid('requestId')->name('reject');
+    });
     Route::get('/operations/store-inbound', StoreInboundOperationsController::class)->name('operations.store-inbound.index');
     Route::get('/operations/store-outbound', StoreOutboundOperationsController::class)->name('operations.store-outbound.index');
     Route::prefix('operations/store-transfers')->name('operations.store-transfers.')->group(function () {

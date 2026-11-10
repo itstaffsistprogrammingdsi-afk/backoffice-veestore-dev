@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\Operations;
 
+use App\Domain\StoreOperations\Actions\ApproveStoreSampleGimmick;
+use App\Domain\StoreOperations\Actions\RejectStoreSampleGimmick;
+use App\Domain\StoreOperations\Queries\StoreSampleGimmickRequestQuery;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,9 +24,17 @@ class StoreSampleGimmickController extends Controller
         'gimmick' => 'Gimmick',
     ];
 
-    public function index(Request $request): Response
+    public function index(Request $request, StoreSampleGimmickRequestQuery $requestQuery): Response
     {
         $filters = $this->filters($request);
+        $requestFilters = $this->requestFilters($request);
+        $requestData = $requestQuery->build(
+            $requestFilters['q'],
+            $requestFilters['store_id'],
+            $requestFilters['type'],
+            $requestFilters['status'],
+            $requestFilters['per_page']
+        );
         $base = $this->baseQuery($filters);
 
         $summary = DB::query()
@@ -52,6 +64,8 @@ class StoreSampleGimmickController extends Controller
         return Inertia::render('Operations/SampleGimmick', [
             'rows' => $rows,
             'summary' => (array) $summary,
+            'requests' => $requestData['requests'],
+            'requestSummary' => $requestData['requestSummary'],
             'stores' => $stores,
             'categories' => collect(self::CATEGORIES)
                 ->map(fn (string $value): array => [
@@ -60,10 +74,24 @@ class StoreSampleGimmickController extends Controller
                 ])
                 ->values()
                 ->all(),
+            'requestStatusOptions' => [
+                ['value' => '', 'label' => 'Semua status'],
+                ['value' => 'pending', 'label' => 'Menunggu approval'],
+                ['value' => 'approved', 'label' => 'Disetujui'],
+                ['value' => 'rejected', 'label' => 'Ditolak'],
+            ],
+            'requestTypeOptions' => [
+                ['value' => '', 'label' => 'Semua jenis'],
+                ['value' => 'gimmick', 'label' => 'Gimmick / Gratis'],
+                ['value' => 'sample', 'label' => 'Sample / Tester'],
+            ],
             'filters' => $filters,
+            'requestFilters' => $requestFilters,
             'urls' => [
                 'index' => route('operations.sample-gimmick.index'),
                 'mark' => route('operations.sample-gimmick.mark'),
+                'request_approve' => route('operations.sample-gimmick.requests.approve', ['requestId' => '__ID__']),
+                'request_reject' => route('operations.sample-gimmick.requests.reject', ['requestId' => '__ID__']),
             ],
         ]);
     }
@@ -121,6 +149,85 @@ class StoreSampleGimmickController extends Controller
             'success',
             count($validIds).' item ditandai sebagai '.self::CATEGORY_LABELS[$data['category']].'.'
         );
+    }
+
+    public function approve(
+        Request $request,
+        string $requestId,
+        ApproveStoreSampleGimmick $approve
+    ): RedirectResponse {
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $result = $approve->handle(
+            $requestId,
+            $data['note'] ?? null,
+            Auth::id(),
+            Auth::user()?->name
+        );
+
+        return back()->with(
+            'success',
+            "Pengajuan {$result['request_number']} disetujui. {$result['message']}"
+        );
+    }
+
+    public function reject(
+        Request $request,
+        string $requestId,
+        RejectStoreSampleGimmick $reject
+    ): RedirectResponse {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'reason.required' => 'Alasan penolakan wajib diisi.',
+        ]);
+
+        $result = $reject->handle(
+            $requestId,
+            (string) $data['reason'],
+            Auth::id(),
+            Auth::user()?->name
+        );
+
+        return back()->with(
+            'success',
+            "Pengajuan {$result['request_number']} ditolak."
+        );
+    }
+
+    private function requestFilters(Request $request): array
+    {
+        $status = trim((string) $request->query('rstatus', 'pending'));
+
+        if ($status === 'all') {
+            $status = '';
+        }
+
+        if (! in_array($status, ['', 'pending', 'approved', 'rejected'], true)) {
+            $status = 'pending';
+        }
+
+        $type = trim((string) $request->query('rtype', ''));
+
+        if (! in_array($type, ['', 'sample', 'gimmick'], true)) {
+            $type = '';
+        }
+
+        $perPage = (int) ($request->query('rper_page', 10) ?: 10);
+
+        if (! in_array($perPage, [10, 25, 50, 100], true)) {
+            $perPage = 10;
+        }
+
+        return [
+            'q' => trim((string) $request->query('rq', '')),
+            'store_id' => trim((string) $request->query('rstore_id', '')) ?: null,
+            'type' => $type,
+            'status' => $status,
+            'per_page' => $perPage,
+        ];
     }
 
     private function baseQuery(array $filters)

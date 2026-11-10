@@ -53,12 +53,14 @@ class StoreVoucherRequestController extends Controller
                 'v.min_purchase as voucher_min_purchase',
                 'v.valid_from',
                 'v.valid_until',
-                'v.usage_limit',
-                'v.usage_count',
+                'v.usage_limit as voucher_usage_limit',
+                'v.usage_count as voucher_usage_count',
                 'v.is_active as voucher_is_active',
                 'v.context as voucher_context',
+                'v.distribution_type as voucher_distribution_type',
 
                 DB::raw('COUNT(DISTINCT svrd.id) as total_items'),
+                DB::raw("CASE WHEN svr.request_number LIKE 'VPR-%' THEN 'promo' ELSE 'return' END as request_type"),
                 DB::raw("
                     CASE svr.status::text
                         WHEN 'pending' THEN 'Pending'
@@ -121,6 +123,7 @@ class StoreVoucherRequestController extends Controller
                 'v.usage_count',
                 'v.is_active',
                 'v.context',
+                'v.distribution_type',
             ])
             ->orderByDesc('svr.request_date')
             ->paginate($perPage)
@@ -179,65 +182,118 @@ class StoreVoucherRequestController extends Controller
 
     public function approve(Request $request, string $id)
     {
-        $requestRow = DB::table('store_voucher_requests')
-            ->where('id', $id)
-            ->first();
+        $result = DB::transaction(function () use ($id): array {
+            $requestRow = DB::table('store_voucher_requests')
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->first();
 
-        if (! $requestRow) {
-            return redirect()
-                ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Data permintaan voucher tidak ditemukan.');
-        }
+            if (! $requestRow) {
+                return ['status' => 'missing'];
+            }
 
-        if ((string) $requestRow->status !== 'pending') {
-            return redirect()
-                ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Hanya permintaan berstatus menunggu yang dapat disetujui.');
-        }
+            if ((string) $requestRow->status !== 'pending') {
+                return ['status' => 'stale'];
+            }
 
-        DB::table('store_voucher_requests')
-            ->where('id', $id)
-            ->update([
+            $now = now();
+            $voucher = DB::table('vouchers')
+                ->where('store_voucher_request_id', $id)
+                ->whereNull('deleted_at')
+                ->first(['id', 'code', 'name']);
+
+            if (! $voucher) {
+                return ['status' => 'voucher_missing'];
+            }
+
+            DB::table('vouchers')
+                ->where('id', $voucher->id)
+                ->update([
+                    'is_active' => true,
+                    'updated_at' => $now,
+                ]);
+
+            DB::table('store_voucher_requests')
+                ->where('id', $id)
+                ->update([
+                    'status' => 'approved',
+                    'approved_by' => auth()->id(),
+                    'approved_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+            return [
                 'status' => 'approved',
-                'approved_by' => auth()->id(),
-                'approved_at' => now(),
-                'updated_at' => now(),
-            ]);
+                'code' => $voucher->code,
+                'name' => $voucher->name,
+                'request_number' => $requestRow->request_number,
+            ];
+        });
 
-        return redirect()
-            ->route('branch-operations.request-voucher.index')
-            ->with('success', 'Permintaan voucher berhasil disetujui tanpa membuat voucher baru.');
+        return match ($result['status']) {
+            'approved' => redirect()
+                ->route('branch-operations.request-voucher.index')
+                ->with('success', 'Permintaan voucher '.$result['request_number'].' disetujui. Kode '.$result['code'].' aktif dan sudah tersedia di menu Voucher Promo toko.'),
+            'stale' => redirect()
+                ->route('branch-operations.request-voucher.index')
+                ->with('error', 'Hanya permintaan berstatus menunggu yang dapat disetujui.'),
+            'voucher_missing' => redirect()
+                ->route('branch-operations.request-voucher.index')
+                ->with('error', 'Voucher untuk permintaan ini tidak ditemukan. Minta toko membuat pengajuan ulang.'),
+            default => redirect()
+                ->route('branch-operations.request-voucher.index')
+                ->with('error', 'Data permintaan voucher tidak ditemukan.'),
+        };
     }
 
     public function reject(Request $request, string $id)
     {
-        $requestRow = DB::table('store_voucher_requests')
-            ->where('id', $id)
-            ->first();
+        $result = DB::transaction(function () use ($id): string {
+            $requestRow = DB::table('store_voucher_requests')
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->first();
 
-        if (! $requestRow) {
-            return redirect()
+            if (! $requestRow) {
+                return 'missing';
+            }
+
+            if ((string) $requestRow->status !== 'pending') {
+                return 'stale';
+            }
+
+            $now = now();
+
+            DB::table('vouchers')
+                ->where('store_voucher_request_id', $id)
+                ->whereNull('deleted_at')
+                ->update([
+                    'is_active' => false,
+                    'updated_at' => $now,
+                ]);
+
+            DB::table('store_voucher_requests')
+                ->where('id', $id)
+                ->update([
+                    'status' => 'rejected',
+                    'approved_by' => auth()->id(),
+                    'approved_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+            return 'rejected';
+        });
+
+        return match ($result) {
+            'rejected' => redirect()
                 ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Data permintaan voucher tidak ditemukan.');
-        }
-
-        if ((string) $requestRow->status !== 'pending') {
-            return redirect()
+                ->with('success', 'Permintaan voucher ditolak dan voucher tetap tidak aktif.'),
+            'stale' => redirect()
                 ->route('branch-operations.request-voucher.index')
-                ->with('error', 'Hanya permintaan berstatus menunggu yang dapat ditolak.');
-        }
-
-        DB::table('store_voucher_requests')
-            ->where('id', $id)
-            ->update([
-                'status' => 'rejected',
-                'approved_by' => auth()->id(),
-                'approved_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-        return redirect()
-            ->route('branch-operations.request-voucher.index')
-            ->with('success', 'Permintaan voucher berhasil ditolak.');
+                ->with('error', 'Hanya permintaan berstatus menunggu yang dapat ditolak.'),
+            default => redirect()
+                ->route('branch-operations.request-voucher.index')
+                ->with('error', 'Data permintaan voucher tidak ditemukan.'),
+        };
     }
 }

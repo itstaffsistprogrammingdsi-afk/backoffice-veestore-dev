@@ -551,7 +551,7 @@ class CashierShiftReportController extends Controller
             ->whereIn('svp.payment_id', $paymentIds)
             ->where(function ($q) {
                 $q->whereNull('scd.void_status')
-                    ->orWhere('scd.void_status', '!=', 'void');
+                    ->orWhereNotIn('scd.void_status', ['void', 'voided', 'gimmick']);
             })
             ->selectRaw("
                 svp.payment_id,
@@ -596,7 +596,7 @@ class CashierShiftReportController extends Controller
             ->leftJoin('store_cart_details as scd', 'scd.cart_id', '=', 'sc.id')
             ->where(function ($query): void {
                 $query->whereNull('scd.void_status')
-                    ->orWhere('scd.void_status', '!=', 'void');
+                    ->orWhereNotIn('scd.void_status', ['void', 'voided', 'gimmick']);
             })
             ->select([
                 'sc.id',

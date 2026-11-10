@@ -466,6 +466,7 @@ class OmsetCabangController extends Controller
         $basePriceSql = $this->priceSql('p.id', $orderDateSql, 'base');
         $storePriceSql = "COALESCE(NULLIF(scd.product_price_amount, 0), ({$this->priceSql('p.id', $orderDateSql, 'store')}))";
         $cartNet = DB::table('store_cart_details')
+            ->whereRaw("COALESCE(void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->selectRaw('cart_id, SUM(GREATEST(COALESCE(product_price_amount, 0) - COALESCE(discount_amount, 0), 0)) as net_total')
             ->groupBy('cart_id');
         $voucherPromoSql = "
@@ -484,6 +485,7 @@ class OmsetCabangController extends Controller
             ->join('products as p', 'p.id', '=', 'i.product_id')
             ->leftJoin('customers as c', 'c.id', '=', 'sc.customer_id')
             ->leftJoinSub($cartNet, 'cart_net', fn ($join) => $join->on('cart_net.cart_id', '=', 'sc.id'))
+            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->selectRaw("
                 'Store POS' as order_source,
                 'store' as sales_channel,

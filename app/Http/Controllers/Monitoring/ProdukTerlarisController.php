@@ -148,7 +148,8 @@ class ProdukTerlarisController extends Controller
         $cartNet = DB::table('store_cart_details as cart_detail')
             ->selectRaw('cart_detail.cart_id, SUM(GREATEST(COALESCE(cart_detail.product_price_amount, 0) - COALESCE(cart_detail.discount_amount, 0), 0)) as item_net_total')
             ->where(function ($query) {
-                $query->whereNull('cart_detail.void_status')->orWhere('cart_detail.void_status', '!=', 'void');
+                $query->whereNull('cart_detail.void_status')
+                    ->orWhereNotIn('cart_detail.void_status', ['void', 'voided', 'gimmick']);
             })
             ->groupBy('cart_detail.cart_id');
 
@@ -176,7 +177,8 @@ class ProdukTerlarisController extends Controller
         $query
             ->whereNull('store.deleted_at')
             ->where(function ($query) {
-                $query->whereNull('detail.void_status')->orWhere('detail.void_status', '!=', 'void');
+                $query->whereNull('detail.void_status')
+                    ->orWhereNotIn('detail.void_status', ['void', 'voided', 'gimmick']);
             })
             ->whereNotNull('product.id')
             ->whereDate('paid_visits.paid_at', '>=', $filters['date_from'])

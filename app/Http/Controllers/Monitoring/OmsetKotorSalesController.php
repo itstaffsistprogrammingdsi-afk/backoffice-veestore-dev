@@ -315,6 +315,7 @@ class OmsetKotorSalesController extends Controller
     private function buildStoreCartNetSubquery()
     {
         return DB::table('store_cart_details as scd')
+            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->selectRaw('
                 scd.cart_id,
                 SUM(
@@ -521,7 +522,7 @@ class OmsetKotorSalesController extends Controller
             ->joinSub($storeVisitPaymentSub, 'svp_pay', function ($join) {
                 $join->on('svp_pay.visit_id', '=', 'sc.visit_id');
             })
-            ->whereRaw("COALESCE(scd.void_status, '') <> 'void'")
+            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->selectRaw("
                 scd.created_at::date as trx_date,
                 scd.created_at as trx_datetime,

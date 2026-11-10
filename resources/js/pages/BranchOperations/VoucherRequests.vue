@@ -27,12 +27,20 @@ interface VoucherRequestRow {
     request_date: string | null;
     status: string;
     status_label: string | null;
+    request_type: string | null;
     store_name: string | null;
     requested_by_name: string | null;
     notes: string | null;
     total_items: number;
     voucher_code: string | null;
     voucher_name: string | null;
+    voucher_type: string | null;
+    voucher_value: string | number | null;
+    voucher_max_discount: string | number | null;
+    voucher_min_purchase: string | number | null;
+    voucher_usage_limit: number | null;
+    voucher_usage_count: number | null;
+    voucher_context: string | null;
     valid_from: string | null;
     valid_until: string | null;
     approved_by_name: string | null;
@@ -119,6 +127,40 @@ const decide = (row: VoucherRequestRow, action: 'approve' | 'reject') => {
     router.put(props.urls[action].replace('__ID__', row.id), {}, { preserveScroll: true });
 };
 
+const requestTypeLabel = (row: VoucherRequestRow) => {
+    return row.request_type === 'promo' ? 'Promo After Repair' : 'Retur Customer';
+};
+
+const requestTypeClass = (row: VoucherRequestRow) => {
+    return row.request_type === 'promo' ? 'bg-label-info' : 'bg-label-secondary';
+};
+
+const formatCurrency = (value: string | number | null | undefined) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value ?? 0));
+};
+
+const voucherValueLabel = (row: VoucherRequestRow) => {
+    if (row.voucher_value === null || row.voucher_value === undefined) {
+        return '-';
+    }
+
+    if (row.voucher_type === 'percentage') {
+        return `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(row.voucher_value))}%`;
+    }
+
+    return formatCurrency(row.voucher_value);
+};
+
+const voucherTerms = (row: VoucherRequestRow) => {
+    const parts = [row.voucher_type === 'percentage' ? 'Persentase' : 'Nominal', voucherValueLabel(row)];
+
+    if (Number(row.voucher_min_purchase ?? 0) > 0) {
+        parts.push(`min ${formatCurrency(row.voucher_min_purchase)}`);
+    }
+
+    return parts.join(' · ');
+};
+
 const statusClass = (status: string) => {
     if (status === 'approved') {
         return 'bg-success';
@@ -202,6 +244,7 @@ const formatDate = (value: string | null) => {
                         <tr>
                             <th>Tanggal</th>
                             <th>Permintaan</th>
+                            <th>Jenis</th>
                             <th>Toko</th>
                             <th>Peminta</th>
                             <th>Voucher</th>
@@ -215,11 +258,13 @@ const formatDate = (value: string | null) => {
                             <tr>
                                 <td>{{ formatDate(row.request_date) }}</td>
                                 <td class="fw-semibold">{{ row.request_number ?? row.id }}</td>
+                                <td><span class="badge" :class="requestTypeClass(row)">{{ requestTypeLabel(row) }}</span></td>
                                 <td>{{ row.store_name ?? '-' }}</td>
                                 <td>{{ row.requested_by_name ?? '-' }}</td>
                                 <td>
                                     <div>{{ row.voucher_code ?? '-' }}</div>
                                     <small class="text-muted">{{ row.voucher_name }}</small>
+                                    <small class="text-muted d-block">{{ voucherTerms(row) }}</small>
                                 </td>
                                 <td><span class="badge" :class="statusClass(row.status)">{{ row.status_label ?? row.status }}</span></td>
                                 <td class="text-end">{{ row.total_items }}</td>
@@ -238,13 +283,17 @@ const formatDate = (value: string | null) => {
                                 </td>
                             </tr>
                             <tr v-if="expandedId === row.id">
-                                <td colspan="8" class="branch-detail">
+                                <td colspan="9" class="branch-detail">
                                     <div class="row g-3 mb-3">
+                                        <div class="col-md-4"><small class="text-muted">Jenis</small><div>{{ requestTypeLabel(row) }}</div></div>
+                                        <div class="col-md-4"><small class="text-muted">Tipe Voucher</small><div>{{ voucherTerms(row) }}</div></div>
+                                        <div class="col-md-4"><small class="text-muted">Maks. Diskon</small><div>{{ Number(row.voucher_max_discount ?? 0) > 0 ? formatCurrency(row.voucher_max_discount) : '-' }}</div></div>
+                                        <div class="col-md-4"><small class="text-muted">Batas Penggunaan</small><div>{{ row.voucher_usage_limit ?? '-' }} kali ({{ row.voucher_usage_count ?? 0 }} terpakai)</div></div>
+                                        <div class="col-md-4"><small class="text-muted">Valid From</small><div>{{ formatDate(row.valid_from) }}</div></div>
+                                        <div class="col-md-4"><small class="text-muted">Valid Until</small><div>{{ formatDate(row.valid_until) }}</div></div>
                                         <div class="col-md-4"><small class="text-muted">Notes</small><div>{{ row.notes ?? '-' }}</div></div>
                                         <div class="col-md-4"><small class="text-muted">Approved By</small><div>{{ row.approved_by_name ?? '-' }}</div></div>
                                         <div class="col-md-4"><small class="text-muted">Approved At</small><div>{{ formatDate(row.approved_at) }}</div></div>
-                                        <div class="col-md-6"><small class="text-muted">Valid From</small><div>{{ formatDate(row.valid_from) }}</div></div>
-                                        <div class="col-md-6"><small class="text-muted">Valid Until</small><div>{{ formatDate(row.valid_until) }}</div></div>
                                     </div>
                                     <div class="table-responsive">
                                         <table class="table table-sm mb-0">
@@ -268,7 +317,7 @@ const formatDate = (value: string | null) => {
                             </tr>
                         </template>
                         <tr v-if="rows.data.length === 0">
-                            <td colspan="8" class="branch-empty">Belum ada data.</td>
+                            <td colspan="9" class="branch-empty">Belum ada data.</td>
                         </tr>
                     </tbody>
                 </table>

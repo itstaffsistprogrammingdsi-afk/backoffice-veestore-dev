@@ -657,7 +657,7 @@ class BusinessOverviewQuery
             ->groupBy('svp.visit_id');
 
         $cartNet = DB::table('store_cart_details as scd')
-            ->whereRaw("COALESCE(scd.void_status, '') <> 'void'")
+            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->selectRaw('
                 scd.cart_id,
                 SUM(GREATEST(COALESCE(scd.product_price_amount, 0) - COALESCE(scd.discount_amount, 0), 0)) AS cart_item_net_total
@@ -698,7 +698,7 @@ class BusinessOverviewQuery
             ->leftJoin('product_prices as price', 'price.id', '=', 'scd.product_price_id')
             ->leftJoinSub($cartNet, 'cart_net', 'cart_net.cart_id', '=', 'sc.id')
             ->whereNull('s.deleted_at')
-            ->whereRaw("COALESCE(scd.void_status, '') <> 'void'")
+            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->whereRaw('paid_visits.sold_at::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
             ->when($filters['store_id'], fn ($query) => $query->where('v.store_id', $filters['store_id']))
             ->selectRaw("
@@ -769,7 +769,7 @@ class BusinessOverviewQuery
             })
             ->leftJoin('product_categories as category', 'category.id', '=', 'product.category_id')
             ->whereNull('store.deleted_at')
-            ->whereRaw("COALESCE(detail.void_status, '') <> 'void'")
+            ->whereRaw("COALESCE(detail.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
             ->whereNotNull('product.id')
             ->whereRaw('paid_visits.paid_at::date BETWEEN ? AND ?', [$filters['date_from'], $filters['date_to']])
             ->when($filters['store_id'], fn ($query) => $query->where('visit.store_id', $filters['store_id']))
