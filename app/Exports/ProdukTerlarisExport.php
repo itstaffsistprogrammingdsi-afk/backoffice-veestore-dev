@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class ProdukTerlarisExport implements FromCollection, WithHeadings, WithMapping, ShouldAutoSize
+class ProdukTerlarisExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping
 {
     private int $number = 0;
 
@@ -16,8 +16,7 @@ class ProdukTerlarisExport implements FromCollection, WithHeadings, WithMapping,
         private readonly Collection $rows,
         private readonly string $storeName,
         private readonly array $filters,
-    ) {
-    }
+    ) {}
 
     public function collection(): Collection
     {
@@ -28,7 +27,7 @@ class ProdukTerlarisExport implements FromCollection, WithHeadings, WithMapping,
     {
         return [
             'Peringkat', 'Bulan', 'Cabang', 'Kode Produk', 'Nama Produk', 'Brand', 'Kategori',
-            'Jumlah Transaksi', 'Qty Terjual', 'Nominal Penjualan',
+            'Jumlah Transaksi', 'Qty Terjual', 'Qty Good', 'Qty Good After Repair', 'Qty Clearance', 'Diskon Clearance', 'Clearance (%)', 'Nominal Penjualan',
         ];
     }
 
@@ -44,6 +43,11 @@ class ProdukTerlarisExport implements FromCollection, WithHeadings, WithMapping,
             $row->category_name ?? '-',
             (int) ($row->total_transaksi ?? 0),
             (int) ($row->total_qty ?? 0),
+            (int) ($row->qty_good ?? 0),
+            (int) ($row->qty_good_after_repair ?? 0),
+            (int) ($row->qty_clearance ?? 0),
+            (float) ($row->clearance_discount ?? 0),
+            (float) ($row->clearance_percentage ?? 0),
             (float) ($row->nominal_penjualan ?? 0),
         ];
     }

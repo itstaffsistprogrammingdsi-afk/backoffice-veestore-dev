@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Exports\ProdukTerlarisExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProdukTerlarisController extends Controller
@@ -35,17 +35,17 @@ class ProdukTerlarisController extends Controller
             'title' => 'Produk Terlaris',
             'description' => 'Laporan monitoring.',
             'data' => [
-            'rows' => $this->rows($filters)->paginate($filters['per_page'])->withQueryString(),
-            'summary' => $this->summary($filters),
-            'topProductChart' => $this->topProductChart($chartFilters),
-            'topStoreChart' => $this->topStoreChart($chartFilters),
-            'stores' => $stores,
-            'brands' => $brands,
-            'categories' => $categories,
-            'hasBrandColumn' => $this->hasBrandColumn(),
-            'filters' => $filters,
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'rows' => $this->rows($filters)->paginate($filters['per_page'])->withQueryString(),
+                'summary' => $this->summary($filters),
+                'topProductChart' => $this->topProductChart($chartFilters),
+                'topStoreChart' => $this->topStoreChart($chartFilters),
+                'stores' => $stores,
+                'brands' => $brands,
+                'categories' => $categories,
+                'hasBrandColumn' => $this->hasBrandColumn(),
+                'filters' => $filters,
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current(), 'export' => route('monitoring.produk-terlaris.export')],
         ]);
@@ -60,7 +60,7 @@ class ProdukTerlarisController extends Controller
 
         return Excel::download(
             new ProdukTerlarisExport($this->rows($filters)->get(), $storeName, $filters),
-            'produk-terlaris-' . now()->format('Ymd_His') . '.xlsx'
+            'produk-terlaris-'.now()->format('Ymd_His').'.xlsx'
         );
     }
 
@@ -91,7 +91,7 @@ class ProdukTerlarisController extends Controller
     {
         return DB::query()
             ->fromSub($this->salesBase($filters), 'sales')
-            ->selectRaw("\n                sales.periode_bulan,\n                sales.store_id,\n                sales.store_name as cabang_name,\n                sales.product_id,\n                sales.product_code,\n                sales.product_name,\n                sales.brand_name,\n                sales.category_name,\n                COUNT(DISTINCT sales.visit_id)::int as total_transaksi,\n                COALESCE(SUM(sales.qty), 0)::int as total_qty,\n                COALESCE(SUM(sales.nominal_penjualan), 0)::numeric(18,2) as nominal_penjualan\n            ")
+            ->selectRaw("\n                sales.periode_bulan,\n                sales.store_id,\n                sales.store_name as cabang_name,\n                sales.product_id,\n                sales.product_code,\n                sales.product_name,\n                sales.brand_name,\n                sales.category_name,\n                COUNT(DISTINCT sales.visit_id)::int as total_transaksi,\n                COALESCE(SUM(sales.qty), 0)::int as total_qty,\n                COALESCE(SUM(sales.qty_good), 0)::int as qty_good,\n                COALESCE(SUM(sales.qty_good_after_repair), 0)::int as qty_good_after_repair,\n                COALESCE(SUM(sales.qty_clearance), 0)::int as qty_clearance,\n                COALESCE(SUM(sales.clearance_discount), 0)::numeric(18,2) as clearance_discount,\n                CASE WHEN COALESCE(SUM(sales.clearance_gross), 0) > 0 THEN ROUND((SUM(sales.clearance_discount) / SUM(sales.clearance_gross)) * 100, 2) ELSE 0 END as clearance_percentage,\n                COALESCE(SUM(sales.nominal_penjualan), 0)::numeric(18,2) as nominal_penjualan\n            ")
             ->groupBy('sales.periode_bulan', 'sales.store_id', 'sales.store_name', 'sales.product_id', 'sales.product_code', 'sales.product_name', 'sales.brand_name', 'sales.category_name')
             ->orderByDesc('sales.periode_bulan')
             ->orderByDesc(DB::raw('SUM(sales.nominal_penjualan)'))
@@ -102,7 +102,7 @@ class ProdukTerlarisController extends Controller
     {
         return DB::query()
             ->fromSub($this->salesBase($filters), 'sales')
-            ->selectRaw("\n                COUNT(DISTINCT sales.product_id)::int as total_produk,\n                COUNT(DISTINCT sales.store_id)::int as total_cabang,\n                COUNT(DISTINCT sales.visit_id)::int as total_transaksi,\n                COALESCE(SUM(sales.qty), 0)::int as total_qty,\n                COALESCE(SUM(sales.nominal_penjualan), 0)::numeric(18,2) as total_nominal\n            ")
+            ->selectRaw("\n                COUNT(DISTINCT sales.product_id)::int as total_produk,\n                COUNT(DISTINCT sales.store_id)::int as total_cabang,\n                COUNT(DISTINCT sales.visit_id)::int as total_transaksi,\n                COALESCE(SUM(sales.qty), 0)::int as total_qty,\n                COALESCE(SUM(sales.nominal_penjualan), 0)::numeric(18,2) as total_nominal,\n                COALESCE(SUM(sales.qty_good), 0)::int as total_qty_good,\n                COALESCE(SUM(sales.qty_good_after_repair), 0)::int as total_qty_good_after_repair,\n                COALESCE(SUM(sales.qty_clearance), 0)::int as total_qty_clearance,\n                COALESCE(SUM(sales.clearance_discount), 0)::numeric(18,2) as total_clearance_discount,\n                CASE WHEN COALESCE(SUM(sales.clearance_gross), 0) > 0 THEN ROUND((SUM(sales.clearance_discount) / SUM(sales.clearance_gross)) * 100, 2) ELSE 0 END as clearance_percentage\n            ")
             ->first();
     }
 
@@ -163,6 +163,7 @@ class ProdukTerlarisController extends Controller
                 $join->on('cart_net.cart_id', '=', 'cart.id');
             })
             ->leftJoin('items as item', 'item.id', '=', 'detail.item_id')
+            ->leftJoin('item_conditions as item_condition', 'item_condition.id', '=', 'item.current_condition_id')
             ->leftJoin('product_prices as price', 'price.id', '=', 'detail.product_price_id')
             ->leftJoin('products as product', function ($join) {
                 $join->on('product.id', '=', 'item.product_id')
@@ -204,7 +205,7 @@ class ProdukTerlarisController extends Controller
 
         $brandNameSelect = $this->hasBrandColumn() ? 'brand.name' : 'NULL';
 
-        return $query->selectRaw("\n            paid_visits.visit_id,\n            paid_visits.paid_at,\n            TO_CHAR(paid_visits.paid_at, 'MM/YYYY') as periode_bulan,\n            store.id as store_id,\n            store.name as store_name,\n            product.id as product_id,\n            product.code as product_code,\n            product.name as product_name,\n            {$brandNameSelect} as brand_name,\n            category.name as category_name,\n            1::int as qty,\n            GREATEST(\n                GREATEST(COALESCE(detail.product_price_amount, 0) - COALESCE(detail.discount_amount, 0), 0)\n                - CASE\n                    WHEN COALESCE(cart_net.item_net_total, 0) > 0 THEN\n                        (GREATEST(COALESCE(detail.product_price_amount, 0) - COALESCE(detail.discount_amount, 0), 0) / cart_net.item_net_total)\n                        * (COALESCE(cart.voucher_discount, 0) + COALESCE(cart.point_amount, 0))\n                    ELSE 0\n                  END,\n                0\n            )::numeric(18,2) as nominal_penjualan\n        ");
+        return $query->selectRaw("\n            paid_visits.visit_id,\n            paid_visits.paid_at,\n            TO_CHAR(paid_visits.paid_at, 'MM/YYYY') as periode_bulan,\n            store.id as store_id,\n            store.name as store_name,\n            product.id as product_id,\n            product.code as product_code,\n            product.name as product_name,\n            {$brandNameSelect} as brand_name,\n            category.name as category_name,\n            1::int as qty,\n            CASE WHEN item_condition.status::text = 'good' THEN 1 ELSE 0 END::int as qty_good,\n            CASE WHEN item_condition.status::text = 'good_after_repair' THEN 1 ELSE 0 END::int as qty_good_after_repair,\n            CASE WHEN item_condition.status::text = 'good_after_repair' THEN 1 ELSE 0 END::int as qty_clearance,\n            CASE WHEN item_condition.status::text = 'good_after_repair' THEN COALESCE(detail.discount_amount, 0) ELSE 0 END::numeric(18,2) as clearance_discount,\n            CASE WHEN item_condition.status::text = 'good_after_repair' THEN COALESCE(detail.product_price_amount, 0) ELSE 0 END::numeric(18,2) as clearance_gross,\n            GREATEST(\n                GREATEST(COALESCE(detail.product_price_amount, 0) - COALESCE(detail.discount_amount, 0), 0)\n                - CASE\n                    WHEN COALESCE(cart_net.item_net_total, 0) > 0 THEN\n                        (GREATEST(COALESCE(detail.product_price_amount, 0) - COALESCE(detail.discount_amount, 0), 0) / cart_net.item_net_total)\n                        * (COALESCE(cart.voucher_discount, 0) + COALESCE(cart.point_amount, 0))\n                    ELSE 0\n                  END,\n                0\n            )::numeric(18,2) as nominal_penjualan\n        ");
     }
 
     /** Kolom products.brand_id baru ditambah via migrasi; abaikan bila belum dijalankan. */
@@ -220,12 +221,14 @@ class ProdukTerlarisController extends Controller
     private function nullable(mixed $value): ?string
     {
         $value = trim((string) $value);
+
         return $value === '' ? null : $value;
     }
 
     private function date(mixed $value): ?string
     {
         $value = $this->nullable($value);
+
         return $value && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) ? $value : null;
     }
 }

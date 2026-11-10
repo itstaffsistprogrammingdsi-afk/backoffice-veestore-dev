@@ -174,6 +174,7 @@ class Navigation
                 'icon' => 'mdi-cash-multiple',
                 'items' => self::items($user, [
                     ['Omzet', 'monitoring.omset-cabang.index', 'mdi-chart-box-outline', 'view monitoring-omset-cabang'],
+                    ['Sample, Gimmick & Gratis', 'monitoring.sample-gimmick-report.index', 'mdi-flask-outline', 'view monitoring-omset-kotor'],
                     ['Kontrol Margin Harga', 'reports.price-margin.index', 'mdi-scale-balance', null],
                     ['Laba Rugi', 'reports.profit-loss.index', 'mdi-chart-waterfall', null],
                     ['Piutang & Hutang', 'reports.receivable-payable.index', 'mdi-cash-clock', null],

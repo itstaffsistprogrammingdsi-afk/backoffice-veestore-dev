@@ -27,6 +27,10 @@ interface Finance {
     gross_margin_percent: number;
     transactions: number;
     qty: number;
+    qty_good?: number;
+    qty_good_after_repair?: number;
+    clearance_discount?: number;
+    clearance_percentage?: number;
     channels: FinanceChannel[];
 }
 
@@ -82,6 +86,20 @@ const summaryCards = computed(() => [
     { label: 'Laba Kotor', value: formatCurrency(props.summary.gross_profit), tone: props.summary.gross_profit >= 0 ? 'is-success' : 'is-danger' },
     { label: 'Beban Operasional', value: formatCurrency(props.summary.total_expenses), tone: 'is-warning' },
     { label: 'Laba Bersih', value: formatCurrency(props.summary.net_profit), tone: props.summary.net_profit >= 0 ? 'is-success' : 'is-danger' },
+    ...(props.finance.qty_good !== undefined
+        ? [{
+            label: 'Good / GAR',
+            value: `${formatNumber(props.finance.qty_good ?? 0)} / ${formatNumber(props.finance.qty_good_after_repair ?? 0)}`,
+            tone: '',
+        }]
+        : []),
+    ...(props.finance.clearance_discount !== undefined
+        ? [{
+            label: 'Diskon Clearance',
+            value: formatCurrency(props.finance.clearance_discount ?? 0),
+            tone: 'is-warning',
+        }]
+        : []),
 ]);
 
 const statementRows = computed(() => [

@@ -2,6 +2,7 @@
 
 namespace App\Domain\Analytics\Queries;
 
+use App\Domain\StoreOperations\Support\SaleConditionMetrics;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -592,16 +593,34 @@ class BusinessOverviewQuery
 
     private function salesQuery(array $filters): Builder
     {
-        $paidVisits = DB::table('store_visit_payments as svp')
+        $paymentTotals = DB::table('store_visit_payments as svp')
             ->join('payments as p', 'p.id', '=', 'svp.payment_id')
             ->whereNull('p.deleted_at')
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
             ->selectRaw('
                 svp.visit_id,
                 MIN(COALESCE(p.completed_at, p.created_at)) AS sold_at,
-                COALESCE(SUM(p.total_amount), 0)::numeric(18,2) AS amount
+                COALESCE(SUM(p.total_amount), 0)::numeric(18,2) AS payment_amount
             ')
             ->groupBy('svp.visit_id');
+
+        $gimmickTotals = DB::table('store_cart_details as gimmick_detail')
+            ->join('store_carts as gimmick_cart', 'gimmick_cart.id', '=', 'gimmick_detail.cart_id')
+            ->whereRaw(SaleConditionMetrics::gimmickSaleLineSql('gimmick_detail'))
+            ->selectRaw('
+                gimmick_cart.visit_id,
+                SUM(GREATEST(COALESCE(gimmick_detail.product_price_amount, 0) - COALESCE(gimmick_detail.discount_amount, 0), 0))::numeric(18,2) AS gimmick_amount
+            ')
+            ->groupBy('gimmick_cart.visit_id');
+
+        $paidVisits = DB::query()
+            ->fromSub($paymentTotals, 'payment_total')
+            ->leftJoinSub($gimmickTotals, 'gimmick_total', 'gimmick_total.visit_id', '=', 'payment_total.visit_id')
+            ->selectRaw('
+                payment_total.visit_id,
+                payment_total.sold_at,
+                GREATEST(payment_total.payment_amount - COALESCE(gimmick_total.gimmick_amount, 0), 0)::numeric(18,2) AS amount
+            ');
 
         $pos = DB::query()
             ->fromSub($paidVisits, 'paid_visits')

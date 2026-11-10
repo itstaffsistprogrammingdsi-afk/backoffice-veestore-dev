@@ -89,6 +89,7 @@ class StoreSampleGimmickController extends Controller
             'requestFilters' => $requestFilters,
             'urls' => [
                 'index' => route('operations.sample-gimmick.index'),
+                'report' => route('monitoring.sample-gimmick-report.index'),
                 'mark' => route('operations.sample-gimmick.mark'),
                 'request_approve' => route('operations.sample-gimmick.requests.approve', ['requestId' => '__ID__']),
                 'request_reject' => route('operations.sample-gimmick.requests.reject', ['requestId' => '__ID__']),
