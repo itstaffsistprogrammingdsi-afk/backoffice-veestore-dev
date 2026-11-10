@@ -42,6 +42,13 @@ class OmsetCabangExport implements FromCollection, ShouldAutoSize, WithHeadings,
             'Nilai Harga Dasar (Base)',
             'Laba Kotor',
             'Margin Kotor (%)',
+            'Qty Good',
+            'Qty Good After Repair',
+            'Qty Clearance',
+            'Omset Kotor Good',
+            'Omset Kotor Good After Repair',
+            'Diskon Clearance',
+            'Clearance (%)',
         ];
     }
 
@@ -69,6 +76,13 @@ class OmsetCabangExport implements FromCollection, ShouldAutoSize, WithHeadings,
             $basePrice,
             $grossProfit,
             $netSales > 0 ? round(($grossProfit / $netSales) * 100, 2) : 0,
+            (int) ($row->total_qty_good ?? 0),
+            (int) ($row->total_qty_good_after_repair ?? 0),
+            (int) ($row->total_qty_clearance ?? 0),
+            (float) ($row->total_omset_good ?? 0),
+            (float) ($row->total_omset_good_after_repair ?? 0),
+            (float) ($row->total_clearance_discount ?? 0),
+            (float) ($row->clearance_percentage ?? 0),
         ];
     }
 }

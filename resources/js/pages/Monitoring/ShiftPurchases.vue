@@ -27,6 +27,11 @@ interface ShiftRow {
     discount_amount: number;
     net_amount: number;
     payment_total: number;
+    qty_good: number;
+    qty_good_after_repair: number;
+    qty_clearance: number;
+    clearance_discount: number;
+    clearance_percentage: number;
 }
 
 interface ProductRow {
@@ -38,6 +43,11 @@ interface ProductRow {
     discount_amount: number;
     net_amount: number;
     session_count: number;
+    qty_good: number;
+    qty_good_after_repair: number;
+    qty_clearance: number;
+    clearance_discount: number;
+    clearance_percentage: number;
 }
 
 interface Paginator<T> {
@@ -66,6 +76,11 @@ interface DetailSession {
     discount_amount: number;
     net_amount: number;
     payment_total: number;
+    qty_good: number;
+    qty_good_after_repair: number;
+    qty_clearance: number;
+    clearance_discount: number;
+    clearance_percentage: number;
 }
 
 interface DetailTransaction {
@@ -92,6 +107,11 @@ interface DetailResponse {
         gross_amount: number;
         discount_amount: number;
         net_amount: number;
+        qty_good: number;
+        qty_good_after_repair: number;
+        qty_clearance: number;
+        clearance_discount: number;
+        clearance_percentage: number;
     };
 }
 
@@ -107,6 +127,11 @@ interface Props {
         discount_amount: number;
         net_amount: number;
         payment_total: number;
+        qty_good: number;
+        qty_good_after_repair: number;
+        qty_clearance: number;
+        clearance_discount: number;
+        clearance_percentage: number;
     };
     productRows: ProductRow[];
     stores: Array<{ id: string; name: string; code: string | null }>;
@@ -260,7 +285,7 @@ onBeforeUnmount(() => {
             <div>
                 <span class="purchase-eyebrow">Monitoring / Penjualan</span>
                 <h1>Laporan Pembelian per Shift</h1>
-                <p>Rincian item yang dibeli pelanggan pada setiap shift, lengkap dengan gross, diskon, net, dan transaksi.</p>
+                <p>Rincian item yang dibeli pelanggan pada setiap shift, lengkap dengan gross, diskon, net, transaksi, kondisi barang, dan diskon clearance. Gimmick/gratis tidak dihitung sebagai omset.</p>
             </div>
             <div class="purchase-header-actions">
                 <Link :href="props.urls.shift_report" class="purchase-button purchase-button-light">
@@ -307,6 +332,18 @@ onBeforeUnmount(() => {
                 <div class="purchase-summary purchase-summary-success">
                     <span class="purchase-summary-icon"><i class="mdi mdi-cash-check"></i></span>
                     <div><span>Net</span><strong>{{ formatCurrency(props.summary.net_amount) }}</strong></div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="purchase-summary">
+                    <span class="purchase-summary-icon"><i class="mdi mdi-check-decagram-outline"></i></span>
+                    <div><span>Good / GAR</span><strong>{{ formatNumber(props.summary.qty_good) }} / {{ formatNumber(props.summary.qty_good_after_repair) }}</strong></div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="purchase-summary purchase-summary-warning">
+                    <span class="purchase-summary-icon"><i class="mdi mdi-tag-arrow-down-outline"></i></span>
+                    <div><span>Diskon Clearance</span><strong>{{ formatCurrency(props.summary.clearance_discount) }}</strong><small class="purchase-subvalue">{{ formatNumber(props.summary.clearance_percentage) }}% dari nilai clearance</small></div>
                 </div>
             </div>
         </div>
@@ -361,7 +398,7 @@ onBeforeUnmount(() => {
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 purchase-table">
                     <thead>
-                        <tr><th>Tanggal</th><th>Store / Shift</th><th class="text-end">Kasir / Sesi</th><th class="text-end">Transaksi / Item</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th><th class="text-end">Aksi</th></tr>
+                        <tr><th>Tanggal</th><th>Store / Shift</th><th class="text-end">Kasir / Sesi</th><th class="text-end">Transaksi / Item</th><th class="text-end">Kondisi / Clearance</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th><th class="text-end">Aksi</th></tr>
                     </thead>
                     <tbody>
                         <tr v-for="row in props.rows.data" :key="`${row.report_date}-${row.store_id}-${row.shift_id ?? 'none'}`">
@@ -369,6 +406,10 @@ onBeforeUnmount(() => {
                             <td><strong>{{ row.store_name }}</strong><small class="purchase-subvalue">{{ row.shift_name }}<span v-if="row.shift_code"> · {{ row.shift_code }}</span></small></td>
                             <td class="text-end"><strong>{{ formatNumber(row.total_cashiers) }}</strong><small class="purchase-subvalue">{{ formatNumber(row.total_sessions) }} sesi</small></td>
                             <td class="text-end"><strong>{{ formatNumber(row.total_transactions) }}</strong><small class="purchase-subvalue">{{ formatNumber(row.total_items) }} item · {{ formatNumber(row.total_products) }} SKU</small></td>
+                            <td class="text-end">
+                                <strong>{{ formatNumber(row.qty_good) }} good / {{ formatNumber(row.qty_good_after_repair) }} GAR</strong>
+                                <small class="purchase-subvalue">Clearance {{ formatCurrency(row.clearance_discount) }} ({{ formatNumber(row.clearance_percentage) }}%)</small>
+                            </td>
                             <td class="text-end">{{ formatCurrency(row.gross_amount) }}</td>
                             <td class="text-end">{{ formatCurrency(row.discount_amount) }}</td>
                             <td class="text-end"><strong>{{ formatCurrency(row.net_amount) }}</strong></td>
@@ -396,11 +437,13 @@ onBeforeUnmount(() => {
             </div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 purchase-table">
-                    <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th><th class="text-end">Sesi</th></tr></thead>
+                    <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Good / GAR</th><th class="text-end">Clearance</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th><th class="text-end">Sesi</th></tr></thead>
                     <tbody>
                         <tr v-for="row in props.productRows" :key="row.product_id">
                             <td><div class="purchase-main"><strong>{{ row.product_name }}</strong><small>{{ row.product_code }}</small></div></td>
                             <td class="text-end"><strong>{{ formatNumber(row.qty) }}</strong></td>
+                            <td class="text-end">{{ formatNumber(row.qty_good) }} / {{ formatNumber(row.qty_good_after_repair) }}</td>
+                            <td class="text-end">{{ formatCurrency(row.clearance_discount) }} ({{ formatNumber(row.clearance_percentage) }}%)</td>
                             <td class="text-end">{{ formatCurrency(row.gross_amount) }}</td>
                             <td class="text-end">{{ formatCurrency(row.discount_amount) }}</td>
                             <td class="text-end">{{ formatCurrency(row.net_amount) }}</td>
@@ -434,6 +477,8 @@ onBeforeUnmount(() => {
                             <div><span>Gross</span><strong>{{ formatCurrency(detail.summary.gross_amount) }}</strong></div>
                             <div><span>Diskon</span><strong>{{ formatCurrency(detail.summary.discount_amount) }}</strong></div>
                             <div><span>Net</span><strong>{{ formatCurrency(detail.summary.net_amount) }}</strong></div>
+                            <div><span>Good / GAR</span><strong>{{ formatNumber(detail.summary.qty_good) }} / {{ formatNumber(detail.summary.qty_good_after_repair) }}</strong></div>
+                            <div><span>Diskon Clearance</span><strong>{{ formatCurrency(detail.summary.clearance_discount) }}</strong><small>{{ formatNumber(detail.summary.clearance_percentage) }}%</small></div>
                         </div>
 
                         <h6 class="purchase-section-title">Sesi Kasir</h6>
@@ -457,16 +502,18 @@ onBeforeUnmount(() => {
                         <h6 class="purchase-section-title">Produk Dibeli</h6>
                         <div class="table-responsive">
                             <table class="table table-sm mb-0 purchase-detail-table">
-                                <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th></tr></thead>
+                                <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Good / GAR</th><th class="text-end">Clearance</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th></tr></thead>
                                 <tbody>
                                     <tr v-for="product in detail.products" :key="product.product_id">
                                         <td>{{ product.product_name }}<small>{{ product.product_code }}</small></td>
                                         <td class="text-end">{{ formatNumber(product.qty) }}</td>
+                                        <td class="text-end">{{ formatNumber(product.qty_good) }} / {{ formatNumber(product.qty_good_after_repair) }}</td>
+                                        <td class="text-end">{{ formatCurrency(product.clearance_discount) }} ({{ formatNumber(product.clearance_percentage) }}%)</td>
                                         <td class="text-end">{{ formatCurrency(product.gross_amount) }}</td>
                                         <td class="text-end">{{ formatCurrency(product.discount_amount) }}</td>
                                         <td class="text-end">{{ formatCurrency(product.net_amount) }}</td>
                                     </tr>
-                                    <tr v-if="detail.products.length === 0"><td colspan="5" class="text-center text-muted py-3">Tidak ada produk.</td></tr>
+                                    <tr v-if="detail.products.length === 0"><td colspan="7" class="text-center text-muted py-3">Tidak ada produk.</td></tr>
                                 </tbody>
                             </table>
                         </div>

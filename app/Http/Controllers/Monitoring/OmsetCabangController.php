@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Monitoring;
 
 use App\Domain\Analytics\Support\FinancialBreakdown;
+use App\Domain\StoreOperations\Queries\EcommerceConditionSubquery;
+use App\Domain\StoreOperations\Support\SaleConditionMetrics;
 use App\Exports\OmsetCabangExport;
 use App\Http\Controllers\Controller;
 use App\Support\Concerns\NormalizesDate;
@@ -49,7 +51,9 @@ class OmsetCabangController extends Controller
             productId: $filters['product_id'],
             q: $filters['q'],
             dateFrom: $filters['date_from'],
-            dateTo: $filters['date_to']
+            dateTo: $filters['date_to'],
+            conditionStatus: $filters['condition_status'],
+            clearance: $filters['clearance']
         );
 
         $finance = $this->getFinancialSummary(
@@ -57,7 +61,9 @@ class OmsetCabangController extends Controller
             productId: $filters['product_id'],
             q: $filters['q'],
             dateFrom: $filters['date_from'],
-            dateTo: $filters['date_to']
+            dateTo: $filters['date_to'],
+            conditionStatus: $filters['condition_status'],
+            clearance: $filters['clearance']
         );
 
         $rows = $this->getRows(
@@ -66,7 +72,9 @@ class OmsetCabangController extends Controller
             q: $filters['q'],
             dateFrom: $filters['date_from'],
             dateTo: $filters['date_to'],
-            perPage: $filters['per_page']
+            perPage: $filters['per_page'],
+            conditionStatus: $filters['condition_status'],
+            clearance: $filters['clearance']
         );
 
         $chartRows = $this->getChartRows(
@@ -74,12 +82,14 @@ class OmsetCabangController extends Controller
             productId: $filters['product_id'],
             q: $filters['q'],
             dateFrom: $filters['date_from'],
-            dateTo: $filters['date_to']
+            dateTo: $filters['date_to'],
+            conditionStatus: $filters['condition_status'],
+            clearance: $filters['clearance']
         );
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Cabang',
-            'description' => 'Ringkasan omset per cabang dari transaksi lunas POS dan ecommerce. Baris tabel adalah cabang, bukan rincian produk.',
+            'description' => 'Ringkasan omset per cabang dari transaksi lunas POS dan ecommerce. Baris tabel adalah cabang, bukan rincian produk. Penjualan Good dan Good After Repair dirinci terpisah, termasuk qty dan diskon clearance. Gimmick/gratis tidak masuk omset.',
             'data' => [
                 'rows' => $rows,
                 'summary' => $summary,
@@ -91,6 +101,7 @@ class OmsetCabangController extends Controller
                 'omsetUrls' => [
                     'cabang' => route('monitoring.omset-cabang.index'),
                     'kotor' => route('monitoring.omset-kotor.index'),
+                    'sample_gimmick' => route('monitoring.sample-gimmick-report.index'),
                 ],
 
                 'storeId' => $filters['store_id'],
@@ -100,6 +111,10 @@ class OmsetCabangController extends Controller
                 'dateTo' => $filters['date_to'],
                 'perPage' => $filters['per_page'],
                 'today' => $filters['today'],
+                'conditionStatus' => $filters['condition_status'] === 'all' ? '' : $filters['condition_status'],
+                'clearance' => $filters['clearance'] === 'all' ? '' : $filters['clearance'],
+                'conditionStatusOptions' => SaleConditionMetrics::conditionOptions(),
+                'clearanceOptions' => SaleConditionMetrics::clearanceOptions(),
                 'lastUpdate' => now()->format('d-m-Y H:i:s'),
             ],
             'filters' => request()->query(),
@@ -122,7 +137,9 @@ class OmsetCabangController extends Controller
             productId: $filters['product_id'],
             q: $filters['q'],
             dateFrom: $filters['date_from'],
-            dateTo: $filters['date_to']
+            dateTo: $filters['date_to'],
+            conditionStatus: $filters['condition_status'],
+            clearance: $filters['clearance']
         );
 
         return Excel::download(
@@ -163,6 +180,8 @@ class OmsetCabangController extends Controller
             'date_to' => $dateTo,
             'per_page' => $perPage,
             'today' => $today,
+            'condition_status' => SaleConditionMetrics::normalizeConditionStatus($request->query('condition_status')),
+            'clearance' => SaleConditionMetrics::normalizeClearance($request->query('clearance')),
         ];
     }
 
@@ -172,14 +191,18 @@ class OmsetCabangController extends Controller
         ?string $q = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
-        int $perPage = 10
+        int $perPage = 10,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return $this->buildReportQuery(
             storeId: $storeId,
             productId: $productId,
             q: $q,
             dateFrom: $dateFrom,
-            dateTo: $dateTo
+            dateTo: $dateTo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         )
             ->orderBy('x.store_name')
             ->paginate($perPage)
@@ -191,14 +214,18 @@ class OmsetCabangController extends Controller
         ?string $productId = null,
         ?string $q = null,
         ?string $dateFrom = null,
-        ?string $dateTo = null
+        ?string $dateTo = null,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return $this->buildReportQuery(
             storeId: $storeId,
             productId: $productId,
             q: $q,
             dateFrom: $dateFrom,
-            dateTo: $dateTo
+            dateTo: $dateTo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         )
             ->orderBy('x.store_name')
             ->get();
@@ -209,7 +236,9 @@ class OmsetCabangController extends Controller
         ?string $productId = null,
         ?string $q = null,
         ?string $dateFrom = null,
-        ?string $dateTo = null
+        ?string $dateTo = null,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -218,7 +247,9 @@ class OmsetCabangController extends Controller
                     productId: $productId,
                     q: $q,
                     dateFrom: $dateFrom,
-                    dateTo: $dateTo
+                    dateTo: $dateTo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -248,7 +279,18 @@ class OmsetCabangController extends Controller
                 END as margin_kotor_percent,
                 COALESCE(SUM(x.total_omset_kotor_store), 0)::numeric as total_omset_kotor_store,
                 COALESCE(SUM(x.total_omset_kotor_ecommerce), 0)::numeric as total_omset_kotor_ecommerce,
-                COALESCE(SUM(x.total_harga_akhir), 0)::numeric as total_omset
+                COALESCE(SUM(x.total_harga_akhir), 0)::numeric as total_omset,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good\' THEN x.approved_qty ELSE 0 END), 0)::int as total_qty_good,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good_after_repair\' THEN x.approved_qty ELSE 0 END), 0)::int as total_qty_good_after_repair,
+                COALESCE(SUM(CASE WHEN x.is_clearance THEN x.approved_qty ELSE 0 END), 0)::int as total_qty_clearance,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good\' THEN x.total_harga_awal ELSE 0 END), 0)::numeric as total_omset_good,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good_after_repair\' THEN x.total_harga_awal ELSE 0 END), 0)::numeric as total_omset_good_after_repair,
+                COALESCE(SUM(x.clearance_discount), 0)::numeric as total_clearance_discount,
+                CASE
+                    WHEN SUM(CASE WHEN x.is_clearance THEN x.total_harga_awal ELSE 0 END) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(CASE WHEN x.is_clearance THEN x.total_harga_awal ELSE 0 END)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage
             ')
             ->groupBy('x.store_name', 'x.store_code');
     }
@@ -258,7 +300,9 @@ class OmsetCabangController extends Controller
         ?string $productId = null,
         ?string $q = null,
         ?string $dateFrom = null,
-        ?string $dateTo = null
+        ?string $dateTo = null,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -267,7 +311,9 @@ class OmsetCabangController extends Controller
                     productId: $productId,
                     q: $q,
                     dateFrom: $dateFrom,
-                    dateTo: $dateTo
+                    dateTo: $dateTo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -291,7 +337,11 @@ class OmsetCabangController extends Controller
                 COALESCE(SUM(x.total_harga_base), 0) as total_harga_base,
                 COALESCE(SUM(x.total_omset_kotor_store), 0) as total_omset_kotor_store,
                 COALESCE(SUM(x.total_omset_kotor_ecommerce), 0) as total_omset_kotor_ecommerce,
-                COALESCE(SUM(x.total_harga_akhir), 0) as total_omset
+                COALESCE(SUM(x.total_harga_akhir), 0) as total_omset,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good\' THEN x.approved_qty ELSE 0 END), 0) as total_qty_good,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good_after_repair\' THEN x.approved_qty ELSE 0 END), 0) as total_qty_good_after_repair,
+                COALESCE(SUM(CASE WHEN x.is_clearance THEN x.approved_qty ELSE 0 END), 0) as total_qty_clearance,
+                COALESCE(SUM(x.clearance_discount), 0) as total_clearance_discount
             ')
             ->first();
     }
@@ -301,7 +351,9 @@ class OmsetCabangController extends Controller
         ?string $productId = null,
         ?string $q = null,
         ?string $dateFrom = null,
-        ?string $dateTo = null
+        ?string $dateTo = null,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ): array {
         $channelRows = DB::query()
             ->fromSub(
@@ -310,7 +362,9 @@ class OmsetCabangController extends Controller
                     productId: $productId,
                     q: $q,
                     dateFrom: $dateFrom,
-                    dateTo: $dateTo
+                    dateTo: $dateTo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -323,7 +377,12 @@ class OmsetCabangController extends Controller
                 COALESCE(SUM(GREATEST(x.total_harga_awal - x.total_diskon_produk, 0)), 0) as net_after_product_discount,
                 COALESCE(SUM(x.total_voucher_promo), 0) as voucher_discount,
                 COALESCE(SUM(x.total_harga_akhir), 0) as net_sales,
-                COALESCE(SUM(x.total_harga_base), 0) as base_price
+                COALESCE(SUM(x.total_harga_base), 0) as base_price,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good\' THEN x.approved_qty ELSE 0 END), 0) as qty_good,
+                COALESCE(SUM(CASE WHEN x.condition_status = \'good_after_repair\' THEN x.approved_qty ELSE 0 END), 0) as qty_good_after_repair,
+                COALESCE(SUM(CASE WHEN x.is_clearance THEN x.approved_qty ELSE 0 END), 0) as qty_clearance,
+                COALESCE(SUM(x.clearance_discount), 0) as clearance_discount,
+                COALESCE(SUM(CASE WHEN x.is_clearance THEN x.total_harga_awal ELSE 0 END), 0) as clearance_gross_sales
             ')
             ->groupBy('x.sales_channel')
             ->get()
@@ -339,7 +398,16 @@ class OmsetCabangController extends Controller
             'voucher_discount' => array_sum(array_column($channelRows, 'voucher_discount')),
             'net_sales' => array_sum(array_column($channelRows, 'net_sales')),
             'base_price' => array_sum(array_column($channelRows, 'base_price')),
+            'qty_good' => array_sum(array_column($channelRows, 'qty_good')),
+            'qty_good_after_repair' => array_sum(array_column($channelRows, 'qty_good_after_repair')),
+            'qty_clearance' => array_sum(array_column($channelRows, 'qty_clearance')),
+            'clearance_discount' => array_sum(array_column($channelRows, 'clearance_discount')),
+            'clearance_gross_sales' => array_sum(array_column($channelRows, 'clearance_gross_sales')),
         ];
+
+        $clearancePercentage = $totals['clearance_gross_sales'] > 0
+            ? round(($totals['clearance_discount'] / $totals['clearance_gross_sales']) * 100, 2)
+            : 0;
 
         return [
             ...FinancialBreakdown::make(
@@ -352,6 +420,11 @@ class OmsetCabangController extends Controller
                 $totals['qty'],
                 $totals['net_after_product_discount']
             ),
+            'qty_good' => $totals['qty_good'],
+            'qty_good_after_repair' => $totals['qty_good_after_repair'],
+            'qty_clearance' => $totals['qty_clearance'],
+            'clearance_discount' => $totals['clearance_discount'],
+            'clearance_percentage' => $clearancePercentage,
             'channels' => FinancialBreakdown::channels($channelRows),
         ];
     }
@@ -361,7 +434,9 @@ class OmsetCabangController extends Controller
         ?string $productId = null,
         ?string $q = null,
         ?string $dateFrom = null,
-        ?string $dateTo = null
+        ?string $dateTo = null,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -370,7 +445,9 @@ class OmsetCabangController extends Controller
                     productId: $productId,
                     q: $q,
                     dateFrom: $dateFrom,
-                    dateTo: $dateTo
+                    dateTo: $dateTo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -395,7 +472,9 @@ class OmsetCabangController extends Controller
         ?string $productId = null,
         ?string $q = null,
         ?string $dateFrom = null,
-        ?string $dateTo = null
+        ?string $dateTo = null,
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         $storeOrderQuery = $this->buildStoreSalesBaseQuery();
         $ecommerceOrderQuery = $this->buildEcommerceSalesBaseQuery();
@@ -443,6 +522,16 @@ class OmsetCabangController extends Controller
             });
         }
 
+        if ($conditionStatus !== '' && $conditionStatus !== 'all') {
+            $query->where('base_data.condition_status', $conditionStatus);
+        }
+
+        if ($clearance === SaleConditionMetrics::CLEARANCE_YES) {
+            $query->where('base_data.is_clearance', true);
+        } elseif ($clearance === SaleConditionMetrics::CLEARANCE_NO) {
+            $query->where('base_data.is_clearance', false);
+        }
+
         return $query->selectRaw('base_data.*');
     }
 
@@ -466,7 +555,7 @@ class OmsetCabangController extends Controller
         $basePriceSql = $this->priceSql('p.id', $orderDateSql, 'base');
         $storePriceSql = "COALESCE(NULLIF(scd.product_price_amount, 0), ({$this->priceSql('p.id', $orderDateSql, 'store')}))";
         $cartNet = DB::table('store_cart_details')
-            ->whereRaw("COALESCE(void_status, '') NOT IN ('void', 'voided', 'gimmick')")
+            ->whereRaw(SaleConditionMetrics::eligibleSaleLineSql('store_cart_details'))
             ->selectRaw('cart_id, SUM(GREATEST(COALESCE(product_price_amount, 0) - COALESCE(discount_amount, 0), 0)) as net_total')
             ->groupBy('cart_id');
         $voucherPromoSql = "
@@ -476,6 +565,16 @@ class OmsetCabangController extends Controller
             ) ELSE 0 END
         ";
         $storeFinalSql = "GREATEST(({$storePriceSql}) - COALESCE(scd.discount_amount, 0) - ({$voucherPromoSql}), 0)";
+        $conditionStatusSql = "COALESCE(item_condition.status::text, 'unknown')";
+        $clearancePercentageSql = SaleConditionMetrics::clearancePercentageSql(
+            $conditionStatusSql,
+            $storePriceSql,
+            'scd.discount_amount'
+        );
+        $clearanceDiscountSql = SaleConditionMetrics::clearanceDiscountSql(
+            $conditionStatusSql,
+            'scd.discount_amount'
+        );
 
         return DB::table('store_cart_details as scd')
             ->join('store_carts as sc', 'sc.id', '=', 'scd.cart_id')
@@ -483,9 +582,10 @@ class OmsetCabangController extends Controller
             ->join('stores as s', 's.id', '=', 'sc.store_id')
             ->join('items as i', 'i.id', '=', 'scd.item_id')
             ->join('products as p', 'p.id', '=', 'i.product_id')
+            ->leftJoin('item_conditions as item_condition', 'item_condition.id', '=', 'i.current_condition_id')
             ->leftJoin('customers as c', 'c.id', '=', 'sc.customer_id')
             ->leftJoinSub($cartNet, 'cart_net', fn ($join) => $join->on('cart_net.cart_id', '=', 'sc.id'))
-            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
+            ->whereRaw(SaleConditionMetrics::eligibleSaleLineSql('scd'))
             ->selectRaw("
                 'Store POS' as order_source,
                 'store' as sales_channel,
@@ -516,6 +616,12 @@ class OmsetCabangController extends Controller
                 1::int as received_qty,
                 0::int as fulfillment_store_qty,
                 0::int as fulfillment_warehouse_qty,
+
+                {$conditionStatusSql} as condition_status,
+                {$this->conditionNameSql('item_condition')} as condition_name,
+                ({$clearancePercentageSql})::numeric(18,2) as clearance_percentage,
+                COALESCE({$conditionStatusSql} = 'good_after_repair', false) as is_clearance,
+                ({$clearanceDiscountSql})::numeric(18,2) as clearance_discount,
 
                 ({$storePriceSql})::numeric(18,2) as harga_order_store,
                 ({$basePriceSql})::numeric(18,2) as harga_base,
@@ -580,6 +686,7 @@ class OmsetCabangController extends Controller
             ) ELSE 0 END
         ";
         $ecommerceFinalSql = "GREATEST(({$ecommerceRevenueSql}) - ({$voucherPromoSql}), 0)";
+        $conditionSub = EcommerceConditionSubquery::make();
 
         return DB::table('ecommerce_order_details as eod')
             ->join('ecommerce_orders as eo', 'eo.id', '=', 'eod.ecommerce_order_id')
@@ -602,6 +709,10 @@ class OmsetCabangController extends Controller
             ->leftJoinSub($warehouseFulfillment, 'warehouse_fulfillment', function ($join) {
                 $join->on('warehouse_fulfillment.ecommerce_order_id', '=', 'eo.id')
                     ->on('warehouse_fulfillment.product_id', '=', 'eod.product_id');
+            })
+            ->leftJoinSub($conditionSub, 'ecom_condition', function ($join) {
+                $join->on('ecom_condition.ecommerce_order_id', '=', 'eo.id')
+                    ->on('ecom_condition.product_id', '=', 'eod.product_id');
             })
             ->selectRaw("
                 'Ecommerce' as order_source,
@@ -633,6 +744,12 @@ class OmsetCabangController extends Controller
                 COALESCE(eod.quantity, 0)::int as received_qty,
                 COALESCE(store_fulfillment.fulfillment_store_qty, 0)::int as fulfillment_store_qty,
                 COALESCE(warehouse_fulfillment.fulfillment_warehouse_qty, 0)::int as fulfillment_warehouse_qty,
+
+                COALESCE(ecom_condition.condition_status, 'unknown') as condition_status,
+                COALESCE(ecom_condition.condition_name, 'Tidak Tercatat') as condition_name,
+                0::numeric(18,2) as clearance_percentage,
+                false::boolean as is_clearance,
+                0::numeric(18,2) as clearance_discount,
 
                 0::numeric(18,2) as harga_order_store,
                 ({$basePriceSql})::numeric(18,2) as harga_base,
@@ -799,6 +916,11 @@ class OmsetCabangController extends Controller
                     )
                 )::numeric(18,2) as total_omset_kotor_ecommerce
             ");
+    }
+
+    private function conditionNameSql(string $conditionAlias): string
+    {
+        return SaleConditionMetrics::conditionNameSql($conditionAlias);
     }
 
     private function priceSql(string $productIdColumn, string $dateSql, string $priceType): string

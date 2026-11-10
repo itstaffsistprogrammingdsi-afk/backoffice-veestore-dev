@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
@@ -128,6 +128,7 @@ interface Props {
     };
     urls: {
         index: string;
+        report: string;
         mark: string;
         request_approve: string;
         request_reject: string;
@@ -436,6 +437,10 @@ const requestReference = (request: RequestRow) => {
                 <h1>Sample & Gimmick</h1>
                 <p>Tinjau pengajuan toko untuk barang tester dan barang gratis pelanggan khusus. Gimmick dari nota dikecualikan dari omset, gimmick scan dan sample ditandai di stok toko.</p>
             </div>
+            <Link :href="props.urls.report" class="btn btn-sm btn-outline-primary">
+                <i class="mdi mdi-file-chart-outline me-1" aria-hidden="true"></i>
+                Buka Laporan
+            </Link>
         </header>
 
         <div v-if="flash.success" class="alert alert-success py-2 small" role="status">{{ flash.success }}</div>

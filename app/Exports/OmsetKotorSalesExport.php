@@ -32,6 +32,8 @@ class OmsetKotorSalesExport implements FromCollection, ShouldAutoSize, WithHeadi
             'Customer',
             'Kode Produk',
             'Produk',
+            'Kondisi Penjualan',
+            'Clearance (%)',
             'Item ID',
             'RFID',
             'Qty',
@@ -70,6 +72,8 @@ class OmsetKotorSalesExport implements FromCollection, ShouldAutoSize, WithHeadi
             $row->customer_name ?? '-',
             $row->product_code ?? '-',
             $row->product_name ?? '-',
+            $row->condition_name ?? 'Tidak Tercatat',
+            (float) ($row->clearance_percentage ?? 0),
             $row->display_item_id ?? '-',
             $row->rfid_value ?? '-',
 

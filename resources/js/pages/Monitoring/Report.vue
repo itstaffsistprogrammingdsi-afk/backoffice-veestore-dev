@@ -69,6 +69,11 @@ interface FinanceBreakdownValues {
     transactions: number;
     qty: number;
     average_net_per_transaction: number;
+    qty_good?: number;
+    qty_good_after_repair?: number;
+    qty_clearance?: number;
+    clearance_discount?: number;
+    clearance_percentage?: number;
     reconciliation: FinanceReconciliation;
 }
 
@@ -196,6 +201,8 @@ const FILTER_ALIASES: Record<string, string> = {
     locationId: 'location_id',
     locationKey: 'location_key',
     conditionId: 'condition_id',
+    conditionStatus: 'condition_status',
+    clearance: 'clearance',
     promoId: 'promo_id',
     discountId: 'discount_id',
     voucherId: 'voucher_id',
@@ -272,6 +279,8 @@ const ALLOWED_FILTERS = new Set([
     'location_id',
     'location_key',
     'condition_id',
+    'condition_status',
+    'clearance',
     'promo_id',
     'discount_id',
     'voucher_id',
@@ -393,6 +402,8 @@ const FILTER_LABELS: Record<string, string> = {
     location_id: 'Lokasi',
     location_key: 'Lokasi',
     condition_id: 'Kondisi',
+    condition_status: 'Kondisi Penjualan',
+    clearance: 'Penjualan Clearance',
     promo_id: 'Promo',
     discount_id: 'Diskon',
     voucher_id: 'Voucher',
@@ -524,6 +535,8 @@ const OPTION_SOURCES: Record<string, { keys: string[]; labels?: string[] }> = {
     location_id: { keys: ['locations'] },
     location_key: { keys: ['locations'] },
     condition_id: { keys: ['conditions'] },
+    condition_status: { keys: ['conditionStatusOptions'] },
+    clearance: { keys: ['clearanceOptions'] },
     promo_id: { keys: ['promos'] },
     discount_id: { keys: ['discounts'] },
     voucher_id: { keys: ['vouchers'] },
@@ -758,6 +771,10 @@ const DATASET_LABELS: Record<string, string> = {
     appSummary: 'Akses per Aplikasi',
     voucherUsageRows: 'Voucher Terpakai',
     opnameItems: 'Rincian Item Opname',
+    gimmickReceiptRows: 'Gimmick dari Nota',
+    sampleRows: 'Stok Sample',
+    gimmickStockRows: 'Stok Gimmick / Gratis',
+    requests: 'Pengajuan Sample & Gimmick',
 };
 
 const DATASET_DESCRIPTIONS: Record<string, string> = {
@@ -814,6 +831,10 @@ const DATASET_DESCRIPTIONS: Record<string, string> = {
     appSummary: 'Jumlah akses dan pengguna unik per aplikasi, termasuk WMS.',
     voucherUsageRows: 'Voucher yang sudah digunakan pada periode ini.',
     opnameItems: 'Rincian item per sesi stok opname beserta nilai selisih.',
+    gimmickReceiptRows: 'Item pada nota yang ditandai gimmick/gratis. Tidak dihitung sebagai omset.',
+    sampleRows: 'Item stok toko yang ditandai sebagai sample/tester beserta nilai stoknya.',
+    gimmickStockRows: 'Item stok toko yang ditandai sebagai gimmick/gratis beserta nilai stoknya.',
+    requests: 'Riwayat pengajuan sample dan gimmick beserta status persetujuannya.',
 };
 
 const DATASET_KEYS = new Set(Object.keys(DATASET_LABELS));
@@ -871,6 +892,10 @@ const DATASET_ORDER = [
     'monthlyRows',
     'appSummary',
     'opnameItems',
+    'gimmickReceiptRows',
+    'sampleRows',
+    'gimmickStockRows',
+    'requests',
 ];
 
 const COLUMN_LABELS: Record<string, string> = {
@@ -926,6 +951,37 @@ const COLUMN_LABELS: Record<string, string> = {
     release_status: 'Status Rilis',
     condition_name: 'Kondisi',
     current_condition_name: 'Kondisi Saat Ini',
+    condition_status: 'Kondisi Penjualan',
+    clearance_percentage: 'Clearance (%)',
+    is_clearance: 'Penjualan Clearance',
+    clearance_discount: 'Diskon Clearance',
+    qty_clearance: 'Qty Clearance',
+    gross_sales_good: 'Omset Kotor Good',
+    gross_sales_good_after_repair: 'Omset Kotor Good After Repair',
+    total_qty_good: 'Qty Good',
+    total_qty_good_after_repair: 'Qty Good After Repair',
+    total_qty_clearance: 'Qty Clearance',
+    total_clearance_discount: 'Diskon Clearance',
+    total_omset_good: 'Omset Kotor Good',
+    total_omset_good_after_repair: 'Omset Kotor Good After Repair',
+    gimmick_value: 'Nilai Gimmick / Gratis',
+    gross_value: 'Nilai Barang',
+    discount_value: 'Diskon Tercatat',
+    net_value: 'Nilai Setelah Diskon',
+    marker_type: 'Jenis Penanda',
+    marked_by: 'Ditandai Oleh',
+    marked_at: 'Tanggal Ditandai',
+    request_number: 'No. Pengajuan',
+    base_value: 'Nilai Harga Dasar',
+    total_gimmick_receipts: 'Item Gimmick Nota',
+    total_gimmick_value: 'Nilai Gimmick Nota',
+    total_gimmick_items: 'Total Item Gimmick',
+    total_sample_items: 'Item Sample',
+    total_sample_value: 'Nilai Stok Sample',
+    total_gimmick_stock_items: 'Item Stok Gimmick',
+    total_gimmick_stock_value: 'Nilai Stok Gimmick',
+    total_pending_requests: 'Pengajuan Menunggu',
+    total_approved_requests: 'Pengajuan Disetujui',
     anomaly_label: 'Anomali',
     risk_score: 'Skor Risiko',
     created_at: 'Dibuat',
@@ -1094,8 +1150,8 @@ const COLUMN_LABELS: Record<string, string> = {
     qty_real: 'Qty Nyata',
     qty_reserved: 'Qty Reservasi',
     qty_available: 'Qty Tersedia',
-    qty_good: 'Qty Baik',
-    qty_good_after_repair: 'Qty Baik Setelah Perbaikan',
+    qty_good: 'Qty Good',
+    qty_good_after_repair: 'Qty Good After Repair',
     qty_bad: 'Qty Rusak',
     tolerance_percentage: 'Toleransi (%)',
     order_ref: 'Referensi Order',
@@ -1364,6 +1420,21 @@ const CURRENCY_KEYS = new Set([
     'total_omset_kotor_ecommerce',
     'total_diskon_produk',
     'total_voucher_promo',
+    'clearance_discount',
+    'total_clearance_discount',
+    'gross_sales_good',
+    'gross_sales_good_after_repair',
+    'total_omset_good',
+    'total_omset_good_after_repair',
+    'gimmick_value',
+    'gross_value',
+    'discount_value',
+    'net_value',
+    'stock_value',
+    'base_value',
+    'total_gimmick_value',
+    'total_sample_value',
+    'total_gimmick_stock_value',
     'available_voucher_value',
     'used_voucher_value',
     'difference_value',
@@ -1488,6 +1559,8 @@ const emptyOptionLabel = (field: FilterField): string => {
         location_id: 'Semua lokasi',
         location_key: 'Semua lokasi',
         condition_id: 'Semua kondisi',
+        condition_status: 'Semua kondisi penjualan',
+        clearance: 'Semua penjualan',
         promo_id: 'Semua promo',
         discount_id: 'Semua diskon',
         voucher_id: 'Semua voucher',
@@ -1641,7 +1714,7 @@ const normalizeFilterValue = (key: string, value: unknown): string => {
 
     const normalized = String(value);
 
-    if (['scope', 'channel', 'promo'].includes(key) && normalized.toLowerCase() === 'all') return '';
+    if (['scope', 'channel', 'promo', 'condition_status', 'clearance'].includes(key) && normalized.toLowerCase() === 'all') return '';
 
     return normalized;
 };
@@ -2225,6 +2298,19 @@ const summaryLabel = (key: string): string => {
         average_net_transaction: 'Rata-rata Omset Bersih',
         total_omset_kotor: 'Omset Kotor',
         total_omset_bersih: 'Omset Bersih',
+        total_qty_good: 'Qty Good',
+        total_qty_good_after_repair: 'Qty Good After Repair',
+        total_qty_clearance: 'Qty Clearance',
+        total_clearance_discount: 'Diskon Clearance',
+        total_gimmick_receipts: 'Item Gimmick Nota',
+        total_gimmick_value: 'Nilai Gimmick Nota',
+        total_gimmick_items: 'Total Item Gimmick',
+        total_sample_items: 'Item Sample',
+        total_sample_value: 'Nilai Stok Sample',
+        total_gimmick_stock_items: 'Item Stok Gimmick',
+        total_gimmick_stock_value: 'Nilai Stok Gimmick',
+        total_pending_requests: 'Pengajuan Menunggu',
+        total_approved_requests: 'Pengajuan Disetujui',
         total_diskon_produk: 'Diskon Produk',
         total_voucher_promo: 'Voucher / Poin',
         laba_kotor: 'Laba Kotor',
@@ -2414,6 +2500,22 @@ const financeKpis = computed(() => {
             value: formatNumber(finance.transactions),
             note: `${formatNumber(finance.qty)} barang terjual`,
         },
+        ...(finance.qty_good !== undefined
+            ? [{
+                key: 'condition-split',
+                label: 'Good / GAR',
+                value: `${formatNumber(finance.qty_good ?? 0)} / ${formatNumber(finance.qty_good_after_repair ?? 0)}`,
+                note: 'Qty terjual kondisi Good dan Good After Repair',
+            }]
+            : []),
+        ...(finance.clearance_discount !== undefined
+            ? [{
+                key: 'clearance-discount',
+                label: 'Diskon Clearance',
+                value: formatCurrency(finance.clearance_discount ?? 0),
+                note: `${formatPercent(finance.clearance_percentage ?? 0)} dari nilai barang clearance`,
+            }]
+            : []),
     ];
 });
 
@@ -2658,6 +2760,9 @@ const COLUMN_PRIORITY: Record<string, number> = {
     release_status: 1,
     condition_name: 1,
     current_condition_name: 1,
+    condition_status: 1,
+    condition_names: 1,
+    is_clearance: 1,
     anomaly_label: 1,
     status_label: 1,
     opname_status: 1,
@@ -2699,6 +2804,13 @@ const COLUMN_PRIORITY: Record<string, number> = {
     total_sku: 3,
     quantity: 3,
     total_qty: 3,
+    qty_good: 3,
+    qty_good_after_repair: 3,
+    qty_clearance: 3,
+    total_qty_good: 3,
+    total_qty_good_after_repair: 3,
+    total_qty_clearance: 3,
+    clearance_percentage: 3,
     qty_real: 3,
     qty_available: 3,
     stock_barrier: 3,
@@ -3189,6 +3301,16 @@ const selectDataset = (key: string) => {
                 <i class="mdi mdi-chart-areaspline" aria-hidden="true"></i>
                 Omset Kotor &amp; Bersih
             </Link>
+            <Link
+                v-if="props.data.omsetUrls.sample_gimmick"
+                :href="props.data.omsetUrls.sample_gimmick"
+                class="monitor-omset-tab"
+                :class="{ 'is-active': props.data.omsetTab === 'sample_gimmick' }"
+                :aria-current="props.data.omsetTab === 'sample_gimmick' ? 'page' : undefined"
+            >
+                <i class="mdi mdi-flask-outline" aria-hidden="true"></i>
+                Sample, Gimmick &amp; Gratis
+            </Link>
         </nav>
 
         <nav
@@ -3442,8 +3564,16 @@ const selectDataset = (key: string) => {
                             <dd>Margin kotor = laba kotor dibagi omset bersih. Diskon efektif = total potongan dibagi omset kotor.</dd>
                         </div>
                         <div>
+                            <dt>Kondisi Penjualan</dt>
+                            <dd>Kondisi barang saat terjual: Good atau Good After Repair. Qty dan omset kotor dirinci per kondisi, tetapi tetap bagian dari omset yang sama dan tidak dijumlahkan dua kali.</dd>
+                        </div>
+                        <div>
+                            <dt>Clearance</dt>
+                            <dd>Barang kondisi Good After Repair dijual melalui Mode Clearance. Persentase clearance dihitung dari diskon aktual dibagi harga jual barang pada baris transaksi. Diskon clearance sudah termasuk dalam Diskon Produk, bukan potongan tambahan.</dd>
+                        </div>
+                        <div>
                             <dt>Cakupan data</dt>
-                            <dd>POS hanya pembayaran lunas dan detail non-void. Ecommerce hanya order non-cancelled dengan pembayaran lunas. Retur, void, dan transaksi belum dibayar tidak masuk.</dd>
+                            <dd>POS hanya pembayaran lunas dan detail non-void. Ecommerce hanya order non-cancelled dengan pembayaran lunas. Retur, void, gimmick/gratis, dan transaksi belum dibayar tidak masuk. Nilai sample, gimmick, dan gratis dilaporkan terpisah pada laporan Sample, Gimmick &amp; Gratis.</dd>
                         </div>
                         <div>
                             <dt>Rekonsiliasi</dt>

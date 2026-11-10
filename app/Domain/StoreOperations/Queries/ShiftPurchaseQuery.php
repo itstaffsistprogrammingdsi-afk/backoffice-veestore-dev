@@ -3,6 +3,7 @@
 namespace App\Domain\StoreOperations\Queries;
 
 use App\Domain\StoreOperations\Support\CashierShiftResolver;
+use App\Domain\StoreOperations\Support\SaleConditionMetrics;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +38,17 @@ class ShiftPurchaseQuery
                 COALESCE(SUM(x.gross_amount), 0)::numeric as gross_amount,
                 COALESCE(SUM(x.discount_amount), 0)::numeric as discount_amount,
                 COALESCE(SUM(x.net_amount), 0)::numeric as net_amount,
-                COALESCE(SUM(x.payment_total), 0)::numeric as payment_total
+                COALESCE(SUM(x.payment_total), 0)::numeric as payment_total,
+                COALESCE(SUM(x.qty_good), 0)::int as qty_good,
+                COALESCE(SUM(x.qty_good_after_repair), 0)::int as qty_good_after_repair,
+                COALESCE(SUM(x.qty_clearance), 0)::int as qty_clearance,
+                COALESCE(SUM(x.clearance_gross), 0)::numeric as clearance_gross,
+                COALESCE(SUM(x.clearance_discount), 0)::numeric as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(x.clearance_gross), 0) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(x.clearance_gross)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage
             ")
             ->orderByDesc('x.report_date')
             ->orderBy('x.store_name')
@@ -56,7 +67,17 @@ class ShiftPurchaseQuery
                 COALESCE(SUM(x.gross_amount), 0)::numeric as gross_amount,
                 COALESCE(SUM(x.discount_amount), 0)::numeric as discount_amount,
                 COALESCE(SUM(x.net_amount), 0)::numeric as net_amount,
-                COALESCE(SUM(x.payment_total), 0)::numeric as payment_total
+                COALESCE(SUM(x.payment_total), 0)::numeric as payment_total,
+                COALESCE(SUM(x.qty_good), 0)::int as qty_good,
+                COALESCE(SUM(x.qty_good_after_repair), 0)::int as qty_good_after_repair,
+                COALESCE(SUM(x.qty_clearance), 0)::int as qty_clearance,
+                COALESCE(SUM(x.clearance_gross), 0)::numeric as clearance_gross,
+                COALESCE(SUM(x.clearance_discount), 0)::numeric as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(x.clearance_gross), 0) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(x.clearance_gross)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage
             ")
             ->first();
 
@@ -100,7 +121,17 @@ class ShiftPurchaseQuery
                 COALESCE(SUM(x.gross_amount), 0)::numeric as gross_amount,
                 COALESCE(SUM(x.discount_amount), 0)::numeric as discount_amount,
                 COALESCE(SUM(x.net_amount), 0)::numeric as net_amount,
-                COALESCE(SUM(x.payment_total), 0)::numeric as payment_total
+                COALESCE(SUM(x.payment_total), 0)::numeric as payment_total,
+                COALESCE(SUM(x.qty_good), 0)::int as qty_good,
+                COALESCE(SUM(x.qty_good_after_repair), 0)::int as qty_good_after_repair,
+                COALESCE(SUM(x.qty_clearance), 0)::int as qty_clearance,
+                COALESCE(SUM(x.clearance_gross), 0)::numeric as clearance_gross,
+                COALESCE(SUM(x.clearance_discount), 0)::numeric as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(x.clearance_gross), 0) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(x.clearance_gross)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage
             ")
             ->orderByDesc('x.report_date')
             ->orderBy('x.store_name')
@@ -172,7 +203,17 @@ class ShiftPurchaseQuery
                 x.gross_amount,
                 x.discount_amount,
                 x.net_amount,
-                x.payment_total
+                x.payment_total,
+                x.qty_good,
+                x.qty_good_after_repair,
+                x.qty_clearance,
+                x.clearance_gross,
+                x.clearance_discount,
+                CASE
+                    WHEN COALESCE(x.clearance_gross, 0) > 0 THEN
+                        ROUND((x.clearance_discount / x.clearance_gross) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage
             ')
             ->orderBy('x.opened_at')
             ->get();
@@ -215,6 +256,13 @@ class ShiftPurchaseQuery
                 'gross_amount' => (float) $sessions->sum('gross_amount'),
                 'discount_amount' => (float) $sessions->sum('discount_amount'),
                 'net_amount' => (float) $sessions->sum('net_amount'),
+                'qty_good' => (int) $sessions->sum('qty_good'),
+                'qty_good_after_repair' => (int) $sessions->sum('qty_good_after_repair'),
+                'qty_clearance' => (int) $sessions->sum('qty_clearance'),
+                'clearance_discount' => (float) $sessions->sum('clearance_discount'),
+                'clearance_percentage' => (float) $sessions->sum('clearance_gross') > 0
+                    ? round(((float) $sessions->sum('clearance_discount') / (float) $sessions->sum('clearance_gross')) * 100, 2)
+                    : 0,
             ],
         ];
     }
@@ -291,7 +339,12 @@ class ShiftPurchaseQuery
                 COALESCE(cart_agg.total_products, 0)::int as total_products,
                 COALESCE(cart_agg.gross_amount, 0)::numeric as gross_amount,
                 COALESCE(cart_agg.discount_amount, 0)::numeric as discount_amount,
-                COALESCE(cart_agg.net_amount, 0)::numeric as net_amount
+                COALESCE(cart_agg.net_amount, 0)::numeric as net_amount,
+                COALESCE(cart_agg.qty_good, 0)::int as qty_good,
+                COALESCE(cart_agg.qty_good_after_repair, 0)::int as qty_good_after_repair,
+                COALESCE(cart_agg.qty_clearance, 0)::int as qty_clearance,
+                COALESCE(cart_agg.clearance_gross, 0)::numeric as clearance_gross,
+                COALESCE(cart_agg.clearance_discount, 0)::numeric as clearance_discount
             ");
     }
 
@@ -309,19 +362,22 @@ class ShiftPurchaseQuery
             ->fromSub($sessionCart, 'session_cart')
             ->join('store_cart_details as detail', 'detail.cart_id', '=', 'session_cart.cart_id')
             ->join('items as item', 'item.id', '=', 'detail.item_id')
-            ->where(function ($query): void {
-                $query->whereNull('detail.void_status')
-                    ->orWhere('detail.void_status', '!=', 'void');
-            })
+            ->leftJoin('item_conditions as item_condition', 'item_condition.id', '=', 'item.current_condition_id')
+            ->whereRaw(SaleConditionMetrics::eligibleSaleLineSql('detail'))
             ->groupBy('session_cart.cashier_session_id')
-            ->selectRaw('
+            ->selectRaw("
                 session_cart.cashier_session_id,
                 COUNT(detail.id)::int as total_items,
                 COUNT(DISTINCT item.product_id)::int as total_products,
                 COALESCE(SUM(detail.product_price_amount), 0)::numeric as gross_amount,
                 COALESCE(SUM(detail.discount_amount), 0)::numeric as discount_amount,
-                COALESCE(SUM(detail.product_price_amount - COALESCE(detail.discount_amount, 0)), 0)::numeric as net_amount
-            ');
+                COALESCE(SUM(detail.product_price_amount - COALESCE(detail.discount_amount, 0)), 0)::numeric as net_amount,
+                COUNT(detail.id) FILTER (WHERE COALESCE(item_condition.status::text, '') = 'good')::int as qty_good,
+                COUNT(detail.id) FILTER (WHERE COALESCE(item_condition.status::text, '') = 'good_after_repair')::int as qty_good_after_repair,
+                COUNT(detail.id) FILTER (WHERE COALESCE(item_condition.status::text, '') = 'good_after_repair')::int as qty_clearance,
+                COALESCE(SUM(CASE WHEN item_condition.status::text = 'good_after_repair' THEN detail.product_price_amount ELSE 0 END), 0)::numeric as clearance_gross,
+                COALESCE(SUM(CASE WHEN item_condition.status::text = 'good_after_repair' THEN detail.discount_amount ELSE 0 END), 0)::numeric as clearance_discount
+            ");
     }
 
     private function paymentAggSubquery()
@@ -358,12 +414,10 @@ class ShiftPurchaseQuery
             ->join('store_cart_details as detail', 'detail.cart_id', '=', 'session_cart.cart_id')
             ->join('items as item', 'item.id', '=', 'detail.item_id')
             ->join('products as product', 'product.id', '=', 'item.product_id')
-            ->where(function ($query): void {
-                $query->whereNull('detail.void_status')
-                    ->orWhere('detail.void_status', '!=', 'void');
-            })
+            ->leftJoin('item_conditions as item_condition', 'item_condition.id', '=', 'item.current_condition_id')
+            ->whereRaw(SaleConditionMetrics::eligibleSaleLineSql('detail'))
             ->groupBy('product.id', 'product.code', 'product.name')
-            ->selectRaw('
+            ->selectRaw("
                 product.id as product_id,
                 product.code as product_code,
                 product.name as product_name,
@@ -371,8 +425,21 @@ class ShiftPurchaseQuery
                 COALESCE(SUM(detail.product_price_amount), 0)::numeric as gross_amount,
                 COALESCE(SUM(detail.discount_amount), 0)::numeric as discount_amount,
                 COALESCE(SUM(detail.product_price_amount - COALESCE(detail.discount_amount, 0)), 0)::numeric as net_amount,
-                COUNT(DISTINCT session_cart.cashier_session_id)::int as session_count
-            ')
+                COUNT(DISTINCT session_cart.cashier_session_id)::int as session_count,
+                COUNT(detail.id) FILTER (WHERE COALESCE(item_condition.status::text, '') = 'good')::int as qty_good,
+                COUNT(detail.id) FILTER (WHERE COALESCE(item_condition.status::text, '') = 'good_after_repair')::int as qty_good_after_repair,
+                COUNT(detail.id) FILTER (WHERE COALESCE(item_condition.status::text, '') = 'good_after_repair')::int as qty_clearance,
+                COALESCE(SUM(CASE WHEN item_condition.status::text = 'good_after_repair' THEN detail.discount_amount ELSE 0 END), 0)::numeric as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(CASE WHEN item_condition.status::text = 'good_after_repair' THEN detail.product_price_amount ELSE 0 END), 0) > 0 THEN
+                        ROUND(
+                            (SUM(CASE WHEN item_condition.status::text = 'good_after_repair' THEN detail.discount_amount ELSE 0 END)
+                            / SUM(CASE WHEN item_condition.status::text = 'good_after_repair' THEN detail.product_price_amount ELSE 0 END)) * 100,
+                            2
+                        )
+                    ELSE 0
+                END as clearance_percentage
+            ")
             ->orderByDesc('qty')
             ->orderBy('product.name')
             ->limit(100)
@@ -440,6 +507,13 @@ class ShiftPurchaseQuery
             'discount_amount' => (float) $rows->sum('discount_amount'),
             'net_amount' => (float) $rows->sum('net_amount'),
             'payment_total' => (float) $rows->sum('payment_total'),
+            'qty_good' => (int) $rows->sum('qty_good'),
+            'qty_good_after_repair' => (int) $rows->sum('qty_good_after_repair'),
+            'qty_clearance' => (int) $rows->sum('qty_clearance'),
+            'clearance_discount' => (float) $rows->sum('clearance_discount'),
+            'clearance_percentage' => (float) $rows->sum('clearance_gross') > 0
+                ? round(((float) $rows->sum('clearance_discount') / (float) $rows->sum('clearance_gross')) * 100, 2)
+                : 0,
         ];
     }
 

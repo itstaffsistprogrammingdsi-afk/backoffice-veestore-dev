@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Monitoring;
 
 use App\Domain\Analytics\Support\FinancialBreakdown;
+use App\Domain\StoreOperations\Queries\EcommerceConditionSubquery;
+use App\Domain\StoreOperations\Support\SaleConditionMetrics;
 use App\Exports\OmsetKotorSalesExport;
 use App\Http\Controllers\Controller;
 use App\Support\Concerns\NormalizesDate;
@@ -58,6 +60,9 @@ class OmsetKotorSalesController extends Controller
             $promo = 'all';
         }
 
+        $conditionStatus = SaleConditionMetrics::normalizeConditionStatus($request->query('condition_status'));
+        $clearance = SaleConditionMetrics::normalizeClearance($request->query('clearance'));
+
         $products = DB::table('products')
             ->whereNull('deleted_at')
             ->orderBy('name')
@@ -74,7 +79,9 @@ class OmsetKotorSalesController extends Controller
             q: $q,
             dateFrom: $dateFrom,
             dateTo: $dateTo,
-            promo: $promo
+            promo: $promo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         );
 
         $finance = $this->getFinancialSummary(
@@ -84,7 +91,9 @@ class OmsetKotorSalesController extends Controller
             q: $q,
             dateFrom: $dateFrom,
             dateTo: $dateTo,
-            promo: $promo
+            promo: $promo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         );
 
         $rows = match ($groupBy) {
@@ -96,7 +105,9 @@ class OmsetKotorSalesController extends Controller
                 dateFrom: $dateFrom,
                 dateTo: $dateTo,
                 perPage: $perPage,
-                promo: $promo
+                promo: $promo,
+                conditionStatus: $conditionStatus,
+                clearance: $clearance
             ),
             'monthly' => $this->getMonthlyRows(
                 channel: $channel,
@@ -106,7 +117,9 @@ class OmsetKotorSalesController extends Controller
                 dateFrom: $dateFrom,
                 dateTo: $dateTo,
                 perPage: $perPage,
-                promo: $promo
+                promo: $promo,
+                conditionStatus: $conditionStatus,
+                clearance: $clearance
             ),
             default => $this->getProductRows(
                 channel: $channel,
@@ -116,13 +129,15 @@ class OmsetKotorSalesController extends Controller
                 dateFrom: $dateFrom,
                 dateTo: $dateTo,
                 perPage: $perPage,
-                promo: $promo
+                promo: $promo,
+                conditionStatus: $conditionStatus,
+                clearance: $clearance
             ),
         };
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Kotor & Bersih',
-            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin. Hanya transaksi lunas; retur, void, dan order batal tidak masuk.',
+            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin. Hanya transaksi lunas; retur, void, gimmick/gratis, dan order batal tidak masuk. Kondisi barang (Good/Good After Repair) dan persentase clearance ditampilkan terpisah agar tidak mengubah rumus omset.',
             'data' => [
                 'rows' => $rows,
                 'summary' => $summary,
@@ -138,11 +153,16 @@ class OmsetKotorSalesController extends Controller
                 'groupBy' => $groupBy,
                 'promo' => $promo,
                 'promoOptions' => $this->promoOptions(),
+                'conditionStatus' => $conditionStatus === 'all' ? '' : $conditionStatus,
+                'clearance' => $clearance === 'all' ? '' : $clearance,
+                'conditionStatusOptions' => SaleConditionMetrics::conditionOptions(),
+                'clearanceOptions' => SaleConditionMetrics::clearanceOptions(),
                 'perPage' => $perPage,
                 'omsetTab' => 'kotor',
                 'omsetUrls' => [
                     'cabang' => route('monitoring.omset-cabang.index'),
                     'kotor' => route('monitoring.omset-kotor.index'),
+                    'sample_gimmick' => route('monitoring.sample-gimmick-report.index'),
                 ],
                 'today' => now()->toDateString(),
                 'lastUpdate' => now()->format('d-m-Y H:i:s'),
@@ -179,6 +199,9 @@ class OmsetKotorSalesController extends Controller
             $promo = 'all';
         }
 
+        $conditionStatus = SaleConditionMetrics::normalizeConditionStatus($request->query('condition_status'));
+        $clearance = SaleConditionMetrics::normalizeClearance($request->query('clearance'));
+
         $product = DB::table('products')
             ->where('id', $productId)
             ->first(['id', 'name', 'code']);
@@ -193,7 +216,9 @@ class OmsetKotorSalesController extends Controller
             dateFrom: $dateFrom,
             dateTo: $dateTo,
             perPage: $perPage,
-            promo: $promo
+            promo: $promo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         );
 
         $summary = DB::query()
@@ -205,7 +230,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -220,7 +247,11 @@ class OmsetKotorSalesController extends Controller
                 COUNT(DISTINCT x.customer_id) as total_customers,
                 SUM(x.base_price_total) as total_base_price,
                 SUM(x.product_discount_amount) as total_product_discount,
-                SUM(x.allocated_order_discount) as total_voucher_discount
+                SUM(x.allocated_order_discount) as total_voucher_discount,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = \'good\'), 0) as total_qty_good,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = \'good_after_repair\'), 0) as total_qty_good_after_repair,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.is_clearance), 0) as total_qty_clearance,
+                COALESCE(SUM(x.clearance_discount), 0) as total_clearance_discount
             ')
             ->first();
 
@@ -231,12 +262,14 @@ class OmsetKotorSalesController extends Controller
             q: $q,
             dateFrom: $dateFrom,
             dateTo: $dateTo,
-            promo: $promo
+            promo: $promo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         );
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Omset Kotor & Bersih',
-            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin. Hanya transaksi lunas; retur, void, dan order batal tidak masuk.',
+            'description' => 'Omset kotor = nilai jual sebelum potongan. Omset bersih = nilai setelah diskon produk, voucher, dan poin. Hanya transaksi lunas; retur, void, gimmick/gratis, dan order batal tidak masuk. Kondisi barang (Good/Good After Repair) dan persentase clearance ditampilkan terpisah agar tidak mengubah rumus omset.',
             'data' => [
                 'product' => $product,
                 'rows' => $rows,
@@ -252,9 +285,14 @@ class OmsetKotorSalesController extends Controller
                 'omsetUrls' => [
                     'cabang' => route('monitoring.omset-cabang.index'),
                     'kotor' => route('monitoring.omset-kotor.index'),
+                    'sample_gimmick' => route('monitoring.sample-gimmick-report.index'),
                 ],
                 'promo' => $promo,
                 'promoOptions' => $this->promoOptions(),
+                'conditionStatus' => $conditionStatus === 'all' ? '' : $conditionStatus,
+                'clearance' => $clearance === 'all' ? '' : $clearance,
+                'conditionStatusOptions' => SaleConditionMetrics::conditionOptions(),
+                'clearanceOptions' => SaleConditionMetrics::clearanceOptions(),
                 'today' => now()->toDateString(),
                 'lastUpdate' => now()->format('d-m-Y H:i:s'),
             ],
@@ -295,6 +333,9 @@ class OmsetKotorSalesController extends Controller
             $promo = 'all';
         }
 
+        $conditionStatus = SaleConditionMetrics::normalizeConditionStatus($request->query('condition_status'));
+        $clearance = SaleConditionMetrics::normalizeClearance($request->query('clearance'));
+
         $detailRows = $this->getTransactionDetailRows(
             channel: $channel,
             productId: $productId,
@@ -303,7 +344,9 @@ class OmsetKotorSalesController extends Controller
             dateFrom: $dateFrom,
             dateTo: $dateTo,
             perPage: 100000,
-            promo: $promo
+            promo: $promo,
+            conditionStatus: $conditionStatus,
+            clearance: $clearance
         )->getCollection();
 
         return Excel::download(
@@ -510,10 +553,22 @@ class OmsetKotorSalesController extends Controller
             END
         ";
 
+        $conditionStatusSql = "COALESCE(item_condition.status::text, 'unknown')";
+        $clearancePercentageSql = SaleConditionMetrics::clearancePercentageSql(
+            $conditionStatusSql,
+            $storeSellingPriceSql,
+            'scd.discount_amount'
+        );
+        $clearanceDiscountSql = SaleConditionMetrics::clearanceDiscountSql(
+            $conditionStatusSql,
+            'scd.discount_amount'
+        );
+
         return DB::table('store_cart_details as scd')
             ->join('store_carts as sc', 'sc.id', '=', 'scd.cart_id')
             ->join('items as i', 'i.id', '=', 'scd.item_id')
             ->join('products as p', 'p.id', '=', 'i.product_id')
+            ->leftJoin('item_conditions as item_condition', 'item_condition.id', '=', 'i.current_condition_id')
             ->leftJoin('customers as c', 'c.id', '=', 'sc.customer_id')
             ->leftJoin('rfid_tags as rt', 'rt.id', '=', 'i.rfid_tag_id')
             ->leftJoinSub($cartNetSub, 'cart_net', function ($join) {
@@ -522,7 +577,7 @@ class OmsetKotorSalesController extends Controller
             ->joinSub($storeVisitPaymentSub, 'svp_pay', function ($join) {
                 $join->on('svp_pay.visit_id', '=', 'sc.visit_id');
             })
-            ->whereRaw("COALESCE(scd.void_status, '') NOT IN ('void', 'voided', 'gimmick')")
+            ->whereRaw(SaleConditionMetrics::eligibleSaleLineSql('scd'))
             ->selectRaw("
                 scd.created_at::date as trx_date,
                 scd.created_at as trx_datetime,
@@ -539,6 +594,12 @@ class OmsetKotorSalesController extends Controller
                 rt.value as rfid_value,
                 1::int as qty,
 
+                {$conditionStatusSql} as condition_status,
+                {$this->conditionNameSql('item_condition')} as condition_name,
+                ({$clearancePercentageSql})::numeric(18,2) as clearance_percentage,
+                COALESCE({$conditionStatusSql} = 'good_after_repair', false) as is_clearance,
+                ({$clearanceDiscountSql})::numeric(18,2) as clearance_discount,
+
                 ({$storeSellingPriceSql})::numeric(18,2) as selling_price,
                 ({$storeSellingPriceSql})::numeric(18,2) as gross_sales,
 
@@ -553,11 +614,17 @@ class OmsetKotorSalesController extends Controller
             ");
     }
 
+    private function conditionNameSql(string $alias = 'condition'): string
+    {
+        return SaleConditionMetrics::conditionNameSql($alias);
+    }
+
     private function buildEcommerceSalesQuery()
     {
         $orderNetSub = $this->buildEcommerceOrderNetSubquery();
         $warehouseRfidSub = $this->buildEcommerceWarehouseRfidSubquery();
         $storeRfidSub = $this->buildEcommerceStoreRfidSubquery();
+        $conditionSub = EcommerceConditionSubquery::make();
 
         $ecommerceSellingPriceSql = "
             COALESCE(
@@ -635,6 +702,10 @@ class OmsetKotorSalesController extends Controller
                 $join->on('esr.ecommerce_order_id', '=', 'eod.ecommerce_order_id')
                     ->on('esr.product_id', '=', 'eod.product_id');
             })
+            ->leftJoinSub($conditionSub, 'ecom_condition', function ($join) {
+                $join->on('ecom_condition.ecommerce_order_id', '=', 'eod.ecommerce_order_id')
+                    ->on('ecom_condition.product_id', '=', 'eod.product_id');
+            })
             ->selectRaw("
                 eod.created_at::date as trx_date,
                 eod.created_at as trx_datetime,
@@ -650,6 +721,12 @@ class OmsetKotorSalesController extends Controller
                 COALESCE(NULLIF(ewr.item_ids, ''), NULLIF(esr.item_ids, '')) as display_item_id,
                 COALESCE(NULLIF(ewr.rfid_values, ''), NULLIF(esr.rfid_values, '')) as rfid_value,
                 COALESCE(eod.quantity, 0)::int as qty,
+
+                COALESCE(ecom_condition.condition_status, 'unknown') as condition_status,
+                COALESCE(ecom_condition.condition_name, 'Tidak Tercatat') as condition_name,
+                0::numeric(18,2) as clearance_percentage,
+                false::boolean as is_clearance,
+                0::numeric(18,2) as clearance_discount,
 
                 ({$ecommerceSellingPriceSql})::numeric(18,2) as selling_price,
                 ({$ecommerceGrossSql})::numeric(18,2) as gross_sales,
@@ -683,7 +760,9 @@ class OmsetKotorSalesController extends Controller
         ?string $q = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         $storeBase = DB::query()->fromSub($this->buildStoreSalesQuery(), 's')
             ->selectRaw('
@@ -738,6 +817,16 @@ class OmsetKotorSalesController extends Controller
             });
         }
 
+        if ($conditionStatus !== '' && $conditionStatus !== 'all') {
+            $base->where('x.condition_status', $conditionStatus);
+        }
+
+        if ($clearance === SaleConditionMetrics::CLEARANCE_YES) {
+            $base->where('x.is_clearance', true);
+        } elseif ($clearance === SaleConditionMetrics::CLEARANCE_NO) {
+            $base->where('x.is_clearance', false);
+        }
+
         /*
          * Filter promo/diskon. "none" = hanya transaksi tanpa potongan
          * apa pun sehingga omset kotor = murni harga asli produk.
@@ -768,7 +857,9 @@ class OmsetKotorSalesController extends Controller
         ?string $q = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -779,7 +870,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -794,7 +887,11 @@ class OmsetKotorSalesController extends Controller
                 COUNT(DISTINCT x.customer_id) as total_customers,
                 SUM(x.base_price_total) as total_base_price,
                 SUM(x.product_discount_amount) as total_product_discount,
-                SUM(x.allocated_order_discount) as total_voucher_discount
+                SUM(x.allocated_order_discount) as total_voucher_discount,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = \'good\'), 0) as total_qty_good,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = \'good_after_repair\'), 0) as total_qty_good_after_repair,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.is_clearance), 0) as total_qty_clearance,
+                COALESCE(SUM(x.clearance_discount), 0) as total_clearance_discount
             ')
             ->first();
     }
@@ -806,7 +903,9 @@ class OmsetKotorSalesController extends Controller
         ?string $q = null,
         ?string $dateFrom = null,
         ?string $dateTo = null,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ): array {
         $channelRows = DB::query()
             ->fromSub(
@@ -817,7 +916,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -830,7 +931,12 @@ class OmsetKotorSalesController extends Controller
                 COALESCE(SUM(x.net_after_product_discount), 0) as net_after_product_discount,
                 COALESCE(SUM(x.allocated_order_discount), 0) as voucher_discount,
                 COALESCE(SUM(x.final_paid_amount), 0) as net_sales,
-                COALESCE(SUM(x.base_price_total), 0) as base_price
+                COALESCE(SUM(x.base_price_total), 0) as base_price,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = \'good\'), 0) as qty_good,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = \'good_after_repair\'), 0) as qty_good_after_repair,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.is_clearance), 0) as qty_clearance,
+                COALESCE(SUM(x.clearance_discount), 0) as clearance_discount,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.is_clearance), 0) as clearance_gross_sales
             ')
             ->groupBy('x.channel')
             ->get()
@@ -846,7 +952,16 @@ class OmsetKotorSalesController extends Controller
             'voucher_discount' => array_sum(array_column($channelRows, 'voucher_discount')),
             'net_sales' => array_sum(array_column($channelRows, 'net_sales')),
             'base_price' => array_sum(array_column($channelRows, 'base_price')),
+            'qty_good' => array_sum(array_column($channelRows, 'qty_good')),
+            'qty_good_after_repair' => array_sum(array_column($channelRows, 'qty_good_after_repair')),
+            'qty_clearance' => array_sum(array_column($channelRows, 'qty_clearance')),
+            'clearance_discount' => array_sum(array_column($channelRows, 'clearance_discount')),
+            'clearance_gross_sales' => array_sum(array_column($channelRows, 'clearance_gross_sales')),
         ];
+
+        $clearancePercentage = $totals['clearance_gross_sales'] > 0
+            ? round(($totals['clearance_discount'] / $totals['clearance_gross_sales']) * 100, 2)
+            : 0;
 
         return [
             ...FinancialBreakdown::make(
@@ -859,6 +974,11 @@ class OmsetKotorSalesController extends Controller
                 $totals['qty'],
                 $totals['net_after_product_discount']
             ),
+            'qty_good' => $totals['qty_good'],
+            'qty_good_after_repair' => $totals['qty_good_after_repair'],
+            'qty_clearance' => $totals['qty_clearance'],
+            'clearance_discount' => $totals['clearance_discount'],
+            'clearance_percentage' => $clearancePercentage,
             'channels' => FinancialBreakdown::channels($channelRows),
         ];
     }
@@ -871,7 +991,9 @@ class OmsetKotorSalesController extends Controller
         ?string $dateFrom = null,
         ?string $dateTo = null,
         int $perPage = 10,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -882,7 +1004,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -900,6 +1024,18 @@ class OmsetKotorSalesController extends Controller
                 SUM(x.allocated_order_discount) as total_voucher_discount,
                 SUM(x.total_discount_amount) as total_discount_amount,
                 SUM(x.final_paid_amount) as total_final_paid,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = 'good'), 0) as qty_good,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = 'good_after_repair'), 0) as qty_good_after_repair,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.is_clearance), 0) as qty_clearance,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.condition_status = 'good'), 0) as gross_sales_good,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.condition_status = 'good_after_repair'), 0) as gross_sales_good_after_repair,
+                COALESCE(SUM(x.clearance_discount), 0) as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(x.gross_sales) FILTER (WHERE x.is_clearance), 0) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(x.gross_sales) FILTER (WHERE x.is_clearance)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage,
+                STRING_AGG(DISTINCT NULLIF(x.condition_name, ''), ', ') as condition_names,
                 STRING_AGG(DISTINCT NULLIF(x.discount_names, ''), ', ') as discount_names,
                 STRING_AGG(DISTINCT NULLIF(x.voucher_names, ''), ', ') as voucher_names
             ")
@@ -917,7 +1053,9 @@ class OmsetKotorSalesController extends Controller
         ?string $dateFrom = null,
         ?string $dateTo = null,
         int $perPage = 10,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -928,7 +1066,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -947,6 +1087,18 @@ class OmsetKotorSalesController extends Controller
                 SUM(x.allocated_order_discount) as total_voucher_discount,
                 SUM(x.total_discount_amount) as total_discount_amount,
                 SUM(x.final_paid_amount) as total_final_paid,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = 'good'), 0) as qty_good,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = 'good_after_repair'), 0) as qty_good_after_repair,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.is_clearance), 0) as qty_clearance,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.condition_status = 'good'), 0) as gross_sales_good,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.condition_status = 'good_after_repair'), 0) as gross_sales_good_after_repair,
+                COALESCE(SUM(x.clearance_discount), 0) as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(x.gross_sales) FILTER (WHERE x.is_clearance), 0) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(x.gross_sales) FILTER (WHERE x.is_clearance)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage,
+                STRING_AGG(DISTINCT NULLIF(x.condition_name, ''), ', ') as condition_names,
                 STRING_AGG(DISTINCT NULLIF(x.discount_names, ''), ', ') as discount_names,
                 STRING_AGG(DISTINCT NULLIF(x.voucher_names, ''), ', ') as voucher_names
             ")
@@ -965,7 +1117,9 @@ class OmsetKotorSalesController extends Controller
         ?string $dateFrom = null,
         ?string $dateTo = null,
         int $perPage = 10,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -976,7 +1130,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )
@@ -995,6 +1151,18 @@ class OmsetKotorSalesController extends Controller
                 SUM(x.allocated_order_discount) as total_voucher_discount,
                 SUM(x.total_discount_amount) as total_discount_amount,
                 SUM(x.final_paid_amount) as total_final_paid,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = 'good'), 0) as qty_good,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.condition_status = 'good_after_repair'), 0) as qty_good_after_repair,
+                COALESCE(SUM(x.qty) FILTER (WHERE x.is_clearance), 0) as qty_clearance,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.condition_status = 'good'), 0) as gross_sales_good,
+                COALESCE(SUM(x.gross_sales) FILTER (WHERE x.condition_status = 'good_after_repair'), 0) as gross_sales_good_after_repair,
+                COALESCE(SUM(x.clearance_discount), 0) as clearance_discount,
+                CASE
+                    WHEN COALESCE(SUM(x.gross_sales) FILTER (WHERE x.is_clearance), 0) > 0 THEN
+                        ROUND((SUM(x.clearance_discount) / SUM(x.gross_sales) FILTER (WHERE x.is_clearance)) * 100, 2)
+                    ELSE 0
+                END as clearance_percentage,
+                STRING_AGG(DISTINCT NULLIF(x.condition_name, ''), ', ') as condition_names,
                 STRING_AGG(DISTINCT NULLIF(x.discount_names, ''), ', ') as discount_names,
                 STRING_AGG(DISTINCT NULLIF(x.voucher_names, ''), ', ') as voucher_names
             ")
@@ -1013,7 +1181,9 @@ class OmsetKotorSalesController extends Controller
         ?string $dateFrom = null,
         ?string $dateTo = null,
         int $perPage = 10,
-        string $promo = 'all'
+        string $promo = 'all',
+        string $conditionStatus = 'all',
+        string $clearance = 'all'
     ) {
         return DB::query()
             ->fromSub(
@@ -1024,7 +1194,9 @@ class OmsetKotorSalesController extends Controller
                     q: $q,
                     dateFrom: $dateFrom,
                     dateTo: $dateTo,
-                    promo: $promo
+                    promo: $promo,
+                    conditionStatus: $conditionStatus,
+                    clearance: $clearance
                 ),
                 'x'
             )

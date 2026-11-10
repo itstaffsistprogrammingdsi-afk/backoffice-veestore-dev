@@ -79,6 +79,7 @@ use App\Http\Controllers\Monitoring\PromoLoyaltyReportController;
 use App\Http\Controllers\Monitoring\PromoUsageController;
 use App\Http\Controllers\Monitoring\RedeemPointReportController;
 use App\Http\Controllers\Monitoring\ReferralScoreReportController;
+use App\Http\Controllers\Monitoring\SampleGimmickReportController;
 use App\Http\Controllers\Monitoring\ShiftPurchaseReportController;
 use App\Http\Controllers\Monitoring\StockMovementReportController;
 use App\Http\Controllers\Monitoring\StockOpnameVarianceReportController;
@@ -1007,6 +1008,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('void-cancel-customer/export', [VoidCancelCustomerReportController::class, 'export'])
             ->name('void-cancel-customer.export');
+
+        Route::get('sample-gimmick-report', [SampleGimmickReportController::class, 'index'])
+            ->name('sample-gimmick-report.index');
+
+        Route::get('sample-gimmick-report/export', [SampleGimmickReportController::class, 'export'])
+            ->name('sample-gimmick-report.export');
 
         Route::get('omset-kotor', [OmsetKotorSalesController::class, 'index'])
             ->name('omset-kotor.index');
