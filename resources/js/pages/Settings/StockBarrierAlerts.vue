@@ -5,6 +5,7 @@ defineOptions({ layout: AppLayout });
 
 import { computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { formatDate } from '@/composables/useFormatters';
 
 type ScheduleMode = 'instant' | 'daily' | 'weekly' | 'monthly';
 
@@ -83,8 +84,8 @@ const submit = () => {
             <p>Atur kapan email peringatan stok barrier dikirim ke tim terkait.</p>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <form @submit.prevent="submit">
             <div class="card settings-card">
@@ -181,7 +182,7 @@ const submit = () => {
 
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-4">
                 <small v-if="props.data.updated_at" class="text-muted">
-                    Terakhir diubah oleh {{ props.data.updated_by ?? 'system' }} pada {{ props.data.updated_at }}
+                    Terakhir diubah oleh {{ props.data.updated_by ?? 'system' }} pada {{ formatDate(props.data.updated_at, true) }}
                 </small>
                 <div class="d-flex gap-2 ms-auto">
                     <Link :href="props.resetUrl" class="btn btn-outline-secondary">Reset</Link>

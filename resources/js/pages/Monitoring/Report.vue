@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
@@ -41,6 +41,7 @@ interface Props {
         reservations?: string;
         approve?: string;
         reject?: string;
+        pos_stock_opname?: string;
         email_alert_settings?: string;
     };
 }
@@ -2115,29 +2116,83 @@ const closeRowDetail = () => {
 
 const hasApprovalActions = computed(() => Boolean((props.urls?.approve || props.urls?.reject) && activeDataset.value?.key === 'rows'));
 
-const decideOpname = (row: Row, action: 'approve' | 'reject') => {
-    const url = action === 'approve' ? props.urls?.approve : props.urls?.reject;
+const decisionDialog = ref<{ row: Row; action: 'approve' | 'reject' } | null>(null);
+const decisionReason = ref('');
+const decisionError = ref('');
+const decisionWorking = ref(false);
+const decisionPrimaryRef = ref<HTMLButtonElement | null>(null);
+const decisionTextareaRef = ref<HTMLTextAreaElement | null>(null);
 
-    if (!url) return;
+const openDecision = (row: Row, action: 'approve' | 'reject') => {
+    if (!(action === 'approve' ? props.urls?.approve : props.urls?.reject)) return;
 
-    const sessionId = String(row.session_id ?? '');
+    decisionDialog.value = { row, action };
+    decisionReason.value = '';
+    decisionError.value = '';
 
-    if (!sessionId) return;
+    void nextTick(() => {
+        if (action === 'reject') {
+            decisionTextareaRef.value?.focus();
+        } else {
+            decisionPrimaryRef.value?.focus();
+        }
+    });
+};
 
-    let reason = '';
+const closeDecision = () => {
+    if (decisionWorking.value) return;
 
-    if (action === 'reject') {
-        reason = window.prompt('Alasan penolakan sesi stok opname:')?.trim() ?? '';
+    decisionDialog.value = null;
+    decisionReason.value = '';
+    decisionError.value = '';
+};
 
-        if (!reason) return;
-    } else if (!window.confirm('Setujui sesi stok opname ini dan catat keputusan penyesuaian?')) {
+const submitDecision = () => {
+    const dialog = decisionDialog.value;
+
+    if (!dialog || decisionWorking.value) return;
+
+    const url = dialog.action === 'approve' ? props.urls?.approve : props.urls?.reject;
+    const sessionId = String(dialog.row.session_id ?? '');
+
+    if (!url || !sessionId) {
+        decisionError.value = 'Sesi stok opname tidak valid. Muat ulang halaman lalu coba lagi.';
+
         return;
     }
 
-    router.post(url.replace('__ID__', sessionId), { reason }, { preserveScroll: true });
+    if (dialog.action === 'reject' && decisionReason.value.trim() === '') {
+        decisionError.value = 'Alasan penolakan wajib diisi.';
+
+        return;
+    }
+
+    decisionWorking.value = true;
+    decisionError.value = '';
+
+    router.post(url.replace('__ID__', sessionId), { reason: decisionReason.value.trim() }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            decisionWorking.value = false;
+            closeDecision();
+        },
+        onError: (errors) => {
+            decisionError.value = (Object.values(errors)[0] as string | undefined)
+                ?? 'Keputusan belum dapat disimpan. Coba lagi.';
+        },
+        onFinish: () => {
+            decisionWorking.value = false;
+        },
+    });
 };
 const onDetailKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && selectedRow.value) closeRowDetail();
+    if (event.key !== 'Escape') return;
+
+    if (decisionDialog.value) {
+        closeDecision();
+    } else if (selectedRow.value) {
+        closeRowDetail();
+    }
 };
 
 watch(selectedRow, (value) => {
@@ -3176,6 +3231,16 @@ const selectDataset = (key: string) => {
                     <i class="mdi mdi-database-outline" aria-hidden="true"></i>
                     {{ new Intl.NumberFormat('id-ID').format(recordCount) }} data
                 </span>
+                <a
+                    v-if="props.urls.pos_stock_opname"
+                    :href="props.urls.pos_stock_opname"
+                    target="_blank"
+                    rel="noopener"
+                    class="monitor-back-link"
+                >
+                    <i class="mdi mdi-open-in-new" aria-hidden="true"></i>
+                    Buka Stock Opname di POS
+                </a>
                 <Link v-if="props.urls.email_alert_settings" :href="props.urls.email_alert_settings" class="monitor-back-link">
                     <i class="mdi mdi-email-alert-outline" aria-hidden="true"></i>
                     Jadwal Email Alert
@@ -3652,15 +3717,14 @@ const selectDataset = (key: string) => {
                 Setiap tab adalah kumpulan data berbeda. Gunakan tab untuk melihat rincian; angka ringkasan mengikuti filter yang sama.
             </p>
 
-            <div v-if="datasets.length > 1" class="monitor-tabs" role="tablist" aria-label="Pilih data">
+            <div v-if="datasets.length > 1" class="monitor-tabs" role="group" aria-label="Pilih data">
                 <button
                     v-for="dataset in datasets"
                     :key="dataset.key"
                     type="button"
-                    role="tab"
                     class="monitor-tab"
                     :class="{ 'is-active': dataset.key === activeDataset?.key }"
-                    :aria-selected="dataset.key === activeDataset?.key"
+                    :aria-pressed="dataset.key === activeDataset?.key"
                     @click="selectDataset(dataset.key)"
                 >
                     {{ dataset.label }}
@@ -3758,7 +3822,8 @@ const selectDataset = (key: string) => {
                                         type="button"
                                         class="btn btn-sm btn-success me-1"
                                         title="Setujui sesi opname"
-                                        @click="decideOpname(row, 'approve')"
+                                        aria-label="Setujui sesi stok opname"
+                                        @click="openDecision(row, 'approve')"
                                     >
                                         <i class="mdi mdi-check" aria-hidden="true"></i>
                                     </button>
@@ -3766,7 +3831,8 @@ const selectDataset = (key: string) => {
                                         type="button"
                                         class="btn btn-sm btn-outline-danger"
                                         title="Tolak sesi opname"
-                                        @click="decideOpname(row, 'reject')"
+                                        aria-label="Tolak sesi stok opname"
+                                        @click="openDecision(row, 'reject')"
                                     >
                                         <i class="mdi mdi-close" aria-hidden="true"></i>
                                     </button>
@@ -3848,6 +3914,69 @@ const selectDataset = (key: string) => {
 
                     <footer class="monitor-modal-footer">
                         <button type="button" class="btn btn-sm btn-outline-secondary" @click="closeRowDetail">Tutup</button>
+                    </footer>
+                </div>
+            </div>
+        </Teleport>
+
+        <Teleport to="body">
+            <div v-if="decisionDialog" class="monitor-modal-backdrop" @click.self="closeDecision">
+                <div
+                    class="monitor-modal monitor-decision-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="monitor-decision-title"
+                    aria-describedby="monitor-decision-description"
+                >
+                    <header class="monitor-modal-header">
+                        <div>
+                            <h2 id="monitor-decision-title">
+                                {{ decisionDialog.action === 'approve' ? 'Setujui sesi stok opname' : 'Tolak sesi stok opname' }}
+                            </h2>
+                            <p id="monitor-decision-description">
+                                {{ decisionDialog.action === 'approve'
+                                    ? 'Keputusan akan mencatat penyesuaian stok untuk sesi ini.'
+                                    : 'Sesi ditolak dan tidak membuat penyesuaian stok.' }}
+                            </p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Tutup dialog keputusan" @click="closeDecision">
+                            <i class="mdi mdi-close" aria-hidden="true"></i>
+                        </button>
+                    </header>
+
+                    <div class="monitor-modal-body">
+                        <p class="mb-3">
+                            Sesi <strong>{{ decisionDialog.row.opname_code ?? decisionDialog.row.session_id ?? '-' }}</strong>
+                        </p>
+                        <div v-if="decisionDialog.action === 'reject'" class="mb-3">
+                            <label class="form-label" for="opname-reject-reason">Alasan penolakan</label>
+                            <textarea
+                                id="opname-reject-reason"
+                                ref="decisionTextareaRef"
+                                v-model="decisionReason"
+                                class="form-control"
+                                rows="4"
+                                maxlength="1000"
+                                placeholder="Jelaskan alasan sesi stok opname ditolak."
+                            ></textarea>
+                        </div>
+                        <div v-if="decisionError" class="alert alert-danger mb-0" role="alert">{{ decisionError }}</div>
+                    </div>
+
+                    <footer class="monitor-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" :disabled="decisionWorking" @click="closeDecision">
+                            Batal
+                        </button>
+                        <button
+                            ref="decisionPrimaryRef"
+                            type="button"
+                            class="btn btn-sm"
+                            :class="decisionDialog.action === 'approve' ? 'btn-success' : 'btn-danger'"
+                            :disabled="decisionWorking"
+                            @click="submitDecision"
+                        >
+                            {{ decisionWorking ? 'Menyimpan...' : decisionDialog.action === 'approve' ? 'Setujui sesi' : 'Tolak sesi' }}
+                        </button>
                     </footer>
                 </div>
             </div>
@@ -4806,6 +4935,8 @@ const selectDataset = (key: string) => {
 
 .monitor-modal-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(6vh, 3rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.64); }
 .monitor-modal { width: min(1080px, 100%); overflow: hidden; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.3); color: var(--app-ink); }
+.monitor-decision-modal { width: min(520px, 100%); }
+.monitor-decision-modal .btn { min-height: 44px; }
 .monitor-modal-header, .monitor-modal-footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1rem 1.1rem; }
 .monitor-modal-header { border-bottom: 1px solid var(--app-border); }
 .monitor-modal-header h2 { margin: 0 0 0.2rem; font-size: 1.05rem; }

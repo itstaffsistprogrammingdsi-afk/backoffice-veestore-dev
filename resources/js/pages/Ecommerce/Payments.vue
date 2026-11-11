@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import { orderStatusMeta, paymentStatusMeta } from '@/composables/useStatusLabels';
 
 defineOptions({ layout: AppLayout });
 
@@ -95,28 +96,8 @@ const formatDate = (value: string | null) => {
     }).format(new Date(value));
 };
 
-const paymentStatusLabel = (status: string) => ({
-    paid: 'Lunas',
-    pending: 'Menunggu',
-    failed: 'Gagal',
-    cancelled: 'Dibatalkan',
-}[status] ?? (status || '-'));
-
-const paymentStatusClass = (status: string) => ({
-    paid: 'bg-label-success',
-    pending: 'bg-label-warning',
-    failed: 'bg-label-danger',
-    cancelled: 'bg-label-secondary',
-}[status] ?? 'bg-label-secondary');
-
-const orderStatusClass = (status: string) => ({
-    paid: 'bg-label-success',
-    received: 'bg-label-success',
-    processed: 'bg-label-info',
-    packing: 'bg-label-info',
-    shipped: 'bg-label-info',
-    cancelled: 'bg-label-danger',
-}[status] ?? 'bg-label-warning');
+const paymentStatus = (status: string) => paymentStatusMeta(status);
+const orderStatus = (status: string) => orderStatusMeta(status);
 
 const remainingAmount = (row: PaymentRow) => Math.max(Number(row.grand_total ?? 0) - Number(row.paid_amount ?? 0), 0);
 
@@ -252,30 +233,30 @@ Laporan Pembayaran
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
-                        <label class="form-label">Cari order, transaksi, atau customer</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, nomor transaksi, pelanggan..." />
+                        <label class="form-label" for="payments-search">Cari order, transaksi, atau customer</label>
+                        <input id="payments-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, nomor transaksi, pelanggan..." />
                     </div>
                     <div class="col-6 col-md-3 col-lg-3">
-                        <label class="form-label">Status Pembayaran</label>
-                        <select v-model="filters.payment_status" class="form-select form-select-sm">
+                        <label class="form-label" for="payments-status">Status Pembayaran</label>
+                        <select id="payments-status" v-model="filters.payment_status" class="form-select form-select-sm">
                             <option value="">Semua status</option>
-                            <option v-for="status in props.paymentStatuses" :key="status" :value="status">{{ paymentStatusLabel(status) }}</option>
+                            <option v-for="status in props.paymentStatuses" :key="status" :value="status">{{ paymentStatus(status).label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-3 col-lg-3">
-                        <label class="form-label">Metode Pembayaran</label>
-                        <select v-model="filters.payment_method_code" class="form-select form-select-sm">
+                        <label class="form-label" for="payments-method">Metode Pembayaran</label>
+                        <select id="payments-method" v-model="filters.payment_method_code" class="form-select form-select-sm">
                             <option value="">Semua metode</option>
                             <option v-for="method in props.paymentMethods" :key="method.payment_method_code" :value="method.payment_method_code">{{ method.payment_method_name }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-3 col-lg-3">
-                        <label class="form-label">Dari Tanggal</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label class="form-label" for="payments-from">Dari Tanggal</label>
+                        <input id="payments-from" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-md-3 col-lg-3">
-                        <label class="form-label">Sampai Tanggal</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label class="form-label" for="payments-to">Sampai Tanggal</label>
+                        <input id="payments-to" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 col-md-6 col-lg-6 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-filter me-1"></i>Terapkan</button>
@@ -302,17 +283,20 @@ Laporan Pembayaran
 
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 payment-table">
+                    <caption class="visually-hidden">
+                        Transaksi pembayaran pesanan e-commerce beserta status dan sisa tagihan.
+                    </caption>
                     <thead>
                         <tr>
-                            <th>Pesanan</th>
-                            <th>Tanggal</th>
-                            <th>Pelanggan</th>
-                            <th>Metode</th>
-                            <th>Status</th>
-                            <th class="text-end">Total</th>
-                            <th class="text-end">Dibayar</th>
-                            <th class="text-end">Sisa</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Pesanan</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Pelanggan</th>
+                            <th scope="col">Metode</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Total</th>
+                            <th scope="col" class="text-end">Dibayar</th>
+                            <th scope="col" class="text-end">Sisa</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -321,9 +305,9 @@ Laporan Pembayaran
                                 <td>
                                     <div class="payment-main">
                                         <strong>{{ row.order_number ?? row.id }}</strong>
-                                        <span class="badge" :class="orderStatusClass(row.order_status)">{{ row.order_status }}</span>
+                                        <span class="badge" :class="orderStatus(row.order_status).tone">{{ orderStatus(row.order_status).label }}</span>
                                         <small class="payment-mobile-meta d-md-none">
-                                            <span class="badge" :class="paymentStatusClass(row.payment_status)">{{ paymentStatusLabel(row.payment_status) }}</span>
+                                            <span class="badge" :class="paymentStatus(row.payment_status).tone">{{ paymentStatus(row.payment_status).label }}</span>
                                             <span>{{ formatCurrency(row.grand_total) }}</span>
                                         </small>
                                     </div>
@@ -342,22 +326,28 @@ Laporan Pembayaran
                                         <small v-else-if="!row.payment_channel_name && row.payment_method_code">{{ row.payment_method_code }}</small>
                                     </div>
                                 </td>
-                                <td><span class="badge" :class="paymentStatusClass(row.payment_status)">{{ paymentStatusLabel(row.payment_status) }}</span></td>
+                                <td><span class="badge" :class="paymentStatus(row.payment_status).tone">{{ paymentStatus(row.payment_status).label }}</span></td>
                                 <td class="text-end">{{ formatCurrency(row.grand_total) }}</td>
                                 <td class="text-end">{{ formatCurrency(row.paid_amount) }}</td>
                                 <td class="text-end">{{ formatCurrency(remainingAmount(row)) }}</td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
-                                        <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                                    <button
+                                        class="btn btn-sm btn-outline-secondary"
+                                        type="button"
+                                        :aria-expanded="Boolean(expanded[row.id])"
+                                        :aria-controls="`payment-detail-${row.id}`"
+                                        @click="toggleDetail(row.id)"
+                                    >
+                                        <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                                         {{ expanded[row.id] ? 'Tutup' : 'Detail' }}
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expanded[row.id]" class="payment-detail-row">
+                            <tr v-if="expanded[row.id]" :id="`payment-detail-${row.id}`" class="payment-detail-row">
                                 <td colspan="9">
                                     <div class="payment-detail">
                                         <div class="payment-detail-grid">
-                                            <div><span>Status Pesanan</span><strong>{{ row.order_status }}</strong></div>
+                                            <div><span>Status Pesanan</span><strong>{{ orderStatus(row.order_status).label }}</strong></div>
                                             <div><span>Pembayaran Selesai</span><strong>{{ formatDate(row.payment_completed_at) }}</strong></div>
                                             <div><span>Transaksi</span><strong>{{ row.transaction_number }}</strong></div>
                                             <div><span>Biaya Pembayaran</span><strong>{{ formatCurrency(row.payment_fee) }}</strong></div>
@@ -441,7 +431,7 @@ Laporan Pembayaran
 @media (max-width: 575.98px) {
     .payment-summary { gap: 0.5rem; padding: 0.75rem; }
     .payment-summary-icon { width: 1.9rem; height: 1.9rem; font-size: 0.95rem; }
-    .payment-summary strong { font-size: 0.82rem; white-space: nowrap; }
+    .payment-summary strong { font-size: 0.82rem; }
     .payment-detail-grid { grid-template-columns: 1fr; }
     .payment-detail-wide { grid-column: span 1; }
 }

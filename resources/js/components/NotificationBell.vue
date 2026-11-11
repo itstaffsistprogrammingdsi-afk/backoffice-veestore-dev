@@ -349,6 +349,11 @@ onBeforeUnmount(() => {
     outline: none;
 }
 
+.notification-panel:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+}
+
 .notification-panel-header {
     display: flex;
     align-items: flex-start;

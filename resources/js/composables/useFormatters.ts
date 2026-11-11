@@ -18,10 +18,18 @@ export const formatCurrency = (value: number | string | null | undefined): strin
     }).format(Number.isFinite(parsed) ? parsed : 0);
 };
 
+const parseDate = (value: string): Date => {
+    const normalized = value.includes(' ') && ! value.includes('T')
+        ? value.replace(' ', 'T')
+        : value;
+
+    return new Date(normalized);
+};
+
 export const formatDate = (value: string | null | undefined, withTime = false): string => {
     if (!value) return '-';
 
-    const date = new Date(value);
+    const date = parseDate(value);
 
     if (Number.isNaN(date.getTime())) return '-';
 
@@ -36,7 +44,7 @@ export const formatDate = (value: string | null | undefined, withTime = false): 
 export const formatDateLong = (value: string | null | undefined): string => {
     if (!value) return '-';
 
-    const date = new Date(value);
+    const date = parseDate(value);
 
     if (Number.isNaN(date.getTime())) return '-';
 

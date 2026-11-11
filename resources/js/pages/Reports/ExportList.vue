@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { Head, Link } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import { downloadExcelTable } from '@/composables/useExcelExport';
+import { exportStatusMeta } from '@/composables/useStatusLabels';
 
 interface ExportRow {
     id: string;
@@ -29,32 +30,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-const statusLabel = (status: string) => {
-    const labels: Record<string, string> = {
-        queued: 'Dalam antrean',
-        processing: 'Diproses',
-        completed: 'Selesai',
-        failed: 'Gagal',
-    };
-
-    return labels[status] ?? status;
-};
-
-const statusClass = (status: string) => {
-    if (status === 'completed') {
-        return 'bg-success';
-    }
-
-    if (status === 'failed') {
-        return 'bg-danger';
-    }
-
-    if (status === 'processing') {
-        return 'bg-info';
-    }
-
-    return 'bg-warning';
-};
+const statusMeta = (status: string) => exportStatusMeta(status);
 
 const formatDate = (value: string | null) => {
     if (!value) {
@@ -95,20 +71,23 @@ const exportHistory = () => downloadExcelTable('Export-Saya', 'Ekspor Saya', [
         <div class="card report-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
+                    <caption class="visually-hidden">
+                        Riwayat permintaan export laporan milik pengguna.
+                    </caption>
                     <thead>
                         <tr>
-                            <th>Laporan</th>
-                            <th>Status</th>
-                            <th>Dibuat</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Laporan</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Dibuat</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="row in exports.data" :key="row.id">
                             <td class="fw-semibold">{{ row.filename }}</td>
                             <td>
-                                <span class="badge" :class="statusClass(row.status)">
-                                    {{ statusLabel(row.status) }}
+                                <span class="badge" :class="statusMeta(row.status).tone">
+                                    {{ statusMeta(row.status).label }}
                                 </span>
                             </td>
                             <td>{{ formatDate(row.created_at) }}</td>
@@ -119,7 +98,11 @@ const exportHistory = () => downloadExcelTable('Export-Saya', 'Ekspor Saya', [
                             </td>
                         </tr>
                         <tr v-if="exports.data.length === 0">
-                            <td colspan="4" class="report-empty">Belum ada permintaan export.</td>
+                            <td colspan="4" class="report-empty">
+                                <i class="mdi mdi-file-export-outline d-block mb-2" aria-hidden="true"></i>
+                                <strong class="d-block">Belum ada permintaan export.</strong>
+                                <span class="d-block">Jalankan export dari halaman laporan yang ingin diunduh.</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

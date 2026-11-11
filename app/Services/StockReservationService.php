@@ -19,15 +19,15 @@ class StockReservationService
         ?string $excludeReferenceType = null,
         ?string $excludeReferenceId = null
     ) {
-        if (! Schema::hasTable('stock_reservations')) {
-            return DB::query()
+        if (! Schema::connection('pgsql')->hasTable('stock_reservations')) {
+            return DB::connection('pgsql')->query()
                 ->selectRaw('NULL::uuid as location_id, NULL::uuid as product_id, 0::int as qty_reserved')
                 ->whereRaw('1 = 0');
         }
 
-        return DB::table('stock_reservations as sr')
+        return DB::connection('pgsql')->table('stock_reservations as sr')
             ->leftJoinSub(
-                DB::table('store_order_details')
+                DB::connection('pgsql')->table('store_order_details')
                     ->select('store_order_id', 'product_id')
                     ->selectRaw('SUM(COALESCE(received_qty, 0))::int as received_qty')
                     ->groupBy('store_order_id', 'product_id'),
@@ -53,6 +53,10 @@ class StockReservationService
             END)::int as qty_reserved")
             ->where('sr.handler_type', $handlerType)
             ->where('sr.status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('sr.expires_at')
+                    ->orWhere('sr.expires_at', '>', now());
+            })
             ->when(
                 $excludeReferenceType !== null && $excludeReferenceId !== null,
                 fn ($query) => $query->whereRaw(
@@ -66,17 +70,17 @@ class StockReservationService
     /** @return Collection<int, object> */
     public function details(string $handlerType, string $handlerId, string $productId): Collection
     {
-        if (! Schema::hasTable('stock_reservations')) {
+        if (! Schema::connection('pgsql')->hasTable('stock_reservations')) {
             return collect();
         }
 
-        return DB::table('stock_reservations as sr')
+        return DB::connection('pgsql')->table('stock_reservations as sr')
             ->leftJoin('store_orders as so', function ($join) {
                 $join->on('so.id', '=', 'sr.reference_id')
                     ->where('sr.reference_type', '=', 'store_order');
             })
             ->leftJoinSub(
-                DB::table('store_order_details')
+                DB::connection('pgsql')->table('store_order_details')
                     ->select('store_order_id', 'product_id')
                     ->selectRaw('SUM(COALESCE(received_qty, 0))::int as received_qty')
                     ->groupBy('store_order_id', 'product_id'),
@@ -138,20 +142,62 @@ class StockReservationService
             ->values();
     }
 
+    /** @return array<string, int> */
+    public function reservedQuantities(
+        string $handlerType,
+        string $locationId,
+        array $productIds,
+        ?string $excludeReferenceType = null,
+        ?string $excludeReferenceId = null
+    ): array {
+        if ($productIds === []) {
+            return [];
+        }
+
+        return $this->remainingByLocation($handlerType, $excludeReferenceType, $excludeReferenceId)
+            ->where('sr.handler_id', $locationId)
+            ->whereIn('sr.product_id', $productIds)
+            ->pluck('qty_reserved', 'product_id')
+            ->map(fn ($qty) => (int) $qty)
+            ->all();
+    }
+
+    /** @return array<string, array<string, int>> */
+    public function reservedQuantitiesByLocation(
+        string $handlerType,
+        array $productIds,
+        ?string $excludeReferenceType = null,
+        ?string $excludeReferenceId = null
+    ): array {
+        if ($productIds === []) {
+            return [];
+        }
+
+        return $this->remainingByLocation($handlerType, $excludeReferenceType, $excludeReferenceId)
+            ->whereIn('sr.product_id', $productIds)
+            ->get()
+            ->groupBy('location_id')
+            ->map(fn ($rows) => $rows
+                ->pluck('qty_reserved', 'product_id')
+                ->map(fn ($qty) => (int) $qty)
+                ->all())
+            ->all();
+    }
+
     public function completeStoreOrder(string $orderId): void
     {
-        if (! Schema::hasTable('stock_reservations')) {
+        if (! Schema::connection('pgsql')->hasTable('stock_reservations')) {
             return;
         }
 
-        $receivedByProduct = DB::table('store_order_details')
+        $receivedByProduct = DB::connection('pgsql')->table('store_order_details')
             ->where('store_order_id', $orderId)
             ->select('product_id')
             ->selectRaw('SUM(COALESCE(received_qty, 0))::int as received_qty')
             ->groupBy('product_id')
             ->pluck('received_qty', 'product_id');
 
-        DB::table('stock_reservations')
+        DB::connection('pgsql')->table('stock_reservations')
             ->where('reference_type', 'store_order')
             ->where('reference_id', $orderId)
             ->where('status', 'active')
@@ -163,7 +209,7 @@ class StockReservationService
                     return;
                 }
 
-                DB::table('stock_reservations')
+                DB::connection('pgsql')->table('stock_reservations')
                     ->where('id', $reservation->id)
                     ->update([
                         'status' => 'consumed',
@@ -175,11 +221,11 @@ class StockReservationService
 
     public function completeEcommerceOrder(string $orderId): void
     {
-        if (! Schema::hasTable('stock_reservations')) {
+        if (! Schema::connection('pgsql')->hasTable('stock_reservations')) {
             return;
         }
 
-        DB::table('stock_reservations')
+        DB::connection('pgsql')->table('stock_reservations')
             ->where('reference_type', 'ecommerce_order')
             ->where('reference_id', $orderId)
             ->where('status', 'active')
@@ -187,6 +233,26 @@ class StockReservationService
                 'status' => 'consumed',
                 'consumed_at' => now(),
                 'updated_at' => now(),
+            ]);
+    }
+
+    public function releaseEcommerceOrder(string $orderId, string $reason): void
+    {
+        if (! Schema::connection('pgsql')->hasTable('stock_reservations')) {
+            return;
+        }
+
+        $now = now();
+
+        DB::connection('pgsql')->table('stock_reservations')
+            ->where('reference_type', 'ecommerce_order')
+            ->where('reference_id', $orderId)
+            ->where('status', 'active')
+            ->update([
+                'status' => 'released',
+                'released_at' => $now,
+                'release_reason' => $reason,
+                'updated_at' => $now,
             ]);
     }
 }

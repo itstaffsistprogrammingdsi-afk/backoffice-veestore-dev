@@ -640,7 +640,7 @@ const exportOverview = () => {
                             </div>
                             <span class="overview-card-meta">{{ formatCurrency(props.sales.summary.revenue) }}</span>
                         </header>
-                        <div v-if="visibleTrend.length" class="overview-chart" role="img" aria-label="Grafik tren penjualan harian">
+                        <div v-if="visibleTrend.length" class="overview-chart" role="img" aria-label="Grafik tren penjualan harian" aria-describedby="trend-data-table">
                             <div class="overview-chart-grid">
                                 <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
                                     <div class="overview-chart-track">
@@ -654,6 +654,23 @@ const exportOverview = () => {
                                 </div>
                             </div>
                         </div>
+                        <table v-if="visibleTrend.length" id="trend-data-table" class="visually-hidden">
+                            <caption>Data tren penjualan harian</caption>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Tanggal</th>
+                                    <th scope="col">Pendapatan</th>
+                                    <th scope="col">Transaksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="row in visibleTrend" :key="`trend-data-${row.date}`">
+                                    <th scope="row">{{ row.label }}</th>
+                                    <td>{{ formatCurrency(row.revenue) }}</td>
+                                    <td>{{ formatNumber(row.transactions) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
                         <p v-else class="overview-empty">Belum ada penjualan lunas pada periode ini.</p>
                     </article>
                 </div>
@@ -997,7 +1014,7 @@ const exportOverview = () => {
 .overview-kpi { display: flex; align-items: flex-start; gap: 0.7rem; height: 100%; padding: 0.9rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .overview-kpi-icon { display: grid; flex: 0 0 auto; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.1rem; }
 .overview-kpi-label { display: block; color: var(--app-muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.overview-kpi-value { display: block; margin-top: 0.1rem; font-size: 1.1rem; line-height: 1.25; }
+.overview-kpi-value { display: block; margin-top: 0.1rem; font-size: 1.1rem; line-height: 1.25; overflow-wrap: anywhere; }
 .overview-kpi small { display: block; margin-top: 0.15rem; color: var(--app-muted); font-size: 0.7rem; }
 .overview-kpi.is-success .overview-kpi-icon { background: var(--app-success-bg); color: var(--app-success-ink); }
 .overview-kpi.is-warning .overview-kpi-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }

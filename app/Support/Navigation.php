@@ -47,6 +47,21 @@ class Navigation
 
     private static function operationsGroups(?User $user): array
     {
+        $ecommerceItems = [
+            ['Pesanan', 'ecommerce.orders.index', 'mdi-cart-arrow-right', 'view ecommerce-orders'],
+            ['Kendala E-commerce', 'ecommerce.rejections.index', 'mdi-alert-decagram-outline', 'view ecommerce-orders'],
+            ['Pembayaran', 'ecommerce.payments.index', 'mdi-credit-card-check-outline', 'view monitoring-ecommerce-payment'],
+            ['Metode Pembayaran', 'master-data.payment-methods.index', 'mdi-credit-card-outline', 'view master-data-payment-methods'],
+            ['Banner', 'master-data.ecommerce-banners.index', 'mdi-image-multiple-outline', 'view master-data-ecommerce-banners'],
+        ];
+
+        if (! config('backoffice.ecommerce_rejection_handoff_enabled', false)) {
+            $ecommerceItems = array_values(array_filter(
+                $ecommerceItems,
+                fn (array $item): bool => $item[1] !== 'ecommerce.rejections.index'
+            ));
+        }
+
         return [
             [
                 'label' => 'Gudang',
@@ -80,12 +95,7 @@ class Navigation
             [
                 'label' => 'Ecommerce',
                 'icon' => 'mdi-cart-outline',
-                'items' => self::items($user, [
-                    ['Pesanan', 'ecommerce.orders.index', 'mdi-cart-arrow-right', null],
-                    ['Pembayaran', 'ecommerce.payments.index', 'mdi-credit-card-check-outline', null],
-                    ['Metode Pembayaran', 'master-data.payment-methods.index', 'mdi-credit-card-outline', 'view master-data-payment-methods'],
-                    ['Banner', 'master-data.ecommerce-banners.index', 'mdi-image-multiple-outline', 'view master-data-ecommerce-banners'],
-                ]),
+                'items' => self::items($user, $ecommerceItems),
             ],
             [
                 'label' => 'Mitra',
@@ -235,8 +245,6 @@ class Navigation
                     ['Pesanan Cabang', 'reports.order-cabang.index', 'mdi-clipboard-list-outline', null],
                     ['Order Handled', 'monitoring.order-handled.index', 'mdi-clipboard-check-multiple-outline', null],
                     ['Fulfillment & SLA', 'monitoring.fulfillment-control.index', 'mdi-truck-check-outline', null],
-                    ['Permintaan Barang Toko', 'monitoring.store-order-requests.index', 'mdi-cart-arrow-down', null],
-                    ['Permintaan Retur Toko', 'monitoring.store-return-requests.index', 'mdi-backup-restore', null],
                 ]),
             ],
             [

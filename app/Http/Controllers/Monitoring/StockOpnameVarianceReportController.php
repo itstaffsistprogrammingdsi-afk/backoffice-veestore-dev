@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class StockOpnameVarianceReportController extends Controller
@@ -104,12 +103,8 @@ class StockOpnameVarianceReportController extends Controller
                 ->groupBy('session_id');
         }
 
-        $canDecide = $this->canDecide();
-        $rows->through(function ($row) use ($sessionDetails, $canDecide) {
+        $rows->through(function ($row) use ($sessionDetails) {
             $row->details = $sessionDetails->get($row->session_id, collect())->values()->all();
-            $row->can_decide = $canDecide
-                && $row->approved_at === null
-                && in_array(strtolower((string) $row->opname_status), ['pending_approval', 'pending'], true);
 
             return $row;
         });
@@ -205,7 +200,7 @@ class StockOpnameVarianceReportController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Stok Opname, Selisih & Penyesuaian',
-            'description' => 'Rekap selisih stok opname gudang kecil/toko dan display: nilai selisih, PIC, status persetujuan, serta rekap harian, mingguan, dan bulanan.',
+            'description' => 'Rekap selisih stok opname gudang kecil/toko dan display: nilai selisih, PIC, status persetujuan, serta rekap harian, mingguan, dan bulanan. Keputusan approval dan penyesuaian stok dilakukan di aplikasi POS oleh Manager/SPV toko.',
             'data' => [
                 'rows' => $rows,
                 'opnameItems' => $itemRows,
@@ -226,130 +221,10 @@ class StockOpnameVarianceReportController extends Controller
             'filters' => $request->query(),
             'urls' => [
                 'index' => url()->current(),
-                'approve' => route('monitoring.stock-opname-variance.approve', ['id' => '__ID__']),
-                'reject' => route('monitoring.stock-opname-variance.reject', ['id' => '__ID__']),
+                'pos_stock_opname' => rtrim((string) config('backoffice.pos_app_url'), '/').'/storage/stock-opname',
             ],
-            'canDecide' => $canDecide,
+            'canDecide' => false,
         ]);
-    }
-
-    public function approve(Request $request, string $id)
-    {
-        return $this->decide($request, $id, 'approved');
-    }
-
-    public function reject(Request $request, string $id)
-    {
-        return $this->decide($request, $id, 'rejected');
-    }
-
-    private function decide(Request $request, string $id, string $status)
-    {
-        abort_unless($this->canDecide(), 403);
-
-        $validated = $request->validate([
-            'reason' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $session = DB::table('store_opname_sessions')->where('id', $id)->first();
-
-        if (! $session) {
-            return back()->with('error', 'Sesi stok opname tidak ditemukan.');
-        }
-
-        $currentStatus = strtolower((string) $session->status);
-
-        if (! in_array($currentStatus, ['pending_approval', 'pending'], true)) {
-            return back()->with('error', 'Hanya sesi opname yang menunggu persetujuan yang dapat diproses.');
-        }
-
-        $items = DB::table('store_opname_session_items as osi')
-            ->leftJoin('products as p', 'p.id', '=', 'osi.product_id')
-            ->leftJoin('locations as l', 'l.id', '=', 'osi.location_id')
-            ->where('osi.opname_session_id', $id)
-            ->get([
-                'osi.product_id',
-                'p.code as product_code',
-                'p.name as product_name',
-                'l.name as location_name',
-                'osi.system_stock',
-                'osi.physical_stock',
-                'osi.discrepancy_reason',
-                'osi.discrepancy_notes',
-            ]);
-
-        $decisions = $items->map(fn ($item) => [
-            'product_id' => $item->product_id,
-            'product_code' => $item->product_code,
-            'product_name' => $item->product_name,
-            'location_name' => $item->location_name,
-            'system_stock' => (int) $item->system_stock,
-            'physical_stock' => (int) $item->physical_stock,
-            'difference_qty' => (int) $item->physical_stock - (int) $item->system_stock,
-            'discrepancy_reason' => $item->discrepancy_reason,
-            'discrepancy_notes' => $item->discrepancy_notes,
-        ])->values()->all();
-
-        DB::transaction(function () use ($id, $session, $status, $validated, $decisions) {
-            $now = now();
-
-            $update = $status === 'approved'
-                ? [
-                    'status' => 'approved',
-                    'approved_by' => auth()->id(),
-                    'approved_at' => $now,
-                    'updated_at' => $now,
-                ]
-                : [
-                    'status' => 'rejected',
-                    'rejected_by' => auth()->id(),
-                    'rejected_at' => $now,
-                    'rejection_reasons' => $validated['reason'] ?? 'Ditolak HO/BO',
-                    'updated_at' => $now,
-                ];
-
-            DB::table('store_opname_sessions')->where('id', $id)->update($update);
-
-            DB::table('store_opname_approval_audits')->insert([
-                'id' => (string) Str::uuid(),
-                'opname_session_id' => $id,
-                'counting_round' => (int) ($session->counting_round ?? 1),
-                'actor_id' => auth()->id(),
-                'action' => $status,
-                'reason' => $validated['reason'] ?? null,
-                'reviewed_at' => $now,
-                'acted_at' => $now,
-                'item_decisions' => json_encode($decisions),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        });
-
-        return back()->with(
-            'success',
-            $status === 'approved'
-                ? 'Sesi stok opname disetujui dan keputusan penyesuaian tercatat.'
-                : 'Sesi stok opname ditolak dan alasan tercatat.'
-        );
-    }
-
-    private function canDecide(): bool
-    {
-        $user = auth()->user();
-
-        if (! $user) {
-            return false;
-        }
-
-        if ($user->can('approve store-opname-variance') || $user->can('manage store-opname')) {
-            return true;
-        }
-
-        $managementRoles = ['superadmin', 'administrator', 'admin', 'management', 'manager'];
-
-        return $user->getRoleNames()
-            ->map(fn ($role) => strtolower(preg_replace('/[^a-z0-9]/', '', $role)))
-            ->contains(fn ($role) => in_array($role, $managementRoles, true));
     }
 
     private function baseQuery(Carbon $start, Carbon $end)

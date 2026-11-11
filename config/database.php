@@ -29,7 +29,7 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => env('DB_SCHEMA', 'public'),
-            'sslmode' => 'prefer',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
         // === PostgreSQL kedua: immostore_backoffice ===
@@ -44,7 +44,7 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => env('IMS_BO_DB_SCHEMA', 'public'),
-            'sslmode' => 'prefer',
+            'sslmode' => env('IMS_BO_DB_SSLMODE', 'prefer'),
         ],
 
         'veestore_backoffice' => [
@@ -58,9 +58,23 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => env('IMS_BO_DB_SCHEMA', 'public'),
-            'sslmode' => 'prefer',
+            'sslmode' => env('IMS_BO_DB_SSLMODE', 'prefer'),
         ],
 
+        // === PostgreSQL POS lokal: handoff operasional toko ===
+        'pos' => [
+            'driver' => 'pgsql',
+            'host' => env('POS_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('POS_DB_PORT', env('DB_PORT', '5432')),
+            'database' => env('POS_DB_DATABASE', 'veestore_pos_dev'),
+            'username' => env('POS_DB_USERNAME', env('DB_USERNAME', 'forge')),
+            'password' => env('POS_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => env('POS_DB_SCHEMA', 'public'),
+            'sslmode' => env('POS_DB_SSLMODE', 'prefer'),
+        ],
 
         // (biarkan mysql & sqlsrv seperti bawaan jika tidak dipakai)
         'mysql' => [
