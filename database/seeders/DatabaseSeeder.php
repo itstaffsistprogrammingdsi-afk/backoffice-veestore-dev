@@ -52,6 +52,7 @@ class DatabaseSeeder extends Seeder
 
             WarehousePermissionSeeder::class,
             BackofficeRolePermissionSeeder::class,
+            StoreSchedulePermissionSeeder::class,
         ]);
     }
 }
