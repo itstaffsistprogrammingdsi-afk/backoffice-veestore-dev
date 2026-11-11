@@ -115,6 +115,7 @@ use App\Http\Controllers\Operations\StoreOrderApprovalController;
 use App\Http\Controllers\Operations\StoreOutboundOperationsController;
 use App\Http\Controllers\Operations\StoreReturnApprovalController as OperationsStoreReturnApprovalController;
 use App\Http\Controllers\Operations\StoreSampleGimmickController;
+use App\Http\Controllers\Operations\StoreScheduleApprovalController;
 use App\Http\Controllers\Operations\StoreStockOperationsController;
 use App\Http\Controllers\Operations\StoreTransferController;
 use App\Http\Controllers\OperationsHubController;
@@ -253,6 +254,18 @@ Route::middleware('auth')->group(function () {
             ->name('approve');
         Route::patch('{return}/reject', [OperationsStoreReturnApprovalController::class, 'reject'])
             ->whereUuid('return')
+            ->name('reject');
+    });
+    Route::prefix('operations/store-schedules')->name('operations.store-schedules.')->group(function () {
+        Route::get('/', [StoreScheduleApprovalController::class, 'index'])->name('index');
+        Route::get('{schedule}', [StoreScheduleApprovalController::class, 'show'])
+            ->whereUuid('schedule')
+            ->name('show');
+        Route::patch('{schedule}/approve', [StoreScheduleApprovalController::class, 'approve'])
+            ->whereUuid('schedule')
+            ->name('approve');
+        Route::patch('{schedule}/reject', [StoreScheduleApprovalController::class, 'reject'])
+            ->whereUuid('schedule')
             ->name('reject');
     });
     Route::get('/reports', ReportsHubController::class)->name('reports.index');

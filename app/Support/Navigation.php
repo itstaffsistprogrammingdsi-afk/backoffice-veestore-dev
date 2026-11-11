@@ -87,6 +87,7 @@ class Navigation
                     ['Transfer Toko ke Toko', 'operations.store-transfers.index', 'mdi-swap-horizontal-bold', 'view branch-order-cabang'],
                     ['Persetujuan Pesanan Toko', 'operations.store-orders.index', 'mdi-clipboard-check-outline', 'view branch-order-cabang'],
                     ['Persetujuan Retur Toko', 'operations.store-returns.index', 'mdi-backup-restore', 'view branch-retur-cabang'],
+                    ['Persetujuan Jadwal Toko', 'operations.store-schedules.index', 'mdi-calendar-check-outline', 'view branch-store-schedule'],
                     ['Pelanggan dan Kunjungan', 'operations.customers.index', 'mdi-account-group-outline', null],
                     ['Persetujuan Cetak Ulang Label', 'branch-operations.request-label.index', 'mdi-tag-check-outline', null],
                     ['Permintaan Voucher', 'branch-operations.request-voucher.index', 'mdi-ticket-confirmation-outline', null],

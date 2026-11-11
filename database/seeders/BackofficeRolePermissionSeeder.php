@@ -23,6 +23,8 @@ class BackofficeRolePermissionSeeder extends Seeder
             'create master-customer',
             'update master-customer',
             'view branch-retur-cabang',
+            'view branch-store-schedule',
+            'approve branch-store-schedule',
             'approve management-label-requests',
             'manage label-print-requests',
             'create label-print-requests',
@@ -172,6 +174,7 @@ class BackofficeRolePermissionSeeder extends Seeder
                         'master-data-locations-store',
                         'branch-order-cabang',
                         'branch-retur-cabang',
+                        'branch-store-schedule',
                         'branch-request-label',
                         'branch-request-voucher',
                         'monitoring-store-order-requests',
@@ -208,17 +211,17 @@ class BackofficeRolePermissionSeeder extends Seeder
                         'monitoring-voucher-reject-report',
                     ])
                 ),
-                'HRD' => $menu([
+                'HRD' => array_merge($menu([
                     'dashboard-analytics',
                     'monitoring-cashier-shift-report',
                     'monitoring.audit-center',
                     'monitoring-user-monitoring',
                     'monitoring-employee-shift-attendance',
-                ]),
+                ]), ['view branch-store-schedule']),
                 'Management' => array_merge(
                     $viewPermissions,
                     $menuPermissions,
-                    ['approve management-label-requests', 'manage label-print-requests', 'create label-print-requests', 'print label-print-requests', 'approve store-opname-variance', 'manage store-opname']
+                    ['approve management-label-requests', 'manage label-print-requests', 'create label-print-requests', 'print label-print-requests', 'approve store-opname-variance', 'manage store-opname', 'approve branch-store-schedule']
                 ),
             ];
 

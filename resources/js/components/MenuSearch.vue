@@ -919,13 +919,13 @@ onBeforeUnmount(() => {
     height: 38px;
     padding: 0.35rem;
     border: 1px solid var(--app-border);
-    border-radius: 0.6rem;
+    border-radius: var(--app-radius-md);
     background: var(--app-surface);
     color: var(--app-muted);
     font: inherit;
     font-size: 0.8rem;
     cursor: pointer;
-    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out);
 }
 
 .menu-search-trigger:hover,
@@ -952,7 +952,7 @@ onBeforeUnmount(() => {
     padding: 0.1rem 0.3rem;
     border: 1px solid var(--app-border);
     border-bottom-width: 2px;
-    border-radius: 0.3rem;
+    border-radius: var(--app-radius-xs);
     background: var(--app-surface);
     color: var(--app-muted);
     font-family: inherit;
@@ -973,7 +973,7 @@ onBeforeUnmount(() => {
     align-items: flex-start;
     justify-content: center;
     padding: clamp(3rem, 12vh, 7rem) 1rem 1rem;
-    background: rgba(10, 20, 28, 0.52);
+    background: var(--app-scrim);
 }
 
 .menu-search-dialog {
@@ -983,10 +983,10 @@ onBeforeUnmount(() => {
     max-height: min(620px, calc(100dvh - 8rem));
     overflow: hidden;
     border: 1px solid var(--app-border);
-    border-radius: 0.85rem;
+    border-radius: var(--app-radius-2xl);
     background: var(--app-surface);
     color: var(--app-ink);
-    box-shadow: 0 1.5rem 4rem rgba(10, 20, 28, 0.32);
+    box-shadow: var(--app-shadow-overlay);
 }
 
 .menu-search-field {
@@ -1021,7 +1021,7 @@ onBeforeUnmount(() => {
 }
 
 .menu-search-input:focus-visible {
-    border-radius: 0.3rem;
+    border-radius: var(--app-radius-xs);
     outline: 2px solid var(--app-focus);
     outline-offset: 2px;
 }
@@ -1033,7 +1033,7 @@ onBeforeUnmount(() => {
     width: 34px;
     height: 34px;
     border: 1px solid transparent;
-    border-radius: 0.45rem;
+    border-radius: var(--app-radius-sm);
     background: transparent;
     color: var(--app-muted);
     font-size: 1.05rem;
@@ -1077,7 +1077,7 @@ onBeforeUnmount(() => {
 .menu-search-clear-recent {
     padding: 0.2rem 0.35rem;
     border: 0;
-    border-radius: 0.3rem;
+    border-radius: var(--app-radius-xs);
     background: transparent;
     color: var(--app-accent-ink);
     font: inherit;
@@ -1098,7 +1098,7 @@ onBeforeUnmount(() => {
     gap: 0.65rem;
     min-height: 52px;
     padding: 0.45rem 0.6rem;
-    border-radius: 0.55rem;
+    border-radius: var(--app-radius-md);
     cursor: pointer;
 }
 
@@ -1120,7 +1120,7 @@ onBeforeUnmount(() => {
     place-items: center;
     width: 34px;
     height: 34px;
-    border-radius: 0.5rem;
+    border-radius: var(--app-radius-sm);
     background: var(--app-surface-2);
     color: var(--app-accent-ink);
     font-size: 1.15rem;
@@ -1181,7 +1181,7 @@ onBeforeUnmount(() => {
     width: 48px;
     height: 48px;
     margin-bottom: 0.25rem;
-    border-radius: 0.75rem;
+    border-radius: var(--app-radius-lg);
     background: var(--app-surface-2);
     color: var(--app-muted);
     font-size: 1.5rem;
@@ -1233,12 +1233,12 @@ onBeforeUnmount(() => {
 
 .menu-search-enter-active,
 .menu-search-leave-active {
-    transition: opacity 120ms ease;
+    transition: opacity var(--app-dur-base) var(--app-ease-out);
 }
 
 .menu-search-enter-active .menu-search-dialog,
 .menu-search-leave-active .menu-search-dialog {
-    transition: opacity 120ms ease, transform 120ms ease;
+    transition: opacity var(--app-dur-base) var(--app-ease-out), transform var(--app-dur-base) var(--app-ease-out);
 }
 
 .menu-search-enter-from,
@@ -1298,7 +1298,7 @@ onBeforeUnmount(() => {
 
     .menu-search-dialog {
         max-height: calc(100dvh - 1rem);
-        border-radius: 0.75rem;
+        border-radius: var(--app-radius-lg);
     }
 
     .menu-search-field {

@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
+import AppToastHost from '@/components/ui/AppToastHost.vue';
 import MenuSearch from '@/components/MenuSearch.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
 import { currentLocale, switchLocale as changeLocale } from '@/i18n';
@@ -813,6 +814,7 @@ onBeforeUnmount(() => {
         </div>
 
         <VeeAssistantWidget :inert="mobileOpen && !isDesktopViewport" :aria-hidden="mobileOpen && !isDesktopViewport ? 'true' : undefined" />
+        <AppToastHost />
     </div>
 </template>
 
@@ -822,7 +824,7 @@ onBeforeUnmount(() => {
     min-height: 100dvh;
     background: var(--app-bg);
     color: var(--app-ink);
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: var(--app-font-sans);
 }
 
 .app-progress {
@@ -868,14 +870,14 @@ onBeforeUnmount(() => {
     z-index: 40;
     display: flex;
     flex-direction: column;
-    width: min(280px, 86vw);
+    width: min(var(--app-sidebar-w), 86vw);
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--app-sidebar-bg);
     border-right: 1px solid var(--app-sidebar-border);
     color: var(--app-sidebar-ink);
     overscroll-behavior: contain;
     transform: translateX(-100%);
-    transition: transform 180ms ease, width 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--app-dur-base) var(--app-ease-out), width var(--app-dur-slow) var(--app-ease-in-out);
 }
 
 .app-sidebar.is-open {
@@ -954,6 +956,7 @@ onBeforeUnmount(() => {
     border-radius: 0.5rem;
     color: var(--app-sidebar-ink);
     text-decoration: none;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out);
 }
 
 .app-area:hover,
@@ -1005,15 +1008,18 @@ onBeforeUnmount(() => {
     width: 100%;
     padding: 0.5rem 0.5rem;
     border: 0;
+    border-radius: var(--app-radius-sm);
     background: transparent;
     color: var(--app-sidebar-muted);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out);
 }
 
 .app-group-toggle:hover,
 .app-group-toggle:focus-visible {
+    background: var(--app-sidebar-soft);
     color: var(--app-sidebar-ink);
 }
 
@@ -1049,6 +1055,7 @@ onBeforeUnmount(() => {
     color: var(--app-sidebar-muted);
     font-size: 0.85rem;
     text-decoration: none;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out), box-shadow var(--app-dur-fast) var(--app-ease-out);
 }
 
 .app-item:hover,
@@ -1060,6 +1067,7 @@ onBeforeUnmount(() => {
 .app-item.is-active {
     background: var(--app-sidebar-active-bg);
     color: var(--app-sidebar-active-ink);
+    font-weight: 600;
     box-shadow: inset 3px 0 0 var(--app-accent);
 }
 
@@ -1089,6 +1097,7 @@ onBeforeUnmount(() => {
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--app-border);
     background: var(--app-surface);
+    box-shadow: var(--app-shadow-xs);
 }
 
 .app-topbar > div {
@@ -1107,6 +1116,12 @@ onBeforeUnmount(() => {
     background: var(--app-surface);
     color: var(--app-ink);
     font-size: 1.3rem;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out), transform var(--app-dur-fast) var(--app-ease-out);
+}
+
+.app-menu-button:active,
+.app-sidebar-toggle:active {
+    transform: translateY(1px);
 }
 
 .app-menu-button:hover,
@@ -1278,6 +1293,7 @@ onBeforeUnmount(() => {
     background: transparent;
     color: var(--app-ink);
     cursor: pointer;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out);
 }
 
 .app-user-button:hover,
@@ -1369,16 +1385,41 @@ onBeforeUnmount(() => {
 .app-content {
     width: 100%;
     min-width: 0;
-    max-width: 1500px;
+    max-width: var(--app-content-max);
     margin: 0 auto;
     padding: 1rem;
+}
+
+.app-content > * {
+    animation: app-page-in var(--app-dur-base) var(--app-ease-out);
+}
+
+@keyframes app-page-in {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .app-overlay {
     position: fixed;
     inset: 0;
     z-index: 35;
-    background: rgba(20, 31, 26, 0.48);
+    background: var(--app-scrim);
+    animation: app-fade-in var(--app-dur-base) var(--app-ease-out);
+}
+
+@keyframes app-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 @media (min-width: 576px) {
@@ -1403,16 +1444,16 @@ onBeforeUnmount(() => {
     }
 
     .app-sidebar.is-collapsed {
-        width: 84px;
+        width: var(--app-sidebar-w-collapsed);
     }
 
     .app-main {
-        margin-left: 280px;
-        transition: margin-left 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+        margin-left: var(--app-sidebar-w);
+        transition: margin-left var(--app-dur-slow) var(--app-ease-in-out);
     }
 
     .app-shell.is-sidebar-collapsed .app-main {
-        margin-left: 84px;
+        margin-left: var(--app-sidebar-w-collapsed);
     }
 
     .app-sidebar.is-collapsed .app-brand {
@@ -1519,10 +1560,18 @@ onBeforeUnmount(() => {
         font-size: 0.76rem;
     }
 }
+@media (max-width: 991.98px) {
+    .app-sidebar {
+        border-radius: 0 var(--app-radius-xl) var(--app-radius-xl) 0;
+        box-shadow: var(--app-shadow-lg);
+    }
+}
 @media (prefers-reduced-motion: reduce) {
     .app-sidebar,
     .app-main,
-    .app-progress {
+    .app-progress,
+    .app-overlay,
+    .app-content > * {
         transition: none;
         animation: none;
     }

@@ -49,9 +49,8 @@ const moduleNavigation = computed(() => (page.props[props.moduleKey] ?? null) as
     margin-bottom: 1rem;
     padding: 0.4rem;
     border: 1px solid var(--app-border);
-    border-radius: 0.75rem;
+    border-radius: var(--app-radius-lg);
     background: var(--app-surface);
-    box-shadow: var(--app-shadow);
 }
 .module-nav-link {
     display: inline-flex;
@@ -59,11 +58,12 @@ const moduleNavigation = computed(() => (page.props[props.moduleKey] ?? null) as
     gap: 0.4rem;
     min-height: 44px;
     padding: 0.45rem 0.75rem;
-    border-radius: 0.55rem;
+    border-radius: var(--app-radius-sm);
     color: var(--app-muted);
     font-size: 0.82rem;
     font-weight: 600;
     text-decoration: none;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out);
 }
 .module-nav-link:hover,
 .module-nav-link:focus-visible {
