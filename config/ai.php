@@ -35,7 +35,7 @@ return [
     'caching' => [
         'embeddings' => [
             'cache' => false,
-            'store' => env('CACHE_STORE', 'database'),
+            'store' => env('CACHE_STORE', env('CACHE_DRIVER', 'file')),
             'individually' => true,
         ],
     ],

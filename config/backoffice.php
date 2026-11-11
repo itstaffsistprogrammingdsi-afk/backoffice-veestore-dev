@@ -5,6 +5,13 @@ return [
         'min_margin_percent' => (float) env('BACKOFFICE_MIN_PRICE_MARGIN_PERCENT', 20),
     ],
 
+    'pos_app_url' => rtrim((string) env('POS_APP_URL', 'http://127.0.0.1:8001'), '/'),
+
+    'ecommerce_rejection_handoff_enabled' => (bool) env(
+        'BACKOFFICE_ECOMMERCE_REJECTION_HANDOFF_ENABLED',
+        false
+    ),
+
     'payment_sla_hours' => (int) env('BACKOFFICE_PAYMENT_SLA_HOURS', 24),
 
     'edc_bca' => [

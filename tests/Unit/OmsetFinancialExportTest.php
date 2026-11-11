@@ -36,9 +36,9 @@ class OmsetFinancialExportTest extends TestCase
         $mapped = $export->map($row);
 
         $this->assertCount(count($export->headings()), $mapped);
-        $this->assertSame(85000.0, $mapped[19]);
-        $this->assertSame(15000.0, $mapped[20]);
-        $this->assertSame(17.65, $mapped[21]);
+        $this->assertSame(85000.0, $mapped[21]);
+        $this->assertSame(15000.0, $mapped[22]);
+        $this->assertSame(17.65, $mapped[23]);
     }
 
     public function test_omset_cabang_export_keeps_headings_and_columns_aligned(): void

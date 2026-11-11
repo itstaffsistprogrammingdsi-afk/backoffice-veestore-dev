@@ -2,18 +2,12 @@
 
 namespace App\Domain\StoreOperations\Actions;
 
-use App\Domain\StoreOperations\Support\StoreTransferStock;
 use App\Models\StoreOrder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ShipStoreTransfer
 {
-    public function __construct(
-        private readonly StoreTransferStock $stock
-    ) {}
-
     public function handle(StoreOrder $order, ?string $actorId = null): StoreOrder
     {
         return DB::transaction(function () use ($order, $actorId): StoreOrder {
@@ -49,9 +43,42 @@ class ShipStoreTransfer
             }
 
             $sourceStoreId = (string) $outbound->store_id;
-            $now = now();
-            $detailRows = [];
-            $itemRows = [];
+
+            $scanned = DB::table('store_outbound_details as sod')
+                ->join('items as i', 'i.id', '=', 'sod.item_id')
+                ->join('store_items as si', function ($join) use ($sourceStoreId): void {
+                    $join->on('si.item_id', '=', 'i.id')
+                        ->where('si.store_id', '=', $sourceStoreId);
+                })
+                ->where('sod.store_outbound_id', $outbound->id)
+                ->whereNotNull('sod.rfid_tag_id')
+                ->where('si.category', 'inventory')
+                ->where('i.status', 'store_stock')
+                ->get(['sod.item_id', 'i.product_id']);
+
+            if ($scanned->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Barang belum discan di toko asal. Minta toko asal memindai semua barang sebelum pengiriman.',
+                ]);
+            }
+
+            $detailProductIds = $locked->details
+                ->pluck('product_id')
+                ->map(fn ($productId): string => (string) $productId)
+                ->all();
+
+            $scannedByProduct = $scanned->groupBy(
+                fn ($row): string => (string) $row->product_id
+            );
+
+            foreach ($scannedByProduct->keys() as $productId) {
+                if (! in_array((string) $productId, $detailProductIds, true)) {
+                    throw ValidationException::withMessages([
+                        'status' => 'Ada barang yang discan tetapi bukan bagian dari produk transfer ini.',
+                    ]);
+                }
+            }
+
             $totalQty = 0;
 
             foreach ($locked->details as $detail) {
@@ -65,49 +92,35 @@ class ShipStoreTransfer
                     ]);
                 }
 
-                DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', [
-                    "store-transfer:{$sourceStoreId}:{$detail->product_id}",
-                ]);
+                $scannedQty = $scannedByProduct->get((string) $detail->product_id)?->count() ?? 0;
 
-                $items = $this->stock->availableItems($sourceStoreId, (string) $detail->product_id, $qty);
-
-                if ($items->count() < $qty) {
+                if ($scannedQty !== $qty) {
                     throw ValidationException::withMessages([
-                        'status' => "Stok '{$productName}' di toko asal tidak cukup. Dibutuhkan {$qty} pcs, tersedia {$items->count()} pcs.",
+                        'status' => "Scan '{$productName}' belum lengkap. Discan {$scannedQty} dari {$qty} pcs.",
                     ]);
-                }
-
-                foreach ($items as $item) {
-                    $itemRows[] = (string) $item->id;
-
-                    $detailRows[] = [
-                        'id' => (string) Str::uuid(),
-                        'store_outbound_id' => (string) $outbound->id,
-                        'item_id' => (string) $item->id,
-                        'rfid_tag_id' => $item->rfid_tag_id,
-                        'rfid_releaser_user_id' => $actorId,
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
                 }
 
                 $totalQty += $qty;
-
-                $detail->forceFill([
-                    'approved_qty' => $qty,
-                ])->save();
             }
 
-            DB::table('store_outbound_details')->insert($detailRows);
+            $itemIds = $scanned->pluck('item_id')
+                ->map(fn ($itemId): string => (string) $itemId)
+                ->values();
 
-            if ($itemRows !== []) {
-                DB::table('items')
-                    ->whereIn('id', array_values(array_unique($itemRows)))
-                    ->update([
-                        'status' => 'in_delivery',
-                        'updated_at' => $now,
-                    ]);
+            if ($itemIds->unique()->count() !== $itemIds->count()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Ada barang yang discan lebih dari sekali. Periksa kembali hasil scan toko asal.',
+                ]);
             }
+
+            $now = now();
+
+            DB::table('items')
+                ->whereIn('id', $itemIds->all())
+                ->update([
+                    'status' => 'in_delivery',
+                    'updated_at' => $now,
+                ]);
 
             DB::table('store_outbounds')
                 ->where('id', $outbound->id)

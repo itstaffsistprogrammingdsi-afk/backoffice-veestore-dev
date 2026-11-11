@@ -77,6 +77,24 @@ class WarehouseStockAvailability
     }
 
     /**
+     * @param  array<int, string>  $warehouseIds
+     * @param  array<int, string>  $productIds
+     * @return array<string, int>
+     */
+    public function availableTotals(array $warehouseIds, array $productIds): array
+    {
+        $totals = [];
+
+        foreach ($this->forProducts($warehouseIds, $productIds) as $products) {
+            foreach ($products as $productId => $row) {
+                $totals[$productId] = ($totals[$productId] ?? 0) + (int) $row['qty_available'];
+            }
+        }
+
+        return $totals;
+    }
+
+    /**
      * @param  array<int, mixed>  $values
      * @return array<int, string>
      */

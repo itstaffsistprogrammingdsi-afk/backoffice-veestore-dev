@@ -40,6 +40,9 @@ interface TransferRow {
     requested_qty: number;
     approved_qty: number;
     received_qty: number;
+    scanned_qty: number;
+    scan_remaining_qty: number;
+    scan_progress_percent: number;
     outstanding_qty: number;
     progress_percent: number;
     can_approve: boolean;
@@ -62,6 +65,7 @@ interface Paginator<T> {
 interface Summary {
     total_transfers: number;
     waiting_approval: number;
+    waiting_scan: number;
     ready_to_ship: number;
     in_transit: number;
     partial_received: number;
@@ -108,6 +112,8 @@ interface StockProduct {
     product_code: string;
     category_name: string;
     available_qty: number;
+    warehouse_available_qty: number;
+    can_transfer: boolean;
     product_price_id: string | null;
     product_price: number;
 }
@@ -122,6 +128,7 @@ interface TransferDetail {
     requested_qty: number;
     approved_qty: number;
     received_qty: number;
+    scanned_qty: number;
     note: string | null;
 }
 
@@ -219,6 +226,7 @@ const stockCache = ref<Record<string, StockProduct>>({});
 const stockLoading = ref(false);
 const stockSearch = ref('');
 const stockError = ref('');
+const warehouseRule = ref('');
 const actionError = ref('');
 let stockTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -257,6 +265,7 @@ const loadStock = async () => {
         });
 
         stockProducts.value = Array.isArray(data.products) ? data.products : [];
+        warehouseRule.value = String(data.warehouse_rule ?? '');
         stockProducts.value.forEach((product) => {
             stockCache.value[product.product_id] = product;
         });
@@ -285,6 +294,7 @@ const openCreate = () => {
     stockCache.value = {};
     stockSearch.value = '';
     stockError.value = '';
+    warehouseRule.value = '';
     actionError.value = '';
     createOpen.value = true;
 };
@@ -295,7 +305,7 @@ const closeCreate = () => {
 };
 
 const addProduct = (product: StockProduct) => {
-    if (product.available_qty <= 0 || !product.product_price_id) return;
+    if (product.available_qty <= 0 || !product.product_price_id || !product.can_transfer) return;
 
     const existing = form.items.find((item) => item.product_id === product.product_id);
 
@@ -478,7 +488,7 @@ onBeforeUnmount(() => {
             <div>
                 <span class="transfer-eyebrow">Operations / Store</span>
                 <h1>Transfer Toko ke Toko</h1>
-                <p>Pindahkan stok antar toko dengan alur persetujuan, pengiriman, dan penerimaan yang tercatat.</p>
+                <p>Pindahkan stok gudang toko antar cabang. Transfer hanya dapat dibuat setelah stok gudang habis, dan barang wajib discan toko asal sebelum dikirim.</p>
             </div>
             <div class="transfer-header-actions">
                 <Link :href="props.urls.stock_page" class="transfer-button transfer-button-light">
@@ -503,7 +513,7 @@ onBeforeUnmount(() => {
             <div class="col-6 col-md-4 col-xl-2">
                 <div class="transfer-summary transfer-summary-warning">
                     <span class="transfer-summary-icon"><i class="mdi mdi-clock-outline"></i></span>
-                    <div><span>Menunggu</span><strong>{{ formatNumber(props.summary.waiting_approval) }}</strong></div>
+                    <div><span>Menunggu Approval</span><strong>{{ formatNumber(props.summary.waiting_approval) }}</strong></div>
                 </div>
             </div>
             <div class="col-6 col-md-4 col-xl-2">
@@ -525,9 +535,9 @@ onBeforeUnmount(() => {
                 </div>
             </div>
             <div class="col-6 col-md-4 col-xl-2">
-                <div class="transfer-summary transfer-summary-danger">
-                    <span class="transfer-summary-icon"><i class="mdi mdi-package-variant-closed-remove"></i></span>
-                    <div><span>Outstanding Qty</span><strong>{{ formatNumber(props.summary.outstanding_qty) }}</strong></div>
+                <div class="transfer-summary transfer-summary-warning">
+                    <span class="transfer-summary-icon"><i class="mdi mdi-qrcode-scan"></i></span>
+                    <div><span>Menunggu Scan</span><strong>{{ formatNumber(props.summary.waiting_scan) }}</strong></div>
                 </div>
             </div>
         </div>
@@ -576,13 +586,13 @@ onBeforeUnmount(() => {
                     <h2>Daftar Transfer</h2>
                     <p>Semua perpindahan stok antar toko. Qty outstanding dihitung dari qty disetujui yang belum diterima.</p>
                 </div>
-                <span class="transfer-card-meta">{{ formatNumber(props.rows.total) }} transfer</span>
+                <span class="transfer-card-meta">{{ formatNumber(props.rows.total) }} transfer · {{ formatNumber(props.summary.outstanding_qty) }} pcs sisa</span>
             </div>
 
             <div v-if="props.rows.data.length === 0" class="transfer-empty">
                 <i class="mdi mdi-swap-horizontal-bold"></i>
                 <strong>Belum ada transfer toko</strong>
-                <span>Buat transfer pertama untuk memindahkan stok antar toko.</span>
+                <span>Transfer antar toko hanya dapat dibuat setelah stok gudang habis. Barang dari stok gudang toko wajib discan sebelum dikirim.</span>
                 <button class="btn btn-sm btn-primary" type="button" @click="openCreate"><i class="mdi mdi-plus me-1"></i>Buat Transfer</button>
             </div>
 
@@ -625,6 +635,9 @@ onBeforeUnmount(() => {
                                     <span :style="{ width: `${row.progress_percent}%` }"></span>
                                 </div>
                                 <small class="transfer-subvalue">{{ row.progress_percent }}% diterima</small>
+                                <small v-if="row.status === 'approved' || row.status === 'shipped' || row.status === 'partial_received'" class="transfer-subvalue">
+                                    Scan toko {{ formatNumber(row.scanned_qty) }}/{{ formatNumber(row.approved_qty || row.requested_qty) }} pcs
+                                </small>
                             </td>
                             <td>
                                 <strong>{{ formatDate(row.requested_at || row.created_at) }}</strong>
@@ -637,6 +650,7 @@ onBeforeUnmount(() => {
                                     </button>
                                     <button v-if="row.can_approve" class="btn btn-sm btn-outline-primary" type="button" :disabled="actionLoading" @click="approve(row)">Setujui</button>
                                     <button v-if="row.can_ship" class="btn btn-sm btn-primary" type="button" :disabled="actionLoading" @click="ship(row)">Kirim</button>
+                                    <span v-else-if="row.status === 'approved'" class="transfer-scan-wait">Menunggu scan toko asal</span>
                                     <button v-if="row.can_receive" class="btn btn-sm btn-success" type="button" :disabled="actionLoading" @click="openDetail(row)">Terima</button>
                                 </div>
                             </td>
@@ -688,9 +702,14 @@ onBeforeUnmount(() => {
                         <div class="transfer-section-heading">
                             <div>
                                 <h6>Produk Transfer</h6>
-                                <p>Stok tersedia di toko asal sudah dikurangi alokasi transfer aktif. Hanya barang dengan RFID yang dapat ditransfer.</p>
+                                <p>Hanya stok gudang toko (inventory), bukan display, yang dapat ditransfer. Barang wajib memiliki RFID dan harus discan di toko asal sebelum dikirim.</p>
                             </div>
                             <span class="transfer-pill">{{ form.items.length }} produk · {{ formatNumber(totalQty) }} pcs</span>
+                        </div>
+
+                        <div class="transfer-hint transfer-hint-info mb-3" role="status">
+                            <i class="mdi mdi-information-outline me-1"></i>
+                            {{ warehouseRule || 'Transfer antar toko hanya dapat dibuat jika stok gudang untuk produk sudah habis.' }}
                         </div>
 
                         <div class="row g-3">
@@ -703,10 +722,20 @@ onBeforeUnmount(() => {
                                 <div v-else-if="stockError" class="transfer-hint transfer-hint-danger" role="alert">{{ stockError }}</div>
                                 <div v-else-if="stockProducts.length === 0" class="transfer-hint">Tidak ada produk dengan stok tersedia.</div>
                                 <div v-else class="transfer-stock-list">
-                                    <button v-for="product in stockProducts" :key="product.product_id" class="transfer-stock-item" type="button" :disabled="product.available_qty <= 0 || !product.product_price_id" @click="addProduct(product)">
+                                    <button
+                                        v-for="product in stockProducts"
+                                        :key="product.product_id"
+                                        class="transfer-stock-item"
+                                        type="button"
+                                        :disabled="product.available_qty <= 0 || !product.product_price_id || !product.can_transfer"
+                                        @click="addProduct(product)"
+                                    >
                                         <div>
                                             <strong>{{ product.product_name }}</strong>
                                             <small>{{ product.product_code }} · {{ product.category_name }}</small>
+                                            <small v-if="product.warehouse_available_qty > 0" class="transfer-stock-blocked">
+                                                Stok gudang masih {{ formatNumber(product.warehouse_available_qty) }} pcs
+                                            </small>
                                         </div>
                                         <div class="text-end">
                                             <span class="transfer-stock-qty">{{ formatNumber(product.available_qty) }} pcs</span>
@@ -798,6 +827,13 @@ onBeforeUnmount(() => {
                             <span :style="{ width: `${detail.order.progress_percent}%` }"></span>
                         </div>
                         <small class="text-muted">{{ formatNumber(detail.order.received_qty) }} dari {{ formatNumber(detail.order.approved_qty || detail.order.requested_qty) }} pcs diterima ({{ detail.order.progress_percent }}%)</small>
+                        <div class="transfer-progress transfer-progress-lg transfer-progress-scan mt-2">
+                            <span :style="{ width: `${detail.order.scan_progress_percent}%` }"></span>
+                        </div>
+                        <small class="text-muted">
+                            Scan toko asal {{ formatNumber(detail.order.scanned_qty) }} dari {{ formatNumber(detail.order.approved_qty || detail.order.requested_qty) }} pcs
+                            ({{ detail.order.scan_progress_percent }}%)
+                        </small>
 
                         <div class="table-responsive mt-3">
                             <table class="table table-sm align-middle mb-0 transfer-detail-table">
@@ -807,6 +843,7 @@ onBeforeUnmount(() => {
                                         <th class="text-end">Harga</th>
                                         <th class="text-end">Diminta</th>
                                         <th class="text-end">Disetujui</th>
+                                        <th class="text-end">Discan</th>
                                         <th class="text-end">Diterima</th>
                                     </tr>
                                 </thead>
@@ -820,6 +857,7 @@ onBeforeUnmount(() => {
                                         <td class="text-end">{{ formatCurrency(item.product_price) }}</td>
                                         <td class="text-end">{{ formatNumber(item.requested_qty) }}</td>
                                         <td class="text-end">{{ formatNumber(item.approved_qty) }}</td>
+                                        <td class="text-end">{{ formatNumber(item.scanned_qty) }}</td>
                                         <td class="text-end">{{ formatNumber(item.received_qty) }}</td>
                                     </tr>
                                 </tbody>
@@ -870,6 +908,7 @@ onBeforeUnmount(() => {
                         <button v-if="detail.order.can_cancel" class="btn btn-sm btn-outline-danger" type="button" :disabled="actionLoading" @click="askCancel(detail.order)">Batalkan</button>
                         <button v-if="detail.order.can_approve" class="btn btn-sm btn-primary" type="button" :disabled="actionLoading" @click="approve(detail.order, closeDetail)">Setujui</button>
                         <button v-if="detail.order.can_ship" class="btn btn-sm btn-primary" type="button" :disabled="actionLoading" @click="ship(detail.order, closeDetail)">Kirim dari Toko Asal</button>
+                        <span v-else-if="detail.order.status === 'approved'" class="transfer-scan-wait">Menunggu scan barang dari toko asal sebelum dikirim.</span>
                         <button v-if="detail.order.can_receive && !receiveOpen" class="btn btn-sm btn-success" type="button" :disabled="actionLoading" @click="receiveOpen = true">Terima Barang</button>
                         <button v-if="detail.order.can_receive && receiveOpen" class="btn btn-sm btn-success" type="button" :disabled="actionLoading || receiveRemaining <= 0" @click="submitReceive">
                             <span v-if="actionLoading" class="spinner-border spinner-border-sm me-2"></span>
@@ -935,6 +974,7 @@ onBeforeUnmount(() => {
 .transfer-progress { height: 5px; overflow: hidden; border-radius: 999px; background: var(--app-surface-2); }
 .transfer-progress span { display: block; height: 100%; border-radius: inherit; background: var(--app-accent-strong); transition: width 180ms ease; }
 .transfer-progress-lg { height: 8px; }
+.transfer-progress-scan span { background: var(--app-warning-ink); }
 .transfer-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem; }
 .transfer-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.85rem 1.1rem; border-top: 1px solid var(--app-border); }
 .transfer-empty { display: grid; place-items: center; gap: 0.45rem; padding: 3rem 1rem; color: var(--app-muted); text-align: center; }
@@ -955,6 +995,7 @@ onBeforeUnmount(() => {
 .transfer-pill { padding: 0.25rem 0.55rem; border-radius: 999px; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .transfer-hint { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.65rem; padding: 0.7rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.8rem; }
 .transfer-hint-danger { background: var(--app-danger-bg); color: var(--app-danger-ink); }
+.transfer-hint-info { background: var(--app-accent-soft); color: var(--app-accent-ink); }
 .transfer-stock-list { max-height: 280px; margin-top: 0.65rem; overflow-y: auto; border: 1px solid var(--app-border); border-radius: 0.6rem; }
 .transfer-stock-item { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.65rem 0.75rem; border: 0; border-bottom: 1px solid var(--app-border); background: transparent; color: var(--app-ink); text-align: left; }
 .transfer-stock-item:last-child { border-bottom: 0; }
@@ -964,6 +1005,8 @@ onBeforeUnmount(() => {
 .transfer-stock-item strong { font-size: 0.82rem; }
 .transfer-stock-item small { color: var(--app-muted); font-size: 0.72rem; }
 .transfer-stock-qty { display: block; color: var(--app-accent-ink); font-size: 0.8rem; font-weight: 700; }
+.transfer-stock-blocked { margin-top: 0.15rem; color: var(--app-warning-ink) !important; font-weight: 700; }
+.transfer-scan-wait { color: var(--app-warning-ink); font-size: 0.72rem; font-weight: 700; }
 .transfer-selected-wrap { border: 1px solid var(--app-border); border-radius: 0.6rem; }
 .transfer-selected-table th { padding: 0.45rem 0.55rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.64rem; text-transform: uppercase; }
 .transfer-selected-table td { padding: 0.55rem; font-size: 0.78rem; border-color: var(--app-border); }

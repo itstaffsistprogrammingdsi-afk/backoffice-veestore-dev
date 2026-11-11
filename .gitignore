@@ -5,14 +5,15 @@
 /public/hot
 /public/storage
 /public/uploads/ecommerce-banners/
+/outputs/
 /storage/*.key
 /storage/framework/PsySH/
 /vendor
 
-# .env
+# .env (contoh tetap disimpan)
 .env
-.env.backup
-.env.production
+.env.*
+!.env.example
 .phpunit.result.cache
 
 docker-compose.override.yml

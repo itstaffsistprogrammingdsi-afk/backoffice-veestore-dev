@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, defineAsyncComponent, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, nextTick, reactive, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
@@ -285,25 +285,20 @@ const openPostInNewTab = (url: string, data: Record<string, string | number>) =>
     form.remove();
 };
 
-const runRowAction = (action: RowAction, row: Record<string, any>) => {
+const actionPrompt = ref<{
+    action: RowAction;
+    row: Record<string, any>;
+    value: string;
+    error: string;
+} | null>(null);
+const actionPromptInputRef = ref<HTMLInputElement | null>(null);
+
+const executeRowAction = (
+    action: RowAction,
+    row: Record<string, any>,
+    payload: Record<string, number>,
+) => {
     let url = action.url.replace('__ID__', String(row.id));
-    let payload: Record<string, number> = {};
-
-    if (action.prompt) {
-        const raw = window.prompt(action.prompt.label, String(action.prompt.default ?? 1));
-        if (raw === null) return;
-
-        const value = Number(raw);
-        const min = action.prompt.min ?? 1;
-        const max = action.prompt.max ?? 100;
-
-        if (!Number.isFinite(value) || value < min || value > max) {
-            window.alert(`Nilai harus antara ${min} dan ${max}.`);
-            return;
-        }
-
-        payload = { [action.prompt.key]: value };
-    }
 
     if (action.method === 'post') {
         openPostInNewTab(url, payload);
@@ -320,6 +315,49 @@ const runRowAction = (action: RowAction, row: Record<string, any>) => {
     }
 
     router.visit(url);
+};
+
+const closeActionPrompt = () => {
+    actionPrompt.value = null;
+};
+
+const submitActionPrompt = () => {
+    const prompt = actionPrompt.value;
+
+    if (!prompt?.action.prompt) return;
+
+    const value = Number(prompt.value);
+    const min = prompt.action.prompt.min ?? 1;
+    const max = prompt.action.prompt.max ?? 100;
+
+    if (!Number.isFinite(value) || value < min || value > max) {
+        prompt.error = `Nilai harus antara ${min} dan ${max}.`;
+
+        return;
+    }
+
+    const payload = { [prompt.action.prompt.key]: value };
+    const action = prompt.action;
+    const row = prompt.row;
+    closeActionPrompt();
+    executeRowAction(action, row, payload);
+};
+
+const runRowAction = (action: RowAction, row: Record<string, any>) => {
+    if (action.prompt) {
+        actionPrompt.value = {
+            action,
+            row,
+            value: String(action.prompt.default ?? 1),
+            error: '',
+        };
+
+        void nextTick(() => actionPromptInputRef.value?.focus());
+
+        return;
+    }
+
+    executeRowAction(action, row, {});
 };
 
 const applySearch = () => {
@@ -467,7 +505,8 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <form class="d-flex flex-wrap gap-2" @submit.prevent="applySearch">
-                    <input v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
+                    <label class="visually-hidden" for="crud-search">Cari data</label>
+                    <input id="crud-search" v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
                     <template v-for="filter in (props.extraFilters ?? [])" :key="filter.key">
                         <div v-if="filter.options.length > 8" class="crud-filter-select">
                             <SearchableSelect
@@ -488,8 +527,8 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </template>
-                    <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="mdi mdi-magnify"></i></button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" @click="resetSearch"><i class="mdi mdi-refresh"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari" title="Cari"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset pencarian" title="Reset pencarian" @click="resetSearch"><i class="mdi mdi-refresh" aria-hidden="true"></i></button>
                 </form>
                 <button class="btn btn-light btn-sm" type="button" @click="openCreate">
                     <i class="mdi mdi-plus me-1"></i>
@@ -502,8 +541,8 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
         <ModuleNav module-key="masterDataModule" aria-label="Modul Master Produk" />
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div v-if="showCreate" class="card crud-card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -587,10 +626,11 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
         <div class="card crud-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
+                    <caption class="visually-hidden">{{ props.title }}</caption>
                     <thead>
                         <tr>
-                            <th v-for="column in columns" :key="column.key" :class="`text-${column.align ?? 'start'}`">{{ column.label }}</th>
-                            <th class="text-end">Aksi</th>
+                            <th v-for="column in columns" :key="column.key" scope="col" :class="`text-${column.align ?? 'start'}`">{{ column.label }}</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -697,7 +737,11 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             </tr>
                         </template>
                         <tr v-if="items.data.length === 0">
-                            <td :colspan="columns.length + 1" class="crud-empty">Belum ada data.</td>
+                            <td :colspan="columns.length + 1" class="crud-empty">
+                                <i class="mdi mdi-database-off-outline d-block mb-2" aria-hidden="true"></i>
+                                <strong class="d-block">Belum ada data.</strong>
+                                <span class="d-block">Tambahkan data baru atau ubah kata kunci pencarian.</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -707,6 +751,38 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                 <PaginationLinks :links="items.links" />
             </div>
         </div>
+
+        <Teleport to="body">
+            <div v-if="actionPrompt?.action.prompt" class="crud-modal-backdrop" @click.self="closeActionPrompt">
+                <div class="crud-modal" role="dialog" aria-modal="true" aria-labelledby="crud-action-title" @keydown.esc="closeActionPrompt">
+                    <header class="crud-modal-header">
+                        <h2 id="crud-action-title">{{ actionPrompt.action.prompt.label }}</h2>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Tutup dialog" @click="closeActionPrompt">
+                            <i class="mdi mdi-close" aria-hidden="true"></i>
+                        </button>
+                    </header>
+                    <div class="crud-modal-body">
+                        <label class="form-label" for="crud-action-value">Nilai</label>
+                        <input
+                            id="crud-action-value"
+                            ref="actionPromptInputRef"
+                            v-model="actionPrompt.value"
+                            class="form-control"
+                            type="number"
+                            :min="actionPrompt.action.prompt.min ?? 1"
+                            :max="actionPrompt.action.prompt.max ?? 100"
+                            step="1"
+                            @keydown.enter.prevent="submitActionPrompt"
+                        />
+                        <div v-if="actionPrompt.error" class="text-danger small mt-2" role="alert">{{ actionPrompt.error }}</div>
+                    </div>
+                    <footer class="crud-modal-footer">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="closeActionPrompt">Batal</button>
+                        <button type="button" class="btn btn-sm btn-primary" @click="submitActionPrompt">Lanjutkan</button>
+                    </footer>
+                </div>
+            </div>
+        </Teleport>
     </div>
 </template>
 
@@ -732,6 +808,14 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
 .crud-edit { background: var(--app-surface-2); }
 .crud-empty { padding: 2.5rem 1rem; color: var(--crud-muted); text-align: center; }
 .crud-filter-select { width: auto; min-width: 140px; }
+.crud-modal-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(10vh, 4rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.64); }
+.crud-modal { width: min(420px, 100%); overflow: hidden; border: 1px solid var(--crud-border); border-radius: 0.9rem; background: var(--app-surface); color: var(--app-ink); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.3); }
+.crud-modal-header, .crud-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1rem; }
+.crud-modal-header { border-bottom: 1px solid var(--crud-border); }
+.crud-modal-header h2 { margin: 0; font-size: 1rem; }
+.crud-modal-body { padding: 1rem; }
+.crud-modal-footer { justify-content: flex-end; border-top: 1px solid var(--crud-border); background: var(--app-surface-2); }
+.crud-modal .btn { min-height: 44px; }
 @media (max-width: 767.98px) { .crud-header { align-items: flex-start; flex-direction: column; } .crud-scan { flex-direction: column; } }
 @media (max-width: 575.98px) { .crud-filter-select { width: 100%; } .crud-scan-preview img { width: 100%; max-height: 180px; } }
 </style>

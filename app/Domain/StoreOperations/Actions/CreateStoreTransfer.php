@@ -3,6 +3,7 @@
 namespace App\Domain\StoreOperations\Actions;
 
 use App\Domain\StoreOperations\Support\StoreTransferStock;
+use App\Domain\StoreOperations\Support\WarehouseStockAvailability;
 use App\Models\StoreOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -11,7 +12,8 @@ use Illuminate\Validation\ValidationException;
 class CreateStoreTransfer
 {
     public function __construct(
-        private readonly StoreTransferStock $stock
+        private readonly StoreTransferStock $stock,
+        private readonly WarehouseStockAvailability $warehouseAvailability
     ) {}
 
     /**
@@ -77,6 +79,8 @@ class CreateStoreTransfer
                 'items' => 'Sebagian produk transfer tidak ditemukan atau sudah diarsipkan.',
             ]);
         }
+
+        $this->assertWarehouseStockEmpty(array_keys($normalized), $products);
 
         $availability = $this->stock->availableByProduct($sourceStoreId, array_keys($normalized));
 
@@ -173,6 +177,33 @@ class CreateStoreTransfer
 
             return StoreOrder::query()->findOrFail($orderId);
         });
+    }
+
+    /**
+     * @param  array<int, string>  $productIds
+     */
+    private function assertWarehouseStockEmpty(array $productIds, $products): void
+    {
+        $warehouseIds = DB::table('warehouses')
+            ->whereNull('deleted_at')
+            ->pluck('id')
+            ->all();
+
+        $totals = $this->warehouseAvailability->availableTotals($warehouseIds, $productIds);
+
+        foreach ($productIds as $productId) {
+            $available = (int) ($totals[$productId] ?? 0);
+
+            if ($available <= 0) {
+                continue;
+            }
+
+            $productName = $products[$productId]->name ?? $productId;
+
+            throw ValidationException::withMessages([
+                'items' => "Stok gudang untuk '{$productName}' masih tersedia ({$available} pcs). Transfer antar toko hanya dapat dibuat setelah stok gudang benar-benar habis.",
+            ]);
+        }
     }
 
     private function nextTransferNumber(): string

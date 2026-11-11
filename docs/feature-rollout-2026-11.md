@@ -28,6 +28,10 @@ Skema operasional dimiliki bersama oleh POS, WMS, dan e-commerce. Tidak ada kolo
 - Penghubung dokumen adalah `shipping_number` yang sama dengan `order_number` transfer.
 - Detail produk memakai `store_order_details`; barang yang dikirim memakai `store_outbound_details`.
 - Perpindahan barang memakai `items`, `store_items`, dan `item_location_histories`.
+- Transfer antar toko hanya dapat dibuat jika stok gudang pusat untuk produk tersebut sudah habis. Jika gudang masih memiliki stok, gunakan permintaan order ke gudang.
+- Sumber stok transfer dibatasi pada stok gudang toko (`store_items.category = inventory`, `items.status = store_stock`), bukan stok display.
+- Toko asal wajib memindai RFID setiap barang melalui menu Transfer Toko di POS. Backoffice tidak dapat mengirim transfer sebelum jumlah scan sesuai qty yang disetujui.
+- Toko tujuan menerima pemberitahuan transfer masuk melalui menu dan badge Transfer Toko di POS.
 
 Konsekuensi:
 

@@ -122,6 +122,33 @@ class BranchOperationNotificationService
             ];
         }
 
+        $rejectionHandoffEnabled = (bool) config(
+            'backoffice.ecommerce_rejection_handoff_enabled',
+            false
+        );
+        [$rejectionCount, $rejectionFingerprint] = $snapshot['rejections'] ?? [0, null];
+        $rejectionIsRead = ($readFingerprints['ecommerce-rejection'] ?? null) === $rejectionFingerprint;
+
+        if ($rejectionHandoffEnabled && $rejectionCount > 0 && ! $rejectionIsRead) {
+            $notifications[] = [
+                'key' => 'ecommerce-rejection',
+                'fingerprint' => $rejectionFingerprint,
+                'count' => $rejectionCount,
+                'menu_slug' => 'ecommerce-rejections',
+                'title' => 'Kendala E-commerce Menunggu Keputusan',
+                'subtitle' => number_format($rejectionCount, 0, ',', '.')
+                    .' pengajuan kendala dari toko',
+                'icon' => 'mdi-alert-decagram-outline',
+                'severity' => 'danger',
+                'url' => route('ecommerce.rejections.index'),
+                'open_url' => route('notifications.open', [
+                    'key' => 'ecommerce-rejection',
+                    'redirect' => route('ecommerce.rejections.index'),
+                ]),
+                'time' => 'Diperbarui '.$snapshot['time'],
+            ];
+        }
+
         foreach ($this->stockBarrierSnapshots() as $scope => [$count, $fingerprint]) {
             $key = 'stock-barrier-'.$scope;
             $isRead = ($readFingerprints[$key] ?? null) === $fingerprint;
@@ -225,6 +252,7 @@ class BranchOperationNotificationService
         $key = 'notifications:operational:v2:'.hash('sha256', json_encode([
             config('database.default'),
             config('database.connections.'.config('database.default').'.database'),
+            config('backoffice.ecommerce_rejection_handoff_enabled', false),
             collect($definitions)->map(fn (array $definition) => [
                 $definition['table'],
                 $definition['statuses'],
@@ -257,6 +285,7 @@ class BranchOperationNotificationService
             $result = [
                 'branches' => $branches,
                 'ecommerce' => [count($ids), $this->fingerprint($ids)],
+                'rejections' => $this->rejectionSnapshot(),
                 'time' => now()->format('H:i:s'),
                 'fresh_until' => time() + 30,
             ];
@@ -312,6 +341,30 @@ class BranchOperationNotificationService
                 return [$scope => [$count, $fingerprint]];
             })
             ->all();
+    }
+
+    /** @return array{0: int, 1: ?string} */
+    private function rejectionSnapshot(): array
+    {
+        if (! config('backoffice.ecommerce_rejection_handoff_enabled', false)) {
+            return [0, null];
+        }
+
+        try {
+            $ids = DB::connection('pos')
+                ->table('ecommerce_fulfillment_rejection_cases')
+                ->where('status', 'pending_backoffice_review')
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn ($id) => (string) $id)
+                ->all();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return [0, null];
+        }
+
+        return [count($ids), $this->fingerprint($ids)];
     }
 
     private function fingerprint(array $ids): ?string

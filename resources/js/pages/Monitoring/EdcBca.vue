@@ -263,31 +263,31 @@ const exportUrl = computed(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
-                        <label class="form-label">Cari transaksi</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor transaksi, referensi, toko, atau terminal..." />
+                        <label class="form-label" for="edc-search">Cari transaksi</label>
+                        <input id="edc-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor transaksi, referensi, toko, atau terminal..." />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Toko</label>
-                        <SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
+                        <label class="form-label" for="edc-store">Toko</label>
+                        <SearchableSelect id="edc-store" v-model="filters.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." aria-label="Filter toko" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Metode</label>
-                        <SearchableSelect v-model="filters.method_id" :options="methodOptions" placeholder="Semua metode BCA" search-placeholder="Cari metode..." />
+                        <label class="form-label" for="edc-method">Metode</label>
+                        <SearchableSelect id="edc-method" v-model="filters.method_id" :options="methodOptions" placeholder="Semua metode BCA" search-placeholder="Cari metode..." aria-label="Filter metode pembayaran" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="filters.status" class="form-select form-select-sm">
+                        <label class="form-label" for="edc-status">Status</label>
+                        <select id="edc-status" v-model="filters.status" class="form-select form-select-sm">
                             <option value="">Semua status</option>
                             <option v-for="status in props.statuses" :key="status" :value="status">{{ statusLabel(status) }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
-                        <label class="form-label">Dari</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label class="form-label" for="edc-from">Dari</label>
+                        <input id="edc-from" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label class="form-label" for="edc-to">Sampai</label>
+                        <input id="edc-to" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
@@ -341,12 +341,18 @@ const exportUrl = computed(() => {
                                         <td class="text-end"><strong>{{ formatCurrency(row.net_amount) }}</strong></td>
                                         <td><span class="badge" :class="statusClass(row.detail_status)">{{ statusLabel(row.detail_status) }}</span></td>
                                         <td class="text-end">
-                                            <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
-                                                <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>Detail
+                                            <button
+                                                class="btn btn-sm btn-outline-secondary"
+                                                type="button"
+                                                :aria-expanded="Boolean(expanded[row.id])"
+                                                :aria-controls="`edc-detail-${row.id}`"
+                                                @click="toggleDetail(row.id)"
+                                            >
+                                                <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>Detail
                                             </button>
                                         </td>
                                     </tr>
-                                    <tr v-if="expanded[row.id]" class="edc-detail-row">
+                                    <tr v-if="expanded[row.id]" :id="`edc-detail-${row.id}`" class="edc-detail-row">
                                         <td colspan="7">
                                             <div class="edc-detail-grid">
                                                 <div><span>Terminal</span><strong>{{ row.metadata.terminal_id || '-' }}</strong></div>
@@ -436,7 +442,7 @@ const exportUrl = computed(() => {
 .edc-summary { display: flex; align-items: center; gap: 0.85rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .edc-summary-icon { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 0.65rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.25rem; }
 .edc-summary span:not(.edc-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.edc-summary strong { display: block; margin-top: 0.15rem; font-size: 1.3rem; }
+.edc-summary strong { display: block; margin-top: 0.15rem; font-size: 1.3rem; overflow-wrap: anywhere; }
 .edc-summary-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.68rem; }
 .edc-summary-warning .edc-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .edc-summary-success .edc-summary-icon { background: var(--app-success-bg, var(--app-accent-soft)); color: var(--app-success-ink, var(--app-accent-ink)); }

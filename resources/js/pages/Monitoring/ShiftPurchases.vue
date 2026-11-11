@@ -352,28 +352,28 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
-                        <label class="form-label">Cari store, kasir, atau produk</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama store, kasir, sesi, atau produk..." />
+                        <label class="form-label" for="purchase-search">Cari store, kasir, atau produk</label>
+                        <input id="purchase-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama store, kasir, sesi, atau produk..." />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Store</label>
-                        <SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." />
+                        <label class="form-label" for="purchase-store">Store</label>
+                        <SearchableSelect id="purchase-store" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." aria-label="Filter store" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Shift</label>
-                        <SearchableSelect v-model="filters.shift_id" :options="shiftOptions" placeholder="Semua shift" search-placeholder="Cari shift..." />
+                        <label class="form-label" for="purchase-shift">Shift</label>
+                        <SearchableSelect id="purchase-shift" v-model="filters.shift_id" :options="shiftOptions" placeholder="Semua shift" search-placeholder="Cari shift..." aria-label="Filter shift" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Kasir</label>
-                        <SearchableSelect v-model="filters.cashier_id" :options="cashierOptions" placeholder="Semua kasir" search-placeholder="Cari kasir..." />
+                        <label class="form-label" for="purchase-cashier">Kasir</label>
+                        <SearchableSelect id="purchase-cashier" v-model="filters.cashier_id" :options="cashierOptions" placeholder="Semua kasir" search-placeholder="Cari kasir..." aria-label="Filter kasir" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
-                        <label class="form-label">Dari</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label class="form-label" for="purchase-from">Dari</label>
+                        <input id="purchase-from" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label class="form-label" for="purchase-to">Sampai</label>
+                        <input id="purchase-to" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
@@ -558,7 +558,7 @@ onBeforeUnmount(() => {
 .purchase-summary { display: flex; align-items: center; gap: 0.85rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .purchase-summary-icon { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 0.65rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.25rem; }
 .purchase-summary span:not(.purchase-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.purchase-summary strong { display: block; margin-top: 0.15rem; font-size: 1.3rem; }
+.purchase-summary strong { display: block; margin-top: 0.15rem; font-size: 1.3rem; overflow-wrap: anywhere; }
 .purchase-summary-warning .purchase-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .purchase-summary-success .purchase-summary-icon { background: var(--app-success-bg, var(--app-accent-soft)); color: var(--app-success-ink, var(--app-accent-ink)); }
 .purchase-card { border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }

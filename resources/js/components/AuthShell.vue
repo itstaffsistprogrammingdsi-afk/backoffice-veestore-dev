@@ -101,9 +101,10 @@ defineProps<{
 
 .auth-topline {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 0.75rem 1rem;
     margin-bottom: 1.25rem;
 }
 
@@ -146,6 +147,31 @@ defineProps<{
     margin: 0 0 1.25rem;
     color: var(--app-muted);
     font-size: 0.9rem;
+}
+
+@media (max-width: 479.98px) {
+    .auth-topline {
+        align-items: flex-start;
+    }
+
+    .auth-brand {
+        flex: 1 1 auto;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .auth-logo {
+        width: 104px;
+    }
+
+    .auth-tagline {
+        padding-left: 0.5rem;
+        font-size: 0.62rem;
+    }
+
+    .auth-card {
+        padding: 1.25rem;
+    }
 }
 
 </style>

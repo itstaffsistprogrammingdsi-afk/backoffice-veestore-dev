@@ -7,6 +7,7 @@ use App\Http\Controllers\BranchOperations\StoreLabelPrintRequestController;
 use App\Http\Controllers\BranchOperations\StoreVoucherRequestController;
 use App\Http\Controllers\Ecommerce\EcommerceOrderController;
 use App\Http\Controllers\Ecommerce\EcommercePaymentOperationsController;
+use App\Http\Controllers\Ecommerce\EcommerceRejectionReviewController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointController;
 use App\Http\Controllers\Loyalty\CustomerLoyaltyPointMutationController;
@@ -344,11 +345,28 @@ Route::middleware('auth')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('ecommerce')->name('ecommerce.')->group(function () {
-        Route::get('/orders', [EcommerceOrderController::class, 'index'])->name('orders.index');
-        Route::put('/orders/{id}', [EcommerceOrderController::class, 'update'])->name('orders.update');
-        Route::get('/orders/{id}', [EcommerceOrderController::class, 'show'])->name('orders.show');
-        Route::get('/orders/{id}/stock', [EcommerceOrderController::class, 'stock'])->name('orders.stock');
-        Route::get('/payments', EcommercePaymentOperationsController::class)->name('payments.index');
+        Route::middleware('permission:view ecommerce-orders')->group(function () {
+            Route::get('/orders', [EcommerceOrderController::class, 'index'])->name('orders.index');
+            Route::put('/orders/{id}', [EcommerceOrderController::class, 'update'])
+                ->whereUuid('id')
+                ->name('orders.update');
+            Route::get('/orders/{id}', [EcommerceOrderController::class, 'show'])
+                ->whereUuid('id')
+                ->name('orders.show');
+            Route::get('/orders/{id}/stock', [EcommerceOrderController::class, 'stock'])
+                ->whereUuid('id')
+                ->name('orders.stock');
+
+            Route::get('/rejections', [EcommerceRejectionReviewController::class, 'index'])
+                ->name('rejections.index');
+            Route::post('/rejections/{id}/resolve', [EcommerceRejectionReviewController::class, 'resolve'])
+                ->whereUuid('id')
+                ->name('rejections.resolve');
+        });
+
+        Route::get('/payments', EcommercePaymentOperationsController::class)
+            ->middleware('permission:view monitoring-ecommerce-payment')
+            ->name('payments.index');
     });
 
     /*
@@ -666,14 +684,6 @@ Route::middleware('auth')->group(function () {
 
         Route::get('stock-opname-variance', [StockOpnameVarianceReportController::class, 'index'])
             ->name('stock-opname-variance.index');
-
-        Route::post('stock-opname-variance/{id}/approve', [StockOpnameVarianceReportController::class, 'approve'])
-            ->whereUuid('id')
-            ->name('stock-opname-variance.approve');
-
-        Route::post('stock-opname-variance/{id}/reject', [StockOpnameVarianceReportController::class, 'reject'])
-            ->whereUuid('id')
-            ->name('stock-opname-variance.reject');
 
         Route::get('stock-movements', [StockMovementReportController::class, 'index'])
             ->name('stock-movements.index');

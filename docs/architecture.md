@@ -14,7 +14,7 @@ Dokumen pendamping:
 
 1. Sistem ini adalah **monolith Laravel admin backoffice** di atas database operasional yang dipakai bersama oleh POS, WMS, dan ecommerce.
 2. Laravel memakai **dua koneksi PostgreSQL**: `pgsql` untuk data operasional dan `immostore_backoffice` untuk data milik backoffice (role, permission, audit, export, analytics).
-3. Skema operasional **bukan milik repo ini**. Repo hanya punya 15 migration, sementara database punya `goose_db_version` dengan 102 versi dan 132 tabel.
+3. Skema operasional **bukan milik repo ini**. Repo hanya punya 12 migration (khusus database backoffice dan satu kolom voucher di DB operasional), sementara database punya `goose_db_version` dengan 102 versi dan 132 tabel.
 4. Integrasi AI saat ini adalah **service Python FastAPI terpisah** dengan metode moving average, bukan LLM. Laravel memanggilnya lewat HTTP dan menampilkan rekomendasi stok.
 5. Beban terbesar ada di controller: 37.541 LOC, 1.133 query mentah, dan beberapa controller di atas 1.000 baris. Ini yang harus dirapikan sebelum atau selama upgrade.
 
@@ -199,7 +199,7 @@ Titik kuat: boundary service sudah jelas dan output sudah terstruktur. Titik lem
 
 | Tingkat | Temuan | Bukti | Dampak | Arah perbaikan |
 |---|---|---|---|---|
-| Tinggi | Skema operasional tidak dikelola repo | 15 migration vs 102 versi Goose, 132 tabel | Upgrade dan refactor berisiko breaking change dari aplikasi lain | Dokumentasikan kontrak skema, buat read model, koordinasi pemilik DB |
+| Tinggi | Skema operasional tidak dikelola repo | 12 migration vs 102 versi Goose, 132 tabel | Upgrade dan refactor berisiko breaking change dari aplikasi lain | Dokumentasikan kontrak skema, buat read model, koordinasi pemilik DB |
 | Tinggi | Business logic di controller | 37.541 LOC, 1.133 query mentah, 78 controller memakai `DB::` | Sulit dites, sulit dipindah ke Inertia, rawan duplikasi | Ekstrak Action/Service dan Query Object per modul |
 | Tinggi | Relasi user lintas database tanpa FK | `users` di `veestore_dev1`, `roles` dan pivot di `veestore_bo_dev` | Integritas data tidak terjaga, sulit diuji | Tetapkan aturan akses, validasi di aplikasi, pertimbangkan konsolidasi |
 | Tinggi | Cakupan permission tidak merata | 299 route butuh auth, hanya 125 yang punya middleware permission | Risiko akses tidak sah | Audit permission per route, tambahkan Policy |

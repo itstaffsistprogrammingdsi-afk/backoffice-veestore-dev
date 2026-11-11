@@ -47,8 +47,10 @@ class MasterDataReportTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Monitoring/Report')
-                ->has('canDecide')
-                ->where('urls.approve', route('monitoring.stock-opname-variance.approve', ['id' => '__ID__'])));
+                ->where('canDecide', false)
+                ->where('urls.pos_stock_opname', rtrim((string) config('backoffice.pos_app_url'), '/').'/storage/stock-opname')
+                ->missing('urls.approve')
+                ->missing('urls.reject'));
 
         $this->actingAs($admin)
             ->get(route('monitoring.promo-loyalty.index', ['dataset' => 'referralRows']))
@@ -84,22 +86,20 @@ class MasterDataReportTest extends TestCase
                 ->where('monitoringGroups', fn ($groups) => collect($groups)->pluck('items')->flatten(1)->pluck('url')->contains(fn ($url) => str_contains((string) $url, 'monitoring/branch-expansion'))));
     }
 
-    public function test_stock_opname_session_can_be_approved_with_audit_trail(): void
+    public function test_stock_opname_report_is_read_only_and_points_to_pos(): void
     {
         $admin = $this->admin();
         $store = DB::table('stores')->whereNull('deleted_at')->first();
-        $product = DB::table('products')->first();
         $location = DB::table('locations')->whereNull('deleted_at')->first();
 
         $this->assertNotNull($store);
-        $this->assertNotNull($product);
         $this->assertNotNull($location);
 
         $sessionId = (string) Str::uuid();
 
         DB::table('store_opname_sessions')->insert([
             'id' => $sessionId,
-            'name' => 'Opname Uji Approval',
+            'name' => 'Opname Uji Read Only',
             'type' => 'partial',
             'store_id' => $store->id,
             'location_id' => $location->id,
@@ -113,39 +113,16 @@ class MasterDataReportTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        DB::table('store_opname_session_items')->insert([
-            'id' => (string) Str::uuid(),
-            'opname_session_id' => $sessionId,
-            'product_id' => $product->id,
-            'location_id' => $location->id,
-            'system_stock' => 10,
-            'physical_stock' => 8,
-            'discrepancy_reason' => 'Hilang',
-            'discrepancy_notes' => 'Selisih uji approval',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         $this->actingAs($admin)
-            ->post(route('monitoring.stock-opname-variance.approve', ['id' => $sessionId]), [
-                'reason' => 'Disetujui HO untuk penyesuaian',
+            ->post("/monitoring/stock-opname-variance/{$sessionId}/approve", [
+                'reason' => 'Percobaan approval dari Backoffice',
             ])
-            ->assertRedirect();
+            ->assertNotFound();
 
         $session = DB::table('store_opname_sessions')->where('id', $sessionId)->first();
 
-        $this->assertSame('approved', $session->status);
-        $this->assertSame($admin->id, $session->approved_by);
-
-        $audit = DB::table('store_opname_approval_audits')->where('opname_session_id', $sessionId)->first();
-
-        $this->assertNotNull($audit);
-        $this->assertSame('approved', $audit->action);
-        $this->assertSame($admin->id, $audit->actor_id);
-
-        $decisions = json_decode($audit->item_decisions, true);
-
-        $this->assertIsArray($decisions);
-        $this->assertSame(-2, $decisions[0]['difference_qty']);
+        $this->assertSame('pending_approval', $session->status);
+        $this->assertNull($session->approved_by);
+        $this->assertNull($session->approved_at);
     }
 }

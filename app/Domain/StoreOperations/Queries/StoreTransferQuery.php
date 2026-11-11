@@ -73,6 +73,16 @@ class StoreTransferQuery
             return null;
         }
 
+        $scannedByProduct = $order->transfer_outbound_id
+            ? DB::table('store_outbound_details as sod')
+                ->join('items as i', 'i.id', '=', 'sod.item_id')
+                ->where('sod.store_outbound_id', $order->transfer_outbound_id)
+                ->whereNotNull('sod.rfid_tag_id')
+                ->selectRaw('i.product_id, COUNT(*)::int as scanned_qty')
+                ->groupBy('i.product_id')
+                ->pluck('scanned_qty', 'product_id')
+            : collect();
+
         $details = DB::table('store_order_details as sod')
             ->join('products as p', 'p.id', '=', 'sod.product_id')
             ->leftJoin('units as u', 'u.id', '=', 'p.unit_id')
@@ -101,6 +111,7 @@ class StoreTransferQuery
                 'requested_qty' => (int) $detail->requested_qty,
                 'approved_qty' => (int) ($detail->approved_qty ?? 0),
                 'received_qty' => (int) ($detail->received_qty ?? 0),
+                'scanned_qty' => (int) ($scannedByProduct[$detail->product_id] ?? 0),
                 'note' => $detail->note,
             ])
             ->values()
@@ -156,6 +167,16 @@ class StoreTransferQuery
                     ->where('transfer_outbound.outbound_type', '=', 'transfer');
             })
             ->leftJoin('stores as source', 'source.id', '=', 'transfer_outbound.store_id')
+            ->leftJoinSub(
+                DB::table('store_outbound_details')
+                    ->selectRaw('store_outbound_id, COUNT(*)::int as scanned_qty')
+                    ->whereNotNull('rfid_tag_id')
+                    ->groupBy('store_outbound_id'),
+                'scan_summary',
+                'scan_summary.store_outbound_id',
+                '=',
+                'transfer_outbound.id'
+            )
             ->leftJoin('users as creator', 'creator.id', '=', 'sto.created_by')
             ->leftJoin('users as approver', 'approver.id', '=', 'sto.approved_by')
             ->leftJoin('store_order_details as detail', 'detail.store_order_id', '=', 'sto.id')
@@ -206,6 +227,7 @@ class StoreTransferQuery
                 transfer_outbound.id as transfer_outbound_id,
                 transfer_outbound.shipment_date,
                 transfer_outbound.item_quantity,
+                COALESCE(scan_summary.scanned_qty, 0)::int as scanned_qty,
                 COUNT(DISTINCT detail.id)::int as total_products,
                 COALESCE(SUM(detail.requested_qty), 0)::int as requested_qty,
                 COALESCE(SUM(detail.approved_qty), 0)::int as approved_qty,
@@ -217,7 +239,8 @@ class StoreTransferQuery
                 'destination.id', 'destination.name', 'destination.code',
                 'source.id', 'source.name', 'source.code',
                 'creator.name', 'approver.name',
-                'transfer_outbound.id', 'transfer_outbound.shipment_date', 'transfer_outbound.item_quantity'
+                'transfer_outbound.id', 'transfer_outbound.shipment_date', 'transfer_outbound.item_quantity',
+                'scan_summary.scanned_qty'
             );
     }
 
@@ -235,7 +258,8 @@ class StoreTransferQuery
             ->selectRaw("
                 COUNT(*)::int as total_transfers,
                 COUNT(*) FILTER (WHERE status = 'requested')::int as waiting_approval,
-                COUNT(*) FILTER (WHERE status = 'approved')::int as ready_to_ship,
+                COUNT(*) FILTER (WHERE status = 'approved' AND scanned_qty >= GREATEST(approved_qty, requested_qty))::int as ready_to_ship,
+                COUNT(*) FILTER (WHERE status = 'approved' AND scanned_qty < GREATEST(approved_qty, requested_qty))::int as waiting_scan,
                 COUNT(*) FILTER (WHERE status = 'shipped')::int as in_transit,
                 COUNT(*) FILTER (WHERE status = 'partial_received')::int as partial_received,
                 COUNT(*) FILTER (WHERE status = 'received')::int as completed,
@@ -254,6 +278,8 @@ class StoreTransferQuery
         $requestedQty = (int) ($row->requested_qty ?? 0);
         $approvedQty = (int) ($row->approved_qty ?? 0);
         $receivedQty = (int) ($row->received_qty ?? 0);
+        $scannedQty = (int) ($row->scanned_qty ?? 0);
+        $targetQty = $approvedQty > 0 ? $approvedQty : $requestedQty;
 
         $row->status = $status;
         $row->status_label = self::STATUS_LABELS[$status] ?? ($status !== '' ? ucfirst($status) : 'Tidak diketahui');
@@ -261,12 +287,17 @@ class StoreTransferQuery
         $row->requested_qty = $requestedQty;
         $row->approved_qty = $approvedQty;
         $row->received_qty = $receivedQty;
+        $row->scanned_qty = $scannedQty;
+        $row->scan_remaining_qty = max($targetQty - $scannedQty, 0);
+        $row->scan_progress_percent = $targetQty > 0
+            ? min(100, (int) round(($scannedQty / $targetQty) * 100))
+            : 0;
         $row->outstanding_qty = max($approvedQty - $receivedQty, 0);
         $row->progress_percent = $approvedQty > 0
             ? min(100, (int) round(($receivedQty / $approvedQty) * 100))
             : 0;
         $row->can_approve = $status === 'requested';
-        $row->can_ship = $status === 'approved';
+        $row->can_ship = $status === 'approved' && $targetQty > 0 && $scannedQty >= $targetQty;
         $row->can_receive = in_array($status, ['shipped', 'partial_received'], true);
         $row->can_reject = $status === 'requested';
         $row->can_cancel = $status === 'approved';

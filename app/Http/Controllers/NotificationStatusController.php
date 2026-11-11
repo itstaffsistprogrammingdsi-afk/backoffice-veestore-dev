@@ -65,8 +65,12 @@ class NotificationStatusController extends Controller
 
         $redirect = (string) $request->query('redirect', route('reports.business-overview.index'));
         $parsed = parse_url($redirect);
-        $isRelative = str_starts_with($redirect, '/');
-        $isSameHost = isset($parsed['host']) && $parsed['host'] === $request->getHost();
+        $isRelative = str_starts_with($redirect, '/')
+            && ! str_starts_with($redirect, '//')
+            && ! str_starts_with($redirect, '/\\');
+        $isSameHost = isset($parsed['scheme'], $parsed['host'])
+            && in_array(strtolower((string) $parsed['scheme']), ['http', 'https'], true)
+            && $parsed['host'] === $request->getHost();
 
         if (! $isRelative && ! $isSameHost) {
             $redirect = route('reports.business-overview.index');

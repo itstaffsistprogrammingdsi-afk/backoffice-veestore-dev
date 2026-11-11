@@ -570,6 +570,12 @@ onBeforeUnmount(() => {
     transform: translateY(-50%);
 }
 
+.searchable-select-clear::before {
+    position: absolute;
+    inset: -0.85rem;
+    content: "";
+}
+
 .searchable-select-clear:hover {
     color: var(--app-danger-ink);
 }
@@ -615,11 +621,18 @@ onBeforeUnmount(() => {
     font-size: 0.82rem;
 }
 
+.searchable-select-search input:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
+    border-radius: 0.2rem;
+}
+
 .searchable-select-search input::placeholder {
     color: var(--app-muted);
 }
 
 .searchable-select-search-clear {
+    position: relative;
     display: inline-grid;
     width: 1.2rem;
     height: 1.2rem;
@@ -629,6 +642,12 @@ onBeforeUnmount(() => {
     border-radius: 50%;
     background: transparent;
     color: var(--app-muted);
+}
+
+.searchable-select-search-clear::before {
+    position: absolute;
+    inset: -0.85rem;
+    content: "";
 }
 
 .searchable-select-list {
@@ -643,11 +662,24 @@ onBeforeUnmount(() => {
     display: flex;
     align-items: center;
     gap: 0.35rem;
+    min-height: 2rem;
     padding: 0.45rem 0.55rem;
     border-radius: 0.35rem;
     color: var(--app-ink);
     font-size: 0.8rem;
     cursor: pointer;
+}
+
+@media (pointer: coarse) {
+    .searchable-select-option {
+        min-height: 44px;
+    }
+
+    .searchable-select-clear,
+    .searchable-select-search-clear {
+        width: 44px;
+        height: 44px;
+    }
 }
 
 .searchable-select-option small {

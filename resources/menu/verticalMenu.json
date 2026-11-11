@@ -457,7 +457,7 @@
             },
             {
               "url": "monitoring/request-voucher",
-              "name": "Request Voucher",
+              "name": "Laporan Permintaan Voucher",
               "slug": "monitoring-request-voucher"
             }
           ]

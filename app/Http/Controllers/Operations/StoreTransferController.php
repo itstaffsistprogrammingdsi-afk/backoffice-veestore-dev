@@ -7,6 +7,7 @@ use App\Domain\StoreOperations\Actions\ReceiveStoreTransfer;
 use App\Domain\StoreOperations\Actions\ShipStoreTransfer;
 use App\Domain\StoreOperations\Queries\StoreTransferQuery;
 use App\Domain\StoreOperations\Support\StoreTransferStock;
+use App\Domain\StoreOperations\Support\WarehouseStockAvailability;
 use App\Http\Controllers\Controller;
 use App\Models\StoreOrder;
 use Carbon\Carbon;
@@ -69,8 +70,11 @@ class StoreTransferController extends Controller
         ]);
     }
 
-    public function stock(Request $request, StoreTransferStock $stock): JsonResponse
-    {
+    public function stock(
+        Request $request,
+        StoreTransferStock $stock,
+        WarehouseStockAvailability $warehouseAvailability
+    ): JsonResponse {
         $data = $request->validate([
             'source_store_id' => [
                 'required',
@@ -80,11 +84,32 @@ class StoreTransferController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
         ]);
 
+        $products = $stock->products(
+            (string) $data['source_store_id'],
+            trim((string) ($data['q'] ?? ''))
+        );
+
+        $warehouseIds = DB::table('warehouses')
+            ->whereNull('deleted_at')
+            ->pluck('id')
+            ->all();
+
+        $warehouseTotals = $warehouseAvailability->availableTotals(
+            $warehouseIds,
+            array_map(fn (array $product): string => $product['product_id'], $products)
+        );
+
+        foreach ($products as &$product) {
+            $warehouseAvailable = (int) ($warehouseTotals[$product['product_id']] ?? 0);
+            $product['warehouse_available_qty'] = $warehouseAvailable;
+            $product['can_transfer'] = $warehouseAvailable === 0;
+        }
+
+        unset($product);
+
         return response()->json([
-            'products' => $stock->products(
-                (string) $data['source_store_id'],
-                trim((string) ($data['q'] ?? ''))
-            ),
+            'products' => $products,
+            'warehouse_rule' => 'Transfer antar toko hanya tersedia jika stok gudang untuk produk sudah habis.',
         ]);
     }
 
@@ -141,16 +166,47 @@ class StoreTransferController extends Controller
         return response()->json($detail);
     }
 
-    public function approve(StoreOrder $transfer): RedirectResponse
-    {
+    public function approve(
+        StoreOrder $transfer,
+        WarehouseStockAvailability $warehouseAvailability
+    ): RedirectResponse {
         $this->ensureTransfer($transfer);
 
-        DB::transaction(function () use ($transfer): void {
+        DB::transaction(function () use ($transfer, $warehouseAvailability): void {
             $locked = StoreOrder::query()->whereKey($transfer->id)->lockForUpdate()->firstOrFail();
 
             if (strtolower((string) $locked->status) !== 'requested') {
                 throw ValidationException::withMessages([
                     'status' => 'Hanya transfer yang menunggu persetujuan yang dapat disetujui.',
+                ]);
+            }
+
+            $locked->load('details');
+            $productIds = $locked->details
+                ->pluck('product_id')
+                ->map(fn ($productId): string => (string) $productId)
+                ->unique()
+                ->values()
+                ->all();
+
+            $warehouseIds = DB::table('warehouses')
+                ->whereNull('deleted_at')
+                ->pluck('id')
+                ->all();
+
+            $warehouseTotals = $warehouseAvailability->availableTotals($warehouseIds, $productIds);
+            $restockedProductId = collect($warehouseTotals)
+                ->filter(fn (int $qty): bool => $qty > 0)
+                ->keys()
+                ->first();
+
+            if ($restockedProductId !== null) {
+                $productName = DB::table('products')
+                    ->where('id', $restockedProductId)
+                    ->value('name') ?? (string) $restockedProductId;
+
+                throw ValidationException::withMessages([
+                    'status' => "Stok gudang untuk '{$productName}' sudah tersedia kembali. Batalkan transfer ini dan buat permintaan order ke gudang.",
                 ]);
             }
 
@@ -210,6 +266,7 @@ class StoreTransferController extends Controller
             }
 
             $locked->forceFill(['status' => 'rejected'])->save();
+            $this->clearScanRows((string) $locked->shipping_number);
         });
 
         return back()->with('success', 'Transfer ditolak.');
@@ -229,6 +286,7 @@ class StoreTransferController extends Controller
             }
 
             $locked->forceFill(['status' => 'cancelled'])->save();
+            $this->clearScanRows((string) $locked->shipping_number);
         });
 
         return back()->with('success', 'Transfer dibatalkan.');
@@ -237,6 +295,26 @@ class StoreTransferController extends Controller
     private function ensureTransfer(StoreOrder $transfer): void
     {
         abort_unless(str_starts_with((string) $transfer->order_number, StoreTransferQuery::ORDER_PREFIX), 404);
+    }
+
+    private function clearScanRows(?string $shippingNumber): void
+    {
+        if (! $shippingNumber) {
+            return;
+        }
+
+        $outboundId = DB::table('store_outbounds')
+            ->where('shipping_number', $shippingNumber)
+            ->where('outbound_type', 'transfer')
+            ->value('id');
+
+        if (! $outboundId) {
+            return;
+        }
+
+        DB::table('store_outbound_details')
+            ->where('store_outbound_id', $outboundId)
+            ->delete();
     }
 
     private function nullableString(mixed $value): ?string

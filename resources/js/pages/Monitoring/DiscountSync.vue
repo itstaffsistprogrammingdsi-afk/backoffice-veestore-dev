@@ -240,18 +240,18 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
-                        <label class="form-label">Cari promo atau diskon</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama promo, kode, atau nama diskon..." />
+                        <label class="form-label" for="sync-search">Cari promo atau diskon</label>
+                        <input id="sync-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama promo, kode, atau nama diskon..." />
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
-                        <label class="form-label">Cakupan Kanal</label>
-                        <select v-model="filters.channel" class="form-select form-select-sm">
+                        <label class="form-label" for="sync-channel">Cakupan Kanal</label>
+                        <select id="sync-channel" v-model="filters.channel" class="form-select form-select-sm">
                             <option v-for="option in props.channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
-                        <label class="form-label">Status Diskon</label>
-                        <select v-model="filters.active" class="form-select form-select-sm">
+                        <label class="form-label" for="sync-active">Status Diskon</label>
+                        <select id="sync-active" v-model="filters.active" class="form-select form-select-sm">
                             <option v-for="option in props.activeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
@@ -319,8 +319,14 @@ onBeforeUnmount(() => {
                                 </td>
                                 <td class="text-end">
                                     <div class="sync-actions">
-                                        <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.group_key)">
-                                            <i class="mdi" :class="expanded[row.group_key] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>Detail
+                                        <button
+                                            class="btn btn-sm btn-outline-secondary"
+                                            type="button"
+                                            :aria-expanded="Boolean(expanded[row.group_key])"
+                                            :aria-controls="`sync-detail-${row.group_key}`"
+                                            @click="toggleDetail(row.group_key)"
+                                        >
+                                            <i class="mdi" :class="expanded[row.group_key] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>Detail
                                         </button>
                                         <button class="btn btn-sm btn-primary" type="button" :disabled="!row.discounts.some((discount) => discount.type === 'percentage')" @click="openSync(row)">
                                             <i class="mdi mdi-sync me-1"></i>Samakan
@@ -328,7 +334,7 @@ onBeforeUnmount(() => {
                                     </div>
                                 </td>
                             </tr>
-                            <tr v-if="expanded[row.group_key]" class="sync-detail-row">
+                            <tr v-if="expanded[row.group_key]" :id="`sync-detail-${row.group_key}`" class="sync-detail-row">
                                 <td colspan="6">
                                     <div class="sync-detail-wrap">
                                         <table class="table table-sm mb-0 sync-detail-table">
