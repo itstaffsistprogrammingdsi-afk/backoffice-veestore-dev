@@ -6,6 +6,7 @@ defineOptions({ layout: AppLayout });
 import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
+import AppPageHeader from '@/components/ui/AppPageHeader.vue';
 
 interface Filters {
     period: string;
@@ -163,19 +164,18 @@ const modules = [
     <Head title="Laporan" />
 
     <div class="hub-page">
-        <section class="hub-hero">
-            <div>
-                <span class="hub-eyebrow">Area Laporan</span>
-                <h2>Pusat laporan yang mudah dibaca</h2>
-                <p>
-                    Mulai dari ringkasan penjualan, pesanan, dan stok &amp; logistik, lalu telusuri detail ke monitoring.
-                </p>
-            </div>
-            <Link :href="overviewUrl" class="hub-primary">
-                <i class="mdi mdi-view-dashboard-outline me-1"></i>
-                Buka Ringkasan Usaha
-            </Link>
-        </section>
+        <AppPageHeader
+            eyebrow="Area Laporan"
+            title="Pusat laporan yang mudah dibaca"
+            description="Mulai dari ringkasan penjualan, pesanan, dan stok & logistik, lalu telusuri detail ke monitoring."
+        >
+            <template #actions>
+                <Link :href="overviewUrl" class="btn btn-primary">
+                    <i class="mdi mdi-view-dashboard-outline me-1" aria-hidden="true"></i>
+                    Buka Ringkasan Usaha
+                </Link>
+            </template>
+        </AppPageHeader>
 
         <section class="hub-filter" aria-label="Filter periode laporan">
             <div class="hub-filter-head">
@@ -196,14 +196,14 @@ const modules = [
                         v-for="option in props.periodOptions"
                         :key="option.value"
                         type="button"
-                        class="hub-preset"
+                        class="chip"
                         :class="{ 'is-active': props.filters.period === option.value }"
                         :aria-pressed="props.filters.period === option.value"
                         @click="applyPeriod(option.value)"
                     >{{ option.label }}</button>
                     <button
                         type="button"
-                        class="hub-preset"
+                        class="chip"
                         :class="{ 'is-active': props.filters.period === 'custom' }"
                         :aria-pressed="props.filters.period === 'custom'"
                         @click="openCustom"
@@ -217,7 +217,7 @@ const modules = [
                             v-for="option in channelOptions"
                             :key="option.value"
                             type="button"
-                            class="hub-preset"
+                            class="chip"
                             :class="{ 'is-active': props.filters.channel === option.value }"
                             :aria-pressed="props.filters.channel === option.value"
                             @click="applyChannel(option.value)"
@@ -265,6 +265,7 @@ const modules = [
             </p>
         </section>
 
+        <h2 class="section-title">Ringkasan</h2>
         <div class="row g-3 mb-3">
             <div v-for="stat in [
                 { label: `Omset Kotor (${activePeriodLabel})`, value: formatCurrency(summary.gross_revenue) },
@@ -288,81 +289,316 @@ const modules = [
                 { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' }
             ]" :key="domain.title" class="col-md-4">
                 <a :href="`${overviewUrl}#${domain.anchor}`" class="hub-domain">
-                    <span class="hub-domain-icon"><i class="mdi" :class="domain.icon"></i></span>
+                    <span class="hub-domain-icon"><i class="mdi" :class="domain.icon" aria-hidden="true"></i></span>
                     <div>
                         <h3>{{ domain.title }}</h3>
                         <p>{{ domain.description }}</p>
                     </div>
-                    <i class="mdi mdi-arrow-right hub-domain-arrow"></i>
+                    <i class="mdi mdi-arrow-right hub-domain-arrow" aria-hidden="true"></i>
                 </a>
             </div>
         </div>
 
+        <h2 class="section-title">Jelajahi laporan</h2>
         <div class="row g-3">
             <div v-for="module in modules" :key="module.title" class="col-md-6 col-xl-4">
-                <article class="hub-card">
-                    <div class="hub-card-icon"><i class="mdi" :class="module.icon"></i></div>
+                <Link :href="props.urls[module.url as keyof Props['urls']]" class="hub-card">
+                    <div class="hub-card-icon"><i class="mdi" :class="module.icon" aria-hidden="true"></i></div>
                     <h3>{{ module.title }}</h3>
                     <p>{{ module.description }}</p>
-                    <Link :href="props.urls[module.url as keyof Props['urls']]" class="hub-card-link">
+                    <span class="hub-card-link">
                         {{ module.action }}
-                        <i class="mdi mdi-arrow-right"></i>
-                    </Link>
-                </article>
+                        <i class="mdi mdi-arrow-right" aria-hidden="true"></i>
+                    </span>
+                </Link>
             </div>
         </div>
     </div>
 </template>
 
 <style scoped>
-.hub-page { color: var(--app-ink); }
-.hub-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; padding: 2rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-ink); color: #fff; }
-.hub-eyebrow { display: inline-block; margin-bottom: 0.6rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.hub-hero h2 { margin: 0 0 0.4rem; font-size: 1.7rem; max-width: 36rem; }
-.hub-hero p { margin: 0; color: var(--app-hero-muted); max-width: 40rem; }
-.hub-primary { display: inline-flex; align-items: center; padding: 0.7rem 1rem; border-radius: 0.6rem; background: var(--app-accent-strong); color: var(--app-on-accent); font-weight: 700; text-decoration: none; white-space: nowrap; }
-.hub-filter { padding: 1rem 1.1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); }
-.hub-filter-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; }
-.hub-filter-current { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.6rem; }
-.hub-filter-label { color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.hub-filter-current strong { font-size: 1rem; }
-.hub-filter-range { color: var(--app-muted); font-size: 0.78rem; }
-.hub-filter-reset { padding: 0.2rem; border: 0; background: none; color: var(--app-accent-ink); font-size: 0.78rem; font-weight: 600; }
-.hub-filter-reset:hover { text-decoration: underline; }
-.hub-filter-form { margin-top: 0.75rem; }
-.hub-filter-channels { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.6rem; margin-top: 0.6rem; }
-.hub-presets { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.hub-preset { min-height: 2rem; padding: 0.3rem 0.7rem; border: 1px solid var(--app-border); border-radius: 999px; background: var(--app-surface-2); color: var(--app-ink); font-size: 0.78rem; font-weight: 600; }
-.hub-preset:hover { border-color: var(--app-accent); color: var(--app-accent-ink); }
-.hub-preset.is-active { border-color: var(--app-accent); background: var(--app-accent-soft); color: var(--app-accent-ink); }
-.hub-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--app-border); }
-.hub-custom-field { flex: 1 1 11rem; min-width: 0; }
-.hub-custom-field .form-label { margin-bottom: 0.25rem; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
-.hub-custom-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.hub-filter-note { margin: 0.6rem 0 0; color: var(--app-muted); font-size: 0.75rem; }
-.hub-stat { height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
-.hub-stat span { display: block; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.hub-stat strong { display: block; margin-top: 0.25rem; font-size: 1.3rem; line-height: 1.2; overflow-wrap: anywhere; }
-.hub-domain { display: flex; align-items: flex-start; gap: 0.75rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); color: var(--app-ink); text-decoration: none; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
-.hub-domain:hover { border-color: var(--app-accent); }
-.hub-domain-icon { display: grid; flex: 0 0 auto; width: 2.3rem; height: 2.3rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.2rem; }
-.hub-domain h3 { margin: 0 0 0.2rem; font-size: 0.95rem; }
-.hub-domain p { margin: 0; color: var(--app-muted); font-size: 0.78rem; line-height: 1.45; }
-.hub-domain-arrow { margin-left: auto; color: var(--app-accent-ink); }
-.hub-card { height: 100%; padding: 1.35rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
-.hub-card-icon { display: grid; place-items: center; width: 48px; height: 48px; margin-bottom: 1rem; border-radius: 0.75rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.5rem; }
-.hub-card h3 { margin: 0 0 0.4rem; font-size: 1.1rem; }
-.hub-card p { margin: 0 0 1rem; color: var(--app-muted); font-size: 0.9rem; line-height: 1.55; }
-.hub-card-link { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--app-accent-ink); font-weight: 700; text-decoration: none; }
-.hub-card-link:hover { text-decoration: underline; }
+.hub-page {
+    color: var(--app-ink);
+}
+
+.hub-filter {
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-xl);
+    background: var(--app-surface);
+}
+
+.hub-filter-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+}
+
+.hub-filter-current {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.6rem;
+}
+
+.hub-filter-label {
+    color: var(--app-muted);
+    font-size: var(--app-text-2xs);
+    font-weight: var(--app-weight-bold);
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+}
+
+.hub-filter-current strong {
+    font-size: var(--app-text-md);
+    font-weight: var(--app-weight-bold);
+}
+
+.hub-filter-range {
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+}
+
+.hub-filter-reset {
+    min-height: 32px;
+    padding: 0.25rem 0.4rem;
+    border: 0;
+    border-radius: var(--app-radius-sm);
+    background: none;
+    color: var(--app-accent-ink);
+    font-size: var(--app-text-sm);
+    font-weight: var(--app-weight-semibold);
+    transition: background-color var(--app-dur-fast) var(--app-ease-out);
+}
+
+.hub-filter-reset:hover {
+    background: var(--app-surface-2);
+    text-decoration: underline;
+}
+
+.hub-filter-form {
+    margin-top: 0.75rem;
+}
+
+.hub-filter-channels {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.hub-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.hub-custom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.hub-custom-field {
+    flex: 1 1 11rem;
+    min-width: 0;
+}
+
+.hub-custom-field .form-label {
+    margin-bottom: 0.25rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-2xs);
+    font-weight: var(--app-weight-bold);
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+}
+
+.hub-custom-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.hub-filter-note {
+    margin: 0.6rem 0 0;
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+    line-height: var(--app-leading-normal);
+}
+
+.hub-stat {
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-xl);
+    background: var(--app-surface);
+}
+
+.hub-stat span {
+    display: block;
+    color: var(--app-muted);
+    font-size: var(--app-text-2xs);
+    font-weight: var(--app-weight-bold);
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+}
+
+.hub-stat strong {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: var(--app-text-xl);
+    font-weight: var(--app-weight-black);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.hub-domain {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-xl);
+    background: var(--app-surface);
+    color: var(--app-ink);
+    text-decoration: none;
+    transition: border-color var(--app-dur-fast) var(--app-ease-out), background-color var(--app-dur-fast) var(--app-ease-out);
+}
+
+.hub-domain:hover {
+    border-color: var(--app-accent);
+    background: var(--app-surface-2);
+}
+
+.hub-domain-icon {
+    display: grid;
+    flex: 0 0 auto;
+    width: 2.3rem;
+    height: 2.3rem;
+    place-items: center;
+    border-radius: var(--app-radius-md);
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
+    font-size: 1.2rem;
+}
+
+.hub-domain h3 {
+    margin: 0 0 0.2rem;
+    font-size: var(--app-text-base);
+    font-weight: var(--app-weight-bold);
+}
+
+.hub-domain p {
+    margin: 0;
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+    line-height: var(--app-leading-normal);
+}
+
+.hub-domain-arrow {
+    margin-left: auto;
+    color: var(--app-accent-ink);
+}
+
+.hub-card {
+    display: block;
+    height: 100%;
+    padding: 1.35rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-xl);
+    background: var(--app-surface);
+    color: var(--app-ink);
+    text-decoration: none;
+    transition: border-color var(--app-dur-fast) var(--app-ease-out), background-color var(--app-dur-fast) var(--app-ease-out);
+}
+
+.hub-card:hover {
+    border-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-border));
+    background: var(--app-surface-2);
+}
+
+.hub-card-icon {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1rem;
+    border-radius: var(--app-radius-lg);
+    background: var(--app-accent-soft);
+    color: var(--app-accent-ink);
+    font-size: 1.5rem;
+}
+
+.hub-card h3 {
+    margin: 0 0 0.4rem;
+    font-size: var(--app-text-xl);
+    font-weight: var(--app-weight-bold);
+}
+
+.hub-card p {
+    margin: 0 0 1rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-base);
+    line-height: var(--app-leading-normal);
+}
+
+.hub-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 32px;
+    color: var(--app-accent-ink);
+    font-weight: var(--app-weight-bold);
+    text-decoration: none;
+}
+
+.hub-card-link:hover,
+.hub-card:hover .hub-card-link {
+    text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+    .hub-card-link {
+        min-height: 44px;
+    }
+}
+
 @media (max-width: 767.98px) {
-    .hub-hero { align-items: flex-start; flex-direction: column; }
-    .hub-filter-head { align-items: flex-start; flex-direction: column; }
-    .hub-filter-channels { align-items: flex-start; flex-direction: column; }
-    .hub-preset { min-height: 2.75rem; padding: 0.5rem 0.85rem; }
-    .hub-filter-reset { min-height: 2.75rem; }
-    .hub-custom-field { flex-basis: 100%; }
-    .hub-custom-actions { width: 100%; }
-    .hub-custom-actions .btn { flex: 1 1 auto; min-height: 2.75rem; }
+    .hub-filter-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hub-filter-channels {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hub-filter-reset {
+        min-height: 44px;
+    }
+
+    .hub-custom-field {
+        flex-basis: 100%;
+    }
+
+    .hub-custom-actions {
+        width: 100%;
+    }
+
+    .hub-custom-actions .btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+    }
 }
 </style>

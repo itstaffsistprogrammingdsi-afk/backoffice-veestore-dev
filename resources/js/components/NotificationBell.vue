@@ -299,12 +299,12 @@ onBeforeUnmount(() => {
     height: 38px;
     padding: 0;
     border: 1px solid var(--app-border);
-    border-radius: 0.6rem;
+    border-radius: var(--app-radius-md);
     background: var(--app-surface);
     color: var(--app-ink);
     font-size: 1.15rem;
     cursor: pointer;
-    transition: background-color 160ms ease, border-color 160ms ease;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out);
 }
 
 .notification-bell:hover,
@@ -323,9 +323,9 @@ onBeforeUnmount(() => {
     height: 1.2rem;
     padding: 0 0.22rem;
     border: 2px solid var(--app-surface);
-    border-radius: 999px;
-    background: var(--app-danger-ink);
-    color: #fff;
+    border-radius: var(--app-radius-pill);
+    background: var(--app-danger-solid);
+    color: var(--app-on-danger);
     font-size: 0.58rem;
     font-weight: 800;
     line-height: 1;
@@ -342,10 +342,10 @@ onBeforeUnmount(() => {
     max-height: min(560px, calc(100dvh - 6rem));
     overflow: hidden;
     border: 1px solid var(--app-border);
-    border-radius: 0.8rem;
+    border-radius: var(--app-radius-lg);
     background: var(--app-surface);
     color: var(--app-ink);
-    box-shadow: 0 1.25rem 3rem rgba(10, 20, 28, 0.22);
+    box-shadow: var(--app-shadow-md);
     outline: none;
 }
 
@@ -386,7 +386,7 @@ onBeforeUnmount(() => {
     width: 32px;
     height: 32px;
     border: 1px solid transparent;
-    border-radius: 0.4rem;
+    border-radius: var(--app-radius-sm);
     background: transparent;
     color: var(--app-muted);
     font-size: 1rem;
@@ -427,7 +427,7 @@ onBeforeUnmount(() => {
     gap: 0.6rem;
     min-height: 62px;
     padding: 0.55rem 0.55rem;
-    border-radius: 0.55rem;
+    border-radius: var(--app-radius-md);
     color: var(--app-ink);
     text-decoration: none;
 }
@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
     place-items: center;
     width: 36px;
     height: 36px;
-    border-radius: 0.55rem;
+    border-radius: var(--app-radius-sm);
     background: var(--app-surface-2);
     color: var(--app-muted);
     font-size: 1.15rem;
@@ -500,7 +500,7 @@ onBeforeUnmount(() => {
     min-width: 1.45rem;
     height: 1.45rem;
     padding: 0 0.3rem;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--app-surface-3);
     color: var(--app-accent-ink);
     font-size: 0.65rem;
@@ -546,7 +546,7 @@ onBeforeUnmount(() => {
     margin-top: 0.4rem;
     padding: 0.35rem 0.65rem;
     border: 1px solid var(--app-border);
-    border-radius: 0.4rem;
+    border-radius: var(--app-radius-sm);
     background: var(--app-surface);
     color: var(--app-accent-ink);
     font: inherit;
@@ -583,7 +583,7 @@ onBeforeUnmount(() => {
 
 .notification-panel-enter-active,
 .notification-panel-leave-active {
-    transition: opacity 120ms ease, transform 120ms ease;
+    transition: opacity var(--app-dur-fast) var(--app-ease-out), transform var(--app-dur-fast) var(--app-ease-out);
 }
 
 .notification-panel-enter-from,

@@ -498,18 +498,20 @@ onBeforeUnmount(() => {
     justify-content: space-between;
     gap: 0.4rem;
     width: 100%;
+    min-height: var(--app-control-sm);
     padding: 0.32rem 0.55rem;
-    border: 1px solid var(--app-border);
-    border-radius: 0.4rem;
+    border: 1px solid var(--app-control-border);
+    border-radius: var(--app-radius-md);
     background: var(--app-surface);
     color: var(--app-ink);
     font-size: 0.8125rem;
     line-height: 1.35;
     text-align: left;
-    transition: border-color 120ms ease, box-shadow 120ms ease;
+    transition: border-color var(--app-dur-fast) var(--app-ease-out), box-shadow var(--app-dur-fast) var(--app-ease-out);
 }
 
 .searchable-select-md .searchable-select-trigger {
+    min-height: var(--app-control-md);
     padding: 0.48rem 0.7rem;
     font-size: 0.9rem;
 }
@@ -520,9 +522,9 @@ onBeforeUnmount(() => {
 
 .searchable-select-trigger:focus-visible,
 .searchable-select.is-open .searchable-select-trigger {
-    border-color: var(--app-accent);
+    border-color: var(--app-focus);
     outline: 0;
-    box-shadow: 0 0 0 0.18rem var(--app-accent-soft);
+    box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--app-accent) 22%, transparent);
 }
 
 .searchable-select-trigger:disabled {
@@ -591,9 +593,9 @@ onBeforeUnmount(() => {
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--app-border);
-    border-radius: 0.55rem;
+    border-radius: var(--app-radius-lg);
     background: var(--app-surface);
-    box-shadow: 0 0.8rem 2rem rgba(15, 23, 42, 0.18);
+    box-shadow: var(--app-shadow-md);
 }
 
 .searchable-select-search {
@@ -622,9 +624,9 @@ onBeforeUnmount(() => {
 }
 
 .searchable-select-search input:focus-visible {
-    outline: 2px solid var(--app-accent);
+    outline: 2px solid var(--app-focus);
     outline-offset: 2px;
-    border-radius: 0.2rem;
+    border-radius: var(--app-radius-xs);
 }
 
 .searchable-select-search input::placeholder {
@@ -664,10 +666,11 @@ onBeforeUnmount(() => {
     gap: 0.35rem;
     min-height: 2rem;
     padding: 0.45rem 0.55rem;
-    border-radius: 0.35rem;
+    border-radius: var(--app-radius-sm);
     color: var(--app-ink);
     font-size: 0.8rem;
     cursor: pointer;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out);
 }
 
 @media (pointer: coarse) {

@@ -3,9 +3,12 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed } from 'vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import ModuleNav from '../../components/ModuleNav.vue';
+import AppPageHeader from '@/components/ui/AppPageHeader.vue';
+import AppDialog from '@/components/ui/AppDialog.vue';
+import { useToast } from '@/composables/useToast';
 import { formatDate } from '@/composables/useFormatters';
 
 interface PointRate {
@@ -35,6 +38,24 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
+const { success: toastSuccess, error: toastError } = useToast();
+const resetDialogOpen = ref(false);
+let lastFlashKey = '';
+
+watch(
+    flash,
+    (value) => {
+        const key = `${value.success ?? ''}|${value.error ?? ''}`;
+
+        if (key === lastFlashKey) return;
+
+        lastFlashKey = key;
+
+        if (value.success) toastSuccess(value.success);
+        if (value.error) toastError(value.error);
+    },
+    { immediate: true },
+);
 
 const form = useForm({
     in_idr_base: props.data.in.idr_base,
@@ -64,6 +85,11 @@ const submit = () => {
     });
 };
 
+const confirmReset = () => {
+    resetDialogOpen.value = false;
+    router.visit(props.resetUrl);
+};
+
 const formatNumber = (value: number, digits = 0) =>
     new Intl.NumberFormat('id-ID', {
         minimumFractionDigits: digits,
@@ -75,54 +101,57 @@ const formatNumber = (value: number, digits = 0) =>
     <Head title="Kurs Point" />
 
     <div class="settings-page">
-        <div class="settings-header">
-            <span class="settings-eyebrow">Loyalty / Point Rate</span>
-            <h1>Kurs Point</h1>
-            <p>Atur nilai poin masuk dari transaksi dan nilai tukar poin saat redeem.</p>
-        </div>
+        <AppPageHeader
+            eyebrow="Loyalty / Point Rate"
+            title="Kurs Point"
+            description="Atur nilai poin masuk dari transaksi dan nilai tukar poin saat redeem."
+        />
 
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
-
-        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <form @submit.prevent="submit">
             <div class="row g-3">
                 <div class="col-xl-6">
-                    <div class="card settings-card h-100">
+                    <section class="card h-100">
                         <div class="card-header">
-                            <h5 class="mb-1">Kurs: Rupiah ke Point In</h5>
+                            <h2 class="h6 mb-1">Kurs: Rupiah ke Point In</h2>
                             <small class="text-muted">Dipakai untuk menghitung poin masuk dari transaksi.</small>
                         </div>
                         <div class="card-body">
-                            <label class="form-label">Kurs dasar point masuk</label>
+                            <label class="form-label is-required" for="points-in-idr-base">Kurs dasar point masuk</label>
                             <div class="input-group">
                                 <span class="input-group-text">Rp</span>
                                 <input
+                                    id="points-in-idr-base"
                                     v-model.number="form.in_idr_base"
                                     type="number"
                                     min="1"
                                     step="1"
                                     class="form-control"
                                     :class="{ 'is-invalid': form.errors.in_idr_base }"
+                                    :aria-describedby="form.errors.in_idr_base ? 'points-in-idr-base-error' : undefined"
+                                    aria-label="Rupiah dasar point masuk"
                                     required
                                 />
                                 <span class="input-group-text">=</span>
                                 <input
+                                    id="points-in-points-base"
                                     v-model.number="form.in_points_per_base"
                                     type="number"
                                     min="0.000001"
                                     step="0.000001"
                                     class="form-control"
                                     :class="{ 'is-invalid': form.errors.in_points_per_base }"
+                                    :aria-describedby="form.errors.in_points_per_base ? 'points-in-points-base-error' : undefined"
+                                    aria-label="Point per rupiah dasar"
                                     required
                                 />
                                 <span class="input-group-text">point</span>
                             </div>
-                            <div v-if="form.errors.in_idr_base" class="text-danger small mt-1">
+                            <div v-if="form.errors.in_idr_base" id="points-in-idr-base-error" class="invalid-feedback d-block" role="alert">
                                 {{ form.errors.in_idr_base }}
                             </div>
-                            <div v-if="form.errors.in_points_per_base" class="text-danger small mt-1">
+                            <div v-if="form.errors.in_points_per_base" id="points-in-points-base-error" class="invalid-feedback d-block" role="alert">
                                 {{ form.errors.in_points_per_base }}
                             </div>
 
@@ -130,52 +159,58 @@ const formatNumber = (value: number, digits = 0) =>
                                 <div class="fw-semibold mb-2">Ringkasan Point In</div>
                                 <div>
                                     <strong>1 Rp</strong> =
-                                    <strong>{{ formatNumber(inPointsPerIdr, 6) }}</strong> point
+                                    <strong class="num">{{ formatNumber(inPointsPerIdr, 6) }}</strong> point
                                 </div>
                                 <div class="text-muted small">
                                     Rp{{ formatNumber(100000) }} sekitar
-                                    <strong>{{ formatNumber(samplePointIn, 2) }} point</strong>
+                                    <strong class="num">{{ formatNumber(samplePointIn, 2) }} point</strong>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
 
                 <div class="col-xl-6">
-                    <div class="card settings-card h-100">
+                    <section class="card h-100">
                         <div class="card-header">
-                            <h5 class="mb-1">Kurs: Point Out ke Rupiah</h5>
+                            <h2 class="h6 mb-1">Kurs: Point Out ke Rupiah</h2>
                             <small class="text-muted">Dipakai saat customer menukar poin.</small>
                         </div>
                         <div class="card-body">
-                            <label class="form-label">Kurs dasar point keluar</label>
+                            <label class="form-label is-required" for="points-out-points-base">Kurs dasar point keluar</label>
                             <div class="input-group">
                                 <input
+                                    id="points-out-points-base"
                                     v-model.number="form.out_points_base"
                                     type="number"
                                     min="0.000001"
                                     step="0.000001"
                                     class="form-control"
                                     :class="{ 'is-invalid': form.errors.out_points_base }"
+                                    :aria-describedby="form.errors.out_points_base ? 'points-out-points-base-error' : undefined"
+                                    aria-label="Point dasar untuk redeem"
                                     required
                                 />
                                 <span class="input-group-text">point</span>
                                 <span class="input-group-text">=</span>
                                 <span class="input-group-text">Rp</span>
                                 <input
+                                    id="points-out-idr-base"
                                     v-model.number="form.out_idr_per_base"
                                     type="number"
                                     min="1"
                                     step="1"
                                     class="form-control"
                                     :class="{ 'is-invalid': form.errors.out_idr_per_base }"
+                                    :aria-describedby="form.errors.out_idr_per_base ? 'points-out-idr-base-error' : undefined"
+                                    aria-label="Rupiah per point dasar"
                                     required
                                 />
                             </div>
-                            <div v-if="form.errors.out_points_base" class="text-danger small mt-1">
+                            <div v-if="form.errors.out_points_base" id="points-out-points-base-error" class="invalid-feedback d-block" role="alert">
                                 {{ form.errors.out_points_base }}
                             </div>
-                            <div v-if="form.errors.out_idr_per_base" class="text-danger small mt-1">
+                            <div v-if="form.errors.out_idr_per_base" id="points-out-idr-base-error" class="invalid-feedback d-block" role="alert">
                                 {{ form.errors.out_idr_per_base }}
                             </div>
 
@@ -183,81 +218,86 @@ const formatNumber = (value: number, digits = 0) =>
                                 <div class="fw-semibold mb-2">Ringkasan Point Out</div>
                                 <div>
                                     <strong>1 point</strong> =
-                                    <strong>Rp{{ formatNumber(outIdrPerPoint) }}</strong>
+                                    <strong class="num">Rp{{ formatNumber(outIdrPerPoint) }}</strong>
                                 </div>
                                 <div class="text-muted small">
                                     100 point sekitar
-                                    <strong>Rp{{ formatNumber(sampleRedeemValue) }}</strong>
+                                    <strong class="num">Rp{{ formatNumber(sampleRedeemValue) }}</strong>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 </div>
             </div>
 
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-4">
+            <div class="settings-actions">
                 <small v-if="props.data.updated_at" class="text-muted">
                     Terakhir diubah oleh {{ props.data.updated_by ?? 'system' }} pada
                     {{ formatDate(props.data.updated_at, true) }}
                 </small>
                 <div class="d-flex gap-2 ms-auto">
-                    <Link :href="props.resetUrl" class="btn btn-outline-secondary">Reset</Link>
-                    <button class="btn btn-primary" type="submit" :disabled="form.processing">
-                        <i class="mdi mdi-content-save-outline me-1"></i>
+                    <button class="btn btn-outline-secondary" type="button" @click="resetDialogOpen = true">
+                        <i class="mdi mdi-restore me-1" aria-hidden="true"></i>
+                        Reset
+                    </button>
+                    <button class="btn btn-primary" type="submit" :disabled="form.processing" :aria-busy="form.processing">
+                        <i v-if="form.processing" class="mdi mdi-loading mdi-spin me-1" aria-hidden="true"></i>
+                        <i v-else class="mdi mdi-content-save-outline me-1" aria-hidden="true"></i>
                         {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
                     </button>
                 </div>
             </div>
         </form>
+
+        <AppDialog
+            :open="resetDialogOpen"
+            title="Reset kurs point?"
+            description="Nilai kurs akan dikembalikan ke pengaturan awal. Perubahan yang belum disimpan akan hilang."
+            confirm-label="Reset kurs"
+            cancel-label="Batal"
+            variant="danger"
+            @update:open="resetDialogOpen = false"
+            @confirm="confirmReset"
+            @cancel="resetDialogOpen = false"
+        />
     </div>
 </template>
 
 <style scoped>
 .settings-page {
-    --settings-ink: var(--app-ink);
-    --settings-muted: var(--app-muted);
-    --settings-border: var(--app-border);
-    color: var(--settings-ink);
-}
-
-.settings-header {
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    border-radius: 1rem;
-    background: var(--settings-ink);
-    color: #fff;
-}
-
-.settings-eyebrow {
-    display: inline-block;
-    margin-bottom: 0.5rem;
-    color: var(--app-hero-eyebrow);
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.settings-header h1 {
-    margin: 0 0 0.35rem;
-    font-size: 1.5rem;
-}
-
-.settings-header p {
-    margin: 0;
-    color: var(--app-hero-muted);
-}
-
-.settings-card {
-    border: 1px solid var(--settings-border);
-    border-radius: 0.9rem;
-    box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05);
+    color: var(--app-ink);
 }
 
 .settings-summary {
     padding: 1rem;
-    border: 1px solid var(--settings-border);
-    border-radius: 0.75rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-lg);
     background: var(--app-surface-2);
+}
+
+.settings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--app-border);
+}
+
+@media (max-width: 575.98px) {
+    .settings-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .settings-actions > .d-flex {
+        width: 100%;
+    }
+
+    .settings-actions .btn {
+        flex: 1 1 auto;
+    }
 }
 </style>

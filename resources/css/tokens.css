@@ -1,0 +1,85 @@
+/*
+ * VeeStore design tokens.
+ * Non-color scales live here; colors stay in theme.css as --app-* semantic tokens.
+ * Elevation rule: data surfaces stay flat, shadows are reserved for overlays and sticky UI.
+ */
+:root {
+    /* Radius scale: 6 / 8 / 10 / 12 / 16 / 20 / pill */
+    --app-radius-xs: 0.375rem;
+    --app-radius-sm: 0.5rem;
+    --app-radius-md: 0.625rem;
+    --app-radius-lg: 0.75rem;
+    --app-radius-xl: 1rem;
+    --app-radius-2xl: 1.25rem;
+    --app-radius-pill: 999px;
+
+    /* Typography: 14px base keeps dense tables readable without shrinking labels */
+    --app-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --app-text-2xs: 0.6875rem;
+    --app-text-xs: 0.75rem;
+    --app-text-sm: 0.8125rem;
+    --app-text-base: 0.875rem;
+    --app-text-md: 0.9375rem;
+    --app-text-lg: 1rem;
+    --app-text-xl: 1.125rem;
+    --app-text-2xl: 1.375rem;
+    --app-text-3xl: 1.625rem;
+    --app-text-4xl: 2rem;
+    --app-leading-tight: 1.25;
+    --app-leading-snug: 1.35;
+    --app-leading-normal: 1.5;
+    --app-weight-regular: 400;
+    --app-weight-medium: 500;
+    --app-weight-semibold: 600;
+    --app-weight-bold: 700;
+    --app-weight-black: 800;
+    --app-tracking-tight: -0.01em;
+    --app-tracking-wide: 0.02em;
+    --app-tracking-eyebrow: 0.06em;
+
+    /* Spacing: 4px base */
+    --app-space-1: 0.25rem;
+    --app-space-2: 0.5rem;
+    --app-space-3: 0.75rem;
+    --app-space-4: 1rem;
+    --app-space-5: 1.25rem;
+    --app-space-6: 1.5rem;
+    --app-space-8: 2rem;
+    --app-space-10: 2.5rem;
+    --app-space-12: 3rem;
+    --app-space-16: 4rem;
+
+    /* Controls: 32 / 38 / 44 px */
+    --app-control-sm: 2rem;
+    --app-control-md: 2.375rem;
+    --app-control-lg: 2.75rem;
+
+    /* Elevation ladder */
+    --app-shadow-xs: 0 1px 2px rgba(20, 38, 56, 0.06);
+    --app-shadow-sm: 0 1px 2px rgba(20, 38, 56, 0.05), 0 2px 8px rgba(20, 38, 56, 0.05);
+    --app-shadow-md: 0 2px 4px rgba(20, 38, 56, 0.05), 0 8px 24px rgba(20, 38, 56, 0.09);
+    --app-shadow-lg: 0 4px 8px rgba(20, 38, 56, 0.06), 0 20px 48px rgba(20, 38, 56, 0.16);
+    --app-shadow-overlay: 0 24px 64px rgba(12, 26, 40, 0.28);
+    --app-scrim: rgba(16, 32, 48, 0.52);
+
+    /* Motion */
+    --app-dur-fast: 120ms;
+    --app-dur-base: 180ms;
+    --app-dur-slow: 240ms;
+    --app-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --app-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Layout */
+    --app-sidebar-w: 280px;
+    --app-sidebar-w-collapsed: 84px;
+    --app-content-max: 1500px;
+}
+
+html[data-theme="dark"] {
+    --app-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --app-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.45);
+    --app-shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.55);
+    --app-shadow-overlay: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --app-scrim: rgba(2, 8, 16, 0.68);
+}

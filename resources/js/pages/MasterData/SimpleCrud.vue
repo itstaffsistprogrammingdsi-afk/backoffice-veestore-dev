@@ -3,11 +3,18 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, defineAsyncComponent, nextTick, reactive, ref } from 'vue';
+import { computed, defineAsyncComponent, nextTick, reactive, ref, watch } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import AppPageHeader from '@/components/ui/AppPageHeader.vue';
+import AppFilterBar from '@/components/ui/AppFilterBar.vue';
+import AppTableShell from '@/components/ui/AppTableShell.vue';
+import AppRowActions from '@/components/ui/AppRowActions.vue';
+import AppEmptyState from '@/components/ui/AppEmptyState.vue';
+import AppDialog from '@/components/ui/AppDialog.vue';
+import { useToast } from '@/composables/useToast';
 
 const LocationPicker = defineAsyncComponent(() => import('../../components/LocationPicker.vue'));
 
@@ -63,6 +70,14 @@ interface RowAction {
     visibleWhen?: { key: string; equals: any };
 }
 
+interface RowMenuItem {
+    label: string;
+    icon?: string;
+    danger?: boolean;
+    disabled?: boolean;
+    onSelect: () => void;
+}
+
 interface Props {
     title: string;
     description: string;
@@ -87,12 +102,30 @@ const props = defineProps<Props>();
 
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
+const { success: toastSuccess, error: toastError } = useToast();
+let lastFlashKey = '';
+
+watch(
+    flash,
+    (value) => {
+        const key = `${value.success ?? ''}|${value.error ?? ''}`;
+
+        if (key === lastFlashKey) return;
+
+        lastFlashKey = key;
+
+        if (value.success) toastSuccess(value.success);
+        if (value.error) toastError(value.error);
+    },
+    { immediate: true },
+);
 
 const search = reactive({ q: props.filters.q ?? '' });
 const extraSearch = reactive<Record<string, string>>(
     Object.fromEntries((props.extraFilters ?? []).map((filter) => [filter.key, filter.value ?? ''])),
 );
 const showCreate = ref(false);
+const createCardRef = ref<HTMLElement | null>(null);
 const editingId = ref<string | null>(null);
 const scanLoading = ref(false);
 const scanError = ref('');
@@ -291,7 +324,15 @@ const actionPrompt = ref<{
     value: string;
     error: string;
 } | null>(null);
-const actionPromptInputRef = ref<HTMLInputElement | null>(null);
+const actionPromptOpen = computed(() => Boolean(actionPrompt.value?.action.prompt));
+const actionPromptValue = computed({
+    get: () => actionPrompt.value?.value ?? '',
+    set: (value: string) => {
+        if (actionPrompt.value) {
+            actionPrompt.value.value = value;
+        }
+    },
+});
 
 const executeRowAction = (
     action: RowAction,
@@ -352,12 +393,32 @@ const runRowAction = (action: RowAction, row: Record<string, any>) => {
             error: '',
         };
 
-        void nextTick(() => actionPromptInputRef.value?.focus());
-
         return;
     }
 
     executeRowAction(action, row, {});
+};
+
+const menuActionsFor = (row: Record<string, any>): RowMenuItem[] => {
+    const items: RowMenuItem[] = (props.rowActions ?? [])
+        .filter((action) => rowActionVisible(action, row))
+        .map((action) => ({
+            label: action.label,
+            icon: action.icon ?? 'mdi-dots-horizontal',
+            onSelect: () => runRowAction(action, row),
+        }));
+
+    items.push({ label: 'Edit data', icon: 'mdi-pencil', onSelect: () => startEdit(row) });
+    items.push({ label: 'Hapus data', icon: 'mdi-delete', danger: true, onSelect: () => requestRemove(row) });
+
+    return items;
+};
+
+const rowLabel = (row: Record<string, any>) => {
+    const key = props.columns[0]?.key;
+    const value = key ? display(row, key) : row.id;
+
+    return String(value ?? row.id);
 };
 
 const applySearch = () => {
@@ -391,6 +452,16 @@ const openCreate = () => {
     resetScanState();
     showCreate.value = true;
     editingId.value = null;
+
+    void nextTick(() => {
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        createCardRef.value?.scrollIntoView({
+            block: 'start',
+            behavior: reducedMotion ? 'auto' : 'smooth',
+        });
+        createCardRef.value?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+    });
 };
 
 const cancelCreate = () => {
@@ -456,11 +527,30 @@ const submitEdit = () => {
         });
 };
 
-const remove = (row: Record<string, any>) => {
-    if (!window.confirm(`Hapus data ini?`)) return;
+const deleteTarget = ref<Record<string, any> | null>(null);
+const deleting = ref(false);
 
-    router.delete(props.urls.destroy.replace('__ID__', row.id), {
+const requestRemove = (row: Record<string, any>) => {
+    deleteTarget.value = row;
+};
+
+const cancelRemove = () => {
+    if (deleting.value) return;
+
+    deleteTarget.value = null;
+};
+
+const confirmRemove = () => {
+    if (!deleteTarget.value) return;
+
+    deleting.value = true;
+
+    router.delete(props.urls.destroy.replace('__ID__', deleteTarget.value.id), {
         preserveScroll: true,
+        onFinish: () => {
+            deleting.value = false;
+            deleteTarget.value = null;
+        },
     });
 };
 
@@ -497,57 +587,68 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
     <Head :title="props.title" />
 
     <div class="crud-page">
-        <div class="crud-header">
-            <div>
-                <span class="crud-eyebrow">{{ props.eyebrow ?? 'Master Data' }}</span>
-                <h1>{{ props.title }}</h1>
-                <p>{{ props.description }}</p>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-                <form class="d-flex flex-wrap gap-2" @submit.prevent="applySearch">
-                    <label class="visually-hidden" for="crud-search">Cari data</label>
-                    <input id="crud-search" v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
-                    <template v-for="filter in (props.extraFilters ?? [])" :key="filter.key">
-                        <div v-if="filter.options.length > 8" class="crud-filter-select">
-                            <SearchableSelect
-                                v-model="extraSearch[filter.key]"
-                                :options="filter.options"
-                                :placeholder="`Semua ${filter.label.toLowerCase()}`"
-                                :search-placeholder="`Cari ${filter.label.toLowerCase()}...`"
-                                :aria-label="filter.label"
-                            />
-                        </div>
-                        <select
-                            v-else
-                            v-model="extraSearch[filter.key]"
-                            class="form-select form-select-sm crud-filter-select"
-                            :aria-label="filter.label"
-                        >
-                            <option value="">Semua {{ filter.label.toLowerCase() }}</option>
-                            <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
-                        </select>
-                    </template>
-                    <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari" title="Cari"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset pencarian" title="Reset pencarian" @click="resetSearch"><i class="mdi mdi-refresh" aria-hidden="true"></i></button>
-                </form>
-                <button class="btn btn-light btn-sm" type="button" @click="openCreate">
-                    <i class="mdi mdi-plus me-1"></i>
+        <AppPageHeader
+            :eyebrow="props.eyebrow ?? 'Master Data'"
+            :title="props.title"
+            :description="props.description"
+        >
+            <template #actions>
+                <button class="btn btn-primary" type="button" @click="openCreate">
+                    <i class="mdi mdi-plus" aria-hidden="true"></i>
                     Tambah
                 </button>
-            </div>
-        </div>
+            </template>
+        </AppPageHeader>
 
         <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
         <ModuleNav module-key="masterDataModule" aria-label="Modul Master Produk" />
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
-        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
+        <AppFilterBar>
+            <form id="crud-filter-form" class="d-flex w-100 flex-wrap align-items-end gap-2" @submit.prevent="applySearch">
+                <div class="crud-filter-field">
+                    <label class="visually-hidden" for="crud-search">Cari data</label>
+                    <input id="crud-search" v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
+                </div>
+                <template v-for="filter in (props.extraFilters ?? [])" :key="filter.key">
+                    <div v-if="filter.options.length > 8" class="crud-filter-select">
+                        <SearchableSelect
+                            v-model="extraSearch[filter.key]"
+                            :options="filter.options"
+                            :placeholder="`Semua ${filter.label.toLowerCase()}`"
+                            :search-placeholder="`Cari ${filter.label.toLowerCase()}...`"
+                            :aria-label="filter.label"
+                        />
+                    </div>
+                    <select
+                        v-else
+                        v-model="extraSearch[filter.key]"
+                        class="form-select form-select-sm crud-filter-select"
+                        :aria-label="filter.label"
+                    >
+                        <option value="">Semua {{ filter.label.toLowerCase() }}</option>
+                        <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                </template>
+                <div class="d-flex gap-2 ms-auto">
+                    <button class="btn btn-outline-secondary btn-sm" type="submit">
+                        <i class="mdi mdi-magnify" aria-hidden="true"></i>
+                        Cari
+                    </button>
+                    <button class="btn btn-ghost btn-sm" type="button" @click="resetSearch">
+                        <i class="mdi mdi-refresh" aria-hidden="true"></i>
+                        Reset
+                    </button>
+                </div>
+            </form>
+        </AppFilterBar>
 
-        <div v-if="showCreate" class="card crud-card mb-3">
+        <div v-if="showCreate" ref="createCardRef" class="card crud-create mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Tambah {{ props.title }}</h6>
-                <button class="btn btn-sm btn-outline-secondary" type="button" @click="cancelCreate">Tutup</button>
+                <h2 class="h6 mb-0">Tambah {{ props.title }}</h2>
+                <button class="btn btn-sm btn-ghost" type="button" aria-label="Tutup formulir" @click="cancelCreate">
+                    <i class="mdi mdi-close" aria-hidden="true"></i>
+                </button>
             </div>
             <div class="card-body">
                 <div v-if="props.scan" class="crud-scan">
@@ -577,9 +678,9 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                         <img :src="scannedImageUrl" alt="Pratinjau gambar voucher" />
                     </div>
                 </div>
-                <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
+                <form class="row g-3 align-items-end" @submit.prevent="submitCreate">
                     <div v-for="field in fields" :key="field.key" :class="field.type === 'map' ? 'col-12' : 'col-md-4'">
-                        <label class="form-label">{{ field.label }}</label>
+                        <label class="form-label" :class="{ 'is-required': field.required }" :for="`create-${field.key}`">{{ field.label }}</label>
                         <LocationPicker
                             v-if="field.type === 'map'"
                             :latitude="createForm[field.latitudeKey ?? 'lat']"
@@ -588,44 +689,50 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                         />
                         <SearchableSelect
                             v-else-if="field.type === 'multiselect' && (field.options?.length ?? 0) > 8"
+                            :id="`create-${field.key}`"
                             v-model="createForm[field.key]"
                             :options="field.options ?? []"
                             :placeholder="`Pilih ${field.label}`"
                             :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            size="md"
                             multiple
                         />
-                        <select v-else-if="field.type === 'multiselect'" v-model="createForm[field.key]" class="form-select form-select-sm" multiple>
+                        <select v-else-if="field.type === 'multiselect'" :id="`create-${field.key}`" v-model="createForm[field.key]" class="form-select" :class="{ 'is-invalid': createForm.errors[field.key] }" multiple>
                             <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                         <SearchableSelect
                             v-else-if="field.type === 'select' && (field.options?.length ?? 0) > 8"
+                            :id="`create-${field.key}`"
                             v-model="createForm[field.key]"
                             :options="field.options ?? []"
                             :placeholder="`Pilih ${field.label}`"
                             :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            size="md"
                             :required="field.required"
                             :clearable="!field.required"
                         />
-                        <select v-else-if="field.type === 'select'" v-model="createForm[field.key]" class="form-select form-select-sm" :required="field.required">
+                        <select v-else-if="field.type === 'select'" :id="`create-${field.key}`" v-model="createForm[field.key]" class="form-select" :class="{ 'is-invalid': createForm.errors[field.key] }" :required="field.required">
                             <option value="">Pilih {{ field.label }}</option>
                             <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
-                        <textarea v-else-if="field.type === 'textarea'" v-model="createForm[field.key]" class="form-control form-control-sm" :required="field.required" rows="2"></textarea>
-                        <input v-else-if="field.type === 'file'" class="form-control form-control-sm" type="file" :required="field.required" @change="onFileChange(field.key, $event)" />
-                        <input v-else v-model="createForm[field.key]" class="form-control form-control-sm" :type="field.type ?? 'text'" :step="field.type === 'number' ? 'any' : undefined" :required="field.required" :placeholder="field.placeholder" />
-                        <div v-if="createForm.errors[field.key]" class="text-danger small mt-1">{{ createForm.errors[field.key] }}</div>
+                        <textarea v-else-if="field.type === 'textarea'" :id="`create-${field.key}`" v-model="createForm[field.key]" class="form-control" :class="{ 'is-invalid': createForm.errors[field.key] }" :required="field.required" rows="2"></textarea>
+                        <input v-else-if="field.type === 'file'" :id="`create-${field.key}`" class="form-control" type="file" :required="field.required" @change="onFileChange(field.key, $event)" />
+                        <input v-else :id="`create-${field.key}`" v-model="createForm[field.key]" class="form-control" :class="{ 'is-invalid': createForm.errors[field.key] }" :type="field.type ?? 'text'" :step="field.type === 'number' ? 'any' : undefined" :required="field.required" :placeholder="field.placeholder" />
+                        <div v-if="createForm.errors[field.key]" class="invalid-feedback d-block" role="alert">{{ createForm.errors[field.key] }}</div>
                     </div>
-                    <div class="col-12 d-flex gap-2 mt-2">
-                        <button class="btn btn-sm btn-primary" type="submit" :disabled="createForm.processing">Simpan</button>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" @click="cancelCreate">Batal</button>
+                    <div class="col-12 d-flex flex-wrap gap-2">
+                        <button class="btn btn-primary" type="submit" :disabled="createForm.processing" :aria-busy="createForm.processing">
+                            <i v-if="createForm.processing" class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
+                            {{ createForm.processing ? 'Menyimpan...' : 'Simpan' }}
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" :disabled="createForm.processing" @click="cancelCreate">Batal</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="card crud-card">
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
+        <AppTableShell :label="props.title">
+                <table class="table table-hover align-middle mb-0">
                     <caption class="visually-hidden">{{ props.title }}</caption>
                     <thead>
                         <tr>
@@ -646,23 +753,8 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                     <template v-else>{{ display(row, column.key) }}</template>
                                 </td>
                                 <td class="text-end crud-actions">
-                                    <div class="d-inline-flex align-items-center gap-1">
-                                        <template v-if="editingId === String(row.id)">
-                                            <button class="btn btn-sm btn-success" type="button" :disabled="editForm.processing" @click="submitEdit">Simpan</button>
-                                            <button class="btn btn-sm btn-outline-secondary" type="button" @click="cancelEdit">Batal</button>
-                                        </template>
-                                        <template v-else>
-                                            <button v-for="action in (rowActions ?? []).filter((item) => rowActionVisible(item, row))" :key="action.label" class="btn btn-sm btn-outline-secondary" type="button" :aria-label="action.label" :title="action.label" @click="runRowAction(action, row)">
-                                                <i class="mdi" :class="action.icon ?? 'mdi-dots-horizontal'"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-primary" type="button" aria-label="Edit data" title="Edit" @click="startEdit(row)">
-                                                <i class="mdi mdi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-outline-danger" type="button" aria-label="Hapus data" title="Hapus" @click="remove(row)">
-                                                <i class="mdi mdi-delete"></i>
-                                            </button>
-                                        </template>
-                                    </div>
+                                    <span v-if="editingId === String(row.id)" class="badge bg-label-primary">Sedang diedit</span>
+                                    <AppRowActions v-else :actions="menuActionsFor(row)" :label="`Aksi untuk ${rowLabel(row)}`" />
                                 </td>
                             </tr>
                             <tr v-if="editingId === String(row.id)">
@@ -694,9 +786,9 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                             <img :src="scannedImageUrl || existingImageUrl || ''" alt="Pratinjau gambar voucher" />
                                         </div>
                                     </div>
-                                    <form class="row g-2 align-items-end" @submit.prevent="submitEdit">
+                                    <form class="row g-3 align-items-end" @submit.prevent="submitEdit">
                                         <div v-for="field in fields" :key="field.key" :class="field.type === 'map' ? 'col-12' : 'col-md-4'">
-                                            <label class="form-label">{{ field.label }}</label>
+                                            <label class="form-label" :class="{ 'is-required': field.required }" :for="`edit-${field.key}`">{{ field.label }}</label>
                                             <LocationPicker
                                                 v-if="field.type === 'map'"
                                                 :latitude="editForm[field.latitudeKey ?? 'lat']"
@@ -705,117 +797,223 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                             />
                                             <SearchableSelect
                                                 v-else-if="field.type === 'multiselect' && (field.options?.length ?? 0) > 8"
+                                                :id="`edit-${field.key}`"
                                                 v-model="editForm[field.key]"
                                                 :options="field.options ?? []"
                                                 :placeholder="`Pilih ${field.label}`"
                                                 :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                                                size="md"
                                                 multiple
                                             />
-                                            <select v-else-if="field.type === 'multiselect'" v-model="editForm[field.key]" class="form-select form-select-sm" multiple>
+                                            <select v-else-if="field.type === 'multiselect'" :id="`edit-${field.key}`" v-model="editForm[field.key]" class="form-select" :class="{ 'is-invalid': editForm.errors[field.key] }" multiple>
                                                 <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                                             </select>
                                             <SearchableSelect
                                                 v-else-if="field.type === 'select' && (field.options?.length ?? 0) > 8"
+                                                :id="`edit-${field.key}`"
                                                 v-model="editForm[field.key]"
                                                 :options="field.options ?? []"
                                                 :placeholder="`Pilih ${field.label}`"
                                                 :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                                                size="md"
                                                 :required="field.required"
                                                 :clearable="!field.required"
                                             />
-                                            <select v-else-if="field.type === 'select'" v-model="editForm[field.key]" class="form-select form-select-sm" :required="field.required">
+                                            <select v-else-if="field.type === 'select'" :id="`edit-${field.key}`" v-model="editForm[field.key]" class="form-select" :class="{ 'is-invalid': editForm.errors[field.key] }" :required="field.required">
                                                 <option value="">Pilih {{ field.label }}</option>
                                                 <option v-for="option in field.options ?? []" :key="option.value" :value="option.value">{{ option.label }}</option>
                                             </select>
-                                            <textarea v-else-if="field.type === 'textarea'" v-model="editForm[field.key]" class="form-control form-control-sm" :required="field.required" rows="2"></textarea>
-                                            <input v-else-if="field.type === 'file'" class="form-control form-control-sm" type="file" @change="onFileChange(field.key, $event)" />
-                                            <input v-else v-model="editForm[field.key]" class="form-control form-control-sm" :type="field.type ?? 'text'" :step="field.type === 'number' ? 'any' : undefined" :required="field.required" />
-                                            <div v-if="editForm.errors[field.key]" class="text-danger small mt-1">{{ editForm.errors[field.key] }}</div>
+                                            <textarea v-else-if="field.type === 'textarea'" :id="`edit-${field.key}`" v-model="editForm[field.key]" class="form-control" :class="{ 'is-invalid': editForm.errors[field.key] }" :required="field.required" rows="2"></textarea>
+                                            <input v-else-if="field.type === 'file'" :id="`edit-${field.key}`" class="form-control" type="file" @change="onFileChange(field.key, $event)" />
+                                            <input v-else :id="`edit-${field.key}`" v-model="editForm[field.key]" class="form-control" :class="{ 'is-invalid': editForm.errors[field.key] }" :type="field.type ?? 'text'" :step="field.type === 'number' ? 'any' : undefined" :required="field.required" />
+                                            <div v-if="editForm.errors[field.key]" class="invalid-feedback d-block" role="alert">{{ editForm.errors[field.key] }}</div>
+                                        </div>
+                                        <div class="col-12 d-flex flex-wrap gap-2 mt-2">
+                                            <button class="btn btn-primary" type="submit" :disabled="editForm.processing" :aria-busy="editForm.processing">
+                                                <i v-if="editForm.processing" class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
+                                                {{ editForm.processing ? 'Menyimpan...' : 'Simpan perubahan' }}
+                                            </button>
+                                            <button class="btn btn-outline-secondary" type="button" :disabled="editForm.processing" @click="cancelEdit">Batal</button>
                                         </div>
                                     </form>
                                 </td>
                             </tr>
                         </template>
                         <tr v-if="items.data.length === 0">
-                            <td :colspan="columns.length + 1" class="crud-empty">
-                                <i class="mdi mdi-database-off-outline d-block mb-2" aria-hidden="true"></i>
-                                <strong class="d-block">Belum ada data.</strong>
-                                <span class="d-block">Tambahkan data baru atau ubah kata kunci pencarian.</span>
+                            <td :colspan="columns.length + 1" class="p-0">
+                                <AppEmptyState
+                                    title="Belum ada data"
+                                    description="Tambahkan data baru atau ubah kata kunci pencarian."
+                                >
+                                    <button class="btn btn-primary" type="button" @click="openCreate">
+                                        <i class="mdi mdi-plus" aria-hidden="true"></i>
+                                        Tambah {{ props.title }}
+                                    </button>
+                                </AppEmptyState>
                             </td>
                         </tr>
                     </tbody>
                 </table>
-            </div>
-            <div class="card-footer d-flex flex-wrap align-items-center justify-content-between gap-2">
-                <small class="text-muted">Menampilkan {{ items.from ?? 0 }} - {{ items.to ?? 0 }} dari {{ items.total }} data</small>
-                <PaginationLinks :links="items.links" />
-            </div>
-        </div>
+                <template #footer>
+                    <small class="text-muted">Menampilkan {{ items.from ?? 0 }} - {{ items.to ?? 0 }} dari {{ items.total }} data</small>
+                    <PaginationLinks :links="items.links" />
+                </template>
+        </AppTableShell>
 
-        <Teleport to="body">
-            <div v-if="actionPrompt?.action.prompt" class="crud-modal-backdrop" @click.self="closeActionPrompt">
-                <div class="crud-modal" role="dialog" aria-modal="true" aria-labelledby="crud-action-title" @keydown.esc="closeActionPrompt">
-                    <header class="crud-modal-header">
-                        <h2 id="crud-action-title">{{ actionPrompt.action.prompt.label }}</h2>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" aria-label="Tutup dialog" @click="closeActionPrompt">
-                            <i class="mdi mdi-close" aria-hidden="true"></i>
-                        </button>
-                    </header>
-                    <div class="crud-modal-body">
-                        <label class="form-label" for="crud-action-value">Nilai</label>
-                        <input
-                            id="crud-action-value"
-                            ref="actionPromptInputRef"
-                            v-model="actionPrompt.value"
-                            class="form-control"
-                            type="number"
-                            :min="actionPrompt.action.prompt.min ?? 1"
-                            :max="actionPrompt.action.prompt.max ?? 100"
-                            step="1"
-                            @keydown.enter.prevent="submitActionPrompt"
-                        />
-                        <div v-if="actionPrompt.error" class="text-danger small mt-2" role="alert">{{ actionPrompt.error }}</div>
-                    </div>
-                    <footer class="crud-modal-footer">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" @click="closeActionPrompt">Batal</button>
-                        <button type="button" class="btn btn-sm btn-primary" @click="submitActionPrompt">Lanjutkan</button>
-                    </footer>
-                </div>
-            </div>
-        </Teleport>
+        <AppDialog
+            :open="actionPromptOpen"
+            :title="actionPrompt?.action.prompt?.label ?? 'Masukkan nilai'"
+            description="Nilai ini dipakai untuk aksi yang dipilih."
+            confirm-label="Lanjutkan"
+            cancel-label="Batal"
+            initial-focus-selector="#crud-action-value"
+            @update:open="closeActionPrompt"
+            @confirm="submitActionPrompt"
+            @cancel="closeActionPrompt"
+        >
+            <label class="form-label" for="crud-action-value">Nilai</label>
+            <input
+                id="crud-action-value"
+                v-model="actionPromptValue"
+                class="form-control"
+                :class="{ 'is-invalid': Boolean(actionPrompt?.error) }"
+                type="number"
+                :min="actionPrompt?.action.prompt?.min ?? 1"
+                :max="actionPrompt?.action.prompt?.max ?? 100"
+                step="1"
+                @keydown.enter.prevent="submitActionPrompt"
+            />
+            <div v-if="actionPrompt?.error" class="invalid-feedback d-block" role="alert">{{ actionPrompt.error }}</div>
+            <p class="form-text mt-2">
+                Rentang nilai {{ actionPrompt?.action.prompt?.min ?? 1 }} sampai {{ actionPrompt?.action.prompt?.max ?? 100 }}.
+            </p>
+        </AppDialog>
+
+        <AppDialog
+            :open="Boolean(deleteTarget)"
+            title="Hapus data?"
+            :description="`Data ${props.title} yang dihapus tidak bisa dikembalikan.`"
+            confirm-label="Hapus data"
+            cancel-label="Batal"
+            variant="danger"
+            :loading="deleting"
+            @update:open="cancelRemove"
+            @confirm="confirmRemove"
+            @cancel="cancelRemove"
+        />
     </div>
 </template>
 
 <style scoped>
-.crud-page { --crud-ink: var(--app-ink); --crud-border: var(--app-border); --crud-muted: var(--app-muted); color: var(--crud-ink); }
-.crud-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--crud-ink); color: #fff; }
-.crud-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.crud-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
-.crud-header p { margin: 0; color: var(--app-hero-muted); }
-.crud-card { border: 1px solid var(--crud-border); border-radius: 0.9rem; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }
-.crud-card th { color: var(--crud-muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
-.crud-actions { white-space: nowrap; }
-.crud-actions .btn { padding: .25rem .4rem; }
-.crud-thumb { width: 52px; height: 52px; border: 1px solid var(--crud-border); border-radius: .45rem; object-fit: cover; background: var(--app-surface-2); }
-.crud-scan { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; padding: .85rem .95rem; border: 1px dashed var(--crud-border); border-radius: .7rem; background: var(--app-surface-2); }
-.crud-scan-copy { flex: 1 1 auto; min-width: 0; }
-.crud-scan-copy strong { display: block; margin-bottom: .2rem; font-size: .86rem; }
-.crud-scan-copy p { margin: 0 0 .6rem; color: var(--crud-muted); font-size: .76rem; line-height: 1.5; }
-.crud-scan-status { margin-top: .5rem; color: var(--crud-muted); font-size: .78rem; }
-.crud-scan-warnings { margin: .5rem 0 0; padding-left: 1.1rem; color: var(--app-warning-ink); font-size: .76rem; }
-.crud-scan-preview { flex: 0 0 auto; }
-.crud-scan-preview img { display: block; width: 132px; max-height: 132px; border: 1px solid var(--crud-border); border-radius: .55rem; object-fit: contain; background: #fff; }
-.crud-edit { background: var(--app-surface-2); }
-.crud-empty { padding: 2.5rem 1rem; color: var(--crud-muted); text-align: center; }
-.crud-filter-select { width: auto; min-width: 140px; }
-.crud-modal-backdrop { position: fixed; inset: 0; z-index: 1080; display: flex; align-items: flex-start; justify-content: center; padding: min(10vh, 4rem) 1rem 1rem; overflow-y: auto; background: rgba(15, 23, 42, 0.64); }
-.crud-modal { width: min(420px, 100%); overflow: hidden; border: 1px solid var(--crud-border); border-radius: 0.9rem; background: var(--app-surface); color: var(--app-ink); box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.3); }
-.crud-modal-header, .crud-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1rem; }
-.crud-modal-header { border-bottom: 1px solid var(--crud-border); }
-.crud-modal-header h2 { margin: 0; font-size: 1rem; }
-.crud-modal-body { padding: 1rem; }
-.crud-modal-footer { justify-content: flex-end; border-top: 1px solid var(--crud-border); background: var(--app-surface-2); }
-.crud-modal .btn { min-height: 44px; }
-@media (max-width: 767.98px) { .crud-header { align-items: flex-start; flex-direction: column; } .crud-scan { flex-direction: column; } }
-@media (max-width: 575.98px) { .crud-filter-select { width: 100%; } .crud-scan-preview img { width: 100%; max-height: 180px; } }
+.crud-page {
+    color: var(--app-ink);
+}
+
+.crud-create {
+    scroll-margin-top: 5rem;
+}
+
+.crud-actions {
+    white-space: nowrap;
+}
+
+.crud-thumb {
+    width: 52px;
+    height: 52px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-sm);
+    background: var(--app-surface-2);
+    object-fit: cover;
+}
+
+.crud-scan {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.85rem 0.95rem;
+    border: 1px dashed var(--app-control-border);
+    border-radius: var(--app-radius-lg);
+    background: var(--app-surface-2);
+}
+
+.crud-scan-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.crud-scan-copy strong {
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: var(--app-text-base);
+}
+
+.crud-scan-copy p {
+    margin: 0 0 0.6rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+    line-height: var(--app-leading-normal);
+}
+
+.crud-scan-status {
+    margin-top: 0.5rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+}
+
+.crud-scan-warnings {
+    margin: 0.5rem 0 0;
+    padding-left: 1.1rem;
+    color: var(--app-warning-ink);
+    font-size: var(--app-text-sm);
+}
+
+.crud-scan-preview {
+    flex: 0 0 auto;
+}
+
+.crud-scan-preview img {
+    display: block;
+    width: 132px;
+    max-height: 132px;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-md);
+    background: var(--app-surface);
+    object-fit: contain;
+}
+
+.crud-edit {
+    padding: 1.1rem 1.25rem;
+    background: var(--app-surface-2);
+}
+
+.crud-filter-field {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.crud-filter-select {
+    width: auto;
+    min-width: 150px;
+}
+
+@media (max-width: 767.98px) {
+    .crud-scan {
+        flex-direction: column;
+    }
+
+    .crud-filter-field,
+    .crud-filter-select {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .crud-scan-preview img {
+        width: 100%;
+        max-height: 180px;
+    }
+}
 </style>

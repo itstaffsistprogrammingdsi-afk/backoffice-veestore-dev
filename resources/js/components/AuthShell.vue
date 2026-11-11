@@ -92,7 +92,7 @@ defineProps<{
     padding: 2rem 1rem;
     background: var(--app-bg);
     color: var(--app-ink);
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-family: var(--app-font-sans);
 }
 
 .auth-panel {
@@ -133,9 +133,9 @@ defineProps<{
 .auth-card {
     padding: 1.75rem;
     border: 1px solid var(--app-border);
-    border-radius: 1rem;
+    border-radius: var(--app-radius-xl);
     background: var(--app-surface);
-    box-shadow: 0 1rem 2rem rgba(25, 44, 62, 0.1);
+    box-shadow: var(--app-shadow-lg);
 }
 
 .auth-card h1 {
