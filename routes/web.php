@@ -152,6 +152,12 @@ Route::get('/', function () {
         : redirect()->route('login');
 })->name('dashboard');
 
+Route::get('/home', function () {
+    return auth()->check()
+        ? redirect()->route('reports.business-overview.index')
+        : redirect()->route('login');
+})->name('home');
+
 /*
 |--------------------------------------------------------------------------
 | AUTH
@@ -634,7 +640,11 @@ Route::middleware('auth')->group(function () {
         Route::get('quality-control', [MonitoringCommandCenterController::class, 'qualityControl'])
             ->name('quality-control.index');
         Route::get('payment-reconciliation', [MonitoringCommandCenterController::class, 'paymentReconciliation'])
+            ->middleware('permission:view monitoring.payment-reconciliation')
             ->name('payment-reconciliation.index');
+        Route::get('payment-reconciliation/export', [MonitoringCommandCenterController::class, 'exportPaymentReconciliation'])
+            ->middleware('permission:view monitoring.payment-reconciliation')
+            ->name('payment-reconciliation.export');
         Route::get('fulfillment-control', [MonitoringCommandCenterController::class, 'fulfillmentControl'])
             ->name('fulfillment-control.index');
 
@@ -701,21 +711,27 @@ Route::middleware('auth')->group(function () {
         ]))->name('promo-acquisition.index');
 
         Route::get('stok-percabang', [StokPercabangController::class, 'index'])
+            ->middleware('permission:view monitoring.stok-percabang')
             ->name('stok-percabang');
 
         Route::get('stok-percabang/export', [StokPercabangController::class, 'export'])
+            ->middleware('permission:view monitoring.stok-percabang')
             ->name('stok-percabang.export');
 
         Route::get('stok-percabang/reservations', [StokPercabangController::class, 'reservationDetails'])
+            ->middleware('permission:view monitoring.stok-percabang')
             ->name('stok-percabang.reservations');
 
         Route::get('stok-wms', [StokWmsController::class, 'index'])
+            ->middleware('permission:view monitoring.stok-wms')
             ->name('stok-wms');
 
         Route::get('stok-wms/export', [StokWmsController::class, 'export'])
+            ->middleware('permission:view monitoring.stok-wms')
             ->name('stok-wms.export');
 
         Route::get('stok-wms/reservations', [StokWmsController::class, 'reservationDetails'])
+            ->middleware('permission:view monitoring.stok-wms')
             ->name('stok-wms.reservations');
 
         Route::get('mutasi-stock-wms', [MutasiStockWmsController::class, 'index'])
@@ -1113,10 +1129,18 @@ Route::middleware('auth')->group(function () {
             ->name('price-margin.index');
 
         Route::get('profit-loss', [ProfitLossController::class, 'index'])
+            ->middleware('permission:view monitoring-omset-kotor')
             ->name('profit-loss.index');
+
+        Route::get('profit-loss/export', [ProfitLossController::class, 'export'])
+            ->middleware('permission:view monitoring-omset-kotor')
+            ->name('profit-loss.export');
 
         Route::get('receivable-payable', [ReceivablePayableController::class, 'index'])
             ->name('receivable-payable.index');
+
+        Route::get('receivable-payable/export', [ReceivablePayableController::class, 'export'])
+            ->name('receivable-payable.export');
         Route::post('receivable-payable', [ReceivablePayableController::class, 'store'])
             ->name('receivable-payable.store');
         Route::patch('receivable-payable/status', [ReceivablePayableController::class, 'updateStatus'])
@@ -1124,8 +1148,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('receivable-payable', [ReceivablePayableController::class, 'destroy'])
             ->name('receivable-payable.destroy');
         Route::post('profit-loss/expenses', [ProfitLossController::class, 'addExpense'])
+            ->middleware('permission:view monitoring-omset-kotor')
             ->name('profit-loss.add-expense');
         Route::delete('profit-loss/expenses', [ProfitLossController::class, 'deleteExpense'])
+            ->middleware('permission:view monitoring-omset-kotor')
             ->name('profit-loss.delete-expense');
 
         Route::get('crm', [CrmController::class, 'index'])->name('crm.index');

@@ -23,7 +23,38 @@ class ReceivablePayableTest extends TestCase
                 ->has('summary')
                 ->has('filters')
                 ->where('canManage', true)
-                ->has('urls'));
+                ->has('today')
+                ->has('urls.export'));
+    }
+
+    public function test_receivable_payable_export_returns_excel_file(): void
+    {
+        $this->actingAs($this->admin())
+            ->get(route('reports.receivable-payable.export'))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    public function test_receivable_payable_due_status_filter_is_applied(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('reports.receivable-payable.store'), [
+                'type' => 'receivable',
+                'party' => 'Customer Overdue',
+                'amount' => 100000,
+                'due_date' => now()->subDay()->toDateString(),
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($this->admin())
+            ->get(route('reports.receivable-payable.index', ['due_status' => 'overdue']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/ReceivablePayable')
+                ->where('filters.due_status', 'overdue')
+                ->has('entries', 1)
+                ->where('summary.overdue_receivable', 100000));
     }
 
     public function test_receivable_entry_can_be_added_marked_paid_and_deleted(): void

@@ -15,6 +15,12 @@ class StokWmsController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'warehouse_id' => ['nullable', 'uuid'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'min' => ['nullable', 'integer', 'min:0'],
+        ]);
+
         $filters = [
             'warehouse_id' => trim((string) $request->input('warehouse_id', '')),
             'q' => trim((string) $request->input('q', '')),
@@ -25,6 +31,8 @@ class StokWmsController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $summary = $this->summary($filters);
+
         $warehouses = DB::table('warehouses')
             ->whereNull('deleted_at')
             ->orderBy('name')
@@ -32,11 +40,13 @@ class StokWmsController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Stok Warehouse',
-            'description' => 'Posisi stok fisik, reservasi aktif, dan stok tersedia per warehouse. Klik angka Qty Reservasi untuk melihat order dan pihak yang menahan stok.',
+            'description' => 'Posisi stok fisik per warehouse. Stok tersedia = Good + Good After Repair - reservasi aktif; barang Bad ditampilkan terpisah dan tidak dihitung tersedia. Hanya status warehouse_stock yang masuk; status warehouse_processing dan in_delivery tidak dialokasikan ke gudang. Klik angka Qty Reservasi untuk melihat order dan pihak yang menahan stok.',
             'data' => [
                 'rows' => $rows,
                 'warehouses' => $warehouses,
                 'filters' => $filters,
+                'summary' => $summary,
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
             ],
             'filters' => request()->query(),
             'urls' => [
@@ -49,6 +59,12 @@ class StokWmsController extends Controller
 
     public function export(Request $request)
     {
+        $request->validate([
+            'warehouse_id' => ['nullable', 'uuid'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'min' => ['nullable', 'integer', 'min:0'],
+        ]);
+
         $filters = [
             'warehouse_id' => trim((string) $request->input('warehouse_id', '')),
             'q' => trim((string) $request->input('q', '')),
@@ -70,6 +86,25 @@ class StokWmsController extends Controller
             new StokWmsExport($rows, $filters),
             $filename
         );
+    }
+
+    private function summary(array $filters): array
+    {
+        $summary = DB::query()
+            ->fromSub($this->buildFilteredQuery($filters), 'stock_summary')
+            ->selectRaw('
+                COALESCE(SUM(qty_real), 0)::int as total_warehouse_stock,
+                COALESCE(SUM(qty_reserved), 0)::int as total_qty_reserved,
+                COALESCE(SUM(qty_available), 0)::int as total_qty_available,
+                COALESCE(SUM(qty_good), 0)::int as total_good,
+                COALESCE(SUM(qty_good_after_repair), 0)::int as total_good_after_repair,
+                COALESCE(SUM(qty_bad), 0)::int as total_bad,
+                COUNT(*)::int as total_rows,
+                COALESCE(SUM(total_qty), 0)::int as total_qty
+            ')
+            ->first();
+
+        return (array) $summary;
     }
 
     private function buildFilteredQuery(array $filters)
@@ -123,7 +158,15 @@ class StokWmsController extends Controller
             ->selectRaw("
                 COUNT(i.id)::int as qty_real,
                 COALESCE(MAX(sr.qty_reserved), 0)::int as qty_reserved,
-                GREATEST(COUNT(i.id) - COALESCE(MAX(sr.qty_reserved), 0), 0)::int as qty_available,
+                GREATEST(
+                    SUM(
+                        CASE
+                            WHEN LOWER(COALESCE(ic.status::text, '')) IN ('good', 'good_after_repair')
+                            THEN 1 ELSE 0
+                        END
+                    ) - COALESCE(MAX(sr.qty_reserved), 0),
+                    0
+                )::int as qty_available,
 
                 SUM(
                     CASE

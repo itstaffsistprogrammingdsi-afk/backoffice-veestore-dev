@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Monitoring;
 
 use App\Domain\WarehouseOperations\Queries\StoreTransferReconciliationQuery;
+use App\Exports\PaymentReconciliationExport;
 use App\Http\Controllers\Controller;
 use App\Support\Navigation;
 use Carbon\Carbon;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MonitoringCommandCenterController extends Controller
 {
@@ -308,7 +310,116 @@ class MonitoringCommandCenterController extends Controller
 
     public function paymentReconciliation(Request $request)
     {
-        $filters = [
+        $filters = $this->paymentReconciliationFilters($request);
+        $baseQuery = $this->paymentReconciliationQuery($filters, $request);
+
+        $summaryQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
+
+        if ($filters['reconciliation_status'] !== '') {
+            $summaryQuery->where('reconciliation_status', $filters['reconciliation_status']);
+        }
+
+        $rowsQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
+
+        if ($filters['reconciliation_status'] !== '') {
+            $rowsQuery->where('reconciliation_status', $filters['reconciliation_status']);
+        }
+
+        $rows = $rowsQuery
+            ->orderByDesc('created_at')
+            ->paginate($filters['per_page'])
+            ->withQueryString();
+
+        $rows->getCollection()->transform(function ($row) {
+            $row->order_url = $row->id ? route('ecommerce.orders.show', $row->id) : null;
+
+            return $row;
+        });
+
+        $summary = [
+            'orders' => (clone $summaryQuery)->count(),
+            'exceptions' => (clone $summaryQuery)
+                ->whereNotIn('reconciliation_status', ['Nominal cocok', 'Order dibatalkan'])
+                ->count(),
+            'cancelled_orders' => (clone $summaryQuery)
+                ->where('reconciliation_status', 'Order dibatalkan')
+                ->count(),
+            'pending_payment' => (clone $summaryQuery)
+                ->where('reconciliation_status', 'Pembayaran belum selesai')
+                ->count(),
+            'without_payment' => (clone $summaryQuery)
+                ->where('reconciliation_status', 'Tanpa pembayaran')
+                ->count(),
+            'detail_mismatch' => (clone $summaryQuery)
+                ->whereNotIn('reconciliation_status', ['Order dibatalkan'])
+                ->whereRaw('ABS(COALESCE(detail_success_amount, 0) - COALESCE(total_amount, 0)) > 0.01')
+                ->count(),
+            'total_value' => (float) (clone $summaryQuery)->sum('grand_total'),
+            'total_paid_amount' => (float) (clone $summaryQuery)->sum('detail_success_amount'),
+        ];
+
+        $orderStatuses = DB::table('ecommerce_orders')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
+
+        $paymentStatuses = DB::table('payments')
+            ->selectRaw('DISTINCT status::text as status')
+            ->whereNotNull('status')
+            ->orderBy('status')
+            ->pluck('status');
+
+        return Inertia::render('Monitoring/Report', [
+            'title' => 'Rekonsiliasi Pembayaran',
+            'description' => 'Basis tanggal: tanggal order. Nilai order dibandingkan dengan total_amount pembayaran; jumlah payment_details sukses ditampilkan terpisah. Order dibatalkan dipisahkan dari anomali pembayaran.',
+            'data' => compact(
+                'rows',
+                'summary',
+                'filters',
+                'orderStatuses',
+                'paymentStatuses'
+            ) + [
+                'reconciliationStatuses' => [
+                    'Nominal cocok',
+                    'Order dibatalkan',
+                    'Tanpa pembayaran',
+                    'Referensi pembayaran hilang',
+                    'Nominal berbeda',
+                    'Detail pembayaran berbeda',
+                    'Pembayaran belum selesai',
+                ],
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
+            'filters' => request()->query(),
+            'urls' => [
+                'index' => url()->current(),
+                'export' => route('monitoring.payment-reconciliation.export'),
+            ],
+        ]);
+    }
+
+    public function exportPaymentReconciliation(Request $request)
+    {
+        $filters = $this->paymentReconciliationFilters($request);
+        $baseQuery = $this->paymentReconciliationQuery($filters, $request);
+        $rowsQuery = DB::query()->fromSub($baseQuery, 'reconciliation');
+
+        if ($filters['reconciliation_status'] !== '') {
+            $rowsQuery->where('reconciliation_status', $filters['reconciliation_status']);
+        }
+
+        $rows = $rowsQuery->orderByDesc('created_at')->get();
+
+        return Excel::download(
+            new PaymentReconciliationExport($rows),
+            'rekonsiliasi-pembayaran-'.now()->format('Ymd_His').'.xlsx'
+        );
+    }
+
+    private function paymentReconciliationFilters(Request $request): array
+    {
+        return [
             'q' => trim((string) $request->query('q', '')),
             'order_status' => trim((string) $request->query('order_status', '')),
             'payment_status' => trim((string) $request->query('payment_status', '')),
@@ -318,21 +429,39 @@ class MonitoringCommandCenterController extends Controller
             'end_date' => $this->normalizeDate($request->query('end_date')),
             'per_page' => $this->normalizePerPage($request->query('per_page'), 20),
         ];
+    }
+
+    private function paymentReconciliationQuery(array $filters, Request $request)
+    {
+        $paymentDetails = DB::table('payment_details')
+            ->selectRaw("
+                payment_id,
+                COUNT(*)::int as detail_count,
+                COALESCE(SUM(amount) FILTER (WHERE status::text = 'success'), 0)::numeric(18,2) as detail_success_amount
+            ")
+            ->groupBy('payment_id');
 
         $baseQuery = DB::table('ecommerce_orders as eo')
             ->leftJoin('payments as p', 'p.id', '=', 'eo.payment_id')
+            ->leftJoinSub($paymentDetails, 'pd', 'pd.payment_id', '=', 'p.id')
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->select([
                 'eo.id', 'eo.order_number', 'eo.status as order_status', 'eo.grand_total',
                 'eo.payment_id', 'eo.payment_method_name', 'eo.created_at', 'c.name as customer_name',
                 'p.id as payment_record_id', 'p.transaction_number', 'p.status as payment_status',
-                'p.paid_amount', 'p.total_amount', 'p.completed_at',
+                'p.paid_amount as paid_amount_legacy', 'p.total_amount', 'p.completed_at',
+                DB::raw('COALESCE(pd.detail_count, 0) as detail_count'),
+                DB::raw('COALESCE(pd.detail_success_amount, 0) as detail_success_amount'),
                 DB::raw("CASE
+                    WHEN LOWER(COALESCE(eo.status::text, '')) = 'cancelled' THEN 'Order dibatalkan'
                     WHEN eo.payment_id IS NULL THEN 'Tanpa pembayaran'
                     WHEN p.id IS NULL THEN 'Referensi pembayaran hilang'
                     WHEN ABS(COALESCE(p.total_amount, 0) - COALESCE(eo.grand_total, 0)) > 0.01 THEN 'Nominal berbeda'
+                    WHEN COALESCE(pd.detail_count, 0) > 0
+                        AND ABS(COALESCE(pd.detail_success_amount, 0) - COALESCE(p.total_amount, 0)) > 0.01
+                        THEN 'Detail pembayaran berbeda'
                     WHEN p.status::text NOT IN ('paid','completed','success') THEN 'Pembayaran belum selesai'
-                    ELSE 'Sesuai'
+                    ELSE 'Nominal cocok'
                 END AS reconciliation_status"),
             ]);
 
@@ -355,74 +484,17 @@ class MonitoringCommandCenterController extends Controller
         }
 
         if ($filters['exception_only']) {
-            $baseQuery->where(function ($q) {
-                $q->whereNull('eo.payment_id')
-                    ->orWhereNull('p.id')
-                    ->orWhereRaw('ABS(COALESCE(p.total_amount, 0) - COALESCE(eo.grand_total, 0)) > 0.01')
-                    ->orWhereRaw("p.status::text NOT IN ('paid','completed','success')");
-            });
+            $baseQuery->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
+                ->where(function ($query) {
+                    $query->whereNull('eo.payment_id')
+                        ->orWhereNull('p.id')
+                        ->orWhereRaw('ABS(COALESCE(p.total_amount, 0) - COALESCE(eo.grand_total, 0)) > 0.01')
+                        ->orWhereRaw('COALESCE(pd.detail_count, 0) > 0 AND ABS(COALESCE(pd.detail_success_amount, 0) - COALESCE(p.total_amount, 0)) > 0.01')
+                        ->orWhereRaw("p.status::text NOT IN ('paid','completed','success')");
+                });
         }
 
-        $summaryQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
-
-        if ($filters['reconciliation_status'] !== '') {
-            $summaryQuery->where('reconciliation_status', $filters['reconciliation_status']);
-        }
-
-        $rowsQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
-
-        if ($filters['reconciliation_status'] !== '') {
-            $rowsQuery->where('reconciliation_status', $filters['reconciliation_status']);
-        }
-
-        $rows = $rowsQuery
-            ->orderByDesc('created_at')
-            ->paginate($filters['per_page'])
-            ->withQueryString();
-
-        $summary = [
-            'orders' => (clone $summaryQuery)->count(),
-            'exceptions' => (clone $summaryQuery)->where('reconciliation_status', '!=', 'Sesuai')->count(),
-            'without_payment' => (clone $summaryQuery)->whereNull('payment_id')->count(),
-            'pending_payment' => (clone $summaryQuery)
-                ->whereNotNull('payment_record_id')
-                ->whereRaw("COALESCE(payment_status::text, '') NOT IN ('paid','completed','success')")
-                ->count(),
-        ];
-
-        $orderStatuses = DB::table('ecommerce_orders')
-            ->selectRaw('DISTINCT status::text as status')
-            ->whereNotNull('status')
-            ->orderBy('status')
-            ->pluck('status');
-
-        $paymentStatuses = DB::table('payments')
-            ->selectRaw('DISTINCT status::text as status')
-            ->whereNotNull('status')
-            ->orderBy('status')
-            ->pluck('status');
-
-        return Inertia::render('Monitoring/Report', [
-            'title' => 'Operations Payment Reconciliation',
-            'description' => 'Cocokkan nilai order dengan pembayaran dan temukan selisih.',
-            'data' => compact(
-                'rows',
-                'summary',
-                'filters',
-                'orderStatuses',
-                'paymentStatuses'
-            ) + [
-                'reconciliationStatuses' => [
-                    'Sesuai',
-                    'Tanpa pembayaran',
-                    'Referensi pembayaran hilang',
-                    'Nominal berbeda',
-                    'Pembayaran belum selesai',
-                ],
-            ],
-            'filters' => request()->query(),
-            'urls' => ['index' => url()->current()],
-        ]);
+        return $baseQuery;
     }
 
     public function fulfillmentControl(Request $request)

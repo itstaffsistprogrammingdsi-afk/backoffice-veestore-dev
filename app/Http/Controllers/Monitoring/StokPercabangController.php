@@ -16,6 +16,12 @@ class StokPercabangController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'store_id' => ['nullable', 'uuid'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'min' => ['nullable', 'integer', 'min:0'],
+        ]);
+
         $filters = [
             'store_id' => trim((string) $request->input('store_id', '')),
             'q' => trim((string) $request->input('q', '')),
@@ -26,6 +32,8 @@ class StokPercabangController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $summary = $this->summary($filters);
+
         $stores = Store::query()
             ->whereNull('deleted_at')
             ->orderBy('name')
@@ -33,11 +41,13 @@ class StokPercabangController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Stok per Cabang',
-            'description' => 'Posisi stok fisik, reservasi aktif, dan stok tersedia per cabang. Klik angka Qty Reservasi untuk melihat order dan pihak yang menahan stok.',
+            'description' => 'Posisi stok fisik per cabang. Stok tersedia = Good + Good After Repair - reservasi aktif; barang Bad ditampilkan terpisah dan tidak dihitung tersedia. Hanya status store_stock dan store_display yang masuk. Klik angka Qty Reservasi untuk melihat order dan pihak yang menahan stok.',
             'data' => [
                 'rows' => $rows,
                 'stores' => $stores,
                 'filters' => $filters,
+                'summary' => $summary,
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
             ],
             'filters' => request()->query(),
             'urls' => [
@@ -50,6 +60,12 @@ class StokPercabangController extends Controller
 
     public function export(Request $request)
     {
+        $request->validate([
+            'store_id' => ['nullable', 'uuid'],
+            'q' => ['nullable', 'string', 'max:100'],
+            'min' => ['nullable', 'integer', 'min:0'],
+        ]);
+
         $filters = [
             'store_id' => trim((string) $request->input('store_id', '')),
             'q' => trim((string) $request->input('q', '')),
@@ -76,6 +92,27 @@ class StokPercabangController extends Controller
             new StokPercabangExport($rows, $filters),
             $filename
         );
+    }
+
+    private function summary(array $filters): array
+    {
+        $summary = DB::query()
+            ->fromSub($this->buildFilteredQuery($filters), 'stock_summary')
+            ->selectRaw('
+                COALESCE(SUM(qty_real), 0)::int as total_qty_real,
+                COALESCE(SUM(qty_reserved), 0)::int as total_qty_reserved,
+                COALESCE(SUM(qty_available), 0)::int as total_qty_available,
+                COALESCE(SUM(qty_good), 0)::int as total_good,
+                COALESCE(SUM(qty_good_after_repair), 0)::int as total_good_after_repair,
+                COALESCE(SUM(qty_bad), 0)::int as total_bad,
+                COALESCE(SUM(qty_store), 0)::int as total_store_stock,
+                COALESCE(SUM(qty_display), 0)::int as total_store_display,
+                COUNT(*)::int as total_rows,
+                COALESCE(SUM(total_qty), 0)::int as total_qty
+            ')
+            ->first();
+
+        return (array) $summary;
     }
 
     private function buildFilteredQuery(array $filters)
@@ -133,7 +170,15 @@ class StokPercabangController extends Controller
 
                 COUNT(i.id)::int as qty_real,
                 COALESCE(MAX(sr.qty_reserved), 0)::int as qty_reserved,
-                GREATEST(COUNT(i.id) - COALESCE(MAX(sr.qty_reserved), 0), 0)::int as qty_available,
+                GREATEST(
+                    SUM(
+                        CASE
+                            WHEN LOWER(COALESCE(c.status::text, '')) IN ('good', 'good_after_repair')
+                            THEN 1 ELSE 0
+                        END
+                    ) - COALESCE(MAX(sr.qty_reserved), 0),
+                    0
+                )::int as qty_available,
 
                 SUM(
                     CASE

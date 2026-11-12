@@ -48,8 +48,8 @@ class OmsetKotorSalesExport implements FromCollection, ShouldAutoSize, WithHeadi
             'Voucher / Point / Order Discount',
             'Total Potongan',
             'Harga Akhir / Omset Bersih',
-            'Laba Kotor (Omset Bersih - Harga Dasar)',
-            'Margin Kotor (%)',
+            'Selisih Kotor (Omset Bersih - Harga Dasar)',
+            'Margin Estimasi (%)',
         ];
     }
 

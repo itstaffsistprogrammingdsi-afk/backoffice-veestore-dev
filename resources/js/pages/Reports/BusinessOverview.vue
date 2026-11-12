@@ -294,7 +294,7 @@ const salesCards = computed(() => [
     {
         label: 'Penjualan Lunas',
         value: formatCurrency(props.sales.summary.revenue),
-        hint: 'Pembayaran POS + Ecommerce',
+        hint: 'Pembayaran POS + Ecommerce, termasuk ongkir',
         icon: 'mdi-cash-multiple',
         tone: 'accent',
     },

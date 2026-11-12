@@ -26,16 +26,21 @@ interface Props {
         total_payable: number;
         overdue_amount: number;
         overdue_count: number;
+        overdue_receivable: number;
+        overdue_payable: number;
         paid_count: number;
     };
     filters: {
         q: string;
         type: string;
         status: string;
+        due_status: string;
     };
+    today: string;
     canManage: boolean;
     urls: {
         index: string;
+        export: string;
         store: string;
         status: string;
         destroy: string;
@@ -50,6 +55,7 @@ const filters = reactive({
     q: props.filters.q ?? '',
     type: props.filters.type ?? '',
     status: props.filters.status ?? '',
+    due_status: props.filters.due_status ?? '',
 });
 
 const form = useForm({
@@ -61,10 +67,33 @@ const form = useForm({
     notes: '',
 });
 
+const exportUrl = computed(() => {
+    const params = new URLSearchParams();
+    const entries: Array<[string, string]> = [
+        ['q', filters.q],
+        ['type', filters.type],
+        ['status', filters.status],
+        ['due_status', filters.due_status],
+    ];
+
+    for (const [key, value] of entries) {
+        if (value.trim() !== '') params.set(key, value);
+    }
+
+    const query = params.toString();
+
+    return query ? `${props.urls.export}?${query}` : props.urls.export;
+});
+
 const summaryCards = computed(() => [
     { label: 'Piutang Terbuka', value: formatCurrency(props.summary.total_receivable), tone: 'is-info' },
     { label: 'Hutang Terbuka', value: formatCurrency(props.summary.total_payable), tone: 'is-warning' },
-    { label: 'Jatuh Tempo', value: formatCurrency(props.summary.overdue_amount), tone: 'is-danger', note: `${props.summary.overdue_count} catatan` },
+    {
+        label: 'Jatuh Tempo',
+        value: formatCurrency(props.summary.overdue_amount),
+        tone: 'is-danger',
+        note: `${props.summary.overdue_count} catatan: piutang ${formatCurrency(props.summary.overdue_receivable)}, hutang ${formatCurrency(props.summary.overdue_payable)}`,
+    },
     { label: 'Sudah Lunas', value: `${props.summary.paid_count} catatan`, tone: 'is-success' },
 ]);
 
@@ -73,6 +102,7 @@ const applyFilters = () => {
         q: filters.q || undefined,
         type: filters.type || undefined,
         status: filters.status || undefined,
+        due_status: filters.due_status || undefined,
     }, {
         preserveState: true,
         preserveScroll: true,
@@ -84,6 +114,7 @@ const resetFilters = () => {
     filters.q = '';
     filters.type = '';
     filters.status = '';
+    filters.due_status = '';
     applyFilters();
 };
 
@@ -116,7 +147,7 @@ const removeEntry = (entry: Entry) => {
 
 const isOverdue = (entry: Entry) => entry.status === 'open'
     && entry.due_date !== null
-    && entry.due_date < new Date().toISOString().slice(0, 10);
+    && entry.due_date < props.today;
 
 const typeLabel = (type: string) => type === 'receivable' ? 'Piutang' : 'Hutang';
 
@@ -145,15 +176,19 @@ const formatDate = (value: string | null) => {
 </script>
 
 <template>
-    <Head title="Piutang & Hutang" />
+    <Head title="Catatan Piutang & Hutang" />
 
     <div class="rp-page">
         <header class="rp-header">
             <div>
                 <span class="rp-eyebrow">Reports / Penjualan</span>
-                <h1>Piutang & Hutang</h1>
+                <h1>Catatan Piutang & Hutang</h1>
                 <p>Pencatatan manual piutang dan hutang beserta jatuh tempo dan status pelunasan.</p>
             </div>
+            <a class="btn btn-sm btn-light" :href="exportUrl">
+                <i class="mdi mdi-file-excel-outline me-1" aria-hidden="true"></i>
+                Ekspor
+            </a>
         </header>
 
         <div v-if="flash.success" class="alert alert-success py-2 small" role="status">{{ flash.success }}</div>
@@ -222,11 +257,11 @@ const formatDate = (value: string | null) => {
             </div>
 
             <form class="row g-2 align-items-end mb-3" @submit.prevent="applyFilters">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="rp-search" class="form-label">Pencarian</label>
                     <input id="rp-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama pihak, referensi, catatan..." />
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="rp-filter-type" class="form-label">Jenis</label>
                     <select id="rp-filter-type" v-model="filters.type" class="form-select form-select-sm">
                         <option value="">Semua jenis</option>
@@ -234,12 +269,21 @@ const formatDate = (value: string | null) => {
                         <option value="payable">Hutang</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="rp-filter-status" class="form-label">Status</label>
                     <select id="rp-filter-status" v-model="filters.status" class="form-select form-select-sm">
                         <option value="">Semua status</option>
                         <option value="open">Terbuka</option>
                         <option value="paid">Lunas</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="rp-filter-due" class="form-label">Jatuh Tempo</label>
+                    <select id="rp-filter-due" v-model="filters.due_status" class="form-select form-select-sm">
+                        <option value="">Semua jatuh tempo</option>
+                        <option value="overdue">Sudah jatuh tempo</option>
+                        <option value="due_7">Jatuh tempo 7 hari</option>
+                        <option value="no_due_date">Tanpa tanggal</option>
                     </select>
                 </div>
                 <div class="col-md-2 d-flex gap-2">
@@ -302,7 +346,7 @@ const formatDate = (value: string | null) => {
 
 <style scoped>
 .rp-page { color: var(--app-ink); }
-.rp-header { padding: 1.4rem; margin-bottom: 1rem; border-radius: 0.9rem; background: var(--app-hero-bg); color: var(--app-hero-text); }
+.rp-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; padding: 1.4rem; margin-bottom: 1rem; border-radius: 0.9rem; background: var(--app-hero-bg); color: var(--app-hero-text); }
 .rp-eyebrow { display: inline-block; margin-bottom: 0.35rem; color: var(--app-hero-eyebrow); font-size: 0.7rem; font-weight: 700; }
 .rp-header h1 { margin: 0 0 0.35rem; font-size: clamp(1.3rem, 2vw, 1.6rem); }
 .rp-header p { margin: 0; color: var(--app-hero-muted); font-size: 0.86rem; }

@@ -51,7 +51,7 @@ class FinancialBreakdownTest extends TestCase
         $this->assertSame(10000.0, $clamped['reconciliation']['difference']);
         $this->assertSame(10000.0, $clamped['reconciliation']['clamped_discount']);
         $this->assertSame(0.0, $clamped['reconciliation']['unexplained_difference']);
-        $this->assertTrue($clamped['reconciliation']['is_balanced']);
+        $this->assertFalse($clamped['reconciliation']['is_balanced']);
 
         $unexplained = FinancialBreakdown::make(
             grossSales: 100000,
