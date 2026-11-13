@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { formatDate, formatNumber } from '@/composables/useFormatters';
+import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
 import type { StoreTransferReconciliation } from '@/types/storeTransfer';
 
 defineOptions({ layout: AppLayout });
@@ -16,12 +16,62 @@ interface MonitoringGroup {
     items: MonitoringItem[];
 }
 
+interface OperationalSummary {
+    generated_at: string;
+    today: string;
+    window: { from: string; to: string };
+    sales: {
+        gross_revenue: number;
+        net_revenue: number;
+        revenue: number;
+        transactions: number;
+        buyers: number;
+    };
+    orders: {
+        ecommerce_open: number;
+        ecommerce_need_attention: number;
+        ecommerce_pending_payment: number;
+        store_order_open: number;
+        return_open: number;
+    };
+    inventory: {
+        low_stock_alerts: number;
+        expiring_90_units: number;
+        expired_units: number;
+    };
+    queues: {
+        warehouse_outbound_unreleased: number;
+        store_inbound_pending_qc: number;
+        store_inbound_partial_qc: number;
+        store_transfer_not_recorded: number;
+    };
+    payments: {
+        orders: number;
+        matched: number;
+        exceptions: number;
+        pending_payment: number;
+        without_payment: number;
+        detail_mismatch: number;
+    };
+}
+
+interface SummaryUrls {
+    payments: string;
+    fulfillment: string;
+    warehouse_outbound: string;
+    store_inbound: string;
+    store_orders: string;
+    stock_store: string;
+}
+
 const props = defineProps<{
     monitoringGroups: MonitoringGroup[];
     reportGroups: MonitoringGroup[];
     overviewUrl: string;
     storeTransferReconciliation: StoreTransferReconciliation;
     storeTransferReportUrl: string;
+    operationalSummary: OperationalSummary;
+    summaryUrls: SummaryUrls;
 }>();
 
 const search = ref('');
@@ -67,16 +117,69 @@ const filteredGroups = computed(() => {
 
 const totalItems = computed(() => inventoryGroups.value.reduce((total, group) => total + group.items.length, 0));
 const visibleItems = computed(() => filteredGroups.value.reduce((total, group) => total + group.items.length, 0));
+
+const windowLabel = computed(
+    () => `${formatDate(props.operationalSummary.window.from)} – ${formatDate(props.operationalSummary.window.to)}`,
+);
+
+const followUps = computed(() => {
+    const { payments, orders, inventory, queues } = props.operationalSummary;
+
+    return [
+        {
+            label: 'Pembayaran perlu dicek',
+            value: payments.exceptions,
+            hint: 'Rekonsiliasi e-commerce',
+            tone: payments.exceptions > 0 ? 'danger' : 'neutral',
+            url: props.summaryUrls.payments,
+        },
+        {
+            label: 'Pesanan lewat 24 jam',
+            value: orders.ecommerce_need_attention,
+            hint: 'Belum selesai diproses',
+            tone: orders.ecommerce_need_attention > 0 ? 'warning' : 'neutral',
+            url: props.summaryUrls.fulfillment,
+        },
+        {
+            label: 'Inbound cabang belum QC',
+            value: queues.store_inbound_pending_qc,
+            hint: 'Menunggu pemeriksaan',
+            tone: queues.store_inbound_pending_qc > 0 ? 'warning' : 'neutral',
+            url: props.summaryUrls.store_inbound,
+        },
+        {
+            label: 'Outbound gudang belum dirilis',
+            value: queues.warehouse_outbound_unreleased,
+            hint: 'Belum keluar dari gudang',
+            tone: queues.warehouse_outbound_unreleased > 0 ? 'warning' : 'neutral',
+            url: props.summaryUrls.warehouse_outbound,
+        },
+        {
+            label: 'Permintaan store',
+            value: orders.store_order_open,
+            hint: 'Belum selesai',
+            tone: orders.store_order_open > 0 ? 'warning' : 'neutral',
+            url: props.summaryUrls.store_orders,
+        },
+        {
+            label: 'Stok menipis',
+            value: inventory.low_stock_alerts,
+            hint: 'Produk-lokasi di bawah batas',
+            tone: inventory.low_stock_alerts > 0 ? 'warning' : 'neutral',
+            url: props.summaryUrls.stock_store,
+        },
+    ];
+});
 </script>
 
 <template>
-    <Head title="Monitoring" />
+    <Head title="Pusat Komando" />
     <div class="monitoring-page">
         <header class="monitoring-header">
             <div class="monitoring-header-copy">
-                <span class="monitoring-eyebrow">Laporan</span>
-                <h1>Monitoring Command Center</h1>
-                <p>Akses seluruh menu monitoring dan laporan dari satu tempat.</p>
+                <span class="monitoring-eyebrow">Laporan / Monitoring</span>
+                <h1>Pusat Komando</h1>
+                <p>Pantau penjualan, antrean, dan pembayaran yang perlu ditindaklanjuti, lalu buka laporan terkait.</p>
             </div>
 
             <div class="monitoring-header-tools">
@@ -107,6 +210,65 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
                 </div>
             </div>
         </header>
+
+        <section class="monitoring-summary" aria-labelledby="monitoring-summary-title">
+            <div class="monitoring-summary-head">
+                <div>
+                    <span class="monitoring-summary-kicker">Ringkasan Operasional</span>
+                    <h2 id="monitoring-summary-title">Hari ini dan antrean berjalan</h2>
+                    <p>Penjualan hari ini; pesanan dan pembayaran {{ windowLabel }}; stok adalah posisi saat ini.</p>
+                </div>
+                <span class="monitoring-summary-meta">Dihitung {{ formatDate(props.operationalSummary.generated_at, true) }}</span>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-xl-3">
+                    <article class="monitoring-kpi">
+                        <span class="monitoring-kpi-label">Omset bersih hari ini</span>
+                        <strong class="monitoring-kpi-value">{{ formatCurrency(props.operationalSummary.sales.net_revenue) }}</strong>
+                        <small>{{ formatNumber(props.operationalSummary.sales.transactions) }} transaksi · {{ formatNumber(props.operationalSummary.sales.buyers) }} pembeli teridentifikasi</small>
+                    </article>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <article class="monitoring-kpi">
+                        <span class="monitoring-kpi-label">Omset kotor hari ini</span>
+                        <strong class="monitoring-kpi-value">{{ formatCurrency(props.operationalSummary.sales.gross_revenue) }}</strong>
+                        <small>Sebelum diskon dan voucher</small>
+                    </article>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <article class="monitoring-kpi">
+                        <span class="monitoring-kpi-label">Pesanan e-commerce terbuka</span>
+                        <strong class="monitoring-kpi-value">{{ formatNumber(props.operationalSummary.orders.ecommerce_open) }}</strong>
+                        <small>{{ formatNumber(props.operationalSummary.orders.ecommerce_need_attention) }} lewat 24 jam</small>
+                    </article>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <article class="monitoring-kpi">
+                        <span class="monitoring-kpi-label">Pembayaran perlu dicek</span>
+                        <strong class="monitoring-kpi-value">{{ formatNumber(props.operationalSummary.payments.exceptions) }}</strong>
+                        <small>{{ formatNumber(props.operationalSummary.payments.pending_payment) }} belum selesai</small>
+                    </article>
+                </div>
+            </div>
+
+            <div class="monitoring-followup">
+                <h3>Tindak lanjut</h3>
+                <div class="monitoring-followup-grid">
+                    <Link
+                        v-for="item in followUps"
+                        :key="item.label"
+                        :href="item.url"
+                        class="monitoring-followup-item"
+                        :class="`is-${item.tone}`"
+                    >
+                        <span class="monitoring-followup-label">{{ item.label }}</span>
+                        <strong>{{ formatNumber(item.value) }}</strong>
+                        <small>{{ item.hint }}</small>
+                    </Link>
+                </div>
+            </div>
+        </section>
 
         <section
             v-if="props.storeTransferReconciliation.summary.unresolved_count > 0"
@@ -241,6 +403,25 @@ const visibleItems = computed(() => filteredGroups.value.reduce((total, group) =
 .monitoring-search-clear { position: absolute; top: 50%; right: 0.45rem; display: grid; place-items: center; width: 2rem; height: 2rem; transform: translateY(-50%); border: 0; border-radius: 0.4rem; background: transparent; color: var(--app-accent-ink); }
 .monitoring-search-clear:hover { background: var(--app-accent-soft); color: var(--app-accent-strong); }
 .monitoring-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 1rem; color: var(--app-muted); font-size: 0.8rem; }
+.monitoring-summary { padding: 1.1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-xl); background: var(--app-surface); }
+.monitoring-summary-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 0.9rem; }
+.monitoring-summary-kicker { display: inline-block; margin-bottom: 0.2rem; color: var(--app-accent-ink); font-size: var(--app-text-2xs); font-weight: var(--app-weight-black); letter-spacing: 0.01em; text-transform: uppercase; }
+.monitoring-summary-head h2 { margin: 0 0 0.15rem; font-size: var(--app-text-lg); }
+.monitoring-summary-head p { margin: 0; color: var(--app-muted); font-size: var(--app-text-sm); }
+.monitoring-summary-meta { color: var(--app-muted); font-size: var(--app-text-2xs); font-variant-numeric: tabular-nums; }
+.monitoring-kpi { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0.85rem 0.9rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-2); }
+.monitoring-kpi-label { color: var(--app-muted); font-size: var(--app-text-2xs); font-weight: var(--app-weight-bold); letter-spacing: 0.01em; text-transform: uppercase; }
+.monitoring-kpi-value { display: block; margin: 0.15rem 0; font-size: var(--app-text-xl); font-weight: var(--app-weight-black); font-variant-numeric: tabular-nums; line-height: 1.25; overflow-wrap: anywhere; }
+.monitoring-kpi small { color: var(--app-muted); font-size: var(--app-text-xs); }
+.monitoring-followup h3 { margin: 0 0 0.5rem; font-size: var(--app-text-base); }
+.monitoring-followup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.5rem; }
+.monitoring-followup-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.5rem; padding: 0.6rem 0.7rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-2); color: var(--app-ink); text-decoration: none; }
+.monitoring-followup-item:hover { background: var(--app-accent-soft); }
+.monitoring-followup-label { font-size: var(--app-text-sm); }
+.monitoring-followup-item strong { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: var(--app-text-lg); font-variant-numeric: tabular-nums; }
+.monitoring-followup-item small { color: var(--app-muted); font-size: var(--app-text-2xs); }
+.monitoring-followup-item.is-danger strong { color: var(--app-danger-ink); }
+.monitoring-followup-item.is-warning strong { color: var(--app-warning-ink); }
 .monitoring-transfer-alert { margin-bottom: 1rem; overflow: hidden; border: 1px solid color-mix(in srgb, var(--app-warning-ink) 28%, var(--app-border)); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .monitoring-transfer-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 1rem 1.1rem; background: var(--app-warning-bg); }
 .monitoring-transfer-icon { display: grid; flex: 0 0 auto; place-items: center; width: 2.4rem; height: 2.4rem; border-radius: 0.65rem; background: var(--app-surface); color: var(--app-warning-ink); font-size: 1.3rem; }

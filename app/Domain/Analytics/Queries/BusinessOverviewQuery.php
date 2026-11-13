@@ -2,6 +2,7 @@
 
 namespace App\Domain\Analytics\Queries;
 
+use App\Domain\Payments\Queries\PaymentReconciliationQuery;
 use App\Domain\StoreOperations\Support\SaleConditionMetrics;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
@@ -9,7 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 class BusinessOverviewQuery
 {
-    private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'last_month', 'custom'];
+    private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'last_month', 'last_year', 'custom'];
+
+    public function __construct(private readonly PaymentReconciliationQuery $paymentReconciliation) {}
 
     private const ECOMMERCE_STATUS_LABELS = [
         'pending' => 'Menunggu pembayaran',
@@ -60,6 +63,18 @@ class BusinessOverviewQuery
             'customers' => $this->customers($filters),
             'orders' => $this->orders($filters),
             'inventory' => $this->inventory($filters),
+        ];
+    }
+
+    public function paymentsSnapshot(array $input): array
+    {
+        return $this->payments($this->normalizeFilters($input));
+    }
+
+    public function salesHeadline(array $input): array
+    {
+        return [
+            'summary' => $this->salesSummary($this->normalizeFilters($input))['summary'],
         ];
     }
 
@@ -228,6 +243,10 @@ class BusinessOverviewQuery
                 $now->subMonthNoOverflow()->startOfMonth()->toDateString(),
                 $now->subMonthNoOverflow()->endOfMonth()->toDateString(),
             ],
+            'last_year' => [
+                $now->subYearNoOverflow()->startOfYear()->toDateString(),
+                $now->subYearNoOverflow()->endOfYear()->toDateString(),
+            ],
             default => [
                 $now->startOfMonth()->toDateString(),
                 $now->endOfMonth()->toDateString(),
@@ -247,6 +266,126 @@ class BusinessOverviewQuery
     }
 
     private function sales(array $filters): array
+    {
+        $grossTrend = $this->grossSalesQuery($filters)
+            ->selectRaw('
+                sold_at::date AS date,
+                COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
+                COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue
+            ')
+            ->groupByRaw('sold_at::date')
+            ->get()
+            ->keyBy(fn ($row) => (string) $row->date);
+
+        $trend = $this->salesQuery($filters)
+            ->selectRaw('sold_at::date AS date, COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue, COUNT(*)::int AS transactions')
+            ->groupByRaw('sold_at::date')
+            ->orderByRaw('sold_at::date')
+            ->get()
+            ->map(function ($row) use ($grossTrend) {
+                $gross = $grossTrend->get((string) $row->date);
+
+                return [
+                    'date' => (string) $row->date,
+                    'label' => CarbonImmutable::parse($row->date)->format('d M'),
+                    'revenue' => (float) $row->revenue,
+                    'gross_revenue' => (float) ($gross->gross_revenue ?? 0),
+                    'net_revenue' => (float) ($gross->net_revenue ?? 0),
+                    'transactions' => (int) $row->transactions,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $stores = $this->grossSalesQuery($filters)
+            ->selectRaw('
+                store_id,
+                store_name,
+                COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
+                COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue,
+                COUNT(DISTINCT transaction_id)::int AS transactions,
+                COUNT(DISTINCT customer_id)::int AS buyers
+            ')
+            ->groupBy('store_id', 'store_name')
+            ->orderByDesc(DB::raw('SUM(net_amount)'))
+            ->limit(10)
+            ->get()
+            ->map(fn ($row) => [
+                'store_id' => $row->store_id,
+                'store_name' => $row->store_name,
+                'gross_revenue' => (float) $row->gross_revenue,
+                'net_revenue' => (float) $row->net_revenue,
+                'revenue' => (float) $row->net_revenue,
+                'transactions' => (int) $row->transactions,
+                'buyers' => (int) $row->buyers,
+            ])
+            ->values()
+            ->all();
+
+        $topProducts = $this->productSalesQuery($filters)
+            ->selectRaw('
+                product_id,
+                product_code,
+                product_name,
+                category_name,
+                COALESCE(SUM(qty), 0)::int AS qty,
+                COUNT(DISTINCT transaction_id)::int AS transactions
+            ')
+            ->groupBy('product_id', 'product_code', 'product_name', 'category_name')
+            ->orderByDesc(DB::raw('SUM(qty)'))
+            ->orderBy('product_name')
+            ->limit(5)
+            ->get();
+
+        $productIds = $topProducts->pluck('product_id')->filter()->unique()->values()->all();
+        $storeBreakdown = collect();
+
+        if ($productIds !== []) {
+            $storeBreakdown = $this->productSalesQuery($filters)
+                ->whereIn('product_id', $productIds)
+                ->selectRaw('
+                    product_id,
+                    store_id,
+                    store_name,
+                    COALESCE(SUM(qty), 0)::int AS qty,
+                    COUNT(DISTINCT transaction_id)::int AS transactions
+                ')
+                ->groupBy('product_id', 'store_id', 'store_name')
+                ->orderByDesc(DB::raw('SUM(qty)'))
+                ->get()
+                ->groupBy('product_id');
+        }
+
+        $products = $topProducts
+            ->map(fn ($row) => [
+                'product_id' => $row->product_id,
+                'product_code' => $row->product_code,
+                'product_name' => $row->product_name,
+                'category_name' => $row->category_name,
+                'qty' => (int) $row->qty,
+                'transactions' => (int) $row->transactions,
+                'stores' => $storeBreakdown->get($row->product_id, collect())
+                    ->map(fn ($store) => [
+                        'store_id' => $store->store_id,
+                        'store_name' => $store->store_name,
+                        'qty' => (int) $store->qty,
+                        'transactions' => (int) $store->transactions,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            ...$this->salesSummary($filters),
+            'trend' => $trend,
+            'top_stores' => $stores,
+            'top_products' => $products,
+        ];
+    }
+
+    private function salesSummary(array $filters): array
     {
         $summaryRow = $this->salesQuery($filters)->selectRaw("
             COUNT(*)::int AS transactions,
@@ -279,67 +418,6 @@ class BusinessOverviewQuery
         $ecommerceGrossRevenue = (float) ($grossRow->ecommerce_gross_revenue ?? 0);
         $ecommerceNetRevenue = (float) ($grossRow->ecommerce_net_revenue ?? 0);
 
-        $trend = $this->salesQuery($filters)
-            ->selectRaw('sold_at::date AS date, COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue, COUNT(*)::int AS transactions')
-            ->groupByRaw('sold_at::date')
-            ->orderByRaw('sold_at::date')
-            ->get()
-            ->map(fn ($row) => [
-                'date' => (string) $row->date,
-                'label' => CarbonImmutable::parse($row->date)->format('d M'),
-                'revenue' => (float) $row->revenue,
-                'transactions' => (int) $row->transactions,
-            ])
-            ->values()
-            ->all();
-
-        $stores = $this->salesQuery($filters)
-            ->selectRaw('
-                store_id,
-                store_name,
-                COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue,
-                COUNT(*)::int AS transactions,
-                COUNT(DISTINCT customer_id)::int AS buyers
-            ')
-            ->groupBy('store_id', 'store_name')
-            ->orderByDesc('revenue')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => [
-                'store_id' => $row->store_id,
-                'store_name' => $row->store_name,
-                'revenue' => (float) $row->revenue,
-                'transactions' => (int) $row->transactions,
-                'buyers' => (int) $row->buyers,
-            ])
-            ->values()
-            ->all();
-
-        $products = $this->productSalesQuery($filters)
-            ->selectRaw('
-                product_id,
-                product_code,
-                product_name,
-                category_name,
-                COALESCE(SUM(qty), 0)::int AS qty,
-                COUNT(DISTINCT transaction_id)::int AS transactions
-            ')
-            ->groupBy('product_id', 'product_code', 'product_name', 'category_name')
-            ->orderByDesc(DB::raw('SUM(qty)'))
-            ->orderBy('product_name')
-            ->limit(5)
-            ->get()
-            ->map(fn ($row) => [
-                'product_id' => $row->product_id,
-                'product_code' => $row->product_code,
-                'product_name' => $row->product_name,
-                'category_name' => $row->category_name,
-                'qty' => (int) $row->qty,
-                'transactions' => (int) $row->transactions,
-            ])
-            ->values()
-            ->all();
-
         return [
             'summary' => [
                 'gross_revenue' => $grossRevenue,
@@ -347,6 +425,7 @@ class BusinessOverviewQuery
                 'revenue' => $revenue,
                 'transactions' => $transactions,
                 'average_transaction' => $transactions > 0 ? $revenue / $transactions : 0,
+                'average_net_transaction' => $transactions > 0 ? $netRevenue / $transactions : 0,
                 'buyers' => (int) ($summaryRow->buyers ?? 0),
             ],
             'channels' => [
@@ -358,6 +437,8 @@ class BusinessOverviewQuery
                     'revenue' => $posRevenue,
                     'transactions' => (int) ($summaryRow->pos_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($posRevenue / $revenue) * 100) : 0,
+                    'gross_share' => $grossRevenue > 0 ? (int) round(($posGrossRevenue / $grossRevenue) * 100) : 0,
+                    'net_share' => $netRevenue > 0 ? (int) round(($posNetRevenue / $netRevenue) * 100) : 0,
                 ],
                 [
                     'key' => 'ecommerce',
@@ -367,11 +448,10 @@ class BusinessOverviewQuery
                     'revenue' => $ecommerceRevenue,
                     'transactions' => (int) ($summaryRow->ecommerce_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($ecommerceRevenue / $revenue) * 100) : 0,
+                    'gross_share' => $grossRevenue > 0 ? (int) round(($ecommerceGrossRevenue / $grossRevenue) * 100) : 0,
+                    'net_share' => $netRevenue > 0 ? (int) round(($ecommerceNetRevenue / $netRevenue) * 100) : 0,
                 ],
             ],
-            'trend' => $trend,
-            'top_stores' => $stores,
-            'top_products' => $products,
         ];
     }
 
@@ -402,6 +482,71 @@ class BusinessOverviewQuery
             ->selectRaw('COUNT(*)::int AS visits, COUNT(DISTINCT customer_id)::int AS unique_visitors')
             ->first();
 
+        $fromDate = CarbonImmutable::parse($filters['date_from']);
+        $toDate = CarbonImmutable::parse($filters['date_to']);
+        $grain = $fromDate->diffInDays($toDate) > 61 ? 'month' : 'day';
+        $memberPeriodSql = $grain === 'month' ? "to_char(created_at, 'YYYY-MM')" : 'created_at::date';
+
+        $memberCounts = DB::table('customers')
+            ->whereBetween('created_at', [$from, $to])
+            ->whereNull('deleted_at')
+            ->whereIn('registration_channel', ['store', 'ecommerce'])
+            ->when($filters['channel'] !== 'all', fn ($query) => $query->where('registration_channel', $filters['channel']))
+            ->when($filters['store_id'], function ($query) use ($filters) {
+                $query->where('registration_channel', 'store')
+                    ->where('registration_source_id', $filters['store_id']);
+            })
+            ->selectRaw("{$memberPeriodSql} AS period_key, COUNT(*)::int AS new_members")
+            ->groupByRaw($memberPeriodSql)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->period_key => (int) $row->new_members]);
+
+        $cursor = $grain === 'month' ? $fromDate->startOfMonth() : $fromDate;
+        $end = $grain === 'month' ? $toDate->endOfMonth() : $toDate;
+        $trend = [];
+
+        while ($cursor <= $end) {
+            $key = $cursor->format($grain === 'month' ? 'Y-m' : 'Y-m-d');
+
+            $trend[] = [
+                'date' => $key,
+                'label' => $cursor->format($grain === 'month' ? 'M Y' : 'd M'),
+                'new_members' => (int) ($memberCounts[$key] ?? 0),
+            ];
+
+            $cursor = $grain === 'month' ? $cursor->addMonth() : $cursor->addDay();
+        }
+
+        $totalVisits = max(1, (int) ($visits->visits ?? 0));
+
+        $storeVisits = DB::table('stores as s')
+            ->leftJoin('store_customer_visits as v', function ($join) use ($from, $to) {
+                $join->on('v.store_id', '=', 's.id')
+                    ->whereBetween('v.check_in_at', [$from, $to]);
+            })
+            ->whereNull('s.deleted_at')
+            ->when($filters['store_id'], fn ($query) => $query->where('s.id', $filters['store_id']))
+            ->selectRaw('
+                s.id AS store_id,
+                s.name AS store_name,
+                COUNT(v.id)::int AS visits,
+                COUNT(DISTINCT v.customer_id)::int AS unique_visitors
+            ')
+            ->groupBy('s.id', 's.name')
+            ->orderByDesc('visits')
+            ->orderBy('s.name')
+            ->limit(20)
+            ->get()
+            ->map(fn ($row) => [
+                'store_id' => $row->store_id,
+                'store_name' => $row->store_name,
+                'visits' => (int) $row->visits,
+                'unique_visitors' => (int) $row->unique_visitors,
+                'share' => (int) round(((int) $row->visits / $totalVisits) * 100),
+            ])
+            ->values()
+            ->all();
+
         return [
             'summary' => [
                 'new_members' => (int) ($members->new_members ?? 0),
@@ -410,6 +555,11 @@ class BusinessOverviewQuery
                 'visits' => (int) ($visits->visits ?? 0),
                 'unique_visitors' => (int) ($visits->unique_visitors ?? 0),
             ],
+            'trend' => [
+                'grain' => $grain,
+                'rows' => $trend,
+            ],
+            'store_visits' => $storeVisits,
         ];
     }
 
@@ -512,6 +662,57 @@ class BusinessOverviewQuery
         ];
     }
 
+    private function payments(array $filters): array
+    {
+        if ($filters['channel'] === 'store') {
+            return [
+                'applicable' => false,
+                'orders' => 0,
+                'matched' => 0,
+                'findings' => 0,
+                'exceptions' => 0,
+                'cancelled_orders' => 0,
+                'pending_payment' => 0,
+                'failed_payment' => 0,
+                'needs_review' => 0,
+                'without_payment' => 0,
+                'detail_mismatch' => 0,
+                'total_value' => 0,
+                'total_paid_amount' => 0,
+                'rows' => [],
+            ];
+        }
+
+        $paymentFilters = [
+            'start_date' => $filters['date_from'],
+            'end_date' => $filters['date_to'],
+            'store_id' => $filters['store_id'],
+            'warehouse_id' => $filters['warehouse_id'],
+        ];
+
+        $summary = $this->paymentReconciliation->summary($paymentFilters);
+
+        $rows = $this->paymentReconciliation->findings($paymentFilters, 100)
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'order_number' => $row->order_number,
+                'order_status' => $row->order_status,
+                'payment_status' => $row->payment_status,
+                'reconciliation_status' => $row->reconciliation_status,
+                'grand_total' => (float) $row->grand_total,
+                'total_amount' => (float) ($row->total_amount ?? 0),
+                'created_at' => $row->created_at,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'applicable' => true,
+            ...$summary,
+            'rows' => $rows,
+        ];
+    }
+
     private function inventory(array $filters, bool $includeOperations = true): array
     {
         $warehouseStock = DB::table('items as i')
@@ -539,6 +740,54 @@ class BusinessOverviewQuery
                 COUNT(DISTINCT si.store_id)::int AS locations
             ')
             ->first();
+
+        $warehouseBreakdown = DB::table('items as i')
+            ->join('warehouse_items as wi', 'wi.item_id', '=', 'i.id')
+            ->join('warehouses as w', 'w.id', '=', 'wi.warehouse_id')
+            ->whereNull('w.deleted_at')
+            ->whereRaw("LOWER(i.status::text) = 'warehouse_stock'")
+            ->when($filters['warehouse_id'], fn ($query) => $query->where('wi.warehouse_id', $filters['warehouse_id']))
+            ->selectRaw('
+                w.id AS location_id,
+                w.name AS location_name,
+                COUNT(i.id)::int AS units,
+                COUNT(DISTINCT i.product_id)::int AS skus
+            ')
+            ->groupBy('w.id', 'w.name')
+            ->orderByDesc('units')
+            ->get()
+            ->map(fn ($row) => [
+                'location_id' => $row->location_id,
+                'location_name' => $row->location_name,
+                'units' => (int) $row->units,
+                'skus' => (int) $row->skus,
+            ])
+            ->values()
+            ->all();
+
+        $storeBreakdown = DB::table('items as i')
+            ->join('store_items as si', 'si.item_id', '=', 'i.id')
+            ->join('stores as s', 's.id', '=', 'si.store_id')
+            ->whereNull('s.deleted_at')
+            ->whereIn(DB::raw('LOWER(i.status::text)'), ['store_stock', 'store_display'])
+            ->when($filters['store_id'], fn ($query) => $query->where('si.store_id', $filters['store_id']))
+            ->selectRaw('
+                s.id AS location_id,
+                s.name AS location_name,
+                COUNT(i.id)::int AS units,
+                COUNT(DISTINCT i.product_id)::int AS skus
+            ')
+            ->groupBy('s.id', 's.name')
+            ->orderByDesc('units')
+            ->get()
+            ->map(fn ($row) => [
+                'location_id' => $row->location_id,
+                'location_name' => $row->location_name,
+                'units' => (int) $row->units,
+                'skus' => (int) $row->skus,
+            ])
+            ->values()
+            ->all();
 
         $expiring = DB::table('items')
             ->whereIn(DB::raw('LOWER(status::text)'), ['warehouse_stock', 'store_stock', 'store_display'])
@@ -579,6 +828,8 @@ class BusinessOverviewQuery
                 'with_expiry_units' => (int) ($expiring->with_expiry_units ?? 0),
             ],
             'low_stock' => $lowStockRows,
+            'warehouse_stock' => $warehouseBreakdown,
+            'store_stock' => $storeBreakdown,
         ];
 
         if (! $includeOperations) {
@@ -722,6 +973,11 @@ class BusinessOverviewQuery
             ->when($filters['store_id'], fn ($query) => $query->where('v.store_id', $filters['store_id']))
             ->selectRaw("
                 'POS'::text AS channel,
+                v.store_id,
+                s.name AS store_name,
+                v.id AS transaction_id,
+                v.customer_id,
+                paid_visits.sold_at,
                 ({$storeSellingPrice})::numeric(18,2) AS gross_amount,
                 GREATEST(({$storeLineNet}) - ({$storeOrderDiscount}), 0)::numeric(18,2) AS net_amount
             ");
@@ -745,6 +1001,7 @@ class BusinessOverviewQuery
             ->join('ecommerce_orders as eo', 'eo.id', '=', 'eod.ecommerce_order_id')
             ->join('payments as p', 'p.id', '=', 'eo.payment_id')
             ->leftJoin('product_prices as price', 'price.id', '=', 'eod.product_price_id')
+            ->leftJoin('stores as s', 's.id', '=', 'eo.handled_by_store_id')
             ->leftJoinSub($orderNet, 'order_net', 'order_net.ecommerce_order_id', '=', 'eo.id')
             ->whereNull('p.deleted_at')
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
@@ -753,6 +1010,11 @@ class BusinessOverviewQuery
             ->when($filters['store_id'], fn ($query) => $query->where('eo.handled_by_store_id', $filters['store_id']))
             ->selectRaw("
                 'Ecommerce'::text AS channel,
+                eo.handled_by_store_id AS store_id,
+                COALESCE(s.name, 'Ecommerce tanpa cabang') AS store_name,
+                eo.id AS transaction_id,
+                eo.customer_id,
+                COALESCE(p.completed_at, eo.created_at) AS sold_at,
                 ({$ecommerceGross})::numeric(18,2) AS gross_amount,
                 GREATEST(({$ecommerceLineNet}) - ({$ecommerceOrderDiscount}), 0)::numeric(18,2) AS net_amount
             ");
@@ -875,6 +1137,7 @@ class BusinessOverviewQuery
                     ->when($filters['warehouse_id'], fn ($query) => $query->where('eo.handled_by_warehouse_id', $filters['warehouse_id']))
                     ->selectRaw("
                         'Pesanan Ecommerce'::text AS type,
+                        eo.id,
                         COALESCE(eo.order_number, eo.id::text) AS reference,
                         eo.status::text AS status,
                         ROUND(EXTRACT(EPOCH FROM (NOW() - eo.created_at)) / 3600)::int AS age_hours,
@@ -882,7 +1145,7 @@ class BusinessOverviewQuery
                         COALESCE(s.name, w.name, '-') AS partner
                     ")
                     ->orderBy('eo.created_at')
-                    ->limit(8)
+                    ->limit(50)
                     ->get()
             );
         }
@@ -899,6 +1162,7 @@ class BusinessOverviewQuery
                     ->when($filters['warehouse_id'], fn ($query) => $query->where('so.warehouse_id', $filters['warehouse_id']))
                     ->selectRaw("
                         'Permintaan Store'::text AS type,
+                        so.id,
                         COALESCE(so.order_number, so.id::text) AS reference,
                         so.status::text AS status,
                         ROUND(EXTRACT(EPOCH FROM (NOW() - so.created_at)) / 3600)::int AS age_hours,
@@ -906,7 +1170,7 @@ class BusinessOverviewQuery
                         COALESCE(s.name, w.name, '-') AS partner
                     ")
                     ->orderBy('so.created_at')
-                    ->limit(8)
+                    ->limit(50)
                     ->get()
             );
 
@@ -921,6 +1185,7 @@ class BusinessOverviewQuery
                     ->when($filters['warehouse_id'], fn ($query) => $query->where('sr.warehouse_id', $filters['warehouse_id']))
                     ->selectRaw("
                         'Retur Store'::text AS type,
+                        sr.id,
                         COALESCE(sr.return_number, sr.id::text) AS reference,
                         sr.status::text AS status,
                         ROUND(EXTRACT(EPOCH FROM (NOW() - sr.created_at)) / 3600)::int AS age_hours,
@@ -928,7 +1193,7 @@ class BusinessOverviewQuery
                         COALESCE(s.name, w.name, '-') AS partner
                     ")
                     ->orderBy('sr.created_at')
-                    ->limit(8)
+                    ->limit(50)
                     ->get()
             );
         }
@@ -936,9 +1201,25 @@ class BusinessOverviewQuery
         return $items
             ->map(function ($row) {
                 $status = (string) $row->status;
+                $type = (string) $row->type;
+
+                $actionUrl = match ($type) {
+                    'Pesanan Ecommerce' => route('ecommerce.orders.show', $row->id),
+                    'Permintaan Store' => route('operations.store-orders.show', $row->id),
+                    'Retur Store' => route('operations.store-returns.show', $row->id),
+                    default => null,
+                };
+
+                $actionLabel = match ($type) {
+                    'Pesanan Ecommerce' => 'Buka pesanan',
+                    'Permintaan Store' => 'Buka permintaan',
+                    'Retur Store' => 'Buka retur',
+                    default => 'Buka',
+                };
 
                 return [
-                    'type' => (string) $row->type,
+                    'id' => (string) $row->id,
+                    'type' => $type,
                     'reference' => (string) $row->reference,
                     'status' => $status,
                     'status_label' => self::ECOMMERCE_STATUS_LABELS[$status]
@@ -948,10 +1229,12 @@ class BusinessOverviewQuery
                     'age_hours' => (int) $row->age_hours,
                     'amount' => $row->amount === null ? null : (float) $row->amount,
                     'partner' => (string) $row->partner,
+                    'action_url' => $actionUrl,
+                    'action_label' => $actionLabel,
                 ];
             })
             ->sortByDesc('age_hours')
-            ->take(8)
+            ->take(50)
             ->values()
             ->all();
     }

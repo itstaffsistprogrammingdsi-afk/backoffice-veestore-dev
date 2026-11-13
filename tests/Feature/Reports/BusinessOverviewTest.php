@@ -21,24 +21,44 @@ class BusinessOverviewTest extends TestCase
                 ->has('filters')
                 ->has('periodOptions')
                 ->where('filters.period', 'month')
-                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'year', 'last_month'])
+                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'last_month', 'year', 'last_year'])
                 ->has('stores')
                 ->has('warehouses')
                 ->has('sales.summary')
+                ->has('sales.summary.gross_revenue')
+                ->has('sales.summary.net_revenue')
+                ->has('sales.summary.average_net_transaction')
                 ->has('sales.channels')
+                ->has('sales.channels.0.gross_revenue')
+                ->has('sales.channels.0.net_revenue')
+                ->has('sales.channels.0.net_share')
                 ->has('sales.trend')
                 ->has('sales.top_stores')
                 ->has('sales.top_products')
                 ->has('customers.summary')
+                ->has('customers.trend.rows')
+                ->has('customers.trend.grain')
+                ->has('customers.store_visits')
                 ->has('orders.summary')
                 ->has('orders.ecommerce_statuses')
                 ->has('orders.attention')
                 ->has('inventory.summary')
                 ->has('inventory.low_stock')
+                ->has('inventory.warehouse_stock')
+                ->has('inventory.store_stock')
                 ->has('inventory.logistics')
                 ->has('inventory.pending_queues.store_transfer_not_recorded')
+                ->has('payments.applicable')
+                ->has('payments.orders')
+                ->has('payments.matched')
+                ->has('payments.findings')
+                ->has('payments.exceptions')
+                ->has('payments.failed_payment')
+                ->has('payments.needs_review')
+                ->has('payments.rows')
                 ->has('urls')
-                ->where('urls.index', route('reports.business-overview.index')));
+                ->where('urls.index', route('reports.business-overview.index'))
+                ->where('urls.payments', route('monitoring.payment-reconciliation.index')));
     }
 
     public function test_business_overview_accepts_period_filter(): void
@@ -60,7 +80,7 @@ class BusinessOverviewTest extends TestCase
     {
         $admin = $this->admin();
 
-        foreach (['today', 'week', 'month', 'year'] as $period) {
+        foreach (['today', 'week', 'month', 'last_month', 'year', 'last_year'] as $period) {
             $this->actingAs($admin)
                 ->get(route('reports.business-overview.index', ['period' => $period]))
                 ->assertOk()

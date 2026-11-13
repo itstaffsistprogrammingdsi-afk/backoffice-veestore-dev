@@ -43,7 +43,7 @@ class AreaHubsTest extends TestCase
                 ->has('urls')
                 ->where('filters.period', 'month')
                 ->where('filters.channel', 'all')
-                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'year'])
+                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'last_month', 'year', 'last_year'])
                 ->where('urls.hub', route('reports.index'))
                 ->where('urls.overview', route('reports.business-overview.index'))
                 ->where('urls.preference', route('reports.crm.customer-preference.index')));

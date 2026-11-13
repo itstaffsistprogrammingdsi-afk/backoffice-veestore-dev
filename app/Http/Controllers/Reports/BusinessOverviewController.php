@@ -12,13 +12,17 @@ class BusinessOverviewController extends Controller
 {
     public function index(Request $request, BusinessOverviewQuery $query)
     {
-        return Inertia::render('Reports/BusinessOverview', $query->build($request->query()) + [
+        $data = $query->build($request->query());
+        $data['payments'] = $query->paymentsSnapshot($request->query());
+
+        return Inertia::render('Reports/BusinessOverview', $data + [
             'periodOptions' => [
                 ['value' => 'today', 'label' => 'Hari ini'],
                 ['value' => 'week', 'label' => 'Minggu ini'],
                 ['value' => 'month', 'label' => 'Bulan ini'],
-                ['value' => 'year', 'label' => 'Tahun ini'],
                 ['value' => 'last_month', 'label' => 'Bulan lalu'],
+                ['value' => 'year', 'label' => 'Tahun ini'],
+                ['value' => 'last_year', 'label' => 'Tahun lalu'],
             ],
             'stores' => DB::table('stores')
                 ->whereNull('deleted_at')
@@ -34,6 +38,9 @@ class BusinessOverviewController extends Controller
                 'sales_omset' => route('monitoring.omset-cabang.index'),
                 'top_products' => route('monitoring.produk-terlaris.index'),
                 'orders' => route('monitoring.fulfillment-control.index'),
+                'payments' => route('monitoring.payment-reconciliation.index'),
+                'pending_transactions' => route('monitoring.pending-transactions.index'),
+                'anomalies' => route('monitoring.transaction-anomalies.index'),
                 'ecommerce_orders' => route('monitoring.order-handled.index'),
                 'store_orders' => route('monitoring.order-handled.store-orders'),
                 'store_returns' => route('monitoring.order-handled.store-returns'),
