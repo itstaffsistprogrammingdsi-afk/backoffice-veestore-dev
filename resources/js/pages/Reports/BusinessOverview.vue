@@ -98,6 +98,7 @@ interface OrdersSummary {
 }
 
 interface AttentionRow {
+    id: string;
     type: string;
     reference: string;
     status: string;
@@ -105,6 +106,8 @@ interface AttentionRow {
     age_hours: number;
     amount: number | null;
     partner: string;
+    action_url: string | null;
+    action_label: string;
 }
 
 interface InventorySummary {
@@ -118,6 +121,13 @@ interface InventorySummary {
     expired_units: number;
     expiring_90_units: number;
     with_expiry_units: number;
+}
+
+interface StockLocationRow {
+    location_id: string;
+    location_name: string;
+    units: number;
+    skus: number;
 }
 
 interface LowStockRow {
@@ -142,6 +152,7 @@ interface PaymentHealthRow {
     id: string;
     order_number: string;
     order_status: string;
+    payment_status: string | null;
     reconciliation_status: string;
     grand_total: number;
     total_amount: number;
@@ -152,6 +163,7 @@ interface PaymentHealth {
     applicable: boolean;
     orders: number;
     matched: number;
+    findings: number;
     exceptions: number;
     cancelled_orders: number;
     pending_payment: number;
@@ -168,7 +180,14 @@ interface CustomerTrendRow {
     date: string;
     label: string;
     new_members: number;
+}
+
+interface StoreVisitRow {
+    store_id: string;
+    store_name: string;
     visits: number;
+    unique_visitors: number;
+    share: number;
 }
 
 interface Logistics {
@@ -211,6 +230,7 @@ interface Props {
             grain: 'day' | 'month';
             rows: CustomerTrendRow[];
         };
+        store_visits: StoreVisitRow[];
     };
     orders: {
         summary: OrdersSummary;
@@ -222,6 +242,8 @@ interface Props {
     inventory: {
         summary: InventorySummary;
         low_stock: LowStockRow[];
+        warehouse_stock: StockLocationRow[];
+        store_stock: StockLocationRow[];
         logistics: Logistics;
         pending_queues: PendingQueues;
     };
@@ -257,6 +279,8 @@ interface Props {
 const props = defineProps<Props>();
 
 const showGuide = ref(false);
+const showSalesTrend = ref(true);
+const showMemberChart = ref(false);
 const openProductId = ref<string | null>(null);
 
 const toggleProduct = (productId: string) => {
@@ -371,11 +395,34 @@ const customerCards = computed(() => [
         icon: 'mdi-cart-outline',
         tone: 'success',
     },
+]);
+
+const averageVisitsPerVisitor = computed(() => {
+    const visitors = props.customers.summary.unique_visitors;
+
+    return visitors > 0 ? Number((props.customers.summary.visits / visitors).toFixed(1)) : 0;
+});
+
+const visitCards = computed(() => [
     {
         label: 'Kunjungan Toko',
         value: formatNumber(props.customers.summary.visits),
-        hint: `${formatNumber(props.customers.summary.unique_visitors)} pengunjung unik`,
+        hint: 'Total check-in pada periode ini',
         icon: 'mdi-account-clock-outline',
+        tone: 'accent',
+    },
+    {
+        label: 'Pengunjung Unik',
+        value: formatNumber(props.customers.summary.unique_visitors),
+        hint: 'Customer berbeda yang berkunjung',
+        icon: 'mdi-account-group-outline',
+        tone: 'info',
+    },
+    {
+        label: 'Rata-rata per Pengunjung',
+        value: formatNumber(averageVisitsPerVisitor.value),
+        hint: 'Kunjungan dibagi pengunjung unik',
+        icon: 'mdi-chart-line',
         tone: 'neutral',
     },
 ]);
@@ -481,14 +528,14 @@ const inventoryCards = computed(() => [
     {
         label: 'Stok Gudang',
         value: formatNumber(props.inventory.summary.warehouse_units),
-        hint: `${formatNumber(props.inventory.summary.warehouse_skus)} SKU · ${formatNumber(props.inventory.summary.warehouse_locations)} lokasi`,
+        hint: `${formatNumber(props.inventory.summary.warehouse_skus)} SKU · ${formatNumber(props.inventory.summary.warehouse_locations)} gudang`,
         icon: 'mdi-warehouse',
         tone: 'accent',
     },
     {
         label: 'Stok Cabang',
         value: formatNumber(props.inventory.summary.store_units),
-        hint: `${formatNumber(props.inventory.summary.store_skus)} SKU · ${formatNumber(props.inventory.summary.store_locations)} lokasi`,
+        hint: `${formatNumber(props.inventory.summary.store_skus)} SKU · ${formatNumber(props.inventory.summary.store_locations)} toko`,
         icon: 'mdi-storefront-outline',
         tone: 'info',
     },
@@ -555,6 +602,14 @@ const statusTone = (status: string) => {
     return 'neutral';
 };
 
+const paymentFindingTone = (status: string) => {
+    const normalized = status.toLowerCase();
+
+    if (normalized.includes('dibatalkan') || normalized.includes('berbeda') || normalized.includes('hilang')) return 'danger';
+
+    return 'warning';
+};
+
 const generatedLabel = computed(() => props.generated_at ? formatDate(props.generated_at, true) : '-');
 
 const exportOverview = () => {
@@ -579,12 +634,19 @@ const exportOverview = () => {
             section: 'Tren Pelanggan',
             metric: row.label,
             new_members: row.new_members,
+        })),
+        ...props.customers.store_visits.map((row) => ({
+            section: 'Kunjungan per Toko',
+            metric: row.store_name,
             visits: row.visits,
+            unique_visitors: row.unique_visitors,
         })),
         ...(props.payments.applicable ? [
-            { section: 'Pembayaran', metric: 'Order diperiksa', value: props.payments.orders },
-            { section: 'Pembayaran', metric: 'Nominal cocok', value: props.payments.matched },
-            { section: 'Pembayaran', metric: 'Perlu dicek', value: props.payments.exceptions },
+            { section: 'Pembayaran', metric: 'Order', value: props.payments.orders },
+            { section: 'Pembayaran', metric: 'Berhasil', value: props.payments.matched },
+            { section: 'Pembayaran', metric: 'Gagal / Batal', value: props.payments.cancelled_orders + props.payments.failed_payment },
+            { section: 'Pembayaran', metric: 'Perlu dicek', value: props.payments.needs_review },
+            { section: 'Pembayaran', metric: 'Pembayaran gagal', value: props.payments.failed_payment },
             { section: 'Pembayaran', metric: 'Pembayaran belum selesai', value: props.payments.pending_payment },
             { section: 'Pembayaran', metric: 'Tanpa pembayaran', value: props.payments.without_payment },
             { section: 'Pembayaran', metric: 'Detail pembayaran berbeda', value: props.payments.detail_mismatch },
@@ -603,6 +665,8 @@ const exportOverview = () => {
         ...props.orders.attention.map((row) => ({ section: 'Perlu Perhatian', metric: row.reference, type: row.type, status: row.status_label, age_hours: row.age_hours, amount: row.amount, partner: row.partner })),
         ...Object.entries(props.inventory.summary).map(([metric, value]) => ({ section: 'Stok', metric, value })),
         ...props.inventory.low_stock.map((row) => ({ section: 'Stok Menipis', metric: row.product_name, product_code: row.product_code, location: row.location_name, on_hand: row.on_hand, reserved: row.reserved, available: row.available, threshold: row.threshold, shortfall: row.shortfall })),
+        ...props.inventory.warehouse_stock.map((row) => ({ section: 'Stok Gudang per Lokasi', metric: row.location_name, units: row.units, skus: row.skus })),
+        ...props.inventory.store_stock.map((row) => ({ section: 'Stok Cabang per Toko', metric: row.location_name, units: row.units, skus: row.skus })),
         ...Object.entries(props.inventory.logistics).map(([metric, value]) => ({ section: 'Logistik', metric, documents: value.documents, units: value.units })),
         ...Object.entries(props.inventory.pending_queues).map(([metric, value]) => ({ section: 'Antrean', metric, value })),
     ];
@@ -623,6 +687,8 @@ const exportOverview = () => {
         { key: 'quantity', label: 'Kuantitas' },
         { key: 'new_members', label: 'Member Baru' },
         { key: 'visits', label: 'Kunjungan' },
+        { key: 'unique_visitors', label: 'Pengunjung Unik' },
+        { key: 'skus', label: 'SKU' },
         { key: 'documents', label: 'Dokumen' },
         { key: 'units', label: 'Unit' },
         { key: 'share_percent', label: 'Persentase' },
@@ -782,6 +848,7 @@ const exportOverview = () => {
             <a href="#penjualan" class="chip">Omset</a>
             <a href="#pembayaran" class="chip">Pembayaran</a>
             <a href="#pelanggan" class="chip">Pelanggan</a>
+            <a href="#kunjungan" class="chip">Kunjungan</a>
             <a href="#pesanan" class="chip">Pesanan</a>
             <a href="#stok-logistik" class="chip">Stok &amp; Logistik</a>
         </nav>
@@ -821,52 +888,66 @@ const exportOverview = () => {
                                 <h3>Tren Omset Harian</h3>
                                 <p>14 hari terakhir dalam periode. Batang kiri omset kotor, batang kanan omset bersih.</p>
                             </div>
-                            <span class="overview-card-meta">Bersih {{ formatCurrency(props.sales.summary.net_revenue) }}</span>
-                        </header>
-                        <div v-if="visibleTrend.length" class="overview-chart" role="img" aria-label="Grafik tren omset kotor dan bersih harian" aria-describedby="trend-data-table">
-                            <div class="overview-chart-legend" aria-hidden="true">
-                                <span><i class="overview-chart-swatch is-gross"></i>Omset kotor</span>
-                                <span><i class="overview-chart-swatch is-net"></i>Omset bersih</span>
-                                <span class="overview-chart-scale">Skala 0 – {{ formatCurrency(maxTrendRevenue) }}</span>
+                            <div class="overview-card-actions">
+                                <span class="overview-card-meta">Bersih {{ formatCurrency(props.sales.summary.net_revenue) }}</span>
+                                <button
+                                    type="button"
+                                    class="overview-card-toggle"
+                                    :aria-expanded="showSalesTrend"
+                                    aria-controls="sales-trend-chart"
+                                    @click="showSalesTrend = !showSalesTrend"
+                                >
+                                    <i class="mdi" :class="showSalesTrend ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                                    <span class="visually-hidden">{{ showSalesTrend ? 'Sembunyikan' : 'Tampilkan' }} tren omset</span>
+                                </button>
                             </div>
-                            <div class="overview-chart-grid">
-                                <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
-                                    <div class="overview-chart-track">
-                                        <div
-                                            class="overview-chart-bar is-gross"
-                                            :style="{ height: trendHeight(row.gross_revenue) }"
-                                            :title="`${row.label} kotor: ${formatCurrency(row.gross_revenue)}`"
-                                        ></div>
-                                        <div
-                                            class="overview-chart-bar is-net"
-                                            :style="{ height: trendHeight(row.net_revenue) }"
-                                            :title="`${row.label} bersih: ${formatCurrency(row.net_revenue)} dari ${formatNumber(row.transactions)} transaksi`"
-                                        ></div>
+                        </header>
+                        <div v-show="showSalesTrend" id="sales-trend-chart">
+                            <div v-if="visibleTrend.length" class="overview-chart" role="img" aria-label="Grafik tren omset kotor dan bersih harian" aria-describedby="trend-data-table">
+                                <div class="overview-chart-legend" aria-hidden="true">
+                                    <span><i class="overview-chart-swatch is-gross"></i>Omset kotor</span>
+                                    <span><i class="overview-chart-swatch is-net"></i>Omset bersih</span>
+                                    <span class="overview-chart-scale">Skala 0 – {{ formatCurrency(maxTrendRevenue) }}</span>
+                                </div>
+                                <div class="overview-chart-grid">
+                                    <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
+                                        <div class="overview-chart-track">
+                                            <div
+                                                class="overview-chart-bar is-gross"
+                                                :style="{ height: trendHeight(row.gross_revenue) }"
+                                                :title="`${row.label} kotor: ${formatCurrency(row.gross_revenue)}`"
+                                            ></div>
+                                            <div
+                                                class="overview-chart-bar is-net"
+                                                :style="{ height: trendHeight(row.net_revenue) }"
+                                                :title="`${row.label} bersih: ${formatCurrency(row.net_revenue)} dari ${formatNumber(row.transactions)} transaksi`"
+                                            ></div>
+                                        </div>
+                                        <span class="overview-chart-label">{{ row.label }}</span>
                                     </div>
-                                    <span class="overview-chart-label">{{ row.label }}</span>
                                 </div>
                             </div>
+                            <table v-if="visibleTrend.length" id="trend-data-table" class="visually-hidden">
+                                <caption>Data tren omset harian</caption>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Tanggal</th>
+                                        <th scope="col">Omset Kotor</th>
+                                        <th scope="col">Omset Bersih</th>
+                                        <th scope="col">Transaksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in visibleTrend" :key="`trend-data-${row.date}`">
+                                        <th scope="row">{{ row.label }}</th>
+                                        <td>{{ formatCurrency(row.gross_revenue) }}</td>
+                                        <td>{{ formatCurrency(row.net_revenue) }}</td>
+                                        <td>{{ formatNumber(row.transactions) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p v-else class="overview-empty">Belum ada transaksi lunas pada periode ini.</p>
                         </div>
-                        <table v-if="visibleTrend.length" id="trend-data-table" class="visually-hidden">
-                            <caption>Data tren omset harian</caption>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Tanggal</th>
-                                    <th scope="col">Omset Kotor</th>
-                                    <th scope="col">Omset Bersih</th>
-                                    <th scope="col">Transaksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="row in visibleTrend" :key="`trend-data-${row.date}`">
-                                    <th scope="row">{{ row.label }}</th>
-                                    <td>{{ formatCurrency(row.gross_revenue) }}</td>
-                                    <td>{{ formatCurrency(row.net_revenue) }}</td>
-                                    <td>{{ formatNumber(row.transactions) }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <p v-else class="overview-empty">Belum ada transaksi lunas pada periode ini.</p>
                     </article>
                 </div>
                 <div class="col-xl-5">
@@ -1008,9 +1089,9 @@ const exportOverview = () => {
                     <header class="overview-card-head">
                         <div>
                             <h3>Temuan Pembayaran</h3>
-                            <p>Order yang tidak lolos pemeriksaan otomatis. Contoh: total pembayaran tidak sama dengan nilai order, order belum punya pembayaran, pembayaran belum lunas, atau jumlah detail pembayaran sukses berbeda dari total pembayaran.</p>
+                            <p>Order yang tidak lolos pemeriksaan otomatis, termasuk order dibatalkan atau pembayaran gagal. Contoh: total pembayaran tidak sama dengan nilai order, order belum punya pembayaran, pembayaran belum lunas, atau jumlah detail pembayaran sukses berbeda dari total pembayaran.</p>
                         </div>
-                        <span class="overview-card-meta">{{ formatNumber(props.payments.exceptions) }} temuan</span>
+                        <span class="overview-card-meta">{{ formatNumber(props.payments.findings) }} temuan</span>
                     </header>
                     <div v-if="props.payments.rows.length" class="table-responsive">
                         <table class="table align-middle mb-0 overview-table">
@@ -1020,6 +1101,7 @@ const exportOverview = () => {
                                     <th scope="col">Temuan</th>
                                     <th scope="col" class="text-end">Nilai Order</th>
                                     <th scope="col" class="text-end">Total Pembayaran</th>
+                                    <th scope="col">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1028,9 +1110,15 @@ const exportOverview = () => {
                                         <strong>{{ row.order_number }}</strong>
                                         <small class="overview-cell-note">{{ formatDate(row.created_at) }}</small>
                                     </td>
-                                    <td><span class="overview-badge is-warning">{{ row.reconciliation_status }}</span></td>
+                                    <td>
+                                        <span class="overview-badge" :class="`is-${paymentFindingTone(row.reconciliation_status)}`">{{ row.reconciliation_status }}</span>
+                                        <small class="overview-cell-note">Pembayaran: {{ row.payment_status ?? 'belum ada' }}</small>
+                                    </td>
                                     <td class="text-end">{{ formatCurrency(row.grand_total) }}</td>
-                                    <td class="text-end">{{ formatCurrency(row.total_amount) }}</td>
+                                    <td class="text-end">{{ row.total_amount > 0 ? formatCurrency(row.total_amount) : '-' }}</td>
+                                    <td>
+                                        <Link :href="`${props.urls.payments}?q=${encodeURIComponent(row.order_number)}`" class="overview-action-link">Buka</Link>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1049,8 +1137,8 @@ const exportOverview = () => {
             <div class="overview-section-head">
                 <div>
                     <span class="overview-section-kicker">Pelanggan</span>
-                    <h2 id="customers-title">Pertumbuhan member dan kunjungan</h2>
-                    <p>Member baru dan aktivitas kunjungan toko pada periode yang dipilih.</p>
+                    <h2 id="customers-title">Pertumbuhan member baru</h2>
+                    <p>Registrasi member baru berdasarkan kanal dan periode yang dipilih.</p>
                 </div>
                 <div class="overview-section-links">
                     <Link :href="props.urls.crm">CRM</Link>
@@ -1060,7 +1148,7 @@ const exportOverview = () => {
             </div>
 
             <div class="row g-3">
-                <div v-for="card in customerCards" :key="card.label" class="col-6 col-xl-3">
+                <div v-for="card in customerCards" :key="card.label" class="col-6 col-xl-4">
                     <article class="overview-kpi" :class="`is-${card.tone}`">
                         <span class="overview-kpi-icon"><i class="mdi" :class="card.icon"></i></span>
                         <div>
@@ -1075,12 +1163,88 @@ const exportOverview = () => {
             <article class="overview-card mt-3">
                 <header class="overview-card-head">
                     <div>
-                        <h3>Tren Member Baru dan Kunjungan</h3>
-                        <p>Member baru berdasarkan tanggal registrasi; kunjungan berdasarkan check-in toko. Batang kiri member baru, batang kanan kunjungan. Satuan {{ props.customers.trend.grain === 'month' ? 'bulanan' : 'harian' }}.</p>
+                        <h3>Tren Member Baru</h3>
+                        <p>Jumlah member baru per {{ props.customers.trend.grain === 'month' ? 'bulan' : 'hari' }} pada periode ini.</p>
                     </div>
-                    <span class="overview-card-meta">Total {{ formatNumber(props.customers.summary.new_members) }} member · {{ formatNumber(props.customers.summary.visits) }} kunjungan</span>
+                    <div class="overview-card-actions">
+                        <span class="overview-card-meta">Total {{ formatNumber(props.customers.summary.new_members) }} member</span>
+                        <button
+                            type="button"
+                            class="overview-card-toggle"
+                            :aria-expanded="showMemberChart"
+                            aria-controls="member-trend-chart"
+                            @click="showMemberChart = !showMemberChart"
+                        >
+                            <i class="mdi" :class="showMemberChart ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                            <span class="visually-hidden">{{ showMemberChart ? 'Sembunyikan' : 'Tampilkan' }} tren member baru</span>
+                        </button>
+                    </div>
                 </header>
-                <CustomerGrowthChart :rows="props.customers.trend.rows" :grain="props.customers.trend.grain" />
+                <div v-show="showMemberChart" id="member-trend-chart">
+                    <CustomerGrowthChart :rows="props.customers.trend.rows" :grain="props.customers.trend.grain" />
+                </div>
+            </article>
+        </section>
+
+        <section id="kunjungan" class="overview-section" aria-labelledby="visits-title">
+            <div class="overview-section-head">
+                <div>
+                    <span class="overview-section-kicker">Kunjungan</span>
+                    <h2 id="visits-title">Kunjungan toko</h2>
+                    <p>Jumlah kunjungan dan pengunjung unik per toko pada periode ini.</p>
+                </div>
+                <div class="overview-section-links">
+                    <Link :href="props.urls.crm">CRM</Link>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div v-for="card in visitCards" :key="card.label" class="col-6 col-xl-4">
+                    <article class="overview-kpi" :class="`is-${card.tone}`">
+                        <span class="overview-kpi-icon"><i class="mdi" :class="card.icon"></i></span>
+                        <div>
+                            <span class="overview-kpi-label">{{ card.label }}</span>
+                            <strong class="overview-kpi-value">{{ card.value }}</strong>
+                            <small>{{ card.hint }}</small>
+                        </div>
+                    </article>
+                </div>
+            </div>
+
+            <article class="overview-card">
+                <header class="overview-card-head">
+                    <div>
+                        <h3>Detail Kunjungan per Toko</h3>
+                        <p>Kunjungan dan pengunjung unik di setiap toko. Porsi dihitung dari total kunjungan.</p>
+                    </div>
+                    <span class="overview-card-meta">{{ formatNumber(props.customers.store_visits.length) }} toko</span>
+                </header>
+                <div v-if="props.customers.store_visits.length" class="table-responsive">
+                    <table class="table align-middle mb-0 overview-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Toko</th>
+                                <th scope="col" class="text-end">Kunjungan</th>
+                                <th scope="col" class="text-end">Pengunjung Unik</th>
+                                <th scope="col">Porsi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="row in props.customers.store_visits" :key="row.store_id">
+                                <td><strong>{{ row.store_name }}</strong></td>
+                                <td class="text-end">{{ formatNumber(row.visits) }}</td>
+                                <td class="text-end">{{ formatNumber(row.unique_visitors) }}</td>
+                                <td>
+                                    <div class="overview-progress" aria-hidden="true">
+                                        <span :style="{ width: `${row.share > 0 ? Math.max(2, row.share) : 0}%` }"></span>
+                                    </div>
+                                    <small class="overview-cell-note">{{ row.share }}%</small>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p v-else class="overview-empty">Belum ada kunjungan toko pada periode ini.</p>
             </article>
         </section>
 
@@ -1148,7 +1312,7 @@ const exportOverview = () => {
                     <span class="overview-card-meta">{{ formatNumber(props.orders.attention.length) }} antrean teratas</span>
                 </header>
                 <div v-if="props.orders.attention.length" class="table-responsive">
-                    <table class="table align-middle mb-0 overview-table">
+                    <table class="table align-middle mb-0 overview-table overview-attention-table">
                         <thead>
                             <tr>
                                 <th scope="col">Jenis</th>
@@ -1157,16 +1321,21 @@ const exportOverview = () => {
                                 <th scope="col">Mitra / Lokasi</th>
                                 <th scope="col" class="text-end">Umur</th>
                                 <th scope="col" class="text-end">Nilai</th>
+                                <th scope="col">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="row in props.orders.attention" :key="`${row.type}-${row.reference}`">
+                            <tr v-for="row in props.orders.attention" :key="row.id">
                                 <td><span class="overview-chip">{{ row.type }}</span></td>
                                 <td><strong>{{ row.reference }}</strong></td>
                                 <td><span class="overview-badge" :class="`is-${statusTone(row.status)}`">{{ row.status_label }}</span></td>
                                 <td>{{ row.partner }}</td>
                                 <td class="text-end">{{ formatAge(row.age_hours) }}</td>
                                 <td class="text-end">{{ row.amount === null ? '-' : formatCurrency(row.amount) }}</td>
+                                <td>
+                                    <Link v-if="row.action_url" :href="row.action_url" class="overview-action-link">{{ row.action_label }}</Link>
+                                    <span v-else>-</span>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -1184,7 +1353,7 @@ const exportOverview = () => {
                 <div>
                     <span class="overview-section-kicker">Stok & Logistik</span>
                     <h2 id="inventory-title">Posisi stok dan pergerakan barang</h2>
-                    <p>Stok adalah snapshot saat ini; inbound, outbound, dan retur adalah aktivitas pada periode.</p>
+                    <p>Stok adalah snapshot saat ini; unit = jumlah item, SKU = produk unik. Inbound, outbound, dan retur adalah aktivitas pada periode.</p>
                 </div>
                 <div class="overview-section-links">
                     <Link :href="props.urls.stock_warehouse">Stok Warehouse</Link>
@@ -1203,6 +1372,61 @@ const exportOverview = () => {
                             <strong class="overview-kpi-value">{{ card.value }}</strong>
                             <small>{{ card.hint }}</small>
                         </div>
+                    </article>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-xl-6">
+                    <article class="overview-card h-100">
+                        <header class="overview-card-head">
+                            <div>
+                                <h3>Stok Gudang per Lokasi</h3>
+                                <p>Unit item berstatus stok gudang, per gudang.</p>
+                            </div>
+                            <span class="overview-card-meta">{{ formatNumber(props.inventory.summary.warehouse_units) }} unit</span>
+                        </header>
+                        <div v-if="props.inventory.warehouse_stock.length" class="table-responsive">
+                            <table class="table align-middle mb-0 overview-table">
+                                <thead>
+                                    <tr><th scope="col">Gudang</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">SKU</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in props.inventory.warehouse_stock" :key="row.location_id">
+                                        <td>{{ row.location_name }}</td>
+                                        <td class="text-end">{{ formatNumber(row.units) }}</td>
+                                        <td class="text-end">{{ formatNumber(row.skus) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p v-else class="overview-empty">Belum ada stok gudang.</p>
+                    </article>
+                </div>
+                <div class="col-xl-6">
+                    <article class="overview-card h-100">
+                        <header class="overview-card-head">
+                            <div>
+                                <h3>Stok Cabang per Toko</h3>
+                                <p>Unit item berstatus stok atau display toko.</p>
+                            </div>
+                            <span class="overview-card-meta">{{ formatNumber(props.inventory.summary.store_units) }} unit</span>
+                        </header>
+                        <div v-if="props.inventory.store_stock.length" class="table-responsive">
+                            <table class="table align-middle mb-0 overview-table">
+                                <thead>
+                                    <tr><th scope="col">Toko</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">SKU</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in props.inventory.store_stock" :key="row.location_id">
+                                        <td>{{ row.location_name }}</td>
+                                        <td class="text-end">{{ formatNumber(row.units) }}</td>
+                                        <td class="text-end">{{ formatNumber(row.skus) }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p v-else class="overview-empty">Belum ada stok cabang.</p>
                     </article>
                 </div>
             </div>
@@ -1587,6 +1811,47 @@ const exportOverview = () => {
     font-weight: var(--app-weight-bold);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+}
+
+.overview-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.overview-card-toggle {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-sm);
+    background: var(--app-surface);
+    color: var(--app-accent-ink);
+    font-size: 1.1rem;
+}
+
+.overview-card-toggle:hover {
+    background: var(--app-accent-soft);
+}
+
+.overview-attention-table {
+    min-width: 760px;
+}
+
+.overview-action-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    color: var(--app-accent-ink);
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-bold);
+    text-decoration: none;
+}
+
+.overview-action-link:hover {
+    text-decoration: underline;
 }
 
 .overview-card-icon {

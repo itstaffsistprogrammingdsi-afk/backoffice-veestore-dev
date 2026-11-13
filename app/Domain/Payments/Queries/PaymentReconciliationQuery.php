@@ -130,6 +130,7 @@ class PaymentReconciliationQuery
         return [
             'orders' => $orderCount,
             'matched' => $matched,
+            'findings' => max(0, $orderCount - $matched),
             'exceptions' => $exceptions,
             'cancelled_orders' => $cancelledOrders,
             'pending_payment' => $pendingPayment,
@@ -151,6 +152,15 @@ class PaymentReconciliationQuery
     {
         return $this->filtered($filters)
             ->whereNotIn('reconciliation_status', [self::MATCHED, self::CANCELLED])
+            ->orderBy('created_at')
+            ->limit($limit)
+            ->get();
+    }
+
+    public function findings(array $filters, int $limit = 5): Collection
+    {
+        return $this->filtered($filters)
+            ->where('reconciliation_status', '<>', self::MATCHED)
             ->orderBy('created_at')
             ->limit($limit)
             ->get();
