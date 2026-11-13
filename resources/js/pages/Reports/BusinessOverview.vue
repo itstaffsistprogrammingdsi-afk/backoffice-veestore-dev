@@ -3,9 +3,10 @@ import AppLayout from '@/layouts/AppLayout.vue';
 
 defineOptions({ layout: AppLayout });
 
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import CustomerGrowthChart from '@/components/CustomerGrowthChart.vue';
 import AppPageHeader from '@/components/ui/AppPageHeader.vue';
 import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
 import { downloadExcelTable } from '@/composables/useExcelExport';
@@ -68,6 +69,12 @@ interface ProductRow {
     category_name: string | null;
     qty: number;
     transactions: number;
+    stores: Array<{
+        store_id: string | null;
+        store_name: string;
+        qty: number;
+        transactions: number;
+    }>;
 }
 
 interface StatusRow {
@@ -148,11 +155,20 @@ interface PaymentHealth {
     exceptions: number;
     cancelled_orders: number;
     pending_payment: number;
+    failed_payment: number;
+    needs_review: number;
     without_payment: number;
     detail_mismatch: number;
     total_value: number;
     total_paid_amount: number;
     rows: PaymentHealthRow[];
+}
+
+interface CustomerTrendRow {
+    date: string;
+    label: string;
+    new_members: number;
+    visits: number;
 }
 
 interface Logistics {
@@ -190,6 +206,10 @@ interface Props {
             ecommerce_members: number;
             visits: number;
             unique_visitors: number;
+        };
+        trend: {
+            grain: 'day' | 'month';
+            rows: CustomerTrendRow[];
         };
     };
     orders: {
@@ -235,6 +255,13 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+
+const showGuide = ref(false);
+const openProductId = ref<string | null>(null);
+
+const toggleProduct = (productId: string) => {
+    openProductId.value = openProductId.value === productId ? null : productId;
+};
 
 const form = reactive({
     date_from: props.filters.date_from ?? '',
@@ -415,36 +442,40 @@ const orderCards = computed(() => [
     },
 ]);
 
-const paymentCards = computed(() => [
-    {
-        label: 'Order Diperiksa',
-        value: formatNumber(props.payments.orders),
-        hint: `Termasuk ${formatNumber(props.payments.cancelled_orders)} order dibatalkan`,
-        icon: 'mdi-receipt-text-outline',
-        tone: 'accent',
-    },
-    {
-        label: 'Nominal Cocok',
-        value: formatNumber(props.payments.matched),
-        hint: 'Nilai order sama dengan total pembayaran',
-        icon: 'mdi-check-decagram-outline',
-        tone: 'success',
-    },
-    {
-        label: 'Perlu Dicek',
-        value: formatNumber(props.payments.exceptions),
-        hint: `${formatNumber(props.payments.pending_payment)} pembayaran belum selesai`,
-        icon: 'mdi-alert-circle-outline',
-        tone: props.payments.exceptions > 0 ? 'warning' : 'success',
-    },
-    {
-        label: 'Detail Berbeda',
-        value: formatNumber(props.payments.detail_mismatch),
-        hint: `${formatNumber(props.payments.without_payment)} order tanpa pembayaran`,
-        icon: 'mdi-link-off',
-        tone: props.payments.detail_mismatch > 0 ? 'danger' : 'success',
-    },
-]);
+const paymentCards = computed(() => {
+    const failed = props.payments.cancelled_orders + props.payments.failed_payment;
+
+    return [
+        {
+            label: 'Order',
+            value: formatNumber(props.payments.orders),
+            hint: `${formatNumber(props.payments.cancelled_orders)} dibatalkan`,
+            icon: 'mdi-receipt-text-outline',
+            tone: 'accent',
+        },
+        {
+            label: 'Berhasil',
+            value: formatNumber(props.payments.matched),
+            hint: 'Nominal cocok dan pembayaran lunas',
+            icon: 'mdi-check-decagram-outline',
+            tone: 'success',
+        },
+        {
+            label: 'Gagal / Batal',
+            value: formatNumber(failed),
+            hint: `${formatNumber(props.payments.cancelled_orders)} dibatalkan · ${formatNumber(props.payments.failed_payment)} pembayaran gagal`,
+            icon: 'mdi-close-octagon-outline',
+            tone: failed > 0 ? 'danger' : 'success',
+        },
+        {
+            label: 'Perlu Dicek',
+            value: formatNumber(props.payments.needs_review),
+            hint: `${formatNumber(props.payments.pending_payment)} belum selesai · ${formatNumber(props.payments.without_payment)} tanpa pembayaran`,
+            icon: 'mdi-alert-circle-outline',
+            tone: props.payments.needs_review > 0 ? 'warning' : 'success',
+        },
+    ];
+});
 
 const inventoryCards = computed(() => [
     {
@@ -535,7 +566,21 @@ const exportOverview = () => {
         ...props.sales.trend.map((row) => ({ section: 'Tren Penjualan', metric: row.date, value: row.net_revenue, gross_revenue: row.gross_revenue, net_revenue: row.net_revenue, transactions: row.transactions })),
         ...props.sales.top_stores.map((row) => ({ section: 'Store Teratas', metric: row.store_name, value: row.net_revenue, gross_revenue: row.gross_revenue, net_revenue: row.net_revenue, transactions: row.transactions, buyers: row.buyers })),
         ...props.sales.top_products.map((row) => ({ section: 'Produk Teratas', metric: row.product_name, product_code: row.product_code, category: row.category_name, quantity: row.qty, transactions: row.transactions })),
+        ...props.sales.top_products.flatMap((product) => product.stores.map((store) => ({
+            section: 'Produk per Cabang',
+            metric: product.product_name,
+            product_code: product.product_code,
+            location: store.store_name,
+            quantity: store.qty,
+            transactions: store.transactions,
+        }))),
         ...Object.entries(props.customers.summary).map(([metric, value]) => ({ section: 'Pelanggan', metric, value })),
+        ...props.customers.trend.rows.map((row) => ({
+            section: 'Tren Pelanggan',
+            metric: row.label,
+            new_members: row.new_members,
+            visits: row.visits,
+        })),
         ...(props.payments.applicable ? [
             { section: 'Pembayaran', metric: 'Order diperiksa', value: props.payments.orders },
             { section: 'Pembayaran', metric: 'Nominal cocok', value: props.payments.matched },
@@ -576,6 +621,8 @@ const exportOverview = () => {
         { key: 'transactions', label: 'Transaksi' },
         { key: 'buyers', label: 'Pembeli' },
         { key: 'quantity', label: 'Kuantitas' },
+        { key: 'new_members', label: 'Member Baru' },
+        { key: 'visits', label: 'Kunjungan' },
         { key: 'documents', label: 'Dokumen' },
         { key: 'units', label: 'Unit' },
         { key: 'share_percent', label: 'Persentase' },
@@ -699,25 +746,36 @@ const exportOverview = () => {
         </section>
 
         <section class="overview-guide">
-            <div class="overview-guide-head">
-                <i class="mdi mdi-information-outline"></i>
-                <strong>Cara membaca angka</strong>
+            <button
+                type="button"
+                class="overview-guide-toggle"
+                :aria-expanded="showGuide"
+                aria-controls="overview-guide-content"
+                @click="showGuide = !showGuide"
+            >
+                <span class="overview-guide-head">
+                    <i class="mdi mdi-information-outline" aria-hidden="true"></i>
+                    <strong>Cara membaca angka</strong>
+                </span>
+                <i class="mdi" :class="showGuide ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+            </button>
+            <div v-show="showGuide" id="overview-guide-content">
+                <div class="row g-2">
+                    <div class="col-md-6 col-xl-3">
+                        <p><strong>Omset</strong> dihitung dari transaksi lunas. Omset kotor memakai harga jual sebelum diskon dan voucher; omset bersih setelah diskon produk dan voucher, tanpa ongkir, biaya transport, listrik, atau biaya operasional lain.</p>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <p><strong>Pesanan</strong> dihitung dari tanggal pesanan dibuat, termasuk yang belum dibayar. Karena itu jumlah pesanan tidak sama dengan transaksi lunas.</p>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <p><strong>Pelanggan</strong> menghitung member baru berdasarkan tanggal registrasi dan kunjungan toko berdasarkan waktu check-in pada periode terpilih.</p>
+                    </div>
+                    <div class="col-md-6 col-xl-3">
+                        <p><strong>Stok</strong> adalah posisi saat ini. Inbound, outbound, dan retur adalah dokumen pada periode yang dipilih, bukan saldo stok.</p>
+                    </div>
+                </div>
+                <p class="overview-guide-note"><strong>Pembayaran</strong> membandingkan nilai order e-commerce dengan total pembayaran yang tercatat. Angka ini bukan bukti dana masuk ke rekening bank.</p>
             </div>
-            <div class="row g-2">
-                <div class="col-md-6 col-xl-3">
-                    <p><strong>Omset</strong> dihitung dari transaksi lunas. Omset kotor memakai harga jual sebelum diskon dan voucher; omset bersih setelah diskon produk dan voucher, tanpa ongkir, biaya transport, listrik, atau biaya operasional lain.</p>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <p><strong>Pesanan</strong> dihitung dari tanggal pesanan dibuat, termasuk yang belum dibayar. Karena itu jumlah pesanan tidak sama dengan transaksi lunas.</p>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <p><strong>Pelanggan</strong> menghitung member baru berdasarkan tanggal registrasi dan kunjungan toko berdasarkan waktu check-in pada periode terpilih.</p>
-                </div>
-                <div class="col-md-6 col-xl-3">
-                    <p><strong>Stok</strong> adalah posisi saat ini. Inbound, outbound, dan retur adalah dokumen pada periode yang dipilih, bukan saldo stok.</p>
-                </div>
-            </div>
-            <p class="overview-guide-note"><strong>Pembayaran</strong> membandingkan nilai order e-commerce dengan total pembayaran yang tercatat. Angka ini bukan bukti dana masuk ke rekening bank.</p>
         </section>
 
         <nav class="overview-anchors" aria-label="Bagian ringkasan">
@@ -769,6 +827,7 @@ const exportOverview = () => {
                             <div class="overview-chart-legend" aria-hidden="true">
                                 <span><i class="overview-chart-swatch is-gross"></i>Omset kotor</span>
                                 <span><i class="overview-chart-swatch is-net"></i>Omset bersih</span>
+                                <span class="overview-chart-scale">Skala 0 – {{ formatCurrency(maxTrendRevenue) }}</span>
                             </div>
                             <div class="overview-chart-grid">
                                 <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
@@ -867,16 +926,39 @@ const exportOverview = () => {
                         <header class="overview-card-head">
                             <div>
                                 <h3>Produk Paling Banyak Terjual</h3>
-                                <p>Berdasarkan quantity item pada transaksi lunas.</p>
+                                <p>Berdasarkan quantity item pada transaksi lunas. Klik produk untuk melihat cabang penjualnya.</p>
                             </div>
                         </header>
                         <div v-if="props.sales.top_products.length" class="overview-product-list">
                             <div v-for="product in props.sales.top_products" :key="product.product_id" class="overview-product">
-                                <div>
-                                    <strong>{{ product.product_name }}</strong>
-                                    <small>{{ product.product_code }} · {{ product.category_name ?? 'Tanpa kategori' }}</small>
+                                <button
+                                    type="button"
+                                    class="overview-product-toggle"
+                                    :aria-expanded="openProductId === product.product_id"
+                                    :aria-controls="`product-stores-${product.product_id}`"
+                                    @click="toggleProduct(product.product_id)"
+                                >
+                                    <span class="overview-product-name">
+                                        <strong>{{ product.product_name }}</strong>
+                                        <small>{{ product.product_code }} · {{ product.category_name ?? 'Tanpa kategori' }}</small>
+                                    </span>
+                                    <span class="overview-product-qty">{{ formatNumber(product.qty) }} pcs</span>
+                                    <i class="mdi" :class="openProductId === product.product_id ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
+                                </button>
+                                <div
+                                    v-show="openProductId === product.product_id"
+                                    :id="`product-stores-${product.product_id}`"
+                                    class="overview-product-stores"
+                                >
+                                    <p v-if="!product.stores.length" class="overview-cell-note">Belum ada data cabang.</p>
+                                    <ul v-else>
+                                        <li v-for="store in product.stores" :key="`${product.product_id}-${store.store_id ?? store.store_name}`">
+                                            <span>{{ store.store_name }}</span>
+                                            <strong>{{ formatNumber(store.qty) }} pcs</strong>
+                                            <small>{{ formatNumber(store.transactions) }} transaksi</small>
+                                        </li>
+                                    </ul>
                                 </div>
-                                <span class="overview-product-qty">{{ formatNumber(product.qty) }} pcs</span>
                             </div>
                         </div>
                         <p v-else class="overview-empty">Belum ada produk terjual.</p>
@@ -913,11 +995,20 @@ const exportOverview = () => {
                     </div>
                 </div>
 
+                <div class="overview-payment-breakdown" aria-label="Rincian status order">
+                    <span>Cocok <strong>{{ formatNumber(props.payments.matched) }}</strong></span>
+                    <span>Dibatalkan <strong>{{ formatNumber(props.payments.cancelled_orders) }}</strong></span>
+                    <span>Pembayaran gagal <strong>{{ formatNumber(props.payments.failed_payment) }}</strong></span>
+                    <span>Belum selesai <strong>{{ formatNumber(props.payments.pending_payment) }}</strong></span>
+                    <span>Tanpa pembayaran <strong>{{ formatNumber(props.payments.without_payment) }}</strong></span>
+                    <span>Detail berbeda <strong>{{ formatNumber(props.payments.detail_mismatch) }}</strong></span>
+                </div>
+
                 <article class="overview-card">
                     <header class="overview-card-head">
                         <div>
                             <h3>Temuan Pembayaran</h3>
-                            <p>Order yang nilainya belum cocok, belum dibayar, atau detail pembayarannya berbeda.</p>
+                            <p>Order yang tidak lolos pemeriksaan otomatis. Contoh: total pembayaran tidak sama dengan nilai order, order belum punya pembayaran, pembayaran belum lunas, atau jumlah detail pembayaran sukses berbeda dari total pembayaran.</p>
                         </div>
                         <span class="overview-card-meta">{{ formatNumber(props.payments.exceptions) }} temuan</span>
                     </header>
@@ -980,6 +1071,17 @@ const exportOverview = () => {
                     </article>
                 </div>
             </div>
+
+            <article class="overview-card mt-3">
+                <header class="overview-card-head">
+                    <div>
+                        <h3>Tren Member Baru dan Kunjungan</h3>
+                        <p>Member baru berdasarkan tanggal registrasi; kunjungan berdasarkan check-in toko. Satuan {{ props.customers.trend.grain === 'month' ? 'bulanan' : 'harian' }}.</p>
+                    </div>
+                    <span class="overview-card-meta">Total {{ formatNumber(props.customers.summary.new_members) }} member · {{ formatNumber(props.customers.summary.visits) }} kunjungan</span>
+                </header>
+                <CustomerGrowthChart :rows="props.customers.trend.rows" :grain="props.customers.trend.grain" />
+            </article>
         </section>
 
         <section id="pesanan" class="overview-section" aria-labelledby="orders-title">
@@ -1240,13 +1342,39 @@ const exportOverview = () => {
     background: var(--app-surface-2);
 }
 
+.overview-guide-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--app-ink);
+    text-align: left;
+}
+
+.overview-guide-toggle:hover .overview-guide-head {
+    color: var(--app-accent-strong);
+}
+
 .overview-guide-head {
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    margin-bottom: 0.45rem;
     color: var(--app-accent-ink);
     font-size: var(--app-text-base);
+}
+
+.overview-guide-toggle > .mdi {
+    flex: 0 0 auto;
+    color: var(--app-muted);
+    font-size: 1.1rem;
+}
+
+.overview-guide-content,
+#overview-guide-content {
+    margin-top: 0.65rem;
 }
 
 .overview-guide p {
@@ -1335,6 +1463,26 @@ const exportOverview = () => {
 .overview-section-links a:hover {
     background: var(--app-surface-3);
     text-decoration: underline;
+}
+
+.overview-payment-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+    margin-bottom: 0.75rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-xs);
+}
+
+.overview-payment-breakdown span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+}
+
+.overview-payment-breakdown strong {
+    color: var(--app-ink);
+    font-variant-numeric: tabular-nums;
 }
 
 .overview-kpi {
@@ -1488,6 +1636,11 @@ const exportOverview = () => {
     gap: 0.3rem;
 }
 
+.overview-chart-scale {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+}
+
 .overview-chart-swatch {
     width: 0.6rem;
     height: 0.6rem;
@@ -1591,14 +1744,10 @@ const exportOverview = () => {
 
 .overview-product-list {
     display: grid;
-    gap: 0.55rem;
+    gap: 0.35rem;
 }
 
 .overview-product {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--app-border);
 }
@@ -1608,8 +1757,31 @@ const exportOverview = () => {
     border-bottom: 0;
 }
 
-.overview-product strong,
-.overview-product small {
+.overview-product-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.35rem 0.4rem;
+    border: 0;
+    border-radius: var(--app-radius-sm);
+    background: transparent;
+    color: var(--app-ink);
+    text-align: left;
+}
+
+.overview-product-toggle:hover {
+    background: var(--app-surface-2);
+}
+
+.overview-product-toggle > .mdi {
+    color: var(--app-muted);
+}
+
+.overview-product-name strong,
+.overview-product-name small {
     display: block;
 }
 
@@ -1627,6 +1799,43 @@ const exportOverview = () => {
     color: var(--app-accent-ink);
     font-size: var(--app-text-xs);
     font-weight: var(--app-weight-bold);
+    white-space: nowrap;
+}
+
+.overview-product-stores {
+    padding: 0.45rem 0.4rem 0.15rem;
+    margin-top: 0.25rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.overview-product-stores ul {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.overview-product-stores li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: var(--app-text-sm);
+}
+
+.overview-product-stores li span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.overview-product-stores li strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.overview-product-stores li small {
+    font-size: var(--app-text-2xs);
+    white-space: nowrap;
 }
 
 .overview-table {

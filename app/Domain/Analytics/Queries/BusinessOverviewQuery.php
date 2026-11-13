@@ -322,7 +322,7 @@ class BusinessOverviewQuery
             ->values()
             ->all();
 
-        $products = $this->productSalesQuery($filters)
+        $topProducts = $this->productSalesQuery($filters)
             ->selectRaw('
                 product_id,
                 product_code,
@@ -335,7 +335,28 @@ class BusinessOverviewQuery
             ->orderByDesc(DB::raw('SUM(qty)'))
             ->orderBy('product_name')
             ->limit(5)
-            ->get()
+            ->get();
+
+        $productIds = $topProducts->pluck('product_id')->filter()->unique()->values()->all();
+        $storeBreakdown = collect();
+
+        if ($productIds !== []) {
+            $storeBreakdown = $this->productSalesQuery($filters)
+                ->whereIn('product_id', $productIds)
+                ->selectRaw('
+                    product_id,
+                    store_id,
+                    store_name,
+                    COALESCE(SUM(qty), 0)::int AS qty,
+                    COUNT(DISTINCT transaction_id)::int AS transactions
+                ')
+                ->groupBy('product_id', 'store_id', 'store_name')
+                ->orderByDesc(DB::raw('SUM(qty)'))
+                ->get()
+                ->groupBy('product_id');
+        }
+
+        $products = $topProducts
             ->map(fn ($row) => [
                 'product_id' => $row->product_id,
                 'product_code' => $row->product_code,
@@ -343,6 +364,15 @@ class BusinessOverviewQuery
                 'category_name' => $row->category_name,
                 'qty' => (int) $row->qty,
                 'transactions' => (int) $row->transactions,
+                'stores' => $storeBreakdown->get($row->product_id, collect())
+                    ->map(fn ($store) => [
+                        'store_id' => $store->store_id,
+                        'store_name' => $store->store_name,
+                        'qty' => (int) $store->qty,
+                        'transactions' => (int) $store->transactions,
+                    ])
+                    ->values()
+                    ->all(),
             ])
             ->values()
             ->all();
@@ -452,6 +482,51 @@ class BusinessOverviewQuery
             ->selectRaw('COUNT(*)::int AS visits, COUNT(DISTINCT customer_id)::int AS unique_visitors')
             ->first();
 
+        $fromDate = CarbonImmutable::parse($filters['date_from']);
+        $toDate = CarbonImmutable::parse($filters['date_to']);
+        $grain = $fromDate->diffInDays($toDate) > 61 ? 'month' : 'day';
+        $memberPeriodSql = $grain === 'month' ? "to_char(created_at, 'YYYY-MM')" : 'created_at::date';
+        $visitPeriodSql = $grain === 'month' ? "to_char(check_in_at, 'YYYY-MM')" : 'check_in_at::date';
+
+        $memberCounts = DB::table('customers')
+            ->whereBetween('created_at', [$from, $to])
+            ->whereNull('deleted_at')
+            ->whereIn('registration_channel', ['store', 'ecommerce'])
+            ->when($filters['channel'] !== 'all', fn ($query) => $query->where('registration_channel', $filters['channel']))
+            ->when($filters['store_id'], function ($query) use ($filters) {
+                $query->where('registration_channel', 'store')
+                    ->where('registration_source_id', $filters['store_id']);
+            })
+            ->selectRaw("{$memberPeriodSql} AS period_key, COUNT(*)::int AS new_members")
+            ->groupByRaw($memberPeriodSql)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->period_key => (int) $row->new_members]);
+
+        $visitCounts = DB::table('store_customer_visits')
+            ->whereBetween('check_in_at', [$from, $to])
+            ->when($filters['store_id'], fn ($query) => $query->where('store_id', $filters['store_id']))
+            ->selectRaw("{$visitPeriodSql} AS period_key, COUNT(*)::int AS visits")
+            ->groupByRaw($visitPeriodSql)
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->period_key => (int) $row->visits]);
+
+        $cursor = $grain === 'month' ? $fromDate->startOfMonth() : $fromDate;
+        $end = $grain === 'month' ? $toDate->endOfMonth() : $toDate;
+        $trend = [];
+
+        while ($cursor <= $end) {
+            $key = $cursor->format($grain === 'month' ? 'Y-m' : 'Y-m-d');
+
+            $trend[] = [
+                'date' => $key,
+                'label' => $cursor->format($grain === 'month' ? 'M Y' : 'd M'),
+                'new_members' => (int) ($memberCounts[$key] ?? 0),
+                'visits' => (int) ($visitCounts[$key] ?? 0),
+            ];
+
+            $cursor = $grain === 'month' ? $cursor->addMonth() : $cursor->addDay();
+        }
+
         return [
             'summary' => [
                 'new_members' => (int) ($members->new_members ?? 0),
@@ -459,6 +534,10 @@ class BusinessOverviewQuery
                 'ecommerce_members' => (int) ($members->ecommerce_members ?? 0),
                 'visits' => (int) ($visits->visits ?? 0),
                 'unique_visitors' => (int) ($visits->unique_visitors ?? 0),
+            ],
+            'trend' => [
+                'grain' => $grain,
+                'rows' => $trend,
             ],
         ];
     }
@@ -572,6 +651,8 @@ class BusinessOverviewQuery
                 'exceptions' => 0,
                 'cancelled_orders' => 0,
                 'pending_payment' => 0,
+                'failed_payment' => 0,
+                'needs_review' => 0,
                 'without_payment' => 0,
                 'detail_mismatch' => 0,
                 'total_value' => 0,

@@ -109,20 +109,32 @@ class PaymentReconciliationQuery
     {
         $query = $this->filtered($filters);
 
+        $orderCount = (clone $query)->count();
+        $matched = (clone $query)
+            ->where('reconciliation_status', self::MATCHED)
+            ->count();
+        $exceptions = (clone $query)
+            ->whereNotIn('reconciliation_status', [self::MATCHED, self::CANCELLED])
+            ->count();
+        $cancelledOrders = (clone $query)
+            ->where('reconciliation_status', self::CANCELLED)
+            ->count();
+        $pendingPayment = (clone $query)
+            ->where('reconciliation_status', 'Pembayaran belum selesai')
+            ->count();
+        $failedPayment = (clone $query)
+            ->where('reconciliation_status', 'Pembayaran belum selesai')
+            ->whereRaw("LOWER(COALESCE(payment_status::text, '')) IN ('failed','expired','denied','cancel','cancelled','failure')")
+            ->count();
+
         return [
-            'orders' => (clone $query)->count(),
-            'matched' => (clone $query)
-                ->where('reconciliation_status', self::MATCHED)
-                ->count(),
-            'exceptions' => (clone $query)
-                ->whereNotIn('reconciliation_status', [self::MATCHED, self::CANCELLED])
-                ->count(),
-            'cancelled_orders' => (clone $query)
-                ->where('reconciliation_status', self::CANCELLED)
-                ->count(),
-            'pending_payment' => (clone $query)
-                ->where('reconciliation_status', 'Pembayaran belum selesai')
-                ->count(),
+            'orders' => $orderCount,
+            'matched' => $matched,
+            'exceptions' => $exceptions,
+            'cancelled_orders' => $cancelledOrders,
+            'pending_payment' => $pendingPayment,
+            'failed_payment' => $failedPayment,
+            'needs_review' => max(0, $exceptions - $failedPayment),
             'without_payment' => (clone $query)
                 ->where('reconciliation_status', 'Tanpa pembayaran')
                 ->count(),
