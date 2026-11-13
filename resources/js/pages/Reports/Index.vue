@@ -285,9 +285,10 @@ const modules = [
         <div class="row g-3 mb-3">
             <div v-for="domain in [
                 { title: 'Penjualan', description: 'Nilai penjualan lunas, transaksi, channel, dan produk terlaris.', anchor: 'penjualan', icon: 'mdi-cash-multiple' },
+                { title: 'Pembayaran', description: 'Kecocokan nilai order dengan pembayaran e-commerce yang tercatat.', anchor: 'pembayaran', icon: 'mdi-credit-card-check-outline' },
                 { title: 'Pesanan', description: 'Status pesanan, antrean SLA, permintaan store, dan retur.', anchor: 'pesanan', icon: 'mdi-clipboard-check-outline' },
                 { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' }
-            ]" :key="domain.title" class="col-md-4">
+            ]" :key="domain.title" class="col-md-6 col-xl-3">
                 <a :href="`${overviewUrl}#${domain.anchor}`" class="hub-domain">
                     <span class="hub-domain-icon"><i class="mdi" :class="domain.icon" aria-hidden="true"></i></span>
                     <div>

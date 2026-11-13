@@ -2,6 +2,7 @@
 
 namespace App\Domain\Analytics\Queries;
 
+use App\Domain\Payments\Queries\PaymentReconciliationQuery;
 use App\Domain\StoreOperations\Support\SaleConditionMetrics;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Query\Builder;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 class BusinessOverviewQuery
 {
     private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'last_month', 'custom'];
+
+    public function __construct(private readonly PaymentReconciliationQuery $paymentReconciliation) {}
 
     private const ECOMMERCE_STATUS_LABELS = [
         'pending' => 'Menunggu pembayaran',
@@ -60,6 +63,18 @@ class BusinessOverviewQuery
             'customers' => $this->customers($filters),
             'orders' => $this->orders($filters),
             'inventory' => $this->inventory($filters),
+        ];
+    }
+
+    public function paymentsSnapshot(array $input): array
+    {
+        return $this->payments($this->normalizeFilters($input));
+    }
+
+    public function salesHeadline(array $input): array
+    {
+        return [
+            'summary' => $this->salesSummary($this->normalizeFilters($input))['summary'],
         ];
     }
 
@@ -248,37 +263,6 @@ class BusinessOverviewQuery
 
     private function sales(array $filters): array
     {
-        $summaryRow = $this->salesQuery($filters)->selectRaw("
-            COUNT(*)::int AS transactions,
-            COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue,
-            COUNT(DISTINCT customer_id)::int AS buyers,
-            COUNT(*) FILTER (WHERE channel = 'POS')::int AS pos_transactions,
-            COALESCE(SUM(amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_revenue,
-            COUNT(*) FILTER (WHERE channel = 'Ecommerce')::int AS ecommerce_transactions,
-            COALESCE(SUM(amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_revenue
-        ")->first();
-
-        $transactions = (int) ($summaryRow->transactions ?? 0);
-        $revenue = (float) ($summaryRow->revenue ?? 0);
-        $posRevenue = (float) ($summaryRow->pos_revenue ?? 0);
-        $ecommerceRevenue = (float) ($summaryRow->ecommerce_revenue ?? 0);
-
-        $grossRow = $this->grossSalesQuery($filters)->selectRaw("
-            COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
-            COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue,
-            COALESCE(SUM(gross_amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_gross_revenue,
-            COALESCE(SUM(net_amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_net_revenue,
-            COALESCE(SUM(gross_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_gross_revenue,
-            COALESCE(SUM(net_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_net_revenue
-        ")->first();
-
-        $grossRevenue = (float) ($grossRow->gross_revenue ?? 0);
-        $netRevenue = (float) ($grossRow->net_revenue ?? 0);
-        $posGrossRevenue = (float) ($grossRow->pos_gross_revenue ?? 0);
-        $posNetRevenue = (float) ($grossRow->pos_net_revenue ?? 0);
-        $ecommerceGrossRevenue = (float) ($grossRow->ecommerce_gross_revenue ?? 0);
-        $ecommerceNetRevenue = (float) ($grossRow->ecommerce_net_revenue ?? 0);
-
         $trend = $this->salesQuery($filters)
             ->selectRaw('sold_at::date AS date, COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue, COUNT(*)::int AS transactions')
             ->groupByRaw('sold_at::date')
@@ -341,9 +325,43 @@ class BusinessOverviewQuery
             ->all();
 
         return [
+            ...$this->salesSummary($filters),
+            'trend' => $trend,
+            'top_stores' => $stores,
+            'top_products' => $products,
+        ];
+    }
+
+    private function salesSummary(array $filters): array
+    {
+        $summaryRow = $this->salesQuery($filters)->selectRaw("
+            COUNT(*)::int AS transactions,
+            COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue,
+            COUNT(DISTINCT customer_id)::int AS buyers,
+            COUNT(*) FILTER (WHERE channel = 'POS')::int AS pos_transactions,
+            COALESCE(SUM(amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_revenue,
+            COUNT(*) FILTER (WHERE channel = 'Ecommerce')::int AS ecommerce_transactions,
+            COALESCE(SUM(amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_revenue
+        ")->first();
+
+        $transactions = (int) ($summaryRow->transactions ?? 0);
+        $revenue = (float) ($summaryRow->revenue ?? 0);
+        $posRevenue = (float) ($summaryRow->pos_revenue ?? 0);
+        $ecommerceRevenue = (float) ($summaryRow->ecommerce_revenue ?? 0);
+
+        $grossRow = $this->grossSalesQuery($filters)->selectRaw("
+            COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
+            COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue,
+            COALESCE(SUM(gross_amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_gross_revenue,
+            COALESCE(SUM(net_amount) FILTER (WHERE channel = 'POS'), 0)::numeric(18,2) AS pos_net_revenue,
+            COALESCE(SUM(gross_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_gross_revenue,
+            COALESCE(SUM(net_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_net_revenue
+        ")->first();
+
+        return [
             'summary' => [
-                'gross_revenue' => $grossRevenue,
-                'net_revenue' => $netRevenue,
+                'gross_revenue' => (float) ($grossRow->gross_revenue ?? 0),
+                'net_revenue' => (float) ($grossRow->net_revenue ?? 0),
                 'revenue' => $revenue,
                 'transactions' => $transactions,
                 'average_transaction' => $transactions > 0 ? $revenue / $transactions : 0,
@@ -353,8 +371,8 @@ class BusinessOverviewQuery
                 [
                     'key' => 'pos',
                     'label' => 'POS / Store',
-                    'gross_revenue' => $posGrossRevenue,
-                    'net_revenue' => $posNetRevenue,
+                    'gross_revenue' => (float) ($grossRow->pos_gross_revenue ?? 0),
+                    'net_revenue' => (float) ($grossRow->pos_net_revenue ?? 0),
                     'revenue' => $posRevenue,
                     'transactions' => (int) ($summaryRow->pos_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($posRevenue / $revenue) * 100) : 0,
@@ -362,16 +380,13 @@ class BusinessOverviewQuery
                 [
                     'key' => 'ecommerce',
                     'label' => 'Ecommerce',
-                    'gross_revenue' => $ecommerceGrossRevenue,
-                    'net_revenue' => $ecommerceNetRevenue,
+                    'gross_revenue' => (float) ($grossRow->ecommerce_gross_revenue ?? 0),
+                    'net_revenue' => (float) ($grossRow->ecommerce_net_revenue ?? 0),
                     'revenue' => $ecommerceRevenue,
                     'transactions' => (int) ($summaryRow->ecommerce_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($ecommerceRevenue / $revenue) * 100) : 0,
                 ],
             ],
-            'trend' => $trend,
-            'top_stores' => $stores,
-            'top_products' => $products,
         ];
     }
 
@@ -509,6 +524,53 @@ class BusinessOverviewQuery
             'store_order_statuses' => $storeOrderStatuses,
             'return_statuses' => $returnStatuses,
             'attention' => $this->attentionRows($filters),
+        ];
+    }
+
+    private function payments(array $filters): array
+    {
+        if ($filters['channel'] === 'store') {
+            return [
+                'applicable' => false,
+                'orders' => 0,
+                'matched' => 0,
+                'exceptions' => 0,
+                'cancelled_orders' => 0,
+                'pending_payment' => 0,
+                'without_payment' => 0,
+                'detail_mismatch' => 0,
+                'total_value' => 0,
+                'total_paid_amount' => 0,
+                'rows' => [],
+            ];
+        }
+
+        $paymentFilters = [
+            'start_date' => $filters['date_from'],
+            'end_date' => $filters['date_to'],
+            'store_id' => $filters['store_id'],
+            'warehouse_id' => $filters['warehouse_id'],
+        ];
+
+        $summary = $this->paymentReconciliation->summary($paymentFilters);
+
+        $rows = $this->paymentReconciliation->exceptions($paymentFilters, 5)
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'order_number' => $row->order_number,
+                'order_status' => $row->order_status,
+                'reconciliation_status' => $row->reconciliation_status,
+                'grand_total' => (float) $row->grand_total,
+                'total_amount' => (float) ($row->total_amount ?? 0),
+                'created_at' => $row->created_at,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'applicable' => true,
+            ...$summary,
+            'rows' => $rows,
         ];
     }
 

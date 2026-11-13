@@ -119,6 +119,30 @@ interface DocumentSummary {
     units: number;
 }
 
+interface PaymentHealthRow {
+    id: string;
+    order_number: string;
+    order_status: string;
+    reconciliation_status: string;
+    grand_total: number;
+    total_amount: number;
+    created_at: string;
+}
+
+interface PaymentHealth {
+    applicable: boolean;
+    orders: number;
+    matched: number;
+    exceptions: number;
+    cancelled_orders: number;
+    pending_payment: number;
+    without_payment: number;
+    detail_mismatch: number;
+    total_value: number;
+    total_paid_amount: number;
+    rows: PaymentHealthRow[];
+}
+
 interface Logistics {
     warehouse_inbound: DocumentSummary;
     warehouse_outbound: DocumentSummary;
@@ -169,12 +193,16 @@ interface Props {
         logistics: Logistics;
         pending_queues: PendingQueues;
     };
+    payments: PaymentHealth;
     urls: {
         index: string;
         sales: string;
         sales_omset: string;
         top_products: string;
         orders: string;
+        payments: string;
+        pending_transactions: string;
+        anomalies: string;
         ecommerce_orders: string;
         store_orders: string;
         store_returns: string;
@@ -353,6 +381,37 @@ const orderCards = computed(() => [
     },
 ]);
 
+const paymentCards = computed(() => [
+    {
+        label: 'Order Diperiksa',
+        value: formatNumber(props.payments.orders),
+        hint: `Termasuk ${formatNumber(props.payments.cancelled_orders)} order dibatalkan`,
+        icon: 'mdi-receipt-text-outline',
+        tone: 'accent',
+    },
+    {
+        label: 'Nominal Cocok',
+        value: formatNumber(props.payments.matched),
+        hint: 'Nilai order sama dengan total pembayaran',
+        icon: 'mdi-check-decagram-outline',
+        tone: 'success',
+    },
+    {
+        label: 'Perlu Dicek',
+        value: formatNumber(props.payments.exceptions),
+        hint: `${formatNumber(props.payments.pending_payment)} pembayaran belum selesai`,
+        icon: 'mdi-alert-circle-outline',
+        tone: props.payments.exceptions > 0 ? 'warning' : 'success',
+    },
+    {
+        label: 'Detail Berbeda',
+        value: formatNumber(props.payments.detail_mismatch),
+        hint: `${formatNumber(props.payments.without_payment)} order tanpa pembayaran`,
+        icon: 'mdi-link-off',
+        tone: props.payments.detail_mismatch > 0 ? 'danger' : 'success',
+    },
+]);
+
 const inventoryCards = computed(() => [
     {
         label: 'Stok Gudang',
@@ -440,6 +499,21 @@ const exportOverview = () => {
         ...props.sales.top_stores.map((row) => ({ section: 'Store Teratas', metric: row.store_name, value: row.revenue, transactions: row.transactions, buyers: row.buyers })),
         ...props.sales.top_products.map((row) => ({ section: 'Produk Teratas', metric: row.product_name, product_code: row.product_code, category: row.category_name, quantity: row.qty, transactions: row.transactions })),
         ...Object.entries(props.customers.summary).map(([metric, value]) => ({ section: 'Pelanggan', metric, value })),
+        ...(props.payments.applicable ? [
+            { section: 'Pembayaran', metric: 'Order diperiksa', value: props.payments.orders },
+            { section: 'Pembayaran', metric: 'Nominal cocok', value: props.payments.matched },
+            { section: 'Pembayaran', metric: 'Perlu dicek', value: props.payments.exceptions },
+            { section: 'Pembayaran', metric: 'Pembayaran belum selesai', value: props.payments.pending_payment },
+            { section: 'Pembayaran', metric: 'Tanpa pembayaran', value: props.payments.without_payment },
+            { section: 'Pembayaran', metric: 'Detail pembayaran berbeda', value: props.payments.detail_mismatch },
+            ...props.payments.rows.map((row) => ({
+                section: 'Temuan Pembayaran',
+                metric: row.order_number,
+                status: row.reconciliation_status,
+                value: row.grand_total,
+                amount: row.total_amount,
+            })),
+        ] : []),
         ...Object.entries(props.orders.summary).map(([metric, value]) => ({ section: 'Pesanan', metric, value })),
         ...props.orders.ecommerce_statuses.map((row) => ({ section: 'Status Ecommerce', metric: row.label, status: row.status, count: row.count, share_percent: row.share })),
         ...props.orders.store_order_statuses.map((row) => ({ section: 'Status Order Store', metric: row.label, status: row.status, count: row.count, share_percent: row.share })),
@@ -505,7 +579,7 @@ const exportOverview = () => {
                 </button>
                 <Link :href="props.urls.monitoring" class="btn btn-outline-secondary">
                     <i class="mdi mdi-monitor-dashboard me-1" aria-hidden="true"></i>
-                    Monitoring Center
+                    Pusat Komando
                 </Link>
                 <Link :href="props.urls.orders" class="btn btn-primary">
                     <i class="mdi mdi-clipboard-check-outline me-1" aria-hidden="true"></i>
@@ -594,10 +668,12 @@ const exportOverview = () => {
                     <p><strong>Stok</strong> adalah posisi saat ini. Inbound, outbound, dan retur adalah dokumen pada periode yang dipilih, bukan saldo stok.</p>
                 </div>
             </div>
+            <p class="overview-guide-note"><strong>Pembayaran</strong> membandingkan nilai order e-commerce dengan total pembayaran yang tercatat. Angka ini bukan bukti dana masuk ke rekening bank.</p>
         </section>
 
         <nav class="overview-anchors" aria-label="Bagian ringkasan">
             <a href="#penjualan" class="chip">Penjualan</a>
+            <a href="#pembayaran" class="chip">Pembayaran</a>
             <a href="#pelanggan" class="chip">Pelanggan</a>
             <a href="#pesanan" class="chip">Pesanan</a>
             <a href="#stok-logistik" class="chip">Stok &amp; Logistik</a>
@@ -746,6 +822,75 @@ const exportOverview = () => {
                     </article>
                 </div>
             </div>
+        </section>
+
+        <section id="pembayaran" class="overview-section" aria-labelledby="payments-title">
+            <div class="overview-section-head">
+                <div>
+                    <span class="overview-section-kicker">Pembayaran</span>
+                    <h2 id="payments-title">Kecocokan order dan pembayaran e-commerce</h2>
+                    <p>Nilai order dibandingkan dengan total pembayaran yang tercatat pada periode ini.</p>
+                </div>
+                <div class="overview-section-links">
+                    <Link :href="props.urls.payments">Rekonsiliasi Pembayaran</Link>
+                    <Link :href="props.urls.pending_transactions">Transaksi Gantung</Link>
+                    <Link :href="props.urls.anomalies">Anomali Transaksi</Link>
+                </div>
+            </div>
+
+            <template v-if="props.payments.applicable">
+                <div class="row g-3 mb-3">
+                    <div v-for="card in paymentCards" :key="card.label" class="col-6 col-xl-3">
+                        <article class="overview-kpi" :class="`is-${card.tone}`">
+                            <span class="overview-kpi-icon"><i class="mdi" :class="card.icon"></i></span>
+                            <div>
+                                <span class="overview-kpi-label">{{ card.label }}</span>
+                                <strong class="overview-kpi-value">{{ card.value }}</strong>
+                                <small>{{ card.hint }}</small>
+                            </div>
+                        </article>
+                    </div>
+                </div>
+
+                <article class="overview-card">
+                    <header class="overview-card-head">
+                        <div>
+                            <h3>Temuan Pembayaran</h3>
+                            <p>Order yang nilainya belum cocok, belum dibayar, atau detail pembayarannya berbeda.</p>
+                        </div>
+                        <span class="overview-card-meta">{{ formatNumber(props.payments.exceptions) }} temuan</span>
+                    </header>
+                    <div v-if="props.payments.rows.length" class="table-responsive">
+                        <table class="table align-middle mb-0 overview-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Order</th>
+                                    <th scope="col">Temuan</th>
+                                    <th scope="col" class="text-end">Nilai Order</th>
+                                    <th scope="col" class="text-end">Total Pembayaran</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="row in props.payments.rows" :key="row.id">
+                                    <td>
+                                        <strong>{{ row.order_number }}</strong>
+                                        <small class="overview-cell-note">{{ formatDate(row.created_at) }}</small>
+                                    </td>
+                                    <td><span class="overview-badge is-warning">{{ row.reconciliation_status }}</span></td>
+                                    <td class="text-end">{{ formatCurrency(row.grand_total) }}</td>
+                                    <td class="text-end">{{ formatCurrency(row.total_amount) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p v-else class="overview-empty">Tidak ada temuan pembayaran pada periode ini.</p>
+                    <div class="overview-card-footer">
+                        <span>Nilai order, termasuk dibatalkan: <strong>{{ formatCurrency(props.payments.total_value) }}</strong></span>
+                        <span>Detail pembayaran sukses: <strong>{{ formatCurrency(props.payments.total_paid_amount) }}</strong></span>
+                    </div>
+                </article>
+            </template>
+            <p v-else class="overview-empty">Rekonsiliasi pembayaran e-commerce tidak dihitung saat filter kanal diatur ke Toko.</p>
         </section>
 
         <section id="pelanggan" class="overview-section" aria-labelledby="customers-title">
@@ -980,7 +1125,6 @@ const exportOverview = () => {
 </template>
 
 <style scoped>
-<style scoped>
 .overview-page {
     color: var(--app-ink);
 }
@@ -1047,6 +1191,15 @@ const exportOverview = () => {
 
 .overview-guide strong {
     color: var(--app-ink);
+}
+
+.overview-guide-note {
+    margin: 0.65rem 0 0;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--app-border);
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+    line-height: var(--app-leading-normal);
 }
 
 .overview-anchors {

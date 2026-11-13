@@ -37,8 +37,14 @@ class BusinessOverviewTest extends TestCase
                 ->has('inventory.low_stock')
                 ->has('inventory.logistics')
                 ->has('inventory.pending_queues.store_transfer_not_recorded')
+                ->has('payments.applicable')
+                ->has('payments.orders')
+                ->has('payments.matched')
+                ->has('payments.exceptions')
+                ->has('payments.rows')
                 ->has('urls')
-                ->where('urls.index', route('reports.business-overview.index')));
+                ->where('urls.index', route('reports.business-overview.index'))
+                ->where('urls.payments', route('monitoring.payment-reconciliation.index')));
     }
 
     public function test_business_overview_accepts_period_filter(): void

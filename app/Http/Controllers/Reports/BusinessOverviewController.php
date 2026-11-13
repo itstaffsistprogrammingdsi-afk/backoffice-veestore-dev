@@ -12,7 +12,10 @@ class BusinessOverviewController extends Controller
 {
     public function index(Request $request, BusinessOverviewQuery $query)
     {
-        return Inertia::render('Reports/BusinessOverview', $query->build($request->query()) + [
+        $data = $query->build($request->query());
+        $data['payments'] = $query->paymentsSnapshot($request->query());
+
+        return Inertia::render('Reports/BusinessOverview', $data + [
             'periodOptions' => [
                 ['value' => 'today', 'label' => 'Hari ini'],
                 ['value' => 'week', 'label' => 'Minggu ini'],
@@ -34,6 +37,9 @@ class BusinessOverviewController extends Controller
                 'sales_omset' => route('monitoring.omset-cabang.index'),
                 'top_products' => route('monitoring.produk-terlaris.index'),
                 'orders' => route('monitoring.fulfillment-control.index'),
+                'payments' => route('monitoring.payment-reconciliation.index'),
+                'pending_transactions' => route('monitoring.pending-transactions.index'),
+                'anomalies' => route('monitoring.transaction-anomalies.index'),
                 'ecommerce_orders' => route('monitoring.order-handled.index'),
                 'store_orders' => route('monitoring.order-handled.store-orders'),
                 'store_returns' => route('monitoring.order-handled.store-returns'),

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Monitoring;
 
+use App\Domain\Analytics\Queries\BusinessOverviewQuery;
+use App\Domain\Payments\Queries\PaymentReconciliationQuery;
 use App\Domain\WarehouseOperations\Queries\StoreTransferReconciliationQuery;
 use App\Exports\PaymentReconciliationExport;
 use App\Http\Controllers\Controller;
@@ -18,18 +20,64 @@ class MonitoringCommandCenterController extends Controller
 {
     private const AWAITING_SHIPMENT_STATUSES = ['pending', 'paid', 'processed', 'processing', 'packing', 'on_hold'];
 
-    public function index(StoreTransferReconciliationQuery $storeTransfers)
-    {
-        $monitoringGroups = $this->monitoringGroups();
+    public function index(
+        StoreTransferReconciliationQuery $storeTransfers,
+        BusinessOverviewQuery $overview,
+        PaymentReconciliationQuery $payments
+    ) {
+        $today = now()->toDateString();
+        $windowStart = now()->subDays(29)->toDateString();
+
+        $sales = $overview->salesHeadline([
+            'date_from' => $today,
+            'date_to' => $today,
+        ])['summary'];
+
+        $orders = $overview->ordersSnapshot([
+            'date_from' => $windowStart,
+            'date_to' => $today,
+        ])['summary'];
+
+        $inventory = $overview->inventoryOverview([]);
+
+        $paymentSummary = $payments->summary([
+            'start_date' => $windowStart,
+            'end_date' => $today,
+        ]);
 
         return Inertia::render('Monitoring/Index', [
-            'monitoringGroups' => $monitoringGroups,
+            'monitoringGroups' => $this->monitoringGroups(),
             'reportGroups' => $this->reportGroups(),
             'overviewUrl' => route('reports.business-overview.index'),
             'storeTransferReconciliation' => $storeTransfers->build(null, null, 'unresolved', 5),
             'storeTransferReportUrl' => route('monitoring.warehouse-outbound.index', [
                 'reconciliation_status' => 'not_recorded',
             ]),
+            'operationalSummary' => [
+                'generated_at' => now()->toIso8601String(),
+                'today' => $today,
+                'window' => [
+                    'from' => $windowStart,
+                    'to' => $today,
+                ],
+                'sales' => $sales,
+                'orders' => $orders,
+                'inventory' => $inventory['summary'],
+                'queues' => $inventory['pending_queues'],
+                'payments' => $paymentSummary,
+            ],
+            'summaryUrls' => [
+                'payments' => route('monitoring.payment-reconciliation.index', [
+                    'start_date' => $windowStart,
+                    'end_date' => $today,
+                ]),
+                'fulfillment' => route('monitoring.fulfillment-control.index'),
+                'warehouse_outbound' => route('monitoring.warehouse-outbound.index'),
+                'store_inbound' => route('monitoring.store-inbound.index'),
+                'store_orders' => route('monitoring.order-handled.store-orders'),
+                'stock_store' => route('monitoring.stok-percabang'),
+            ],
+
         ]);
     }
 
@@ -308,55 +356,18 @@ class MonitoringCommandCenterController extends Controller
         ]);
     }
 
-    public function paymentReconciliation(Request $request)
+    public function paymentReconciliation(Request $request, PaymentReconciliationQuery $reconciliation)
     {
         $filters = $this->paymentReconciliationFilters($request);
-        $baseQuery = $this->paymentReconciliationQuery($filters, $request);
 
-        $summaryQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
-
-        if ($filters['reconciliation_status'] !== '') {
-            $summaryQuery->where('reconciliation_status', $filters['reconciliation_status']);
-        }
-
-        $rowsQuery = DB::query()->fromSub(clone $baseQuery, 'reconciliation');
-
-        if ($filters['reconciliation_status'] !== '') {
-            $rowsQuery->where('reconciliation_status', $filters['reconciliation_status']);
-        }
-
-        $rows = $rowsQuery
-            ->orderByDesc('created_at')
-            ->paginate($filters['per_page'])
-            ->withQueryString();
-
+        $rows = $reconciliation->rows($filters, $filters['per_page']);
         $rows->getCollection()->transform(function ($row) {
             $row->order_url = $row->id ? route('ecommerce.orders.show', $row->id) : null;
 
             return $row;
         });
 
-        $summary = [
-            'orders' => (clone $summaryQuery)->count(),
-            'exceptions' => (clone $summaryQuery)
-                ->whereNotIn('reconciliation_status', ['Nominal cocok', 'Order dibatalkan'])
-                ->count(),
-            'cancelled_orders' => (clone $summaryQuery)
-                ->where('reconciliation_status', 'Order dibatalkan')
-                ->count(),
-            'pending_payment' => (clone $summaryQuery)
-                ->where('reconciliation_status', 'Pembayaran belum selesai')
-                ->count(),
-            'without_payment' => (clone $summaryQuery)
-                ->where('reconciliation_status', 'Tanpa pembayaran')
-                ->count(),
-            'detail_mismatch' => (clone $summaryQuery)
-                ->whereNotIn('reconciliation_status', ['Order dibatalkan'])
-                ->whereRaw('ABS(COALESCE(detail_success_amount, 0) - COALESCE(total_amount, 0)) > 0.01')
-                ->count(),
-            'total_value' => (float) (clone $summaryQuery)->sum('grand_total'),
-            'total_paid_amount' => (float) (clone $summaryQuery)->sum('detail_success_amount'),
-        ];
+        $summary = $reconciliation->summary($filters);
 
         $orderStatuses = DB::table('ecommerce_orders')
             ->selectRaw('DISTINCT status::text as status')
@@ -399,17 +410,10 @@ class MonitoringCommandCenterController extends Controller
         ]);
     }
 
-    public function exportPaymentReconciliation(Request $request)
+    public function exportPaymentReconciliation(Request $request, PaymentReconciliationQuery $reconciliation)
     {
         $filters = $this->paymentReconciliationFilters($request);
-        $baseQuery = $this->paymentReconciliationQuery($filters, $request);
-        $rowsQuery = DB::query()->fromSub($baseQuery, 'reconciliation');
-
-        if ($filters['reconciliation_status'] !== '') {
-            $rowsQuery->where('reconciliation_status', $filters['reconciliation_status']);
-        }
-
-        $rows = $rowsQuery->orderByDesc('created_at')->get();
+        $rows = $reconciliation->exportRows($filters);
 
         return Excel::download(
             new PaymentReconciliationExport($rows),
@@ -427,74 +431,9 @@ class MonitoringCommandCenterController extends Controller
             'exception_only' => $request->boolean('exception_only'),
             'start_date' => $this->normalizeDate($request->query('start_date')),
             'end_date' => $this->normalizeDate($request->query('end_date')),
+            'store_id' => trim((string) $request->query('store_id', '')),
             'per_page' => $this->normalizePerPage($request->query('per_page'), 20),
         ];
-    }
-
-    private function paymentReconciliationQuery(array $filters, Request $request)
-    {
-        $paymentDetails = DB::table('payment_details')
-            ->selectRaw("
-                payment_id,
-                COUNT(*)::int as detail_count,
-                COALESCE(SUM(amount) FILTER (WHERE status::text = 'success'), 0)::numeric(18,2) as detail_success_amount
-            ")
-            ->groupBy('payment_id');
-
-        $baseQuery = DB::table('ecommerce_orders as eo')
-            ->leftJoin('payments as p', 'p.id', '=', 'eo.payment_id')
-            ->leftJoinSub($paymentDetails, 'pd', 'pd.payment_id', '=', 'p.id')
-            ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
-            ->select([
-                'eo.id', 'eo.order_number', 'eo.status as order_status', 'eo.grand_total',
-                'eo.payment_id', 'eo.payment_method_name', 'eo.created_at', 'c.name as customer_name',
-                'p.id as payment_record_id', 'p.transaction_number', 'p.status as payment_status',
-                'p.paid_amount as paid_amount_legacy', 'p.total_amount', 'p.completed_at',
-                DB::raw('COALESCE(pd.detail_count, 0) as detail_count'),
-                DB::raw('COALESCE(pd.detail_success_amount, 0) as detail_success_amount'),
-                DB::raw("CASE
-                    WHEN LOWER(COALESCE(eo.status::text, '')) = 'cancelled' THEN 'Order dibatalkan'
-                    WHEN eo.payment_id IS NULL THEN 'Tanpa pembayaran'
-                    WHEN p.id IS NULL THEN 'Referensi pembayaran hilang'
-                    WHEN ABS(COALESCE(p.total_amount, 0) - COALESCE(eo.grand_total, 0)) > 0.01 THEN 'Nominal berbeda'
-                    WHEN COALESCE(pd.detail_count, 0) > 0
-                        AND ABS(COALESCE(pd.detail_success_amount, 0) - COALESCE(p.total_amount, 0)) > 0.01
-                        THEN 'Detail pembayaran berbeda'
-                    WHEN p.status::text NOT IN ('paid','completed','success') THEN 'Pembayaran belum selesai'
-                    ELSE 'Nominal cocok'
-                END AS reconciliation_status"),
-            ]);
-
-        $this->applySearch($baseQuery, $request, ['eo.order_number', 'p.transaction_number', 'c.name']);
-
-        if ($filters['order_status'] !== '') {
-            $baseQuery->whereRaw('eo.status::text = ?', [$filters['order_status']]);
-        }
-
-        if ($filters['payment_status'] !== '') {
-            $baseQuery->whereRaw('p.status::text = ?', [$filters['payment_status']]);
-        }
-
-        if ($filters['start_date']) {
-            $baseQuery->whereRaw('eo.created_at::date >= ?', [$filters['start_date']]);
-        }
-
-        if ($filters['end_date']) {
-            $baseQuery->whereRaw('eo.created_at::date <= ?', [$filters['end_date']]);
-        }
-
-        if ($filters['exception_only']) {
-            $baseQuery->whereRaw("LOWER(COALESCE(eo.status::text, '')) <> 'cancelled'")
-                ->where(function ($query) {
-                    $query->whereNull('eo.payment_id')
-                        ->orWhereNull('p.id')
-                        ->orWhereRaw('ABS(COALESCE(p.total_amount, 0) - COALESCE(eo.grand_total, 0)) > 0.01')
-                        ->orWhereRaw('COALESCE(pd.detail_count, 0) > 0 AND ABS(COALESCE(pd.detail_success_amount, 0) - COALESCE(p.total_amount, 0)) > 0.01')
-                        ->orWhereRaw("p.status::text NOT IN ('paid','completed','success')");
-                });
-        }
-
-        return $baseQuery;
     }
 
     public function fulfillmentControl(Request $request)
