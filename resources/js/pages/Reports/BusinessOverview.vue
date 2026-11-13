@@ -1649,7 +1649,8 @@ const exportOverview = () => {
 }
 
 .overview-chart-swatch.is-gross {
-    background: color-mix(in srgb, var(--app-accent) 42%, var(--app-surface-2));
+    background: var(--app-muted);
+    opacity: 0.45;
 }
 
 .overview-chart-grid {
@@ -1687,7 +1688,8 @@ const exportOverview = () => {
 }
 
 .overview-chart-bar.is-gross {
-    background: color-mix(in srgb, var(--app-accent) 42%, var(--app-surface-2));
+    background: var(--app-muted);
+    opacity: 0.45;
 }
 
 .overview-chart-bar.is-net {

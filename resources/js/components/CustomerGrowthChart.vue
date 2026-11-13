@@ -85,15 +85,15 @@ const hasData = computed(() => props.rows.some((row) => row.new_members > 0 || r
 <template>
     <div class="customer-growth">
         <div class="customer-growth-legend">
-            <span><i class="customer-growth-line is-members" aria-hidden="true"></i>Member baru <strong>{{ formatNumber(totals.members) }}</strong></span>
-            <span><i class="customer-growth-line is-visits" aria-hidden="true"></i>Kunjungan toko <strong>{{ formatNumber(totals.visits) }}</strong></span>
+            <span><i class="customer-growth-key is-members" aria-hidden="true"></i>Member baru <strong>{{ formatNumber(totals.members) }}</strong></span>
+            <span><i class="customer-growth-key is-visits" aria-hidden="true"></i>Kunjungan toko <strong>{{ formatNumber(totals.visits) }}</strong></span>
         </div>
 
         <div v-if="hasData" class="customer-growth-chart">
             <svg
                 :viewBox="`0 0 ${chart.width} ${chart.height}`"
                 role="img"
-                :aria-label="`Tren member baru dan kunjungan toko per ${grain === 'month' ? 'bulan' : 'hari'}`"
+                :aria-label="`Tren member baru (garis biru solid) dan kunjungan toko (garis kuning putus-putus) per ${grain === 'month' ? 'bulan' : 'hari'}`"
             >
                 <g class="customer-growth-grid">
                     <line
@@ -117,12 +117,24 @@ const hasData = computed(() => props.rows.some((row) => row.new_members > 0 || r
                 <path class="customer-growth-path is-visits" :d="linePath('visits')" />
 
                 <g v-for="(row, index) in rows" :key="`points-${row.date}`">
-                    <circle class="customer-growth-dot is-members" :cx="pointX(index)" :cy="pointY(row.new_members)" r="3">
+                    <circle class="customer-growth-dot is-members" :cx="pointX(index)" :cy="pointY(row.new_members)" r="3.5">
                         <title>{{ row.label }} member baru: {{ formatNumber(row.new_members) }}</title>
                     </circle>
-                    <circle class="customer-growth-dot is-visits" :cx="pointX(index)" :cy="pointY(row.visits)" r="3">
+                    <rect
+                        class="customer-growth-dot is-visits"
+                        :x="pointX(index) - 3"
+                        :y="pointY(row.visits) - 3"
+                        width="6"
+                        height="6"
+                        rx="1"
+                    >
                         <title>{{ row.label }} kunjungan: {{ formatNumber(row.visits) }}</title>
-                    </circle>
+                    </rect>
+                </g>
+
+                <g v-if="rows.length" class="customer-growth-end-label" aria-hidden="true">
+                    <text :x="chart.width - chart.right - 2" :y="pointY(rows[rows.length - 1].new_members) - 9" text-anchor="end" class="is-members">Member</text>
+                    <text :x="chart.width - chart.right - 2" :y="pointY(rows[rows.length - 1].visits) + 16" text-anchor="end" class="is-visits">Kunjungan</text>
                 </g>
 
                 <g class="customer-growth-x">
@@ -184,15 +196,33 @@ const hasData = computed(() => props.rows.some((row) => row.new_members > 0 || r
     font-variant-numeric: tabular-nums;
 }
 
-.customer-growth-line {
-    width: 1.4rem;
-    height: 0;
+.customer-growth-key {
+    position: relative;
+    display: inline-block;
+    width: 1.6rem;
+    height: 0.6rem;
     border-top: 2px solid var(--app-accent);
 }
 
-.customer-growth-line.is-visits {
+.customer-growth-key::after {
+    position: absolute;
+    top: -0.32rem;
+    right: 0;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: var(--app-accent);
+    content: "";
+}
+
+.customer-growth-key.is-visits {
     border-top-style: dashed;
-    border-color: var(--app-info-ink);
+    border-color: var(--app-warning-ink);
+}
+
+.customer-growth-key.is-visits::after {
+    border-radius: 1px;
+    background: var(--app-warning-ink);
 }
 
 .customer-growth-chart {
@@ -231,16 +261,36 @@ const hasData = computed(() => props.rows.some((row) => row.new_members > 0 || r
 }
 
 .customer-growth-path.is-visits {
-    stroke: var(--app-info-ink);
-    stroke-dasharray: 6 5;
+    stroke: var(--app-warning-ink);
+    stroke-dasharray: 7 5;
 }
 
 .customer-growth-dot.is-members {
     fill: var(--app-accent);
+    stroke: var(--app-surface);
+    stroke-width: 1.5;
 }
 
 .customer-growth-dot.is-visits {
-    fill: var(--app-info-ink);
+    fill: var(--app-warning-ink);
+    stroke: var(--app-surface);
+    stroke-width: 1.5;
+}
+
+.customer-growth-end-label text {
+    font-size: 10px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: var(--app-surface);
+    stroke-width: 3px;
+}
+
+.customer-growth-end-label .is-members {
+    fill: var(--app-accent);
+}
+
+.customer-growth-end-label .is-visits {
+    fill: var(--app-warning-ink);
 }
 
 .customer-growth-empty {
