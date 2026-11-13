@@ -9,6 +9,7 @@ import SearchableSelect from '@/components/SearchableSelect.vue';
 import CustomerGrowthChart from '@/components/CustomerGrowthChart.vue';
 import AppPageHeader from '@/components/ui/AppPageHeader.vue';
 import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
+import { currentLocale } from '@/i18n';
 import { downloadExcelTable } from '@/composables/useExcelExport';
 
 interface Filters {
@@ -412,16 +413,16 @@ const visitCards = computed(() => [
         tone: 'accent',
     },
     {
-        label: 'Pengunjung Unik',
+        label: 'Pengunjung Teridentifikasi',
         value: formatNumber(props.customers.summary.unique_visitors),
-        hint: 'Customer berbeda yang berkunjung',
+        hint: 'Kunjungan dengan customer ID; tamu tanpa ID tidak dihitung',
         icon: 'mdi-account-group-outline',
         tone: 'info',
     },
     {
         label: 'Rata-rata per Pengunjung',
         value: formatNumber(averageVisitsPerVisitor.value),
-        hint: 'Kunjungan dibagi pengunjung unik',
+        hint: 'Kunjungan dibagi pengunjung teridentifikasi',
         icon: 'mdi-chart-line',
         tone: 'neutral',
     },
@@ -482,8 +483,8 @@ const orderCards = computed(() => [
     },
     {
         label: 'Selesai / Dibatalkan',
-        value: `${formatNumber(props.orders.summary.ecommerce_completed)} / ${formatNumber(props.orders.summary.ecommerce_cancelled)}`,
-        hint: 'Status diterima / dibatalkan',
+        value: formatNumber(props.orders.summary.ecommerce_completed),
+        hint: `${formatNumber(props.orders.summary.ecommerce_cancelled)} dibatalkan`,
         icon: 'mdi-check-decagram-outline',
         tone: 'success',
     },
@@ -577,11 +578,30 @@ const pendingItems = computed(() => [
 ]);
 
 const visibleTrend = computed(() => props.sales.trend.slice(-14));
-const maxTrendRevenue = computed(() => Math.max(
-    1,
-    ...visibleTrend.value.flatMap((row) => [row.gross_revenue, row.net_revenue]),
-));
-const trendHeight = (value: number) => `${Math.max(4, Math.round((value / maxTrendRevenue.value) * 100))}%`;
+const salesTrendAxis = computed(() => {
+    const max = Math.max(1, ...visibleTrend.value.flatMap((row) => [row.gross_revenue, row.net_revenue]));
+    const rawStep = Math.max(1, max / 3);
+    const exponent = Math.floor(Math.log10(rawStep));
+    const base = 10 ** exponent;
+    const fraction = rawStep / base;
+    const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+    const step = Math.max(1, niceFraction * base);
+
+    return {
+        max: step * 3,
+        ticks: [0, step, step * 2, step * 3],
+    };
+});
+const trendHeight = (value: number) => `${Math.max(4, Math.round((value / salesTrendAxis.value.max) * 100))}%`;
+const formatAxisCurrency = (value: number) => new Intl.NumberFormat(
+    currentLocale.value === 'en' ? 'en-US' : 'id-ID',
+    {
+        style: 'currency',
+        currency: 'IDR',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    },
+).format(value);
 
 const formatAge = (hours: number) => {
     if (hours >= 48) {
@@ -687,7 +707,7 @@ const exportOverview = () => {
         { key: 'quantity', label: 'Kuantitas' },
         { key: 'new_members', label: 'Member Baru' },
         { key: 'visits', label: 'Kunjungan' },
-        { key: 'unique_visitors', label: 'Pengunjung Unik' },
+        { key: 'unique_visitors', label: 'Pengunjung Teridentifikasi' },
         { key: 'skus', label: 'SKU' },
         { key: 'documents', label: 'Dokumen' },
         { key: 'units', label: 'Unit' },
@@ -907,23 +927,29 @@ const exportOverview = () => {
                                 <div class="overview-chart-legend" aria-hidden="true">
                                     <span><i class="overview-chart-swatch is-gross"></i>Omset kotor</span>
                                     <span><i class="overview-chart-swatch is-net"></i>Omset bersih</span>
-                                    <span class="overview-chart-scale">Skala 0 – {{ formatCurrency(maxTrendRevenue) }}</span>
                                 </div>
-                                <div class="overview-chart-grid">
-                                    <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
-                                        <div class="overview-chart-track">
-                                            <div
-                                                class="overview-chart-bar is-gross"
-                                                :style="{ height: trendHeight(row.gross_revenue) }"
-                                                :title="`${row.label} kotor: ${formatCurrency(row.gross_revenue)}`"
-                                            ></div>
-                                            <div
-                                                class="overview-chart-bar is-net"
-                                                :style="{ height: trendHeight(row.net_revenue) }"
-                                                :title="`${row.label} bersih: ${formatCurrency(row.net_revenue)} dari ${formatNumber(row.transactions)} transaksi`"
-                                            ></div>
+                                <div class="overview-chart-body">
+                                    <div class="overview-chart-axis" aria-hidden="true">
+                                        <span v-for="tick in salesTrendAxis.ticks" :key="`sales-axis-${tick}`">{{ formatAxisCurrency(tick) }}</span>
+                                    </div>
+                                    <div class="overview-chart-scroll">
+                                        <div class="overview-chart-grid">
+                                            <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
+                                                <div class="overview-chart-track">
+                                                    <div
+                                                        class="overview-chart-bar is-gross"
+                                                        :style="{ height: trendHeight(row.gross_revenue) }"
+                                                        :title="`${row.label} kotor: ${formatCurrency(row.gross_revenue)}`"
+                                                    ></div>
+                                                    <div
+                                                        class="overview-chart-bar is-net"
+                                                        :style="{ height: trendHeight(row.net_revenue) }"
+                                                        :title="`${row.label} bersih: ${formatCurrency(row.net_revenue)} dari ${formatNumber(row.transactions)} transaksi`"
+                                                    ></div>
+                                                </div>
+                                                <span class="overview-chart-label">{{ row.label }}</span>
+                                            </div>
                                         </div>
-                                        <span class="overview-chart-label">{{ row.label }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1125,6 +1151,7 @@ const exportOverview = () => {
                     </div>
                     <p v-else class="overview-empty">Tidak ada temuan pembayaran pada periode ini.</p>
                     <div class="overview-card-footer">
+                        <span v-if="props.payments.rows.length < props.payments.findings">Menampilkan {{ formatNumber(props.payments.rows.length) }} dari {{ formatNumber(props.payments.findings) }} temuan</span>
                         <span>Nilai order, termasuk dibatalkan: <strong>{{ formatCurrency(props.payments.total_value) }}</strong></span>
                         <span>Detail pembayaran sukses: <strong>{{ formatCurrency(props.payments.total_paid_amount) }}</strong></span>
                     </div>
@@ -1191,7 +1218,7 @@ const exportOverview = () => {
                 <div>
                     <span class="overview-section-kicker">Kunjungan</span>
                     <h2 id="visits-title">Kunjungan toko</h2>
-                    <p>Jumlah kunjungan dan pengunjung unik per toko pada periode ini.</p>
+                    <p>Jumlah kunjungan per toko. Pengunjung teridentifikasi dihitung dari customer ID unik; kunjungan tamu tanpa ID tetap dihitung sebagai kunjungan, tetapi tidak masuk pengunjung teridentifikasi.</p>
                 </div>
                 <div class="overview-section-links">
                     <Link :href="props.urls.crm">CRM</Link>
@@ -1215,7 +1242,7 @@ const exportOverview = () => {
                 <header class="overview-card-head">
                     <div>
                         <h3>Detail Kunjungan per Toko</h3>
-                        <p>Kunjungan dan pengunjung unik di setiap toko. Porsi dihitung dari total kunjungan.</p>
+                        <p>Kunjungan dan pengunjung teridentifikasi di setiap toko. Porsi dihitung dari total kunjungan.</p>
                     </div>
                     <span class="overview-card-meta">{{ formatNumber(props.customers.store_visits.length) }} toko</span>
                 </header>
@@ -1225,7 +1252,7 @@ const exportOverview = () => {
                             <tr>
                                 <th scope="col">Toko</th>
                                 <th scope="col" class="text-end">Kunjungan</th>
-                                <th scope="col" class="text-end">Pengunjung Unik</th>
+                                <th scope="col" class="text-end">Pengunjung Teridentifikasi</th>
                                 <th scope="col">Porsi</th>
                             </tr>
                         </thead>
@@ -1309,7 +1336,7 @@ const exportOverview = () => {
                         <h3>Perlu Tindak Lanjut (&gt; 24 Jam)</h3>
                         <p>Pesanan yang sudah dibayar/diproses, permintaan store, dan retur yang belum selesai.</p>
                     </div>
-                    <span class="overview-card-meta">{{ formatNumber(props.orders.attention.length) }} antrean teratas</span>
+                    <span class="overview-card-meta">{{ formatNumber(props.orders.attention.length) }} antrean</span>
                 </header>
                 <div v-if="props.orders.attention.length" class="table-responsive">
                     <table class="table align-middle mb-0 overview-table overview-attention-table">
@@ -1882,8 +1909,33 @@ const exportOverview = () => {
 }
 
 .overview-chart {
-    overflow-x: auto;
     padding-bottom: 0.2rem;
+}
+
+.overview-chart-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.overview-chart-axis {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 3.4rem;
+    height: 8rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-2xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-align: right;
+}
+
+.overview-chart-scroll {
+    overflow-x: auto;
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .overview-chart-legend {
@@ -1899,11 +1951,6 @@ const exportOverview = () => {
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-}
-
-.overview-chart-scale {
-    margin-left: auto;
-    font-variant-numeric: tabular-nums;
 }
 
 .overview-chart-swatch {

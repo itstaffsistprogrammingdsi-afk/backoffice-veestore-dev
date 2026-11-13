@@ -15,9 +15,22 @@ const props = defineProps<{
 
 const totalMembers = computed(() => props.rows.reduce((total, row) => total + row.new_members, 0));
 
-const maxValue = computed(() => Math.max(1, ...props.rows.map((row) => row.new_members)));
+const yAxis = computed(() => {
+    const max = Math.max(1, ...props.rows.map((row) => row.new_members));
+    const rawStep = Math.max(1, max / 3);
+    const exponent = Math.floor(Math.log10(rawStep));
+    const base = 10 ** exponent;
+    const fraction = rawStep / base;
+    const niceFraction = fraction <= 1 ? 1 : fraction <= 2 ? 2 : fraction <= 5 ? 5 : 10;
+    const step = Math.max(1, niceFraction * base);
 
-const barHeight = (value: number) => `${Math.max(4, Math.round((value / maxValue.value) * 100))}%`;
+    return {
+        max: step * 3,
+        ticks: [0, step, step * 2, step * 3],
+    };
+});
+
+const barHeight = (value: number) => `${Math.max(4, Math.round((value / yAxis.value.max) * 100))}%`;
 
 const labelStep = computed(() => Math.max(1, Math.ceil(props.rows.length / 7)));
 
@@ -30,20 +43,24 @@ const hasData = computed(() => props.rows.some((row) => row.new_members > 0));
     <div class="member-growth">
         <div class="member-growth-legend">
             <span><i class="member-growth-swatch" aria-hidden="true"></i>Member baru <strong>{{ formatNumber(totalMembers) }}</strong></span>
-            <span class="member-growth-scale">Skala 0 – {{ formatNumber(maxValue) }}</span>
         </div>
 
-        <div v-if="hasData" class="member-growth-bars" role="img" :aria-label="`Grafik batang pertumbuhan member baru per ${grain === 'month' ? 'bulan' : 'hari'}`">
-            <div class="member-growth-grid">
-                <div v-for="(row, index) in rows" :key="row.date" class="member-growth-column">
-                    <div class="member-growth-track">
-                        <div
-                            class="member-growth-bar"
-                            :style="{ height: barHeight(row.new_members) }"
-                            :title="`${row.label}: ${formatNumber(row.new_members)} member baru`"
-                        ></div>
+        <div v-if="hasData" class="member-growth-body">
+            <div class="member-growth-axis" aria-hidden="true">
+                <span v-for="tick in yAxis.ticks" :key="`y-${tick}`">{{ formatNumber(tick) }}</span>
+            </div>
+            <div class="member-growth-bars" role="img" :aria-label="`Grafik batang pertumbuhan member baru per ${grain === 'month' ? 'bulan' : 'hari'}`">
+                <div class="member-growth-grid">
+                    <div v-for="(row, index) in rows" :key="row.date" class="member-growth-column">
+                        <div class="member-growth-track">
+                            <div
+                                class="member-growth-bar"
+                                :style="{ height: barHeight(row.new_members) }"
+                                :title="`${row.label}: ${formatNumber(row.new_members)} member baru`"
+                            ></div>
+                        </div>
+                        <span class="member-growth-label">{{ showLabel(index) ? row.label : '' }}</span>
                     </div>
-                    <span class="member-growth-label">{{ showLabel(index) ? row.label : '' }}</span>
                 </div>
             </div>
         </div>
@@ -101,9 +118,24 @@ const hasData = computed(() => props.rows.some((row) => row.new_members > 0));
     background: var(--app-accent);
 }
 
-.member-growth-scale {
-    margin-left: auto;
+.member-growth-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.member-growth-axis {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 2.6rem;
+    height: 8rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-2xs);
     font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-align: right;
 }
 
 .member-growth-bars {

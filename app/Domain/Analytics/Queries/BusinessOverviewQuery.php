@@ -692,7 +692,7 @@ class BusinessOverviewQuery
 
         $summary = $this->paymentReconciliation->summary($paymentFilters);
 
-        $rows = $this->paymentReconciliation->findings($paymentFilters, 5)
+        $rows = $this->paymentReconciliation->findings($paymentFilters, 100)
             ->map(fn ($row) => [
                 'id' => $row->id,
                 'order_number' => $row->order_number,
@@ -1145,7 +1145,7 @@ class BusinessOverviewQuery
                         COALESCE(s.name, w.name, '-') AS partner
                     ")
                     ->orderBy('eo.created_at')
-                    ->limit(8)
+                    ->limit(50)
                     ->get()
             );
         }
@@ -1170,7 +1170,7 @@ class BusinessOverviewQuery
                         COALESCE(s.name, w.name, '-') AS partner
                     ")
                     ->orderBy('so.created_at')
-                    ->limit(8)
+                    ->limit(50)
                     ->get()
             );
 
@@ -1193,7 +1193,7 @@ class BusinessOverviewQuery
                         COALESCE(s.name, w.name, '-') AS partner
                     ")
                     ->orderBy('sr.created_at')
-                    ->limit(8)
+                    ->limit(50)
                     ->get()
             );
         }
@@ -1234,7 +1234,7 @@ class BusinessOverviewQuery
                 ];
             })
             ->sortByDesc('age_hours')
-            ->take(8)
+            ->take(50)
             ->values()
             ->all();
     }

@@ -99,6 +99,18 @@ const isReportsArea = computed(() => {
 
 const activeAreaKey = computed(() => (isReportsArea.value ? 'reports' : 'operations'));
 const activeArea = computed(() => navigation.value.areas.find((area) => area.key === activeAreaKey.value));
+
+const goBack = () => {
+    if (typeof window === 'undefined') return;
+
+    if (hasInternalHistory.value && window.history.length > 1) {
+        window.history.back();
+        return;
+    }
+
+    router.visit(activeArea.value?.url ?? '/');
+};
+
 const SIDEBAR_STORAGE_KEY = 'veestore.sidebar.collapsed';
 
 const readSidebarCollapsed = () => {
@@ -114,6 +126,11 @@ const readSidebarCollapsed = () => {
 const openGroups = ref<Record<string, boolean>>({});
 const mobileOpen = ref(false);
 const userMenuOpen = ref(false);
+const hasInternalHistory = ref(false);
+
+watch(() => page.url, () => {
+    hasInternalHistory.value = true;
+});
 const userMenuRef = ref<HTMLElement | null>(null);
 const userMenuButtonRef = ref<HTMLButtonElement | null>(null);
 const mobileMenuButtonRef = ref<HTMLButtonElement | null>(null);
@@ -674,6 +691,16 @@ onBeforeUnmount(() => {
                     >
                         <i class="mdi" :class="sidebarCollapsed ? 'mdi-chevron-double-right' : 'mdi-chevron-double-left'" aria-hidden="true"></i>
                     </button>
+                    <button
+                        class="app-back-button"
+                        type="button"
+                        aria-label="Kembali ke halaman sebelumnya"
+                        title="Kembali"
+                        @click="goBack"
+                    >
+                        <i class="mdi mdi-arrow-left" aria-hidden="true"></i>
+                        <span class="d-none d-md-inline">Kembali</span>
+                    </button>
                     <h1 v-if="!pageHasHeading" class="app-title">{{ pageTitle }}</h1>
                 </div>
 
@@ -1132,8 +1159,35 @@ onBeforeUnmount(() => {
     background: var(--app-surface-2);
     color: var(--app-accent-ink);
 }
+.app-back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 38px;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--app-border);
+    border-radius: 0.55rem;
+    background: var(--app-surface);
+    color: var(--app-ink);
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out);
+}
+
+.app-back-button:hover,
+.app-back-button:focus-visible {
+    border-color: var(--app-accent);
+    background: var(--app-surface-2);
+    color: var(--app-accent-ink);
+}
+
+.app-back-button .mdi {
+    font-size: 1.1rem;
+}
 
 .app-title {
+
     overflow: hidden;
     margin: 0;
     font-size: 1.15rem;
