@@ -57,7 +57,7 @@ final class FinancialBreakdown
                 'difference' => $difference,
                 'clamped_discount' => $clampedDiscount,
                 'unexplained_difference' => $unexplainedDifference,
-                'is_balanced' => abs($unexplainedDifference) < 0.01,
+                'is_balanced' => abs($unexplainedDifference) < 0.01 && $clampedDiscount < 0.01,
             ],
         ];
     }

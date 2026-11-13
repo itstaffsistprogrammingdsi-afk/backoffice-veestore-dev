@@ -664,6 +664,11 @@ class OmsetKotorSalesController extends Controller
             ({$ecommerceSellingPriceSql}) * COALESCE(eod.quantity, 0)
         ";
 
+        $ecommerceVoucherSub = DB::table('voucher_usages as vu')
+            ->whereNotNull('vu.ecommerce_order_id')
+            ->selectRaw('vu.ecommerce_order_id, SUM(COALESCE(vu.discount_amount, 0))::numeric(18,2) as voucher_amount')
+            ->groupBy('vu.ecommerce_order_id');
+
         $ecommerceOrderDiscountSql = "
             CASE
                 WHEN COALESCE(order_net.order_item_net_total, 0) > 0 THEN
@@ -673,7 +678,7 @@ class OmsetKotorSalesController extends Controller
                                 NULLIF(eod.total_price, 0),
                                 ({$ecommerceGrossSql}) - COALESCE(eod.total_discount, 0)
                             ) / order_net.order_item_net_total
-                        ) * GREATEST(COALESCE(eo.discount_total, 0), 0),
+                        ) * GREATEST(COALESCE(vu.voucher_amount, 0), 0),
                         2
                     )
                 ELSE 0
@@ -687,6 +692,9 @@ class OmsetKotorSalesController extends Controller
             ->leftJoin('customers as c', 'c.id', '=', 'eo.customer_id')
             ->leftJoinSub($orderNetSub, 'order_net', function ($join) {
                 $join->on('order_net.ecommerce_order_id', '=', 'eo.id');
+            })
+            ->leftJoinSub($ecommerceVoucherSub, 'vu', function ($join) {
+                $join->on('vu.ecommerce_order_id', '=', 'eo.id');
             })
             ->whereNull('pay.deleted_at')
             ->where(function ($query) {

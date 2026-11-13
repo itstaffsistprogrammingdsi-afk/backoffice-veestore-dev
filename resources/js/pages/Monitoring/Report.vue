@@ -1019,9 +1019,12 @@ const COLUMN_LABELS: Record<string, string> = {
     total_harga_base: 'Nilai Harga Dasar',
     total_omset_kotor_store: 'Omset Store POS (Bersih)',
     total_omset_kotor_ecommerce: 'Omset Ecommerce (Bersih)',
-    laba_kotor: 'Laba Kotor',
-    margin_kotor_percent: 'Margin Kotor',
+    laba_kotor: 'Selisih Kotor (estimasi)',
+    margin_kotor_percent: 'Margin Estimasi',
     paid_amount: 'Nominal Dibayar',
+    paid_amount_legacy: 'Nominal Dibayar (legacy)',
+    detail_success_amount: 'Pembayaran Detail Sukses',
+    detail_count: 'Jumlah Detail',
     total_nominal: 'Nilai Stok',
     total_qty: 'Total Qty',
     total_items: 'Total Item',
@@ -1353,6 +1356,7 @@ const HIDDEN_COLUMNS = new Set([
     'show_detail_button',
     'can_decide',
     'url',
+    'order_url',
     'created_by',
     'updated_by',
     'registration_source_id',
@@ -2230,7 +2234,9 @@ const summaryLabel = (key: string): string => {
         pending: 'Pending',
         pending_payment: 'Pembayaran Pending',
         without_payment: 'Tanpa Pembayaran',
-        exceptions: 'Data Anomali',
+        exceptions: 'Exception Aktif',
+        cancelled_orders: 'Pesanan Dibatalkan',
+        detail_mismatch: 'Detail Tidak Cocok',
         without_handler: 'Belum Ditangani',
         without_awb: 'Tanpa Resi',
         over_24h: 'Lewat 24 Jam',
@@ -2252,6 +2258,10 @@ const summaryLabel = (key: string): string => {
         total_items: 'Total Item',
         total_sku: 'Total SKU',
         total_qty: 'Total Qty',
+        total_rows: 'Jumlah Baris',
+        total_qty_real: 'Qty Nyata',
+        total_qty_reserved: 'Qty Reservasi',
+        total_qty_available: 'Qty Tersedia',
         total_header_qty: 'Qty Header',
         received_today: 'Diterima Hari Ini',
         total_value: 'Total Nilai',
@@ -2368,8 +2378,8 @@ const summaryLabel = (key: string): string => {
         total_approved_requests: 'Pengajuan Disetujui',
         total_diskon_produk: 'Diskon Produk',
         total_voucher_promo: 'Voucher / Poin',
-        laba_kotor: 'Laba Kotor',
-        margin_kotor_percent: 'Margin Kotor',
+        laba_kotor: 'Selisih Kotor (estimasi)',
+        margin_kotor_percent: 'Margin Estimasi',
         total_store_customer: 'Customer Store',
         total_ecommerce_customer: 'Customer Ecommerce',
         slow_total_nominal: 'Nilai Slow Moving',
@@ -2405,9 +2415,9 @@ const summaryLabel = (key: string): string => {
 
 const summaryTone = (key: string): string => {
     if (/reject|fail|bad|danger|expired|over_24h|damage|missing|void|cancel|open_fraud|dead|high_risk|not_recorded/i.test(key)) return 'danger';
-    if (/pending|unpaid|without|warning|slow|urgent|expiring|upcoming|late|not_clock|partial|anomaly|mismatch|unassigned|risk/i.test(key)) return 'warning';
+    if (/pending|unpaid|without|warning|slow|urgent|expiring|upcoming|late|not_clock|partial|anomaly|mismatch|unassigned|risk|reserved|exceptions/i.test(key)) return 'warning';
     if (/paid|success|complete|active|good|matched|approved|released/i.test(key)) return 'success';
-    if (/amount|nominal|value|revenue|omset|total_transactions|balance/i.test(key)) return 'accent';
+    if (/amount|nominal|value|revenue|omset|total_transactions|balance|available/i.test(key)) return 'accent';
 
     return 'neutral';
 };
@@ -2523,19 +2533,19 @@ const financeKpis = computed(() => {
             key: 'base-price',
             label: 'Nilai Harga Dasar',
             value: formatCurrency(finance.base_price),
-            note: 'Harga base produk, acuan laba kotor',
+            note: 'Harga jual acuan, bukan HPP',
         },
         {
             key: 'gross-profit',
-            label: 'Laba Kotor',
+            label: 'Selisih Kotor (estimasi)',
             value: formatCurrency(finance.gross_profit),
             note: 'Omset bersih dikurangi nilai harga dasar',
         },
         {
             key: 'margin',
-            label: 'Margin Kotor',
+            label: 'Margin Estimasi',
             value: formatPercent(finance.gross_margin_percent),
-            note: 'Laba kotor dibagi omset bersih',
+            note: 'Selisih kotor dibagi omset bersih',
         },
         {
             key: 'effective-discount',
@@ -2599,9 +2609,9 @@ const formatDateValue = (value: unknown, key: string): string => {
 const statusTone = (value: unknown, key: string): string => {
     const text = String(value ?? '').toLowerCase();
 
-    if (/sesuai|matched|match|valid|normal/.test(text)) return 'success';
+    if (/sesuai|matched|match|valid|normal|cocok/.test(text)) return 'success';
     if (/paid|success|completed|complete|active|good|approved|released|passed|passed_all|lunas|selesai|verified|available|converted|done/.test(text)) return 'success';
-    if (/pending|waiting|process|partial|slow|low|expiring|soon|warning|review|hold|unpaid|unassigned|belum|menunggu|perlu|not_started/.test(text)) return 'warning';
+    if (/pending|waiting|process|partial|slow|low|expiring|soon|warning|review|hold|unpaid|unassigned|belum|menunggu|perlu|not_started|berbeda|mismatch/.test(text)) return 'warning';
     if (/failed|failure|rejected|reject|cancelled|canceled|void|bad|expired|error|lost|missing|damaged|danger|ditolak|gagal|batal|rusak|unreleased|lewat 24 jam|overdue|over_24h/.test(text)) return 'danger';
     if (/store|warehouse|shipped|processed|inbound|outbound|display|sold|ecommerce|fixed|percentage|info/.test(text)) return 'accent';
 
@@ -3507,7 +3517,7 @@ const selectDataset = (key: string) => {
 
                 <p v-if="financeSummary.base_price <= 0" class="monitor-finance-alert" role="status">
                     <i class="mdi mdi-alert-outline" aria-hidden="true"></i>
-                    Nilai harga dasar belum tersedia untuk periode ini, sehingga laba kotor dan margin belum dapat dibaca sebagai laba sebenarnya.
+                    Nilai harga dasar belum tersedia untuk periode ini, sehingga selisih kotor dan margin belum dapat dibaca sebagai laba sebenarnya.
                 </p>
 
                 <ol class="monitor-finance-flow" aria-label="Alur perhitungan omset">
@@ -3570,8 +3580,8 @@ const selectDataset = (key: string) => {
                                     <th scope="col" class="text-end">Voucher / Poin</th>
                                     <th scope="col" class="text-end">Omset Bersih</th>
                                     <th scope="col" class="text-end">Nilai Harga Dasar</th>
-                                    <th scope="col" class="text-end">Laba Kotor</th>
-                                    <th scope="col" class="text-end">Margin</th>
+                                    <th scope="col" class="text-end">Selisih Kotor (estimasi)</th>
+                                    <th scope="col" class="text-end">Margin Estimasi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -3618,15 +3628,15 @@ const selectDataset = (key: string) => {
                         </div>
                         <div>
                             <dt>Nilai Harga Dasar</dt>
-                            <dd>Harga base produk pada periode transaksi. Jika harga base tidak tersedia, nilainya 0 sehingga laba kotor bisa tampak lebih tinggi.</dd>
+                            <dd>Harga jual acuan pada periode transaksi, bukan HPP. Jika harga dasar tidak tersedia, nilainya 0 sehingga selisih kotor bisa tampak lebih tinggi.</dd>
                         </div>
                         <div>
-                            <dt>Laba Kotor</dt>
-                            <dd>Omset bersih dikurangi nilai harga dasar. Belum termasuk biaya operasional, payment fee, ongkir, atau pajak.</dd>
+                            <dt>Selisih Kotor (estimasi)</dt>
+                            <dd>Omset bersih dikurangi nilai harga dasar. Belum termasuk biaya perolehan, biaya operasional, payment fee, ongkir, atau pajak.</dd>
                         </div>
                         <div>
-                            <dt>Margin Kotor dan Diskon Efektif</dt>
-                            <dd>Margin kotor = laba kotor dibagi omset bersih. Diskon efektif = total potongan dibagi omset kotor.</dd>
+                            <dt>Margin Estimasi dan Diskon Efektif</dt>
+                            <dd>Margin estimasi = selisih kotor dibagi omset bersih. Diskon efektif = total potongan dibagi omset kotor.</dd>
                         </div>
                         <div>
                             <dt>Kondisi Penjualan</dt>
@@ -3798,6 +3808,12 @@ const selectDataset = (key: string) => {
                                     >
                                         {{ cellFor(row, column.key).text }}
                                     </span>
+                                </template>
+                                <template v-else-if="column.key === 'order_number' && row.order_url">
+                                    <a :href="String(row.order_url)" class="monitor-document-link" :title="cellFor(row, column.key).title">
+                                        {{ cellFor(row, column.key).text }}
+                                        <i class="mdi mdi-open-in-new" aria-hidden="true"></i>
+                                    </a>
                                 </template>
                                 <template v-else>
                                     <span :title="cellFor(row, column.key).title">{{ cellFor(row, column.key).text }}</span>
@@ -4693,6 +4709,20 @@ const selectDataset = (key: string) => {
 .monitor-reservation-link:focus-visible {
     outline: 2px solid var(--app-accent);
     outline-offset: 1px;
+}
+
+.monitor-document-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--app-accent-ink);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+.monitor-document-link:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
 }
 
 .monitor-cell-wrap {

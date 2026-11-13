@@ -24,7 +24,8 @@ class ProfitLossTest extends TestCase
                 ->has('expenses')
                 ->has('summary')
                 ->has('period')
-                ->has('urls'));
+                ->where('canManage', true)
+                ->has('urls.export'));
     }
 
     public function test_operating_expense_can_be_added_and_deleted(): void
@@ -58,5 +59,50 @@ class ProfitLossTest extends TestCase
         $entries = json_decode((string) DB::table('app_settings')->where('key', 'pnl_expenses')->value('value'), true);
 
         $this->assertSame([], $entries);
+    }
+
+    public function test_delete_expense_requires_matching_period(): void
+    {
+        $period = now()->format('Y-m');
+
+        $this->actingAs($this->admin())
+            ->post(route('reports.profit-loss.add-expense'), [
+                'period' => $period,
+                'category' => 'Sewa',
+                'amount' => 500000,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $entries = json_decode((string) DB::table('app_settings')->where('key', 'pnl_expenses')->value('value'), true);
+        $entry = $entries[0];
+
+        $this->actingAs($this->admin())
+            ->delete(route('reports.profit-loss.delete-expense'), [
+                'id' => $entry['id'],
+                'period' => now()->subMonthNoOverflow()->format('Y-m'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $entries = json_decode((string) DB::table('app_settings')->where('key', 'pnl_expenses')->value('value'), true);
+
+        $this->assertCount(1, $entries);
+        $this->assertSame($entry['id'], $entries[0]['id']);
+    }
+
+    public function test_profit_loss_export_returns_excel_file(): void
+    {
+        $db = DB::connection('immostore_backoffice');
+        $db->beginTransaction();
+
+        try {
+            $this->actingAs($this->admin())
+                ->get(route('reports.profit-loss.export', ['period' => now()->format('Y-m')]))
+                ->assertOk()
+                ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        } finally {
+            $db->rollBack();
+        }
     }
 }

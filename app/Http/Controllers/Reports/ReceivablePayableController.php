@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Reports;
 
+use App\Exports\ReceivablePayableExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ReceivablePayableController extends Controller
 {
@@ -17,8 +20,8 @@ class ReceivablePayableController extends Controller
     public function index(Request $request): Response
     {
         $filters = $this->filters($request);
-        $entries = $this->filteredEntries($filters);
         $today = now()->toDateString();
+        $entries = $this->filteredEntries($filters, $today);
 
         $open = array_filter($entries, fn (array $entry): bool => ($entry['status'] ?? 'open') === 'open');
         $overdue = array_filter($open, fn (array $entry): bool => ($entry['due_date'] ?? '') !== ''
@@ -35,6 +38,14 @@ class ReceivablePayableController extends Controller
             )),
             'overdue_amount' => array_sum(array_map(fn (array $entry): float => (float) $entry['amount'], $overdue)),
             'overdue_count' => count($overdue),
+            'overdue_receivable' => array_sum(array_map(
+                fn (array $entry): float => ($entry['type'] ?? '') === 'receivable' ? (float) $entry['amount'] : 0,
+                $overdue
+            )),
+            'overdue_payable' => array_sum(array_map(
+                fn (array $entry): float => ($entry['type'] ?? '') === 'payable' ? (float) $entry['amount'] : 0,
+                $overdue
+            )),
             'paid_count' => count(array_filter($entries, fn (array $entry): bool => ($entry['status'] ?? '') === 'paid')),
         ];
 
@@ -42,14 +53,27 @@ class ReceivablePayableController extends Controller
             'entries' => array_values($entries),
             'summary' => $summary,
             'filters' => $filters,
+            'today' => $today,
             'canManage' => $this->canManage(),
             'urls' => [
                 'index' => route('reports.receivable-payable.index'),
+                'export' => route('reports.receivable-payable.export'),
                 'store' => route('reports.receivable-payable.store'),
                 'status' => route('reports.receivable-payable.status'),
                 'destroy' => route('reports.receivable-payable.destroy'),
             ],
         ]);
+    }
+
+    public function export(Request $request): BinaryFileResponse
+    {
+        $filters = $this->filters($request);
+        $entries = $this->filteredEntries($filters, now()->toDateString());
+
+        return Excel::download(
+            new ReceivablePayableExport($entries),
+            'piutang-hutang-'.now()->format('Ymd_His').'.xlsx'
+        );
     }
 
     public function store(Request $request): RedirectResponse
@@ -85,6 +109,8 @@ class ReceivablePayableController extends Controller
             'paid_at' => null,
         ];
 
+        $request->merge(['entry_id' => $entry['id']]);
+
         $this->mutateEntries(function (array $entries) use ($entry): array {
             $entries[] = $entry;
 
@@ -102,6 +128,14 @@ class ReceivablePayableController extends Controller
             'id' => ['required', 'uuid'],
             'status' => ['required', 'in:open,paid'],
         ]);
+
+        $previous = collect($this->allEntries())->first(
+            fn (array $entry): bool => ($entry['id'] ?? null) === $data['id']
+        );
+
+        if ($previous !== null) {
+            $request->merge(['previous_entry' => $previous]);
+        }
 
         $this->mutateEntries(function (array $entries) use ($data): array {
             return array_map(function (array $entry) use ($data): array {
@@ -129,6 +163,14 @@ class ReceivablePayableController extends Controller
             'id' => ['required', 'uuid'],
         ]);
 
+        $previous = collect($this->allEntries())->first(
+            fn (array $entry): bool => ($entry['id'] ?? null) === $data['id']
+        );
+
+        if ($previous !== null) {
+            $request->merge(['deleted_entry' => $previous]);
+        }
+
         $this->mutateEntries(function (array $entries) use ($data): array {
             return array_values(array_filter(
                 $entries,
@@ -139,17 +181,35 @@ class ReceivablePayableController extends Controller
         return back()->with('success', 'Catatan piutang/hutang dihapus.');
     }
 
-    private function filteredEntries(array $filters): array
+    private function filteredEntries(array $filters, string $today): array
     {
         $entries = $this->allEntries();
+        $dueUntil = now()->addDays(7)->toDateString();
 
-        $entries = array_filter($entries, function (array $entry) use ($filters): bool {
+        $entries = array_filter($entries, function (array $entry) use ($filters, $today, $dueUntil): bool {
             if ($filters['type'] !== '' && ($entry['type'] ?? '') !== $filters['type']) {
                 return false;
             }
 
             if ($filters['status'] !== '' && ($entry['status'] ?? 'open') !== $filters['status']) {
                 return false;
+            }
+
+            $dueDate = (string) ($entry['due_date'] ?? '');
+            $isOpen = ($entry['status'] ?? 'open') === 'open';
+
+            if ($filters['due_status'] === 'overdue') {
+                if (! $isOpen || $dueDate === '' || $dueDate >= $today) {
+                    return false;
+                }
+            } elseif ($filters['due_status'] === 'due_7') {
+                if (! $isOpen || $dueDate === '' || $dueDate < $today || $dueDate > $dueUntil) {
+                    return false;
+                }
+            } elseif ($filters['due_status'] === 'no_due_date') {
+                if ($dueDate !== '') {
+                    return false;
+                }
             }
 
             if ($filters['q'] !== '') {
@@ -216,6 +276,7 @@ class ReceivablePayableController extends Controller
     {
         $type = trim((string) $request->query('type', ''));
         $status = trim((string) $request->query('status', ''));
+        $dueStatus = trim((string) $request->query('due_status', ''));
 
         if (! in_array($type, ['receivable', 'payable'], true)) {
             $type = '';
@@ -225,10 +286,15 @@ class ReceivablePayableController extends Controller
             $status = '';
         }
 
+        if (! in_array($dueStatus, ['overdue', 'due_7', 'no_due_date'], true)) {
+            $dueStatus = '';
+        }
+
         return [
             'q' => trim((string) $request->query('q', '')),
             'type' => $type,
             'status' => $status,
+            'due_status' => $dueStatus,
         ];
     }
 
