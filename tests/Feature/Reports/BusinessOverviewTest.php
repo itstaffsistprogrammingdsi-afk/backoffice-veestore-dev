@@ -21,11 +21,17 @@ class BusinessOverviewTest extends TestCase
                 ->has('filters')
                 ->has('periodOptions')
                 ->where('filters.period', 'month')
-                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'year', 'last_month'])
+                ->where('periodOptions', fn ($options) => collect($options)->pluck('value')->all() === ['today', 'week', 'month', 'last_month', 'year', 'last_year'])
                 ->has('stores')
                 ->has('warehouses')
                 ->has('sales.summary')
+                ->has('sales.summary.gross_revenue')
+                ->has('sales.summary.net_revenue')
+                ->has('sales.summary.average_net_transaction')
                 ->has('sales.channels')
+                ->has('sales.channels.0.gross_revenue')
+                ->has('sales.channels.0.net_revenue')
+                ->has('sales.channels.0.net_share')
                 ->has('sales.trend')
                 ->has('sales.top_stores')
                 ->has('sales.top_products')
@@ -66,7 +72,7 @@ class BusinessOverviewTest extends TestCase
     {
         $admin = $this->admin();
 
-        foreach (['today', 'week', 'month', 'year'] as $period) {
+        foreach (['today', 'week', 'month', 'last_month', 'year', 'last_year'] as $period) {
             $this->actingAs($admin)
                 ->get(route('reports.business-overview.index', ['period' => $period]))
                 ->assertOk()

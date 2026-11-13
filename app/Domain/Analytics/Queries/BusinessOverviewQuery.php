@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class BusinessOverviewQuery
 {
-    private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'last_month', 'custom'];
+    private const PERIOD_VALUES = ['today', 'week', 'month', 'year', 'last_month', 'last_year', 'custom'];
 
     public function __construct(private readonly PaymentReconciliationQuery $paymentReconciliation) {}
 
@@ -243,6 +243,10 @@ class BusinessOverviewQuery
                 $now->subMonthNoOverflow()->startOfMonth()->toDateString(),
                 $now->subMonthNoOverflow()->endOfMonth()->toDateString(),
             ],
+            'last_year' => [
+                $now->subYearNoOverflow()->startOfYear()->toDateString(),
+                $now->subYearNoOverflow()->endOfYear()->toDateString(),
+            ],
             default => [
                 $now->startOfMonth()->toDateString(),
                 $now->endOfMonth()->toDateString(),
@@ -263,36 +267,55 @@ class BusinessOverviewQuery
 
     private function sales(array $filters): array
     {
+        $grossTrend = $this->grossSalesQuery($filters)
+            ->selectRaw('
+                sold_at::date AS date,
+                COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
+                COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue
+            ')
+            ->groupByRaw('sold_at::date')
+            ->get()
+            ->keyBy(fn ($row) => (string) $row->date);
+
         $trend = $this->salesQuery($filters)
             ->selectRaw('sold_at::date AS date, COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue, COUNT(*)::int AS transactions')
             ->groupByRaw('sold_at::date')
             ->orderByRaw('sold_at::date')
             ->get()
-            ->map(fn ($row) => [
-                'date' => (string) $row->date,
-                'label' => CarbonImmutable::parse($row->date)->format('d M'),
-                'revenue' => (float) $row->revenue,
-                'transactions' => (int) $row->transactions,
-            ])
+            ->map(function ($row) use ($grossTrend) {
+                $gross = $grossTrend->get((string) $row->date);
+
+                return [
+                    'date' => (string) $row->date,
+                    'label' => CarbonImmutable::parse($row->date)->format('d M'),
+                    'revenue' => (float) $row->revenue,
+                    'gross_revenue' => (float) ($gross->gross_revenue ?? 0),
+                    'net_revenue' => (float) ($gross->net_revenue ?? 0),
+                    'transactions' => (int) $row->transactions,
+                ];
+            })
             ->values()
             ->all();
 
-        $stores = $this->salesQuery($filters)
+        $stores = $this->grossSalesQuery($filters)
             ->selectRaw('
                 store_id,
                 store_name,
-                COALESCE(SUM(amount), 0)::numeric(18,2) AS revenue,
-                COUNT(*)::int AS transactions,
+                COALESCE(SUM(gross_amount), 0)::numeric(18,2) AS gross_revenue,
+                COALESCE(SUM(net_amount), 0)::numeric(18,2) AS net_revenue,
+                COUNT(DISTINCT transaction_id)::int AS transactions,
                 COUNT(DISTINCT customer_id)::int AS buyers
             ')
             ->groupBy('store_id', 'store_name')
-            ->orderByDesc('revenue')
+            ->orderByDesc(DB::raw('SUM(net_amount)'))
             ->limit(10)
             ->get()
             ->map(fn ($row) => [
                 'store_id' => $row->store_id,
                 'store_name' => $row->store_name,
-                'revenue' => (float) $row->revenue,
+                'gross_revenue' => (float) $row->gross_revenue,
+                'net_revenue' => (float) $row->net_revenue,
+                'revenue' => (float) $row->net_revenue,
                 'transactions' => (int) $row->transactions,
                 'buyers' => (int) $row->buyers,
             ])
@@ -358,33 +381,45 @@ class BusinessOverviewQuery
             COALESCE(SUM(net_amount) FILTER (WHERE channel = 'Ecommerce'), 0)::numeric(18,2) AS ecommerce_net_revenue
         ")->first();
 
+        $grossRevenue = (float) ($grossRow->gross_revenue ?? 0);
+        $netRevenue = (float) ($grossRow->net_revenue ?? 0);
+        $posGrossRevenue = (float) ($grossRow->pos_gross_revenue ?? 0);
+        $posNetRevenue = (float) ($grossRow->pos_net_revenue ?? 0);
+        $ecommerceGrossRevenue = (float) ($grossRow->ecommerce_gross_revenue ?? 0);
+        $ecommerceNetRevenue = (float) ($grossRow->ecommerce_net_revenue ?? 0);
+
         return [
             'summary' => [
-                'gross_revenue' => (float) ($grossRow->gross_revenue ?? 0),
-                'net_revenue' => (float) ($grossRow->net_revenue ?? 0),
+                'gross_revenue' => $grossRevenue,
+                'net_revenue' => $netRevenue,
                 'revenue' => $revenue,
                 'transactions' => $transactions,
                 'average_transaction' => $transactions > 0 ? $revenue / $transactions : 0,
+                'average_net_transaction' => $transactions > 0 ? $netRevenue / $transactions : 0,
                 'buyers' => (int) ($summaryRow->buyers ?? 0),
             ],
             'channels' => [
                 [
                     'key' => 'pos',
                     'label' => 'POS / Store',
-                    'gross_revenue' => (float) ($grossRow->pos_gross_revenue ?? 0),
-                    'net_revenue' => (float) ($grossRow->pos_net_revenue ?? 0),
+                    'gross_revenue' => $posGrossRevenue,
+                    'net_revenue' => $posNetRevenue,
                     'revenue' => $posRevenue,
                     'transactions' => (int) ($summaryRow->pos_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($posRevenue / $revenue) * 100) : 0,
+                    'gross_share' => $grossRevenue > 0 ? (int) round(($posGrossRevenue / $grossRevenue) * 100) : 0,
+                    'net_share' => $netRevenue > 0 ? (int) round(($posNetRevenue / $netRevenue) * 100) : 0,
                 ],
                 [
                     'key' => 'ecommerce',
                     'label' => 'Ecommerce',
-                    'gross_revenue' => (float) ($grossRow->ecommerce_gross_revenue ?? 0),
-                    'net_revenue' => (float) ($grossRow->ecommerce_net_revenue ?? 0),
+                    'gross_revenue' => $ecommerceGrossRevenue,
+                    'net_revenue' => $ecommerceNetRevenue,
                     'revenue' => $ecommerceRevenue,
                     'transactions' => (int) ($summaryRow->ecommerce_transactions ?? 0),
                     'share' => $revenue > 0 ? (int) round(($ecommerceRevenue / $revenue) * 100) : 0,
+                    'gross_share' => $grossRevenue > 0 ? (int) round(($ecommerceGrossRevenue / $grossRevenue) * 100) : 0,
+                    'net_share' => $netRevenue > 0 ? (int) round(($ecommerceNetRevenue / $netRevenue) * 100) : 0,
                 ],
             ],
         ];
@@ -784,6 +819,11 @@ class BusinessOverviewQuery
             ->when($filters['store_id'], fn ($query) => $query->where('v.store_id', $filters['store_id']))
             ->selectRaw("
                 'POS'::text AS channel,
+                v.store_id,
+                s.name AS store_name,
+                v.id AS transaction_id,
+                v.customer_id,
+                paid_visits.sold_at,
                 ({$storeSellingPrice})::numeric(18,2) AS gross_amount,
                 GREATEST(({$storeLineNet}) - ({$storeOrderDiscount}), 0)::numeric(18,2) AS net_amount
             ");
@@ -807,6 +847,7 @@ class BusinessOverviewQuery
             ->join('ecommerce_orders as eo', 'eo.id', '=', 'eod.ecommerce_order_id')
             ->join('payments as p', 'p.id', '=', 'eo.payment_id')
             ->leftJoin('product_prices as price', 'price.id', '=', 'eod.product_price_id')
+            ->leftJoin('stores as s', 's.id', '=', 'eo.handled_by_store_id')
             ->leftJoinSub($orderNet, 'order_net', 'order_net.ecommerce_order_id', '=', 'eo.id')
             ->whereNull('p.deleted_at')
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
@@ -815,6 +856,11 @@ class BusinessOverviewQuery
             ->when($filters['store_id'], fn ($query) => $query->where('eo.handled_by_store_id', $filters['store_id']))
             ->selectRaw("
                 'Ecommerce'::text AS channel,
+                eo.handled_by_store_id AS store_id,
+                COALESCE(s.name, 'Ecommerce tanpa cabang') AS store_name,
+                eo.id AS transaction_id,
+                eo.customer_id,
+                COALESCE(p.completed_at, eo.created_at) AS sold_at,
                 ({$ecommerceGross})::numeric(18,2) AS gross_amount,
                 GREATEST(({$ecommerceLineNet}) - ({$ecommerceOrderDiscount}), 0)::numeric(18,2) AS net_amount
             ");

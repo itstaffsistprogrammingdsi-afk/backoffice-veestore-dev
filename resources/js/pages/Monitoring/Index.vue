@@ -21,6 +21,8 @@ interface OperationalSummary {
     today: string;
     window: { from: string; to: string };
     sales: {
+        gross_revenue: number;
+        net_revenue: number;
         revenue: number;
         transactions: number;
         buyers: number;
@@ -222,16 +224,16 @@ const followUps = computed(() => {
             <div class="row g-3 mb-3">
                 <div class="col-6 col-xl-3">
                     <article class="monitoring-kpi">
-                        <span class="monitoring-kpi-label">Penjualan lunas hari ini</span>
-                        <strong class="monitoring-kpi-value">{{ formatCurrency(props.operationalSummary.sales.revenue) }}</strong>
-                        <small>{{ formatNumber(props.operationalSummary.sales.transactions) }} transaksi lunas</small>
+                        <span class="monitoring-kpi-label">Omset bersih hari ini</span>
+                        <strong class="monitoring-kpi-value">{{ formatCurrency(props.operationalSummary.sales.net_revenue) }}</strong>
+                        <small>{{ formatNumber(props.operationalSummary.sales.transactions) }} transaksi · {{ formatNumber(props.operationalSummary.sales.buyers) }} pembeli teridentifikasi</small>
                     </article>
                 </div>
                 <div class="col-6 col-xl-3">
                     <article class="monitoring-kpi">
-                        <span class="monitoring-kpi-label">Pembeli hari ini</span>
-                        <strong class="monitoring-kpi-value">{{ formatNumber(props.operationalSummary.sales.buyers) }}</strong>
-                        <small>Pembeli dengan ID customer</small>
+                        <span class="monitoring-kpi-label">Omset kotor hari ini</span>
+                        <strong class="monitoring-kpi-value">{{ formatCurrency(props.operationalSummary.sales.gross_revenue) }}</strong>
+                        <small>Sebelum diskon dan voucher</small>
                     </article>
                 </div>
                 <div class="col-6 col-xl-3">

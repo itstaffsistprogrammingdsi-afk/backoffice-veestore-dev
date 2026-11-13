@@ -80,6 +80,28 @@ const activePeriodLabel = computed(
     () => props.periodOptions.find((option) => option.value === props.filters.period)?.label ?? 'Rentang kustom',
 );
 
+const quickPeriodValues = ['today', 'week', 'month'];
+
+const quickPeriods = computed(
+    () => props.periodOptions.filter((option) => quickPeriodValues.includes(option.value)),
+);
+
+const otherPeriods = computed(
+    () => props.periodOptions.filter((option) => !quickPeriodValues.includes(option.value)),
+);
+
+const otherPeriod = computed(
+    () => (otherPeriods.value.some((option) => option.value === props.filters.period) ? props.filters.period : ''),
+);
+
+const applyOtherPeriod = (event: Event) => {
+    const value = (event.target as HTMLSelectElement).value;
+
+    if (value) {
+        applyPeriod(value);
+    }
+};
+
 const channelOptions = [
     { value: 'all', label: 'Semua kanal' },
     { value: 'store', label: 'Toko' },
@@ -193,7 +215,7 @@ const modules = [
             <form class="hub-filter-form" @submit.prevent="applyCustom">
                 <div class="hub-presets" role="group" aria-label="Pilih periode cepat">
                     <button
-                        v-for="option in props.periodOptions"
+                        v-for="option in quickPeriods"
                         :key="option.value"
                         type="button"
                         class="chip"
@@ -201,6 +223,16 @@ const modules = [
                         :aria-pressed="props.filters.period === option.value"
                         @click="applyPeriod(option.value)"
                     >{{ option.label }}</button>
+                    <label class="visually-hidden" for="hub-period-other">Periode lain</label>
+                    <select
+                        id="hub-period-other"
+                        class="form-select form-select-sm hub-period-select"
+                        :value="otherPeriod"
+                        @change="applyOtherPeriod"
+                    >
+                        <option value="">Periode lain</option>
+                        <option v-for="option in otherPeriods" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
                     <button
                         type="button"
                         class="chip"
@@ -271,7 +303,7 @@ const modules = [
                 { label: `Omset Kotor (${activePeriodLabel})`, value: formatCurrency(summary.gross_revenue) },
                 { label: `Omset Bersih (${activePeriodLabel})`, value: formatCurrency(summary.net_revenue) },
                 { label: 'Transaksi', value: formatNumber(summary.transactions) },
-                { label: 'Pembeli', value: formatNumber(summary.buyers) },
+                { label: 'Pembeli teridentifikasi', value: formatNumber(summary.buyers) },
                 { label: 'Stok menipis', value: formatNumber(inventory.low_stock_alerts) },
                 { label: 'Order terbuka', value: formatNumber(orders.ecommerce_open + orders.store_order_open + orders.return_open) }
             ]" :key="stat.label" class="col-6 col-md-4 col-xl-2">
@@ -284,7 +316,7 @@ const modules = [
 
         <div class="row g-3 mb-3">
             <div v-for="domain in [
-                { title: 'Penjualan', description: 'Nilai penjualan lunas, transaksi, channel, dan produk terlaris.', anchor: 'penjualan', icon: 'mdi-cash-multiple' },
+                { title: 'Omset', description: 'Omset kotor sebelum diskon dan omset bersih setelah diskon produk dan voucher.', anchor: 'penjualan', icon: 'mdi-cash-multiple' },
                 { title: 'Pembayaran', description: 'Kecocokan nilai order dengan pembayaran e-commerce yang tercatat.', anchor: 'pembayaran', icon: 'mdi-credit-card-check-outline' },
                 { title: 'Pesanan', description: 'Status pesanan, antrean SLA, permintaan store, dan retur.', anchor: 'pesanan', icon: 'mdi-clipboard-check-outline' },
                 { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' }
@@ -396,6 +428,12 @@ const modules = [
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
+}
+
+.hub-period-select {
+    width: auto;
+    min-width: 9.5rem;
+    max-width: 12rem;
 }
 
 .hub-custom {

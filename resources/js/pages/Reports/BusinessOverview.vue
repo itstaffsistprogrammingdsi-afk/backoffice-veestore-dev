@@ -20,34 +20,46 @@ interface Filters {
 }
 
 interface SalesSummary {
+    gross_revenue: number;
+    net_revenue: number;
     revenue: number;
     transactions: number;
     average_transaction: number;
+    average_net_transaction: number;
     buyers: number;
 }
 
 interface ChannelRow {
     key: string;
     label: string;
+    gross_revenue: number;
+    net_revenue: number;
     revenue: number;
     transactions: number;
     share: number;
+    gross_share: number;
+    net_share: number;
 }
 
 interface TrendRow {
     date: string;
     label: string;
     revenue: number;
+    gross_revenue: number;
+    net_revenue: number;
     transactions: number;
 }
 
 interface StoreRow {
     store_id: string | null;
     store_name: string;
+    gross_revenue: number;
+    net_revenue: number;
     revenue: number;
     transactions: number;
     buyers: number;
 }
+
 
 interface ProductRow {
     product_id: string;
@@ -254,6 +266,28 @@ const activePeriodLabel = computed(
     () => props.periodOptions.find((option) => option.value === props.filters.period)?.label ?? 'Rentang kustom',
 );
 
+const quickPeriodValues = ['today', 'week', 'month'];
+
+const quickPeriods = computed(
+    () => props.periodOptions.filter((option) => quickPeriodValues.includes(option.value)),
+);
+
+const otherPeriods = computed(
+    () => props.periodOptions.filter((option) => !quickPeriodValues.includes(option.value)),
+);
+
+const otherPeriod = computed(
+    () => (otherPeriods.value.some((option) => option.value === props.filters.period) ? props.filters.period : ''),
+);
+
+const applyOtherPeriod = (event: Event) => {
+    const value = (event.target as HTMLSelectElement).value;
+
+    if (value) {
+        applyPeriod(value);
+    }
+};
+
 const baseQuery = () => ({
     channel: form.channel || undefined,
     store_id: form.store_id || undefined,
@@ -321,31 +355,31 @@ const customerCards = computed(() => [
 
 const salesCards = computed(() => [
     {
-        label: 'Penjualan Lunas',
-        value: formatCurrency(props.sales.summary.revenue),
-        hint: 'Pembayaran POS + Ecommerce, termasuk ongkir',
+        label: 'Omset Kotor',
+        value: formatCurrency(props.sales.summary.gross_revenue),
+        hint: 'Harga jual produk sebelum diskon dan voucher',
         icon: 'mdi-cash-multiple',
         tone: 'accent',
     },
     {
-        label: 'Transaksi Lunas',
-        value: formatNumber(props.sales.summary.transactions),
-        hint: 'Satu transaksi = satu pembayaran lunas',
-        icon: 'mdi-receipt-text-check-outline',
+        label: 'Omset Bersih',
+        value: formatCurrency(props.sales.summary.net_revenue),
+        hint: 'Setelah diskon produk dan voucher, tanpa ongkir dan biaya operasional',
+        icon: 'mdi-cash-check',
         tone: 'success',
     },
     {
-        label: 'Rata-rata / Transaksi',
-        value: formatCurrency(props.sales.summary.average_transaction),
-        hint: 'Nilai penjualan dibagi transaksi lunas',
-        icon: 'mdi-chart-line',
+        label: 'Transaksi Lunas',
+        value: formatNumber(props.sales.summary.transactions),
+        hint: `${formatNumber(props.sales.summary.buyers)} pembeli teridentifikasi`,
+        icon: 'mdi-receipt-text-check-outline',
         tone: 'info',
     },
     {
-        label: 'Customer Unik',
-        value: formatNumber(props.sales.summary.buyers),
-        hint: 'Pembeli dengan ID customer',
-        icon: 'mdi-account-group-outline',
+        label: 'Rata-rata / Transaksi',
+        value: formatCurrency(props.sales.summary.average_net_transaction),
+        hint: 'Omset bersih dibagi transaksi lunas',
+        icon: 'mdi-chart-line',
         tone: 'neutral',
     },
 ]);
@@ -465,8 +499,11 @@ const pendingItems = computed(() => [
 ]);
 
 const visibleTrend = computed(() => props.sales.trend.slice(-14));
-const maxTrendRevenue = computed(() => Math.max(1, ...visibleTrend.value.map((row) => row.revenue)));
-const trendHeight = (revenue: number) => `${Math.max(4, Math.round((revenue / maxTrendRevenue.value) * 100))}%`;
+const maxTrendRevenue = computed(() => Math.max(
+    1,
+    ...visibleTrend.value.flatMap((row) => [row.gross_revenue, row.net_revenue]),
+));
+const trendHeight = (value: number) => `${Math.max(4, Math.round((value / maxTrendRevenue.value) * 100))}%`;
 
 const formatAge = (hours: number) => {
     if (hours >= 48) {
@@ -494,9 +531,9 @@ const exportOverview = () => {
         { section: 'Periode', metric: 'Dari', value: props.filters.date_from },
         { section: 'Periode', metric: 'Sampai', value: props.filters.date_to },
         ...Object.entries(props.sales.summary).map(([metric, value]) => ({ section: 'Penjualan', metric, value })),
-        ...props.sales.channels.map((row) => ({ section: 'Channel', metric: row.label, value: row.revenue, transactions: row.transactions, share_percent: row.share })),
-        ...props.sales.trend.map((row) => ({ section: 'Tren Penjualan', metric: row.date, value: row.revenue, transactions: row.transactions })),
-        ...props.sales.top_stores.map((row) => ({ section: 'Store Teratas', metric: row.store_name, value: row.revenue, transactions: row.transactions, buyers: row.buyers })),
+        ...props.sales.channels.map((row) => ({ section: 'Channel', metric: row.label, value: row.net_revenue, gross_revenue: row.gross_revenue, net_revenue: row.net_revenue, transactions: row.transactions, share_percent: row.net_share })),
+        ...props.sales.trend.map((row) => ({ section: 'Tren Penjualan', metric: row.date, value: row.net_revenue, gross_revenue: row.gross_revenue, net_revenue: row.net_revenue, transactions: row.transactions })),
+        ...props.sales.top_stores.map((row) => ({ section: 'Store Teratas', metric: row.store_name, value: row.net_revenue, gross_revenue: row.gross_revenue, net_revenue: row.net_revenue, transactions: row.transactions, buyers: row.buyers })),
         ...props.sales.top_products.map((row) => ({ section: 'Produk Teratas', metric: row.product_name, product_code: row.product_code, category: row.category_name, quantity: row.qty, transactions: row.transactions })),
         ...Object.entries(props.customers.summary).map(([metric, value]) => ({ section: 'Pelanggan', metric, value })),
         ...(props.payments.applicable ? [
@@ -529,6 +566,8 @@ const exportOverview = () => {
         { key: 'section', label: 'Bagian' },
         { key: 'metric', label: 'Rincian' },
         { key: 'value', label: 'Nilai' },
+        { key: 'gross_revenue', label: 'Omset Kotor' },
+        { key: 'net_revenue', label: 'Omset Bersih' },
         { key: 'product_code', label: 'Kode Produk' },
         { key: 'category', label: 'Kategori' },
         { key: 'location', label: 'Lokasi' },
@@ -558,7 +597,7 @@ const exportOverview = () => {
             { label: 'Toko', value: props.stores.find((store) => String(store.id) === String(props.filters.store_id))?.name ?? 'Semua toko' },
             { label: 'Gudang', value: props.warehouses.find((warehouse) => String(warehouse.id) === String(props.filters.warehouse_id))?.name ?? 'Semua gudang' },
         ],
-        currencyColumns: ['amount'],
+        currencyColumns: ['amount', 'gross_revenue', 'net_revenue'],
     });
 };
 </script>
@@ -569,7 +608,7 @@ const exportOverview = () => {
     <div class="overview-page">
         <AppPageHeader
             eyebrow="Laporan / Ringkasan Usaha"
-            title="Ringkasan Penjualan, Pesanan, dan Stok"
+            title="Ringkasan Omset, Pesanan, dan Stok"
             description="Angka ringkas yang mudah dibaca, dengan definisi data yang jelas agar tidak tertukar atau terhitung ganda."
         >
             <template #actions>
@@ -621,7 +660,7 @@ const exportOverview = () => {
                         <span class="overview-preset-label">Pilih cepat</span>
                         <div class="overview-presets">
                             <button
-                                v-for="option in props.periodOptions"
+                                v-for="option in quickPeriods"
                                 :key="option.value"
                                 type="button"
                                 class="chip"
@@ -629,6 +668,16 @@ const exportOverview = () => {
                                 :aria-pressed="props.filters.period === option.value"
                                 @click="applyPeriod(option.value)"
                             >{{ option.label }}</button>
+                            <label class="visually-hidden" for="overview-period-other">Periode lain</label>
+                            <select
+                                id="overview-period-other"
+                                class="form-select form-select-sm overview-period-select"
+                                :value="otherPeriod"
+                                @change="applyOtherPeriod"
+                            >
+                                <option value="">Periode lain</option>
+                                <option v-for="option in otherPeriods" :key="option.value" :value="option.value">{{ option.label }}</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-12 col-xl-5 d-flex flex-wrap gap-2 justify-content-xl-end">
@@ -656,7 +705,7 @@ const exportOverview = () => {
             </div>
             <div class="row g-2">
                 <div class="col-md-6 col-xl-3">
-                    <p><strong>Penjualan</strong> dihitung dari pembayaran berstatus lunas, bukan dari status pesanan. Angka POS dan Ecommerce sudah dipisahkan.</p>
+                    <p><strong>Omset</strong> dihitung dari transaksi lunas. Omset kotor memakai harga jual sebelum diskon dan voucher; omset bersih setelah diskon produk dan voucher, tanpa ongkir, biaya transport, listrik, atau biaya operasional lain.</p>
                 </div>
                 <div class="col-md-6 col-xl-3">
                     <p><strong>Pesanan</strong> dihitung dari tanggal pesanan dibuat, termasuk yang belum dibayar. Karena itu jumlah pesanan tidak sama dengan transaksi lunas.</p>
@@ -672,7 +721,7 @@ const exportOverview = () => {
         </section>
 
         <nav class="overview-anchors" aria-label="Bagian ringkasan">
-            <a href="#penjualan" class="chip">Penjualan</a>
+            <a href="#penjualan" class="chip">Omset</a>
             <a href="#pembayaran" class="chip">Pembayaran</a>
             <a href="#pelanggan" class="chip">Pelanggan</a>
             <a href="#pesanan" class="chip">Pesanan</a>
@@ -682,9 +731,9 @@ const exportOverview = () => {
         <section id="penjualan" class="overview-section" aria-labelledby="sales-title">
             <div class="overview-section-head">
                 <div>
-                    <span class="overview-section-kicker">Penjualan</span>
-                    <h2 id="sales-title">Nilai penjualan yang sudah lunas</h2>
-                    <p>Fokus pada uang yang benar-benar masuk dan transaksi yang berhasil.</p>
+                    <span class="overview-section-kicker">Omset</span>
+                    <h2 id="sales-title">Omset kotor dan bersih dari transaksi lunas</h2>
+                    <p>Omset kotor sebelum diskon dan voucher; omset bersih setelah diskon produk dan voucher, tanpa ongkir dan biaya operasional.</p>
                 </div>
                 <div class="overview-section-links">
                     <Link :href="props.urls.sales">Pemasukan Realtime</Link>
@@ -711,19 +760,28 @@ const exportOverview = () => {
                     <article class="overview-card h-100">
                         <header class="overview-card-head">
                             <div>
-                                <h3>Tren Penjualan Harian</h3>
-                                <p>14 hari terakhir dalam periode. Arahkan kursor ke batang untuk melihat nilai dan transaksi.</p>
+                                <h3>Tren Omset Harian</h3>
+                                <p>14 hari terakhir dalam periode. Batang kiri omset kotor, batang kanan omset bersih.</p>
                             </div>
-                            <span class="overview-card-meta">{{ formatCurrency(props.sales.summary.revenue) }}</span>
+                            <span class="overview-card-meta">Bersih {{ formatCurrency(props.sales.summary.net_revenue) }}</span>
                         </header>
-                        <div v-if="visibleTrend.length" class="overview-chart" role="img" aria-label="Grafik tren penjualan harian" aria-describedby="trend-data-table">
+                        <div v-if="visibleTrend.length" class="overview-chart" role="img" aria-label="Grafik tren omset kotor dan bersih harian" aria-describedby="trend-data-table">
+                            <div class="overview-chart-legend" aria-hidden="true">
+                                <span><i class="overview-chart-swatch is-gross"></i>Omset kotor</span>
+                                <span><i class="overview-chart-swatch is-net"></i>Omset bersih</span>
+                            </div>
                             <div class="overview-chart-grid">
                                 <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
                                     <div class="overview-chart-track">
                                         <div
-                                            class="overview-chart-bar"
-                                            :style="{ height: trendHeight(row.revenue) }"
-                                            :title="`${row.label}: ${formatCurrency(row.revenue)} dari ${formatNumber(row.transactions)} transaksi`"
+                                            class="overview-chart-bar is-gross"
+                                            :style="{ height: trendHeight(row.gross_revenue) }"
+                                            :title="`${row.label} kotor: ${formatCurrency(row.gross_revenue)}`"
+                                        ></div>
+                                        <div
+                                            class="overview-chart-bar is-net"
+                                            :style="{ height: trendHeight(row.net_revenue) }"
+                                            :title="`${row.label} bersih: ${formatCurrency(row.net_revenue)} dari ${formatNumber(row.transactions)} transaksi`"
                                         ></div>
                                     </div>
                                     <span class="overview-chart-label">{{ row.label }}</span>
@@ -731,43 +789,45 @@ const exportOverview = () => {
                             </div>
                         </div>
                         <table v-if="visibleTrend.length" id="trend-data-table" class="visually-hidden">
-                            <caption>Data tren penjualan harian</caption>
+                            <caption>Data tren omset harian</caption>
                             <thead>
                                 <tr>
                                     <th scope="col">Tanggal</th>
-                                    <th scope="col">Pendapatan</th>
+                                    <th scope="col">Omset Kotor</th>
+                                    <th scope="col">Omset Bersih</th>
                                     <th scope="col">Transaksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="row in visibleTrend" :key="`trend-data-${row.date}`">
                                     <th scope="row">{{ row.label }}</th>
-                                    <td>{{ formatCurrency(row.revenue) }}</td>
+                                    <td>{{ formatCurrency(row.gross_revenue) }}</td>
+                                    <td>{{ formatCurrency(row.net_revenue) }}</td>
                                     <td>{{ formatNumber(row.transactions) }}</td>
                                 </tr>
                             </tbody>
                         </table>
-                        <p v-else class="overview-empty">Belum ada penjualan lunas pada periode ini.</p>
+                        <p v-else class="overview-empty">Belum ada transaksi lunas pada periode ini.</p>
                     </article>
                 </div>
                 <div class="col-xl-5">
                     <article class="overview-card h-100">
                         <header class="overview-card-head">
                             <div>
-                                <h3>Kontribusi Channel</h3>
-                                <p>Perbandingan penjualan lunas POS dan Ecommerce.</p>
+                                <h3>Kontribusi Omset per Channel</h3>
+                                <p>Perbandingan omset bersih POS dan Ecommerce.</p>
                             </div>
                         </header>
                         <div class="overview-channel-list">
                             <div v-for="channel in props.sales.channels" :key="channel.key" class="overview-channel">
                                 <div class="overview-channel-row">
                                     <span>{{ channel.label }}</span>
-                                    <strong>{{ formatCurrency(channel.revenue) }}</strong>
+                                    <strong>{{ formatCurrency(channel.net_revenue) }}</strong>
                                 </div>
                                 <div class="overview-progress" aria-hidden="true">
-                                    <span :style="{ width: `${Math.max(2, channel.share)}%` }"></span>
+                                    <span :style="{ width: `${Math.max(2, channel.net_share)}%` }"></span>
                                 </div>
-                                <small>{{ formatNumber(channel.transactions) }} transaksi · {{ channel.share }}% dari total penjualan</small>
+                                <small>Omset kotor {{ formatCurrency(channel.gross_revenue) }} · {{ formatNumber(channel.transactions) }} transaksi · {{ channel.net_share }}% dari omset bersih</small>
                             </div>
                         </div>
                     </article>
@@ -779,21 +839,22 @@ const exportOverview = () => {
                     <article class="overview-card h-100">
                         <header class="overview-card-head">
                             <div>
-                                <h3>Cabang dengan Penjualan Terbesar</h3>
-                                <p>Berdasarkan nilai pembayaran lunas pada periode ini.</p>
+                                <h3>Cabang dengan Omset Bersih Terbesar</h3>
+                                <p>Berdasarkan omset bersih produk pada periode ini.</p>
                             </div>
                         </header>
                         <div v-if="props.sales.top_stores.length" class="table-responsive">
                             <table class="table align-middle mb-0 overview-table">
                                 <thead>
-                                    <tr><th scope="col">Cabang</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Pembeli</th><th scope="col" class="text-end">Penjualan</th></tr>
+                                    <tr><th scope="col">Cabang</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Pembeli</th><th scope="col" class="text-end">Omset Kotor</th><th scope="col" class="text-end">Omset Bersih</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="row in props.sales.top_stores" :key="row.store_name">
                                         <td>{{ row.store_name }}</td>
                                         <td class="text-end">{{ formatNumber(row.transactions) }}</td>
                                         <td class="text-end">{{ formatNumber(row.buyers) }}</td>
-                                        <td class="text-end"><strong>{{ formatCurrency(row.revenue) }}</strong></td>
+                                        <td class="text-end">{{ formatCurrency(row.gross_revenue) }}</td>
+                                        <td class="text-end"><strong>{{ formatCurrency(row.net_revenue) }}</strong></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1153,6 +1214,12 @@ const exportOverview = () => {
     gap: 0.3rem;
 }
 
+.overview-period-select {
+    width: auto;
+    min-width: 9.5rem;
+    max-width: 12rem;
+}
+
 .overview-period-note {
     display: flex;
     flex-wrap: wrap;
@@ -1406,6 +1473,32 @@ const exportOverview = () => {
     padding-bottom: 0.2rem;
 }
 
+.overview-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.8rem;
+    margin-bottom: 0.55rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-2xs);
+}
+
+.overview-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.overview-chart-swatch {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 2px;
+    background: var(--app-accent);
+}
+
+.overview-chart-swatch.is-gross {
+    background: color-mix(in srgb, var(--app-accent) 42%, var(--app-surface-2));
+}
+
 .overview-chart-grid {
     display: grid;
     grid-auto-flow: column;
@@ -1426,6 +1519,7 @@ const exportOverview = () => {
 .overview-chart-track {
     display: flex;
     align-items: flex-end;
+    gap: 2px;
     width: 100%;
     height: 8rem;
     border-radius: var(--app-radius-xs) var(--app-radius-xs) 0 0;
@@ -1433,10 +1527,18 @@ const exportOverview = () => {
 }
 
 .overview-chart-bar {
-    width: 100%;
+    flex: 1 1 0;
+    min-width: 0;
     border-radius: var(--app-radius-xs) var(--app-radius-xs) 0 0;
-    background: var(--app-accent);
     transition: height var(--app-dur-base) var(--app-ease-out);
+}
+
+.overview-chart-bar.is-gross {
+    background: color-mix(in srgb, var(--app-accent) 42%, var(--app-surface-2));
+}
+
+.overview-chart-bar.is-net {
+    background: var(--app-accent);
 }
 
 .overview-chart-label {

@@ -20,8 +20,9 @@ class BusinessOverviewController extends Controller
                 ['value' => 'today', 'label' => 'Hari ini'],
                 ['value' => 'week', 'label' => 'Minggu ini'],
                 ['value' => 'month', 'label' => 'Bulan ini'],
-                ['value' => 'year', 'label' => 'Tahun ini'],
                 ['value' => 'last_month', 'label' => 'Bulan lalu'],
+                ['value' => 'year', 'label' => 'Tahun ini'],
+                ['value' => 'last_year', 'label' => 'Tahun lalu'],
             ],
             'stores' => DB::table('stores')
                 ->whereNull('deleted_at')

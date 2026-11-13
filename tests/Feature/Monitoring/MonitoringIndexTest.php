@@ -27,6 +27,8 @@ class MonitoringIndexTest extends TestCase
                 ->has('storeTransferReconciliation.summary')
                 ->has('storeTransferReconciliation.rows')
                 ->has('operationalSummary.sales.revenue')
+                ->has('operationalSummary.sales.gross_revenue')
+                ->has('operationalSummary.sales.net_revenue')
                 ->has('operationalSummary.orders.ecommerce_need_attention')
                 ->has('operationalSummary.inventory.low_stock_alerts')
                 ->has('operationalSummary.queues.store_inbound_pending_qc')
