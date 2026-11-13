@@ -1076,7 +1076,7 @@ const exportOverview = () => {
                 <header class="overview-card-head">
                     <div>
                         <h3>Tren Member Baru dan Kunjungan</h3>
-                        <p>Member baru berdasarkan tanggal registrasi; kunjungan berdasarkan check-in toko. Satuan {{ props.customers.trend.grain === 'month' ? 'bulanan' : 'harian' }}.</p>
+                        <p>Member baru berdasarkan tanggal registrasi; kunjungan berdasarkan check-in toko. Batang kiri member baru, batang kanan kunjungan. Satuan {{ props.customers.trend.grain === 'month' ? 'bulanan' : 'harian' }}.</p>
                     </div>
                     <span class="overview-card-meta">Total {{ formatNumber(props.customers.summary.new_members) }} member · {{ formatNumber(props.customers.summary.visits) }} kunjungan</span>
                 </header>
