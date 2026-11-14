@@ -2,6 +2,10 @@
 
 namespace App\Ai\Mcp;
 
+use App\Ai\Security\AssistantAccessPolicy;
+use App\Ai\Security\PiiRedactor;
+use App\Ai\Support\AnswerStatus;
+use App\Ai\Support\AssistantAuditLogger;
 use App\Ai\Support\ToolCallLogger;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
@@ -31,7 +35,49 @@ abstract class AssistantTool implements McpTool, Tool
      */
     public function run(array $arguments): array
     {
-        return $this->execute($arguments);
+        $startedAt = microtime(true);
+        $policy = app(AssistantAccessPolicy::class);
+        $audit = app(AssistantAuditLogger::class);
+        $denied = $policy->authorizeTool($this->name(), $arguments);
+
+        if ($denied !== null) {
+            $audit->toolDecision(
+                $this->name(),
+                $arguments,
+                false,
+                $denied,
+                ['answer_status' => AnswerStatus::FORBIDDEN],
+                (int) round((microtime(true) - $startedAt) * 1000),
+            );
+
+            return [
+                'error' => $denied,
+                'answer_status' => AnswerStatus::FORBIDDEN,
+            ];
+        }
+
+        try {
+            $result = $this->execute($arguments);
+        } catch (Throwable $exception) {
+            report($exception);
+            $result = [
+                'error' => 'Tool gagal dijalankan. Coba persempit pertanyaan atau ulangi.',
+                'answer_status' => AnswerStatus::INVALID,
+            ];
+        }
+
+        $result = app(PiiRedactor::class)->redactToolResult($this->name(), $result, $arguments);
+
+        $audit->toolDecision(
+            $this->name(),
+            $arguments,
+            true,
+            null,
+            $result,
+            (int) round((microtime(true) - $startedAt) * 1000),
+        );
+
+        return $result;
     }
 
     public function handle(Request $request): Stringable|string
@@ -41,12 +87,13 @@ abstract class AssistantTool implements McpTool, Tool
         $logger = app(ToolCallLogger::class);
 
         try {
-            $result = $this->execute($arguments);
+            $result = $this->run($arguments);
             $logger->record(
                 $this->name(),
                 $arguments,
                 $this->summarize($result),
                 (int) round((microtime(true) - $startedAt) * 1000),
+                $this->evidence($result),
             );
 
             return $this->encode($result);
@@ -58,6 +105,38 @@ abstract class AssistantTool implements McpTool, Tool
                 'error' => $exception->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    protected function evidence(array $result): array
+    {
+        return array_filter([
+            'source_report' => $this->sourceReport(),
+            'period' => $result['period'] ?? null,
+            'snapshot_at' => $result['snapshot_at'] ?? $result['generated_at'] ?? null,
+            'row_count' => $result['row_count'] ?? $result['count'] ?? null,
+            'answer_status' => $result['answer_status'] ?? null,
+        ], fn ($value) => $value !== null && $value !== []);
+    }
+
+    protected function sourceReport(): string
+    {
+        return match ($this->name()) {
+            'business_overview' => 'Ringkasan Usaha',
+            'product_sales' => 'Produk Terlaris (Fast Moving)',
+            'stock_health' => 'Monitoring Stok, Stok Minimum, dan Produk Slow Moving',
+            'operations_pipeline' => 'Operasional Pesanan, Retur, Inbound/Outbound, dan Opname',
+            'promo_loyalty' => 'Promo, Voucher, dan Loyalty',
+            'customer_insight' => 'CRM, Demografi Pelanggan, dan Preferensi Produk',
+            'master_data' => 'Master Data',
+            'system_map' => 'Peta Menu dan Fitur VeeStore',
+            'data_schema' => 'Referensi Teknis Internal',
+            'query_data' => 'Query Data Kustom',
+            default => 'Data VeeStore',
+        };
     }
 
     public function schema(JsonSchema $schema): array

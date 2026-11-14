@@ -3,6 +3,7 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Support\AnswerStatus;
 use App\Domain\Analytics\Queries\BusinessOverviewQuery;
 use Carbon\CarbonImmutable;
 
@@ -60,7 +61,17 @@ class ProductSalesTool extends AssistantTool
         $from = $this->date($arguments['date_from'] ?? null) ?? CarbonImmutable::now()->subDays(29)->toDateString();
         $to = $this->date($arguments['date_to'] ?? null) ?? CarbonImmutable::now()->toDateString();
 
-        return app(BusinessOverviewQuery::class)->productSalesSnapshot([
+        if (CarbonImmutable::parse($from)->greaterThan(CarbonImmutable::now()->startOfDay())) {
+            return [
+                'period' => ['date_from' => $from, 'date_to' => $to],
+                'generated_at' => now()->toIso8601String(),
+                'answer_status' => AnswerStatus::NOT_YET_OCCURRED,
+                'message' => 'Periode belum terjadi; belum ada data.',
+                'rows' => [],
+            ];
+        }
+
+        $result = app(BusinessOverviewQuery::class)->productSalesSnapshot([
             'product' => $arguments['product'] ?? null,
             'store' => $arguments['store'] ?? null,
             'date_from' => $from,
@@ -68,6 +79,10 @@ class ProductSalesTool extends AssistantTool
             'per_store' => $arguments['per_store'] ?? null,
             'limit' => $arguments['limit'] ?? 20,
         ]);
+
+        $result['answer_status'] = AnswerStatus::OK;
+
+        return $result;
     }
 
     private function date(mixed $value): ?string

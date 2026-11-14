@@ -3,10 +3,17 @@
 namespace App\Http\Controllers\AI;
 
 use App\Ai\Agents\VeeAssistant;
+use App\Ai\Security\AssistantAccessPolicy;
+use App\Ai\Security\PiiRedactor;
+use App\Ai\Support\AnswerStatus;
+use App\Ai\Support\AssistantAuditLogger;
+use App\Ai\Support\AssistantRouteRegistry;
+use App\Ai\Support\QuestionIntentGuard;
 use App\Ai\Support\ToolCallLogger;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AI\ChatRequest;
 use App\Services\Assistant\AssistantContext;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -31,16 +38,58 @@ class AssistantController extends Controller
 
     public function chat(ChatRequest $request, AssistantContext $context): JsonResponse
     {
+        app(AssistantAccessPolicy::class)->markUserRequest();
+
         $message = trim($request->validated('message'));
         $mode = (string) ($request->validated('mode') ?? $context->defaultMode());
         $history = $this->history($request);
         $logger = app(ToolCallLogger::class);
+        $startedAt = microtime(true);
+        $intent = app(QuestionIntentGuard::class)->inspect($message);
+
+        if ($intent !== null) {
+            $sanitized = app(AssistantRouteRegistry::class)->sanitize($intent['answer'], $request->user());
+            $answer = app(PiiRedactor::class)->redactText($sanitized['answer']) ?? $sanitized['answer'];
+
+            $messages = $this->messages($request);
+            $messages[] = $this->message('user', $message);
+            $messages[] = $this->message('assistant', $answer);
+
+            $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+
+            app(AssistantAuditLogger::class)->guard($intent['intent'], $intent['answer_status'], [
+                'decision' => 'allow',
+                'message_length' => mb_strlen($message),
+            ]);
+            app(AssistantAuditLogger::class)->answer(
+                $intent['answer_status'],
+                [],
+                [],
+                (int) round((microtime(true) - $startedAt) * 1000),
+                $sanitized['removed'],
+            );
+
+            return response()->json([
+                'answer' => $answer,
+                'messages' => array_slice($messages, -30),
+                'tool_calls' => [],
+                'model' => null,
+                'mode' => $mode,
+                'usage' => ['input_tokens' => null, 'output_tokens' => null],
+                'answer_status' => $intent['answer_status'],
+                'evidence' => [],
+                'safe_actions' => $intent['safe_actions'],
+                'removed_links' => $sanitized['removed'],
+                'timings' => ['total_ms' => (int) round((microtime(true) - $startedAt) * 1000)],
+            ]);
+        }
 
         try {
             $models = $context->modelsFor($mode);
             $response = null;
             $usedModel = null;
             $lastException = null;
+            $modelStartedAt = microtime(true);
 
             foreach ($models as $index => $model) {
                 $logger->reset();
@@ -95,20 +144,51 @@ class AssistantController extends Controller
                 }
             }
 
+            $toolCalls = $logger->calls();
+            $evidence = $logger->evidence();
+            $status = $logger->status();
+
             if ($answer === '') {
                 $answer = $response->toolResults->isNotEmpty()
                     ? 'Data sudah ditemukan, tetapi VEE belum bisa menyusun ringkasan. Coba sebutkan periode, nama produk, atau nama toko yang lebih spesifik.'
                     : 'VEE belum bisa menyusun jawaban untuk pertanyaan ini. Coba tuliskan pertanyaan dengan periode, nama produk, atau nama toko yang lebih spesifik.';
+                $status = $response->toolResults->isNotEmpty() ? AnswerStatus::NO_DATA : AnswerStatus::NOT_AVAILABLE;
             }
 
-            $toolCalls = $logger->calls();
-            $answer = $this->appendSources($answer, $toolCalls);
+            $status ??= $toolCalls === [] ? AnswerStatus::NOT_AVAILABLE : AnswerStatus::OK;
+
+            $sanitized = app(AssistantRouteRegistry::class)->sanitize($answer, $request->user());
+            $answer = app(PiiRedactor::class)->redactText($sanitized['answer']) ?? $sanitized['answer'];
+
+            if ($status === AnswerStatus::NOT_YET_OCCURRED) {
+                $answer = $this->futurePeriodAnswer($evidence);
+            }
+
+            if (! in_array($status, [AnswerStatus::FORBIDDEN, AnswerStatus::INVALID], true)) {
+                $answer = $this->appendSources($answer, $toolCalls);
+            }
+
+            if ((bool) config('assistant.evidence.append_to_answer', true)
+                && ! in_array($status, [AnswerStatus::FORBIDDEN, AnswerStatus::INVALID, AnswerStatus::NEEDS_CLARIFICATION], true)) {
+                $answer .= $this->evidenceLine($evidence);
+            }
 
             $messages = $this->messages($request);
             $messages[] = $this->message('user', $message);
             $messages[] = $this->message('assistant', $answer, $toolCalls, $usage);
 
             $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+
+            $totalMs = (int) round((microtime(true) - $startedAt) * 1000);
+            $modelMs = (int) round((microtime(true) - $modelStartedAt) * 1000);
+
+            app(AssistantAuditLogger::class)->answer(
+                $status,
+                $toolCalls,
+                $evidence,
+                $totalMs,
+                $sanitized['removed'],
+            );
 
             return response()->json([
                 'answer' => $answer,
@@ -117,6 +197,14 @@ class AssistantController extends Controller
                 'model' => $usedModel,
                 'mode' => $mode,
                 'usage' => $usage,
+                'answer_status' => $status,
+                'evidence' => $evidence,
+                'safe_actions' => [],
+                'removed_links' => $sanitized['removed'],
+                'timings' => [
+                    'model_ms' => $modelMs,
+                    'total_ms' => $totalMs,
+                ],
             ]);
         } catch (Throwable $exception) {
             report($exception);
@@ -125,6 +213,104 @@ class AssistantController extends Controller
                 'error' => true,
                 'message' => 'VEE belum dapat menghubungi model atau mengambil data. Periksa koneksi 9Router dan coba lagi.',
             ], 503);
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $evidence
+     */
+    private function futurePeriodAnswer(array $evidence): string
+    {
+        $period = null;
+
+        foreach ($evidence as $item) {
+            $candidate = $item['period'] ?? null;
+
+            if (is_array($candidate) && isset($candidate['date_from'])) {
+                $period = trim((string) $candidate['date_from'].' sampai '.(string) ($candidate['date_to'] ?? $candidate['date_from']));
+
+                break;
+            }
+
+            if (is_string($candidate) && $candidate !== '') {
+                $period = $candidate;
+
+                break;
+            }
+        }
+
+        return 'Periode '.($period ?? 'yang diminta').' belum terjadi, jadi belum ada data yang dapat dihitung. '
+            .'Saya tidak menampilkannya sebagai nol tercatat.';
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $evidence
+     */
+    private function evidenceLine(array $evidence): string
+    {
+        if ($evidence === []) {
+            return '';
+        }
+
+        $sources = [];
+        $periods = [];
+        $snapshots = [];
+
+        foreach ($evidence as $item) {
+            $source = trim((string) ($item['source_report'] ?? ''));
+
+            if ($source !== '') {
+                $sources[] = $source;
+            }
+
+            $period = $item['period'] ?? null;
+
+            if (is_array($period) && isset($period['date_from'])) {
+                $periods[] = trim((string) $period['date_from'].' sampai '.(string) ($period['date_to'] ?? $period['date_from']));
+            } elseif (is_string($period) && $period !== '') {
+                $periods[] = $period;
+            }
+
+            $snapshot = $item['snapshot_at'] ?? null;
+
+            if (is_string($snapshot) && $snapshot !== '') {
+                $snapshots[] = $this->formatSnapshot($snapshot);
+            }
+        }
+
+        $sources = array_values(array_unique(array_filter($sources)));
+        $periods = array_values(array_unique(array_filter($periods)));
+        $snapshots = array_values(array_unique(array_filter($snapshots)));
+
+        $parts = [];
+
+        if ($sources !== []) {
+            $parts[] = 'Sumber: '.implode(', ', $sources);
+        }
+
+        if ($periods !== []) {
+            $parts[] = 'Periode: '.implode(', ', $periods);
+        }
+
+        if ($snapshots !== []) {
+            $parts[] = 'Snapshot: '.implode(', ', $snapshots);
+        }
+
+        if ($parts === []) {
+            return '';
+        }
+
+        return "\n\n**Konteks data:** ".implode('; ', $parts).'.';
+    }
+
+    private function formatSnapshot(string $value): string
+    {
+        try {
+            return CarbonImmutable::parse($value)
+                ->setTimezone((string) config('app.timezone'))
+                ->toDateTimeString();
+        } catch (Throwable) {
+            return $value;
         }
     }
 

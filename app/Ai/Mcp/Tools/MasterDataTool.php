@@ -3,6 +3,7 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Support\AnswerStatus;
 use Illuminate\Support\Facades\DB;
 
 class MasterDataTool extends AssistantTool
@@ -57,6 +58,14 @@ class MasterDataTool extends AssistantTool
             return ['error' => 'Entitas master data tidak dikenal.'];
         }
 
+        if ($entity === 'customers') {
+            return $this->customers($search, $limit);
+        }
+
+        if ($entity === 'users') {
+            return $this->users($search, $limit);
+        }
+
         $query = DB::table($config['table'])->limit($limit);
 
         if ($config['soft_delete']) {
@@ -93,6 +102,146 @@ class MasterDataTool extends AssistantTool
             'search' => $search,
             'count' => count($rows),
             'rows' => $rows,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function customers(string $search, int $limit): array
+    {
+        $base = DB::table('customers')->whereNull('deleted_at');
+
+        if ($search === '') {
+            $gender = (clone $base)
+                ->selectRaw("COALESCE(NULLIF(LOWER(gender::text), ''), 'belum diisi') AS label, COUNT(*)::int AS total")
+                ->groupByRaw("COALESCE(NULLIF(LOWER(gender::text), ''), 'belum diisi')")
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn ($row) => ['label' => $row->label, 'total' => (int) $row->total])
+                ->values()
+                ->all();
+
+            $provinces = (clone $base)
+                ->leftJoin('provinces as p', 'p.code', '=', 'customers.province_code')
+                ->selectRaw("COALESCE(p.name, 'Belum diisi') AS label, COUNT(*)::int AS total")
+                ->groupBy('p.name')
+                ->orderByDesc('total')
+                ->limit(5)
+                ->get()
+                ->map(fn ($row) => ['label' => $row->label, 'total' => (int) $row->total])
+                ->values()
+                ->all();
+
+            return [
+                'entity' => 'customers',
+                'search' => '',
+                'answer_status' => AnswerStatus::AGGREGATE_ONLY,
+                'summary' => [
+                    'total_customers' => (int) (clone $base)->count(),
+                    'registered_customers' => (int) (clone $base)->whereRaw('is_guest IS NOT TRUE')->count(),
+                    'guest_customers' => (int) (clone $base)->whereRaw('is_guest IS TRUE')->count(),
+                    'registered_this_month' => (int) (clone $base)
+                        ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+                        ->count(),
+                ],
+                'gender' => $gender,
+                'provinces' => $provinces,
+                'rows' => [],
+                'note' => 'Detail pelanggan tidak ditampilkan massal. Sebutkan satu nama, email, atau nomor HP untuk detail satu pelanggan.',
+            ];
+        }
+
+        if (mb_strlen($search) < 3) {
+            return [
+                'error' => 'Kata kunci pelanggan minimal 3 karakter agar pencarian tidak membuka data massal.',
+                'answer_status' => AnswerStatus::INVALID,
+            ];
+        }
+
+        $query = (clone $base)->where(function ($query) use ($search) {
+            $like = '%'.$search.'%';
+            $query->where('name', 'ilike', $like)
+                ->orWhere('email', 'ilike', $like)
+                ->orWhere('wa_number', 'ilike', $like);
+        });
+
+        $limit = max(1, min($limit, (int) config('assistant.limits.max_customer_rows', 5)));
+        $total = (int) (clone $query)->count();
+        $rows = $query
+            ->orderBy('name')
+            ->limit($limit)
+            ->get(['id', 'name', 'email', 'wa_number', 'gender', 'province_code', 'regency_code', 'is_guest', 'created_at'])
+            ->map(fn ($row) => (array) $row)
+            ->values()
+            ->all();
+
+        return [
+            'entity' => 'customers',
+            'search' => $search,
+            'answer_status' => $rows === [] ? AnswerStatus::NO_DATA : AnswerStatus::OK,
+            'total_matches' => $total,
+            'row_limit' => $limit,
+            'rows' => $rows,
+            'note' => $total > count($rows)
+                ? 'Hasil dibatasi. Persempit pencarian jika perlu.'
+                : 'Data pribadi dimasking sesuai kebijakan.',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function users(string $search, int $limit): array
+    {
+        $base = DB::table('users')->whereNull('deleted_at');
+
+        if ($search === '') {
+            return [
+                'entity' => 'users',
+                'search' => '',
+                'answer_status' => AnswerStatus::AGGREGATE_ONLY,
+                'summary' => [
+                    'total_users' => (int) (clone $base)->count(),
+                    'backoffice_access' => (int) (clone $base)->where('backoffice_access', true)->count(),
+                    'store_access' => (int) (clone $base)->where('store_access', true)->count(),
+                    'wms_access' => (int) (clone $base)->where('wms_access', true)->count(),
+                    'ecommerce_access' => (int) (clone $base)->where('ecommerce_access', true)->count(),
+                ],
+                'rows' => [],
+                'note' => 'Daftar pengguna massal tidak ditampilkan. Sebutkan nama atau email pengguna untuk detail.',
+            ];
+        }
+
+        if (mb_strlen($search) < 3) {
+            return [
+                'error' => 'Kata kunci pengguna minimal 3 karakter.',
+                'answer_status' => AnswerStatus::INVALID,
+            ];
+        }
+
+        $limit = max(1, min($limit, (int) config('assistant.limits.max_pii_rows', 10)));
+        $rows = (clone $base)
+            ->where(function ($query) use ($search) {
+                $like = '%'.$search.'%';
+                $query->where('name', 'ilike', $like)
+                    ->orWhere('username', 'ilike', $like)
+                    ->orWhere('email', 'ilike', $like);
+            })
+            ->orderBy('name')
+            ->limit($limit)
+            ->get(['id', 'name', 'username', 'email', 'backoffice_access', 'store_access', 'wms_access', 'ecommerce_access', 'created_at'])
+            ->map(fn ($row) => (array) $row)
+            ->values()
+            ->all();
+
+        return [
+            'entity' => 'users',
+            'search' => $search,
+            'answer_status' => $rows === [] ? AnswerStatus::NO_DATA : AnswerStatus::OK,
+            'row_limit' => $limit,
+            'rows' => $rows,
+            'note' => 'Data karyawan dimasking sesuai kebijakan.',
         ];
     }
 
