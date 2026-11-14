@@ -3,6 +3,8 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Security\AssistantAccessPolicy;
+use App\Ai\Support\AnswerStatus;
 use App\Domain\Analytics\Queries\CustomerDemographicsQuery;
 use App\Domain\Analytics\Queries\CustomerProductPreferenceQuery;
 
@@ -77,9 +79,12 @@ class CustomerInsightTool extends AssistantTool
         ], fn ($value) => is_string($value) && trim($value) !== '');
 
         $data = app(CustomerDemographicsQuery::class)->build($filters, (int) ($arguments['limit'] ?? 20));
+        $canViewDetail = app(AssistantAccessPolicy::class)->canViewCustomerPii();
+        $limit = max(1, (int) config('assistant.limits.max_customer_rows', 5));
 
         return [
             'filters' => $data['filters'],
+            'answer_status' => $canViewDetail ? AnswerStatus::OK : AnswerStatus::AGGREGATE_ONLY,
             'summary' => $data['summary'],
             'gender' => $data['genderRows'],
             'age_groups' => $data['ageRows'],
@@ -88,19 +93,32 @@ class CustomerInsightTool extends AssistantTool
             'provinces' => $data['provinceRows'],
             'registration_trend' => $data['registrationTrend'],
             'birthday_month' => $data['birthdayMonthLabel'],
-            'birthday_customers' => $data['birthdayCustomers'],
-            'customers' => collect($data['rows']->items())->map(fn ($row) => [
-                'name' => $row->name ?? null,
-                'gender' => $row->gender ?? null,
-                'age_group' => $row->age_group ?? null,
-                'membership' => $row->membership_name ?? $row->membership ?? null,
-                'province' => $row->province_name ?? null,
-                'regency' => $row->regency_name ?? null,
-                'joined_at' => $row->created_at ?? null,
-                'visit_count' => $row->visit_count ?? null,
-                'total_spending' => $row->total_spending ?? null,
-                'loyalty_points' => $row->loyalty_points ?? null,
-            ])->values()->all(),
+            'birthday_customers' => $canViewDetail
+                ? collect($data['birthdayCustomers'])
+                    ->take($limit)
+                    ->map(fn ($row) => is_object($row) && method_exists($row, 'toArray')
+                        ? $row->toArray()
+                        : (array) $row)
+                    ->values()
+                    ->all()
+                : [],
+            'customers' => $canViewDetail
+                ? collect($data['rows']->items())->take($limit)->map(fn ($row) => [
+                    'name' => $row->name ?? null,
+                    'gender' => $row->gender ?? null,
+                    'age_group' => $row->age_group ?? null,
+                    'membership' => $row->membership_name ?? $row->membership ?? null,
+                    'province' => $row->province_name ?? null,
+                    'regency' => $row->regency_name ?? null,
+                    'joined_at' => $row->created_at ?? null,
+                    'visit_count' => $row->visit_count ?? null,
+                    'total_spending' => $row->total_spending ?? null,
+                    'loyalty_points' => $row->loyalty_points ?? null,
+                ])->values()->all()
+                : [],
+            'note' => $canViewDetail
+                ? 'Detail pelanggan dibatasi dan dimasking. Jangan menampilkan daftar massal.'
+                : 'Hanya ringkasan agregat yang ditampilkan. Detail pelanggan memerlukan kewenangan tambahan.',
         ];
     }
 

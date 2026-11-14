@@ -12,6 +12,8 @@ use App\Ai\Mcp\Tools\PromoLoyaltyTool;
 use App\Ai\Mcp\Tools\QueryDataTool;
 use App\Ai\Mcp\Tools\StockHealthTool;
 use App\Ai\Mcp\Tools\SystemMapTool;
+use App\Ai\Security\AssistantAccessPolicy;
+use App\Models\User;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
@@ -49,6 +51,18 @@ class ToolRegistry
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return Collection<int, McpTool>
+     */
+    public function toolsFor(?User $user): Collection
+    {
+        $policy = app(AssistantAccessPolicy::class);
+
+        return $this->tools()
+            ->filter(fn (McpTool $tool): bool => $policy->canUseTool($tool->name(), $user))
+            ->values();
     }
 
     public function find(string $name): McpTool
