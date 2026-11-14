@@ -20,7 +20,6 @@ interface Feature {
     label: string;
     menu: string;
     description: string;
-    tables: number;
     questions: string[];
 }
 

@@ -3,6 +3,8 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Security\AssistantAccessPolicy;
+use App\Ai\Support\AssistantRouteRegistry;
 use App\Support\Navigation;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
@@ -49,18 +51,26 @@ class SystemMapTool extends AssistantTool
         $area = in_array($requestedArea, ['all', 'operations', 'reports'], true) ? $requestedArea : 'all';
         $includeRoutes = filter_var($arguments['include_routes'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-        $navigation = Navigation::forUser(auth()->user());
+        $user = auth()->user();
+        $registry = app(AssistantRouteRegistry::class);
+        $navigation = Navigation::forUser($user);
         $areas = collect($navigation['areas'])
             ->when($area !== 'all', fn ($items) => $items->where('key', $area))
-            ->map(function (array $node) use ($search) {
+            ->map(function (array $node) use ($search, $registry, $user) {
                 $groups = collect($node['groups'])
-                    ->map(function (array $group) use ($search) {
+                    ->map(function (array $group) use ($search, $registry, $user) {
                         $items = collect($group['items'])
                             ->filter(fn (array $item) => $this->matches($search, [
                                 $item['label'],
                                 $item['route'],
                                 $item['url'],
                             ]))
+                            ->map(fn (array $item) => [
+                                ...$item,
+                                'link_available' => is_string($item['url'])
+                                    && $item['url'] !== ''
+                                    && $registry->isAllowed($item['url'], $user),
+                            ])
                             ->values()
                             ->all();
 
@@ -85,14 +95,23 @@ class SystemMapTool extends AssistantTool
             ->values()
             ->all();
 
+        $policy = app(AssistantAccessPolicy::class);
+
         $features = collect(config('assistant.features', []))
+            ->reject(fn (array $feature): bool => $feature['key'] === 'management' && ! $policy->canViewSchema($user))
             ->filter(fn (array $feature) => $this->matches($search, [
                 $feature['label'],
                 $feature['menu'],
                 $feature['description'],
                 $feature['key'],
-                implode(' ', $feature['tables']),
             ]))
+            ->map(fn (array $feature) => [
+                'key' => $feature['key'],
+                'label' => $feature['label'],
+                'menu' => $feature['menu'],
+                'description' => $feature['description'],
+                'questions' => $feature['questions'] ?? [],
+            ])
             ->values()
             ->all();
 
@@ -104,17 +123,20 @@ class SystemMapTool extends AssistantTool
                 'assistant' => config('assistant.name', 'VEE'),
             ],
             'navigation' => $areas,
-            'menu' => $this->menu($search),
+            'menu' => $this->menu($search, $user),
             'features' => $features,
-            'routes' => $includeRoutes ? $this->routes() : null,
-            'hint' => 'Gunakan navigation untuk tautan yang sudah difilter sesuai hak akses pengguna. Gunakan data_schema untuk struktur tabel, query_data untuk membaca data, dan business_overview untuk ringkasan penjualan, pesanan, serta stok.',
+            'links' => $registry->linksForSearch($search, $user),
+            'routes' => $includeRoutes && $policy->canViewSchema($user)
+                ? $this->routes()
+                : null,
+            'hint' => 'Gunakan hanya field links dengan link_available true atau link dari navigation. Jangan membuat URL sendiri. Gunakan business_overview, product_sales, stock_health, dan tool domain lain untuk data.',
         ];
     }
 
     /**
-     * @return list<array{name: string, path: string, slug: string, url: string}>
+     * @return list<array{name: string, path: string, slug: string, url: string, link_available: bool}>
      */
-    private function menu(string $search): array
+    private function menu(string $search, mixed $user): array
     {
         $path = resource_path('menu/verticalMenu.json');
 
@@ -123,9 +145,10 @@ class SystemMapTool extends AssistantTool
         }
 
         $payload = json_decode(File::get($path), true);
+        $registry = app(AssistantRouteRegistry::class);
         $items = [];
 
-        $collect = function (array $nodes, array $trail = []) use (&$collect, &$items, $search): void {
+        $collect = function (array $nodes, array $trail = []) use (&$collect, &$items, $search, $registry, $user): void {
             foreach ($nodes as $node) {
                 $name = isset($node['name']) ? (string) $node['name'] : '';
                 $breadcrumb = $name !== '' ? [...$trail, $name] : $trail;
@@ -136,11 +159,15 @@ class SystemMapTool extends AssistantTool
                     $node['url'] ?? null,
                     implode(' > ', $breadcrumb),
                 ])) {
+                    $url = $this->normalizeUrl($node['url'] ?? null);
+                    $available = $url !== '' && $registry->isAllowed($url, $user);
+
                     $items[] = [
                         'name' => $node['name'],
                         'path' => implode(' > ', $breadcrumb),
                         'slug' => $node['slug'],
-                        'url' => $this->normalizeUrl($node['url'] ?? null),
+                        'url' => $available ? $url : '',
+                        'link_available' => $available,
                     ];
                 }
 

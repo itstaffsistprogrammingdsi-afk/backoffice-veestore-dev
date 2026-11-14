@@ -6,11 +6,30 @@ const escapeHtml = (value: string): string =>
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 
+const placeholderHref = (value: string): boolean =>
+    /(contoh\/|example\.com|localhost|127\.0\.0\.1|placeholder|your-domain|xxx|\.\.\.)/i.test(value);
+
 const safeHref = (value: string): string | null => {
     const url = value.trim();
 
-    if (/^\/(?!\/)/.test(url) || /^https?:\/\//i.test(url)) {
+    if (!url || placeholderHref(url) || /^(javascript|data|vbscript|mailto|tel):/i.test(url)) {
+        return null;
+    }
+
+    if (/^\/(?!\/)/.test(url)) {
         return url;
+    }
+
+    if (/^https?:\/\//i.test(url)) {
+        if (typeof window === 'undefined') {
+            return null;
+        }
+
+        try {
+            return new URL(url).origin === window.location.origin ? url : null;
+        } catch {
+            return null;
+        }
     }
 
     return null;

@@ -31,6 +31,62 @@ return [
         'max_steps' => 8,
         'max_message_length' => 2000,
         'statement_timeout_ms' => 8000,
+        'max_customer_rows' => 5,
+        'max_pii_rows' => 10,
+    ],
+
+    'security' => [
+        /*
+        |--------------------------------------------------------------------------
+        | Policy peran
+        |--------------------------------------------------------------------------
+        |
+        | VEE tetap mematuhi izin route (view ai-assistant/view ai-analytics),
+        | tetapi izin tambahan ini menentukan siapa yang boleh melihat data
+        | pelanggan, data karyawan, dan skema database.
+        |
+        */
+        'privileged_roles' => ['Superadmin', 'super-admin', 'Management', 'Owner', 'Admin'],
+        'pii_view_roles' => ['Superadmin', 'super-admin', 'Management', 'Owner', 'Admin', 'Marketing', 'Finance'],
+        'employee_view_roles' => ['Superadmin', 'super-admin', 'Management', 'Owner', 'Admin', 'HRD'],
+        'schema_view_roles' => ['Superadmin', 'super-admin', 'Management', 'Owner', 'Admin'],
+        'pii_view_permissions' => ['view master-customer'],
+        'employee_view_permissions' => ['view management-account-users'],
+        'cross_store_permissions' => ['view monitoring-omset-cabang', 'view master-data-stores'],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Kebijakan nilai penuh
+        |--------------------------------------------------------------------------
+        |
+        | Default aman: email, nomor HP, dan nama pelanggan selalu dimasking.
+        | Hanya satu pelanggan yang disebut eksplisit yang boleh ditampilkan,
+        | dan hanya jika toggle ini dinyalakan oleh owner.
+        |
+        */
+        'allow_full_pii' => env('ASSISTANT_ALLOW_FULL_PII', false),
+        'mask_customer_names' => true,
+    ],
+
+    'audit' => [
+        'channel' => env('ASSISTANT_AUDIT_CHANNEL'),
+    ],
+
+    'evidence' => [
+        'append_to_answer' => env('ASSISTANT_EVIDENCE_IN_ANSWER', true),
+    ],
+
+    'route_registry' => [
+        'placeholder_patterns' => [
+            'contoh',
+            'example.com',
+            'placeholder',
+            'your-domain',
+            'url-contoh',
+            'xxx',
+            '{{',
+            '}}',
+        ],
     ],
 
     'suggestions' => [

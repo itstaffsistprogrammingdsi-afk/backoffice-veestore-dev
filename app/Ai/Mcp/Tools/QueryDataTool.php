@@ -3,6 +3,8 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Security\AssistantAccessPolicy;
+use App\Ai\Support\AnswerStatus;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -69,7 +71,13 @@ class QueryDataTool extends AssistantTool
         $validator = $this->validateSql($sql);
 
         if ($validator !== null) {
-            return ['error' => $validator, 'sql' => $sql];
+            return ['error' => $validator, 'sql' => $sql, 'answer_status' => AnswerStatus::INVALID];
+        }
+
+        $scope = $this->validatePiiScope($sql, $arguments);
+
+        if ($scope !== null) {
+            return ['error' => $scope, 'sql' => $sql, 'answer_status' => AnswerStatus::FORBIDDEN];
         }
 
         $sql = rtrim($sql, " \t\n\r\0\x0B;");
@@ -156,6 +164,47 @@ class QueryDataTool extends AssistantTool
         foreach (config('assistant.blocked_tables', []) as $table) {
             if (preg_match('/\b'.preg_quote(strtolower($table), '/').'\b/', $normalized)) {
                 return "Tabel [{$table}] tidak dapat dibaca oleh asisten.";
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $arguments
+     */
+    private function validatePiiScope(string $sql, array $arguments): ?string
+    {
+        $touchesCustomers = (bool) preg_match('/\b(?:from|join)\s+(?:"?[\w]+"?\.)?"?customers"?\b/i', $sql);
+        $touchesUsers = (bool) preg_match('/\b(?:from|join)\s+(?:"?[\w]+"?\.)?"?users"?\b/i', $sql);
+
+        if (! $touchesCustomers && ! $touchesUsers) {
+            return null;
+        }
+
+        $aggregate = (bool) preg_match('/\b(count|sum|avg|min|max)\s*\(/i', $sql)
+            || (bool) preg_match('/\bgroup\s+by\b/i', $sql);
+        $singleFilter = (bool) preg_match('/\bwhere\b[\s\S]*\b(id|email|wa_number|name)\s*=\s*/i', $sql);
+        $limit = (int) ($arguments['limit'] ?? 50);
+        $policy = app(AssistantAccessPolicy::class);
+
+        if ($touchesCustomers) {
+            if (! $policy->canViewCustomerPii()) {
+                return 'Query detail pelanggan tidak diizinkan untuk peran ini. Gunakan agregasi jumlah atau segmentasi.';
+            }
+
+            if (! $aggregate && ! $singleFilter && ! ($policy->isService() && $limit <= (int) config('assistant.limits.max_pii_rows', 10))) {
+                return 'Pembatasan privasi: query pelanggan harus berupa agregasi, atau memfilter satu pelanggan berdasarkan id, email, nomor HP, atau nama.';
+            }
+        }
+
+        if ($touchesUsers) {
+            if (! $policy->canViewEmployeeData()) {
+                return 'Query data karyawan tidak diizinkan untuk peran ini.';
+            }
+
+            if (! $aggregate && ! $singleFilter && ! ($policy->isService() && $limit <= (int) config('assistant.limits.max_pii_rows', 10))) {
+                return 'Pembatasan privasi: query karyawan harus berupa agregasi, atau memfilter satu pengguna secara eksplisit.';
             }
         }
 

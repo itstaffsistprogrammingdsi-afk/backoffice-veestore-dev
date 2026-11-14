@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\AI;
 
 use App\Ai\Mcp\ToolRegistry;
+use App\Ai\Security\AssistantAccessPolicy;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ class McpController extends Controller
 {
     public function __invoke(Request $request, ToolRegistry $registry): JsonResponse|Response
     {
+        app(AssistantAccessPolicy::class)->markServiceRequest();
+
         if (! $this->authorized($request)) {
             return response()->json([
                 'jsonrpc' => '2.0',

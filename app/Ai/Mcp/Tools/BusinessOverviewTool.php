@@ -3,6 +3,7 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Support\AnswerStatus;
 use App\Domain\Analytics\Queries\BusinessOverviewQuery;
 use Carbon\CarbonImmutable;
 
@@ -57,7 +58,18 @@ class BusinessOverviewTool extends AssistantTool
         $result = [
             'period' => ['date_from' => $from, 'date_to' => $to],
             'generated_at' => now()->toIso8601String(),
+            'answer_status' => AnswerStatus::OK,
         ];
+
+        if (CarbonImmutable::parse($from)->greaterThan(CarbonImmutable::now()->startOfDay())) {
+            $result['answer_status'] = AnswerStatus::NOT_YET_OCCURRED;
+            $result['message'] = 'Periode belum terjadi; belum ada data.';
+            $result['sales'] = [];
+            $result['orders'] = [];
+            $result['inventory'] = [];
+
+            return $result;
+        }
 
         if ($focus === 'all') {
             $data = $query->build($filters);

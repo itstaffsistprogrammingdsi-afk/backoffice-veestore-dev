@@ -3,6 +3,7 @@
 namespace App\Services\Assistant;
 
 use App\Ai\Mcp\ToolRegistry;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -81,7 +82,9 @@ class AssistantContext
      */
     public function tools(): array
     {
-        return $this->registry->tools()
+        $user = auth()->user();
+
+        return $this->registry->toolsFor($user instanceof User ? $user : null)
             ->map(fn ($tool) => [
                 'name' => $tool->name(),
                 'description' => $tool->description(),
@@ -101,7 +104,6 @@ class AssistantContext
                 'label' => $feature['label'],
                 'menu' => $feature['menu'],
                 'description' => $feature['description'],
-                'tables' => count($feature['tables']),
                 'questions' => $feature['questions'] ?? [],
             ])
             ->values()
