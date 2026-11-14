@@ -89,13 +89,65 @@ class ProdukTerlarisController extends Controller
 
     private function rows(array $filters)
     {
+        $union = $this->salesBase($filters)->unionAll($this->unsoldProductsQuery($filters));
+
         return DB::query()
-            ->fromSub($this->salesBase($filters), 'sales')
+            ->fromSub($union, 'sales')
             ->selectRaw("\n                sales.periode_bulan,\n                sales.store_id,\n                sales.store_name as cabang_name,\n                sales.product_id,\n                sales.product_code,\n                sales.product_name,\n                sales.brand_name,\n                sales.category_name,\n                COUNT(DISTINCT sales.visit_id)::int as total_transaksi,\n                COALESCE(SUM(sales.qty), 0)::int as total_qty,\n                COALESCE(SUM(sales.qty_good), 0)::int as qty_good,\n                COALESCE(SUM(sales.qty_good_after_repair), 0)::int as qty_good_after_repair,\n                COALESCE(SUM(sales.qty_clearance), 0)::int as qty_clearance,\n                COALESCE(SUM(sales.clearance_discount), 0)::numeric(18,2) as clearance_discount,\n                CASE WHEN COALESCE(SUM(sales.clearance_gross), 0) > 0 THEN ROUND((SUM(sales.clearance_discount) / SUM(sales.clearance_gross)) * 100, 2) ELSE 0 END as clearance_percentage,\n                COALESCE(SUM(sales.nominal_penjualan), 0)::numeric(18,2) as nominal_penjualan\n            ")
             ->groupBy('sales.periode_bulan', 'sales.store_id', 'sales.store_name', 'sales.product_id', 'sales.product_code', 'sales.product_name', 'sales.brand_name', 'sales.category_name')
-            ->orderByDesc('sales.periode_bulan')
+            ->orderByDesc(DB::raw('SUM(sales.qty)'))
             ->orderByDesc(DB::raw('SUM(sales.nominal_penjualan)'))
             ->orderBy('sales.product_name');
+    }
+
+    private function unsoldProductsQuery(array $filters)
+    {
+        $soldProducts = DB::query()
+            ->fromSub($this->salesBase($filters), 'sold')
+            ->select('sold.product_id')
+            ->distinct();
+        $storeName = $filters['store_id']
+            ? DB::table('stores')->where('id', $filters['store_id'])->value('name')
+            : null;
+        $brandNameSelect = $this->hasBrandColumn() ? 'brand.name' : 'NULL::text';
+
+        $query = DB::table('products as product')
+            ->leftJoin('product_categories as category', 'category.id', '=', 'product.category_id')
+            ->whereNull('product.deleted_at')
+            ->whereNotIn('product.id', $soldProducts)
+            ->when($filters['category_id'], fn ($query, $categoryId) => $query->where('product.category_id', $categoryId))
+            ->when($filters['q'], function ($query, $keyword) {
+                $like = "%{$keyword}%";
+                $query->where(function ($search) use ($like) {
+                    $search->where('product.name', 'ILIKE', $like)
+                        ->orWhere('product.code', 'ILIKE', $like);
+                });
+            });
+
+        if ($this->hasBrandColumn()) {
+            $query->leftJoin('brands as brand', 'brand.id', '=', 'product.brand_id')
+                ->when($filters['brand_id'], fn ($brandQuery, $brandId) => $brandQuery->where('product.brand_id', $brandId));
+        }
+
+        return $query->selectRaw("
+            NULL::uuid as visit_id,
+            NULL::timestamptz as paid_at,
+            NULL::text as periode_bulan,
+            ?::uuid as store_id,
+            ?::text as store_name,
+            product.id as product_id,
+            product.code as product_code,
+            product.name as product_name,
+            {$brandNameSelect} as brand_name,
+            category.name as category_name,
+            0::int as qty,
+            0::int as qty_good,
+            0::int as qty_good_after_repair,
+            0::int as qty_clearance,
+            0::numeric as clearance_discount,
+            0::numeric as clearance_gross,
+            0::numeric as nominal_penjualan
+        ", [$filters['store_id'], $storeName]);
     }
 
     private function summary(array $filters)

@@ -439,6 +439,10 @@ class EcommercePaymentController extends Controller
                     END as paid_amount
                 "),
                 DB::raw("CASE WHEN LOWER(COALESCE(p.status::text, '')) IN ('paid', 'settlement', 'capture', 'success', 'completed') THEN 1 ELSE 0 END as is_paid"),
+                DB::raw("CASE
+                    WHEN LOWER(COALESCE(eo.status::text, '')) = 'cancelled' THEN 0
+                    ELSE GREATEST(COALESCE(eo.grand_total, 0) - COALESCE(p.paid_amount, 0), 0)
+                END as outstanding_amount"),
                 DB::raw('COALESCE(p.change_amount, 0) as change_amount'),
                 DB::raw('COALESCE(p.tax_amount, 0) as tax_amount'),
                 'p.completed_at as payment_completed_at',

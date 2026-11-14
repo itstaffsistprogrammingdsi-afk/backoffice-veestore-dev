@@ -590,7 +590,51 @@
     margin: 0 0 var(--app-space-3);
     color: var(--app-ink);
     font-size: var(--app-text-lg);
-    font-weight: var(--app-weight-bold);
+    font-weight: var(--app-weight-semibold);
+}
+
+/* Tables that scroll or hold dense data stay reachable by keyboard. */
+.report-table-wrap {
+    position: relative;
+}
+
+.report-table-wrap:focus-visible {
+    outline: 2px solid var(--app-focus);
+    outline-offset: 2px;
+}
+
+.report-table-wrap.is-compact .table > :not(caption) > * > *,
+.is-table-compact .report-table-wrap .table > :not(caption) > * > * {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+}
+
+.report-table-wrap.is-compact .table > tbody > tr > td,
+.is-table-compact .report-table-wrap .table > tbody > tr > td {
+    font-size: var(--app-text-xs);
+}
+
+.report-table-wrap table > thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+@media (min-width: 1200px) {
+    .report-table-wrap:not(.report-table-scroll) {
+        overflow: visible;
+    }
+
+    .report-table-wrap:not(.report-table-scroll) table > thead th {
+        top: calc(var(--app-topbar-h) + var(--app-space-2));
+        z-index: 2;
+    }
+}
+
+@media (max-width: 1199.98px) {
+    .report-table-wrap table > thead th {
+        position: static;
+    }
 }
 
 .page-header {
@@ -614,10 +658,10 @@
     display: inline-block;
     margin-bottom: 0.35rem;
     color: var(--app-hero-eyebrow) !important;
-    font-size: var(--app-text-2xs);
-    font-weight: var(--app-weight-bold);
-    letter-spacing: var(--app-tracking-eyebrow);
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .page-header-title {

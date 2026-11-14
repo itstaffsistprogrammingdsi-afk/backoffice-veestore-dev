@@ -7,6 +7,7 @@ import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import BirthdayGreetingCard from '@/components/BirthdayGreetingCard.vue';
 import CustomerDemographicsFilters from '@/components/CustomerDemographicsFilters.vue';
+import ReportPeriodPresets from '@/components/ui/ReportPeriodPresets.vue';
 import DemographicsDistributionCard from '@/components/DemographicsDistributionCard.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import {
@@ -279,14 +280,14 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
 </script>
 
 <template>
-    <Head title="CRM Demographics" />
+    <Head title="Demografi Pelanggan" />
 
     <div class="demo-page">
         <section class="demo-header">
             <div>
-                <span class="demo-eyebrow">Reports / CRM</span>
-                <h1>Customer Demographics</h1>
-                <p>Analisis lengkap segmentasi customer berdasarkan gender, usia, wilayah, kanal registrasi, tier, dan nilai belanja.</p>
+                <span class="demo-eyebrow">Laporan / Pelanggan</span>
+                <h1>Demografi Pelanggan</h1>
+                <p>Analisis lengkap segmentasi pelanggan berdasarkan gender, usia, wilayah, kanal registrasi, tier, dan nilai belanja.</p>
             </div>
             <div class="demo-header-actions">
                 <Link :href="props.urls.crm" class="demo-hero-button">
@@ -320,6 +321,16 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
                 </div>
             </div>
         </div>
+
+        <ReportPeriodPresets
+            class="mb-2"
+            :route="props.urls.index"
+            from-key="joined_from"
+            to-key="joined_to"
+            :from="props.filters.joined_from"
+            :to="props.filters.joined_to"
+            :query="props.filters"
+        />
 
         <CustomerDemographicsFilters
             :filters="props.filters"
@@ -406,7 +417,7 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
                 <a :href="props.urls.index" class="btn btn-sm btn-outline-secondary mt-2">Reset filter</a>
             </div>
 
-            <div v-else class="table-responsive">
+            <div v-else class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Data pelanggan sesuai filter demografi">
                 <table class="table align-middle mb-0 demo-table">
                     <caption class="visually-hidden">Data customer sesuai filter demografi</caption>
                     <thead>
@@ -485,17 +496,18 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
 <style scoped>
 .demo-page { color: var(--app-ink); }
 .demo-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-hero-bg); color: #fff; }
-.demo-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.demo-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: var(--app-text-xs); font-weight: var(--app-weight-semibold); }
 .demo-header h1 { margin: 0 0 0.35rem; color: var(--app-hero-text) !important; font-size: 1.5rem; }
 .demo-header p { max-width: 760px; margin: 0; color: var(--app-hero-muted) !important; }
 .demo-header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .demo-hero-button { display: inline-flex; align-items: center; padding: 0.55rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface); color: var(--app-ink); font-size: 0.8rem; font-weight: 700; text-decoration: none; }
 .demo-hero-button-accent { background: var(--app-accent-strong); color: var(--app-on-accent); }
-.demo-summary { display: flex; align-items: flex-start; gap: 0.75rem; height: 100%; padding: 0.9rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
-.demo-summary-icon { display: grid; flex: 0 0 auto; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.15rem; }
-.demo-summary-label { display: block; color: var(--app-muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.demo-summary-value { display: block; margin-top: 0.1rem; font-size: 1.15rem; line-height: 1.2; }
-.demo-summary small { display: block; margin-top: 0.15rem; color: var(--app-muted); font-size: 0.7rem; }
+.demo-summary { display: flex; align-items: flex-start; gap: 0.75rem; height: 100%; padding: 0.9rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); box-shadow: none; }
+.demo-summary > div { min-width: 0; }
+.demo-summary-icon { display: grid; flex: 0 0 auto; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: var(--app-radius-md); background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.15rem; }
+.demo-summary-label { display: block; color: var(--app-muted); font-size: var(--app-text-xs); font-weight: var(--app-weight-medium); }
+.demo-summary-value { display: block; margin-top: 0.1rem; font-size: var(--app-text-xl); font-weight: var(--app-weight-semibold); line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.demo-summary small { display: block; margin-top: 0.15rem; color: var(--app-muted); font-size: var(--app-text-xs); line-height: var(--app-leading-snug); overflow-wrap: anywhere; }
 .demo-summary-success .demo-summary-icon { background: var(--app-success-bg); color: var(--app-success-ink); }
 .demo-summary-warning .demo-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .demo-summary-danger .demo-summary-icon { background: var(--app-danger-bg); color: var(--app-danger-ink); }
@@ -506,7 +518,7 @@ const profileUrl = (row: CustomerRow) => props.urls.customerProfile.replace('__I
 .demo-table-header p { margin: 0; color: var(--app-muted); font-size: 0.8rem; }
 .demo-table-meta { color: var(--app-muted); font-size: 0.78rem; white-space: nowrap; }
 .demo-table { min-width: 1280px; }
-.demo-table th { padding: 0.6rem 0.85rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.demo-table th { padding: 0.6rem 0.85rem; background: var(--app-surface-2); color: var(--app-muted); font-size: var(--app-text-xs); letter-spacing: 0; font-weight: var(--app-weight-semibold); text-transform: none; }
 .demo-table td { padding: 0.75rem 0.85rem; border-color: var(--app-border); font-size: 0.82rem; }
 .demo-table th:first-child, .demo-table td:first-child { position: sticky; left: 0; z-index: 2; background: var(--app-surface); }
 .demo-table thead th:first-child { z-index: 3; background: var(--app-surface-2); }

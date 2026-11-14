@@ -318,7 +318,7 @@ class MonitoringIndexTest extends TestCase
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page
                     ->component('Monitoring/Report')
-                    ->where('title', 'Order Handled')
+                    ->where('title', 'Pesanan Ditangani')
                     ->has('data.orderTabs')
                     ->has("data.{$datasetKey}.data")
                     ->has('data.summary'));

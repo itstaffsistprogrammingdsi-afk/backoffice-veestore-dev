@@ -209,6 +209,7 @@ class PaymentIncomeRealtimeController extends Controller
 
         return [
             'keyword' => $this->normalizeNullableString($request->query('keyword')),
+            'channel' => $this->normalizeChannel($request->query('channel')),
             'store_id' => $this->normalizeNullableString($request->query('store_id')),
             'payment_method_id' => $this->normalizeNullableString($request->query('payment_method_id')),
             'payment_status' => $paymentStatus,
@@ -223,20 +224,20 @@ class PaymentIncomeRealtimeController extends Controller
 
     private function baseIncomeQuery(array $filters): Builder
     {
-        $storeQuery = $this->storeIncomeQuery($filters);
+        $channel = $filters['channel'] ?? 'all';
+        $includesStore = $channel !== 'ecommerce';
+        $includesEcommerce = $channel !== 'store';
 
-        /*
-        |--------------------------------------------------------------------------
-        | Jika filter store dipilih
-        |--------------------------------------------------------------------------
-        | Ecommerce tidak punya store_id, jadi saat user filter store tertentu,
-        | data yang tampil hanya transaksi store.
-        */
-        if ($filters['store_id']) {
-            $unionQuery = $storeQuery;
+        if ($filters['store_id'] && $channel !== 'ecommerce') {
+            $includesEcommerce = false;
+        }
+
+        if ($includesStore && $includesEcommerce) {
+            $unionQuery = $this->storeIncomeQuery($filters)->unionAll($this->ecommerceIncomeQuery($filters));
+        } elseif ($includesStore) {
+            $unionQuery = $this->storeIncomeQuery($filters);
         } else {
-            $ecommerceQuery = $this->ecommerceIncomeQuery($filters);
-            $unionQuery = $storeQuery->unionAll($ecommerceQuery);
+            $unionQuery = $this->ecommerceIncomeQuery($filters);
         }
 
         $query = DB::query()->fromSub($unionQuery, 'x');
@@ -461,13 +462,21 @@ class PaymentIncomeRealtimeController extends Controller
 
     private function basePaymentMethodDetailQuery(array $filters): Builder
     {
-        $storeMethodQuery = $this->storePaymentMethodDetailQuery($filters);
+        $channel = $filters['channel'] ?? 'all';
+        $includesStore = $channel !== 'ecommerce';
+        $includesEcommerce = $channel !== 'store';
 
-        if ($filters['store_id']) {
-            $unionQuery = $storeMethodQuery;
+        if ($filters['store_id'] && $channel !== 'ecommerce') {
+            $includesEcommerce = false;
+        }
+
+        if ($includesStore && $includesEcommerce) {
+            $unionQuery = $this->storePaymentMethodDetailQuery($filters)
+                ->unionAll($this->ecommercePaymentMethodDetailQuery($filters));
+        } elseif ($includesStore) {
+            $unionQuery = $this->storePaymentMethodDetailQuery($filters);
         } else {
-            $ecommerceMethodQuery = $this->ecommercePaymentMethodDetailQuery($filters);
-            $unionQuery = $storeMethodQuery->unionAll($ecommerceMethodQuery);
+            $unionQuery = $this->ecommercePaymentMethodDetailQuery($filters);
         }
 
         $query = DB::query()->fromSub($unionQuery, 'm');
@@ -930,6 +939,23 @@ class PaymentIncomeRealtimeController extends Controller
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function normalizeChannel($value): ?string
+    {
+        $value = $this->normalizeNullableString($value);
+
+        if ($value === null) {
+            return null;
+        }
+
+        $value = strtolower($value);
+
+        return match ($value) {
+            'store', 'toko' => 'store',
+            'ecommerce', 'e-commerce', 'online' => 'ecommerce',
+            default => null,
+        };
     }
 
     private function normalizePaymentStatus($value): ?string

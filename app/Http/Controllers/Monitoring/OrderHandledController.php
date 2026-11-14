@@ -57,7 +57,7 @@ class OrderHandledController extends Controller
         $report['orderTabs'] = $this->tabs($request, $activeTab);
 
         return Inertia::render('Monitoring/Report', [
-            'title' => 'Order Handled',
+            'title' => 'Pesanan Ditangani',
             'description' => $description,
             'data' => $report,
             'filters' => request()->query(),
@@ -95,7 +95,7 @@ class OrderHandledController extends Controller
                 'key' => 'store-orders',
                 'label' => 'Store Order',
                 'url' => route('monitoring.order-handled.store-orders', $shared),
-                'icon' => 'mdi-store-arrow-up',
+                'icon' => 'mdi-storefront-outline',
                 'active' => $activeTab === 'store-orders',
             ],
             [

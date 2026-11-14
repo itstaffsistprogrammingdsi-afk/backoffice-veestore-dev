@@ -167,18 +167,25 @@ const modules = [
     { title: 'VEE Assistant', description: 'Tanya data operasional dengan bahasa natural dan jawaban dari data terkini.', icon: 'mdi-chat-processing-outline', url: 'assistant', action: 'Buka VEE' },
     { title: 'Monitoring', description: 'Pusat komando, stok, omzet, dan audit operasional.', icon: 'mdi-monitor-dashboard', url: 'monitoring', action: 'Buka Monitoring' },
     { title: 'CRM', description: 'Profil customer dan aktivitas pelanggan.', icon: 'mdi-account-heart-outline', url: 'crm', action: 'Buka CRM' },
-    { title: 'Customer Demographics', description: 'Segmentasi gender, usia, wilayah, tier, dan kanal registrasi.', icon: 'mdi-account-details-outline', url: 'demographics', action: 'Buka Demografi' },
-    { title: 'Customer Preference', description: 'Hubungkan usia, gender, wilayah, dan tier dengan produk yang dibeli.', icon: 'mdi-account-star-outline', url: 'preference', action: 'Buka Preferensi' },
+    { title: 'Demografi Pelanggan', description: 'Segmentasi gender, usia, wilayah, tier, dan kanal registrasi.', icon: 'mdi-account-details-outline', url: 'demographics', action: 'Buka Demografi' },
+    { title: 'Preferensi Pelanggan', description: 'Hubungkan usia, gender, wilayah, dan tier dengan produk yang dibeli pelanggan.', icon: 'mdi-account-star-outline', url: 'preference', action: 'Buka Preferensi' },
     { title: 'Ekspor Saya', description: 'Unduh laporan yang sudah diproses.', icon: 'mdi-file-export-outline', url: 'exports', action: 'Lihat Ekspor' },
     { title: 'Rekomendasi Cabang Baru', description: 'Prioritaskan kecamatan dan kelurahan dari demografi, pelanggan aktif, dan nilai penjualan.', icon: 'mdi-store-plus-outline', url: 'branch_expansion', action: 'Buka Rekomendasi' },
     { title: 'Loyalty Poin & Voucher per Akun', description: 'Saldo poin, poin masuk/keluar, voucher tersedia, dan voucher terpakai per akun.', icon: 'mdi-account-cash-outline', url: 'loyalty_accounts', action: 'Buka Loyalty' },
     { title: 'Transaksi Gantung', description: 'Keranjang, kunjungan, pesanan, permintaan barang, retur, dan pembayaran yang belum selesai.', icon: 'mdi-timer-alert-outline', url: 'pending_transactions', action: 'Buka Transaksi Gantung' },
     { title: 'Anomali Transaksi', description: 'Bandingkan permintaan barang, penjualan, penerimaan, dan pencatatan pembayaran per metode.', icon: 'mdi-alert-decagram-outline', url: 'anomalies', action: 'Buka Anomali' },
-    { title: 'Audit Pengguna Gudang', description: 'Aktivitas WMS pada inbound, outbound, QC, dan stok opname per pengguna.', icon: 'mdi-warehouse-cog', url: 'warehouse_audit', action: 'Buka Audit Gudang' },
+    { title: 'Audit Pengguna Gudang', description: 'Aktivitas WMS pada inbound, outbound, QC, dan stok opname per pengguna.', icon: 'mdi-clipboard-account-outline', url: 'warehouse_audit', action: 'Buka Audit Gudang' },
     { title: 'Stok Opname, Selisih & Penyesuaian', description: 'Nilai selisih, PIC, approval, rekap harian, mingguan, dan bulanan.', icon: 'mdi-clipboard-text-clock-outline', url: 'stock_opname', action: 'Buka Opname' },
     { title: 'Stok Barang Keluar Masuk', description: 'Pergerakan real time, harian, bulanan, serta gudang kecil ke display.', icon: 'mdi-swap-vertical-bold', url: 'stock_movements', action: 'Buka Pergerakan Stok' },
     { title: 'Promo, Poin, Referral & Voucher', description: 'Pemakaian promo dan voucher, mutasi poin, referral, serta redeem poin dalam satu laporan.', icon: 'mdi-sale-outline', url: 'promo_acquisition', action: 'Buka Laporan' },
     { title: 'Akses Pengguna Harian', description: 'Login dan aktivitas per hari dan per aplikasi, termasuk WMS.', icon: 'mdi-account-clock-outline', url: 'user_access', action: 'Buka Akses' },
+];
+
+const domains = [
+    { title: 'Omset', description: 'Omset kotor dan bersih, transaksi, serta rata-rata belanja.', anchor: 'penjualan', icon: 'mdi-cash-multiple' },
+    { title: 'Pembayaran', description: 'Kecocokan nilai order dengan pembayaran e-commerce.', anchor: 'pembayaran', icon: 'mdi-credit-card-check-outline' },
+    { title: 'Pesanan', description: 'Status pesanan, antrean SLA, permintaan store, dan retur.', anchor: 'pesanan', icon: 'mdi-clipboard-check-outline' },
+    { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' },
 ];
 </script>
 
@@ -187,9 +194,8 @@ const modules = [
 
     <div class="hub-page">
         <AppPageHeader
-            eyebrow="Area Laporan"
-            title="Pusat laporan yang mudah dibaca"
-            description="Mulai dari ringkasan penjualan, pesanan, dan stok & logistik, lalu telusuri detail ke monitoring."
+            title="Pusat laporan"
+            description="Ringkasan penjualan, pesanan, dan stok untuk periode terpilih. Setiap laporan menyertakan konteks data dan tautan ke detail."
         >
             <template #actions>
                 <Link :href="overviewUrl" class="btn btn-primary">
@@ -199,15 +205,15 @@ const modules = [
             </template>
         </AppPageHeader>
 
-        <section class="hub-filter" aria-label="Filter periode laporan">
+        <section class="hub-filter" aria-labelledby="hub-filter-title">
             <div class="hub-filter-head">
                 <div class="hub-filter-current">
-                    <span class="hub-filter-label">Periode laporan</span>
+                    <span id="hub-filter-title" class="hub-filter-label">Periode laporan</span>
                     <strong>{{ activePeriodLabel }}</strong>
                     <span class="hub-filter-range">{{ formatDate(props.filters.date_from) }} - {{ formatDate(props.filters.date_to) }}</span>
                 </div>
                 <button v-if="props.filters.period !== 'month'" type="button" class="hub-filter-reset" @click="resetPeriod">
-                    <i class="mdi mdi-refresh me-1"></i>
+                    <i class="mdi mdi-refresh me-1" aria-hidden="true"></i>
                     Kembali ke bulan ini
                 </button>
             </div>
@@ -282,7 +288,7 @@ const modules = [
                     </div>
                     <div class="hub-custom-actions">
                         <button type="submit" class="btn btn-sm btn-primary">
-                            <i class="mdi mdi-filter-outline me-1"></i>
+                            <i class="mdi mdi-filter-outline me-1" aria-hidden="true"></i>
                             Terapkan
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-secondary" @click="showCustom = false">
@@ -293,59 +299,86 @@ const modules = [
             </form>
 
             <p class="hub-filter-note">
-                Omset kotor dari harga jual sebelum diskon, omset bersih setelah diskon produk dan voucher (tanpa ongkir). Kanal memfilter omzet, transaksi, pembeli, dan order. Stok menipis selalu kondisi saat ini.
+                Omset kotor sebelum diskon. Omset bersih setelah diskon produk dan voucher, tanpa ongkir. Stok menipis adalah kondisi saat ini.
             </p>
         </section>
 
-        <h2 class="section-title">Ringkasan</h2>
-        <div class="row g-3 mb-3">
-            <div v-for="stat in [
-                { label: `Omset Kotor (${activePeriodLabel})`, value: formatCurrency(summary.gross_revenue) },
-                { label: `Omset Bersih (${activePeriodLabel})`, value: formatCurrency(summary.net_revenue) },
-                { label: 'Transaksi', value: formatNumber(summary.transactions) },
-                { label: 'Pembeli teridentifikasi', value: formatNumber(summary.buyers) },
-                { label: 'Stok menipis', value: formatNumber(inventory.low_stock_alerts) },
-                { label: 'Order terbuka', value: formatNumber(orders.ecommerce_open + orders.store_order_open + orders.return_open) }
-            ]" :key="stat.label" class="col-6 col-md-4 col-xl-2">
-                <div class="hub-stat">
-                    <span>{{ stat.label }}</span>
-                    <strong>{{ stat.value }}</strong>
+        <section class="hub-summary" aria-labelledby="hub-summary-title">
+            <div class="hub-summary-head">
+                <h2 id="hub-summary-title">Ringkasan {{ activePeriodLabel.toLowerCase() }}</h2>
+                <span>{{ formatDate(props.filters.date_from) }} - {{ formatDate(props.filters.date_to) }}</span>
+            </div>
+            <div class="hub-summary-body">
+                <div class="hub-summary-primary">
+                    <span class="hub-summary-label">Omset bersih</span>
+                    <strong class="hub-summary-amount">{{ formatCurrency(summary.net_revenue) }}</strong>
+                    <p>
+                        Omset kotor {{ formatCurrency(summary.gross_revenue) }}.
+                        Rata-rata {{ formatCurrency(summary.average_transaction) }} per transaksi.
+                    </p>
+                </div>
+                <dl class="hub-summary-metrics">
+                    <div>
+                        <dt>Transaksi</dt>
+                        <dd>{{ formatNumber(summary.transactions) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Pembeli teridentifikasi</dt>
+                        <dd>{{ formatNumber(summary.buyers) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Stok menipis</dt>
+                        <dd>{{ formatNumber(inventory.low_stock_alerts) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Order terbuka</dt>
+                        <dd>{{ formatNumber(orders.ecommerce_open + orders.store_order_open + orders.return_open) }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </section>
+
+        <section class="hub-domains" aria-labelledby="hub-domains-title">
+            <div class="hub-section-head">
+                <div>
+                    <h2 id="hub-domains-title">Ringkasan per topik</h2>
+                    <p>Buka Ringkasan Usaha langsung pada bagian yang dipilih.</p>
                 </div>
             </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-            <div v-for="domain in [
-                { title: 'Omset', description: 'Omset kotor sebelum diskon dan omset bersih setelah diskon produk dan voucher.', anchor: 'penjualan', icon: 'mdi-cash-multiple' },
-                { title: 'Pembayaran', description: 'Kecocokan nilai order dengan pembayaran e-commerce yang tercatat.', anchor: 'pembayaran', icon: 'mdi-credit-card-check-outline' },
-                { title: 'Pesanan', description: 'Status pesanan, antrean SLA, permintaan store, dan retur.', anchor: 'pesanan', icon: 'mdi-clipboard-check-outline' },
-                { title: 'Stok & Logistik', description: 'Stok saat ini, stok menipis, inbound, outbound, dan restock.', anchor: 'stok-logistik', icon: 'mdi-warehouse' }
-            ]" :key="domain.title" class="col-md-6 col-xl-3">
-                <a :href="`${overviewUrl}#${domain.anchor}`" class="hub-domain">
+            <div class="hub-domain-grid">
+                <a v-for="domain in domains" :key="domain.title" :href="`${overviewUrl}#${domain.anchor}`" class="hub-domain">
                     <span class="hub-domain-icon"><i class="mdi" :class="domain.icon" aria-hidden="true"></i></span>
-                    <div>
-                        <h3>{{ domain.title }}</h3>
-                        <p>{{ domain.description }}</p>
-                    </div>
-                    <i class="mdi mdi-arrow-right hub-domain-arrow" aria-hidden="true"></i>
+                    <span class="hub-domain-copy">
+                        <strong>{{ domain.title }}</strong>
+                        <small>{{ domain.description }}</small>
+                    </span>
                 </a>
             </div>
-        </div>
+        </section>
 
-        <h2 class="section-title">Jelajahi laporan</h2>
-        <div class="row g-3">
-            <div v-for="module in modules" :key="module.title" class="col-md-6 col-xl-4">
-                <Link :href="props.urls[module.url as keyof Props['urls']]" class="hub-card">
-                    <div class="hub-card-icon"><i class="mdi" :class="module.icon" aria-hidden="true"></i></div>
-                    <h3>{{ module.title }}</h3>
-                    <p>{{ module.description }}</p>
-                    <span class="hub-card-link">
-                        {{ module.action }}
-                        <i class="mdi mdi-arrow-right" aria-hidden="true"></i>
+        <section class="hub-directory" aria-labelledby="hub-directory-title">
+            <div class="hub-section-head">
+                <div>
+                    <h2 id="hub-directory-title">Semua laporan</h2>
+                    <p>{{ modules.length }} laporan tersedia untuk peran Anda.</p>
+                </div>
+            </div>
+            <div class="hub-directory-grid">
+                <Link
+                    v-for="module in modules"
+                    :key="module.title"
+                    :href="props.urls[module.url as keyof Props['urls']]"
+                    class="hub-row"
+                >
+                    <span class="hub-row-icon"><i class="mdi" :class="module.icon" aria-hidden="true"></i></span>
+                    <span class="hub-row-copy">
+                        <strong>{{ module.title }}</strong>
+                        <small>{{ module.description }}</small>
                     </span>
+                    <span class="hub-row-action">{{ module.action }}</span>
                 </Link>
             </div>
-        </div>
+        </section>
     </div>
 </template>
 
@@ -379,15 +412,13 @@ const modules = [
 
 .hub-filter-label {
     color: var(--app-muted);
-    font-size: var(--app-text-2xs);
-    font-weight: var(--app-weight-bold);
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
 }
 
 .hub-filter-current strong {
     font-size: var(--app-text-md);
-    font-weight: var(--app-weight-bold);
+    font-weight: var(--app-weight-semibold);
 }
 
 .hub-filter-range {
@@ -454,10 +485,8 @@ const modules = [
 .hub-custom-field .form-label {
     margin-bottom: 0.25rem;
     color: var(--app-muted);
-    font-size: var(--app-text-2xs);
-    font-weight: var(--app-weight-bold);
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
 }
 
 .hub-custom-actions {
@@ -473,48 +502,140 @@ const modules = [
     line-height: var(--app-leading-normal);
 }
 
-.hub-stat {
-    height: 100%;
-    padding: 1rem;
+.hub-summary {
+    padding: 1.25rem;
+    margin-bottom: 1rem;
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius-xl);
     background: var(--app-surface);
 }
 
-.hub-stat span {
-    display: block;
-    color: var(--app-muted);
-    font-size: var(--app-text-2xs);
-    font-weight: var(--app-weight-bold);
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+.hub-summary-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 1rem;
+    margin-bottom: 1rem;
 }
 
-.hub-stat strong {
+.hub-summary-head h2 {
+    margin: 0;
+    font-size: var(--app-text-md);
+    font-weight: var(--app-weight-semibold);
+}
+
+.hub-summary-head span {
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+}
+
+.hub-summary-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: end;
+}
+
+.hub-summary-primary {
+    min-width: 0;
+}
+
+.hub-summary-label {
     display: block;
-    margin-top: 0.25rem;
-    font-size: var(--app-text-xl);
-    font-weight: var(--app-weight-black);
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+}
+
+.hub-summary-amount {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    font-weight: var(--app-weight-semibold);
     font-variant-numeric: tabular-nums;
-    line-height: 1.2;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
     overflow-wrap: anywhere;
+}
+
+.hub-summary-primary p {
+    margin: 0.4rem 0 0;
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+    line-height: var(--app-leading-normal);
+}
+
+.hub-summary-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem 1rem;
+    margin: 0;
+}
+
+.hub-summary-metrics div {
+    min-width: 0;
+}
+
+.hub-summary-metrics dt {
+    color: var(--app-muted);
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-medium);
+}
+
+.hub-summary-metrics dd {
+    margin: 0.1rem 0 0;
+    font-size: var(--app-text-lg);
+    font-weight: var(--app-weight-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.hub-domains {
+    margin-bottom: 1.25rem;
+}
+
+.hub-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 1rem;
+    margin-bottom: 0.6rem;
+}
+
+.hub-section-head h2 {
+    margin: 0;
+    font-size: var(--app-text-lg);
+    font-weight: var(--app-weight-semibold);
+}
+
+.hub-section-head p {
+    margin: 0;
+    color: var(--app-muted);
+    font-size: var(--app-text-sm);
+}
+
+.hub-domain-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
 }
 
 .hub-domain {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
-    height: 100%;
-    padding: 1rem;
+    gap: 0.65rem;
+    min-width: 0;
+    padding: 0.85rem;
     border: 1px solid var(--app-border);
-    border-radius: var(--app-radius-xl);
+    border-radius: var(--app-radius-lg);
     background: var(--app-surface);
     color: var(--app-ink);
     text-decoration: none;
     transition: border-color var(--app-dur-fast) var(--app-ease-out), background-color var(--app-dur-fast) var(--app-ease-out);
 }
 
-.hub-domain:hover {
+.hub-domain:hover,
+.hub-domain:focus-visible {
     border-color: var(--app-accent);
     background: var(--app-surface-2);
 }
@@ -522,93 +643,113 @@ const modules = [
 .hub-domain-icon {
     display: grid;
     flex: 0 0 auto;
-    width: 2.3rem;
-    height: 2.3rem;
+    width: 2rem;
+    height: 2rem;
     place-items: center;
-    border-radius: var(--app-radius-md);
+    border-radius: var(--app-radius-sm);
     background: var(--app-accent-soft);
     color: var(--app-accent-ink);
-    font-size: 1.2rem;
+    font-size: 1.05rem;
 }
 
-.hub-domain h3 {
-    margin: 0 0 0.2rem;
-    font-size: var(--app-text-base);
-    font-weight: var(--app-weight-bold);
+.hub-domain-copy {
+    min-width: 0;
 }
 
-.hub-domain p {
-    margin: 0;
-    color: var(--app-muted);
-    font-size: var(--app-text-sm);
-    line-height: var(--app-leading-normal);
-}
-
-.hub-domain-arrow {
-    margin-left: auto;
-    color: var(--app-accent-ink);
-}
-
-.hub-card {
+.hub-domain-copy strong {
     display: block;
-    height: 100%;
-    padding: 1.35rem;
-    border: 1px solid var(--app-border);
-    border-radius: var(--app-radius-xl);
-    background: var(--app-surface);
+    font-size: var(--app-text-base);
+    font-weight: var(--app-weight-semibold);
+}
+
+.hub-domain-copy small {
+    display: block;
+    margin-top: 0.1rem;
+    color: var(--app-muted);
+    font-size: var(--app-text-xs);
+    line-height: var(--app-leading-snug);
+}
+
+.hub-directory {
+    padding-top: 1rem;
+    border-top: 1px solid var(--app-border);
+}
+
+.hub-directory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 1.5rem;
+}
+
+.hub-row {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.25rem;
+    border-bottom: 1px solid var(--app-border);
     color: var(--app-ink);
     text-decoration: none;
-    transition: border-color var(--app-dur-fast) var(--app-ease-out), background-color var(--app-dur-fast) var(--app-ease-out);
+    transition: background-color var(--app-dur-fast) var(--app-ease-out);
 }
 
-.hub-card:hover {
-    border-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-border));
+.hub-row:hover,
+.hub-row:focus-visible {
     background: var(--app-surface-2);
 }
 
-.hub-card-icon {
+.hub-row-icon {
     display: grid;
+    width: 2rem;
+    height: 2rem;
     place-items: center;
-    width: 48px;
-    height: 48px;
-    margin-bottom: 1rem;
-    border-radius: var(--app-radius-lg);
-    background: var(--app-accent-soft);
-    color: var(--app-accent-ink);
-    font-size: 1.5rem;
-}
-
-.hub-card h3 {
-    margin: 0 0 0.4rem;
-    font-size: var(--app-text-xl);
-    font-weight: var(--app-weight-bold);
-}
-
-.hub-card p {
-    margin: 0 0 1rem;
+    border-radius: var(--app-radius-sm);
+    background: var(--app-surface-2);
     color: var(--app-muted);
+    font-size: 1rem;
+}
+
+.hub-row-copy {
+    min-width: 0;
+}
+
+.hub-row-copy strong {
+    display: block;
     font-size: var(--app-text-base);
-    line-height: var(--app-leading-normal);
+    font-weight: var(--app-weight-medium);
 }
 
-.hub-card-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 32px;
+.hub-row-copy small {
+    display: block;
+    overflow: hidden;
+    color: var(--app-muted);
+    font-size: var(--app-text-xs);
+    line-height: var(--app-leading-snug);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hub-row-action {
     color: var(--app-accent-ink);
-    font-weight: var(--app-weight-bold);
-    text-decoration: none;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    white-space: nowrap;
 }
 
-.hub-card-link:hover,
-.hub-card:hover .hub-card-link {
-    text-decoration: underline;
+@media (max-width: 1199.98px) {
+    .hub-domain-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
-@media (pointer: coarse) {
-    .hub-card-link {
-        min-height: 44px;
+@media (max-width: 991.98px) {
+    .hub-summary-body {
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .hub-directory-grid {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -638,6 +779,23 @@ const modules = [
     .hub-custom-actions .btn {
         flex: 1 1 auto;
         min-height: 44px;
+    }
+
+    .hub-domain-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .hub-row {
+        grid-template-columns: 2rem minmax(0, 1fr);
+        min-height: 56px;
+    }
+
+    .hub-row-action {
+        display: none;
+    }
+
+    .hub-row-copy small {
+        white-space: normal;
     }
 }
 </style>

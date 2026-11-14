@@ -115,4 +115,13 @@ class RoutingIntegrityTest extends TestCase
             }
         }
     }
+
+    public function test_reports_area_opens_business_overview_first(): void
+    {
+        $navigation = Navigation::forUser($this->admin());
+        $reports = collect($navigation['areas'])->firstWhere('key', 'reports');
+
+        $this->assertNotNull($reports);
+        $this->assertSame(route('reports.business-overview.index'), $reports['url']);
+    }
 }

@@ -272,7 +272,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             </div>
             <div class="stock-hero-actions">
                 <Link :href="props.urls.store_requests" class="stock-hero-button">
-                    <i class="mdi mdi-store-arrow-right me-1"></i>
+                    <i class="mdi mdi-clipboard-arrow-right-outline me-1"></i>
                     Request Store
                 </Link>
                 <Link :href="props.urls.ecommerce_orders" class="stock-hero-button">

@@ -40,6 +40,8 @@ class BranchExpansionReportController extends Controller
                     ['value' => 'medium', 'label' => 'Prioritas sedang'],
                     ['value' => 'watch', 'label' => 'Pantau'],
                 ],
+                'months' => $this->monthOptions(),
+                'years' => $this->yearOptions(),
             ],
             'filters' => $request->query(),
             'urls' => ['index' => url()->current()],
@@ -48,12 +50,19 @@ class BranchExpansionReportController extends Controller
 
     private function filters(Request $request): array
     {
-        $from = $this->date($request->query('start_date')) ?: now()->startOfYear()->toDateString();
-        $to = $this->date($request->query('end_date')) ?: now()->toDateString();
+        $month = (int) $request->query('month', now()->month);
+        $year = (int) $request->query('year', now()->year);
 
-        if ($from > $to) {
-            [$from, $to] = [$to, $from];
+        if ($month < 1 || $month > 12) {
+            $month = now()->month;
         }
+
+        if ($year < 2000 || $year > 2100) {
+            $year = now()->year;
+        }
+
+        $periodStart = Carbon::create($year, $month, 1)->startOfMonth()->toDateString();
+        $periodEnd = Carbon::create($year, $month, 1)->endOfMonth()->toDateString();
 
         $level = $request->query('level') === 'village' ? 'village' : 'district';
         $priority = trim((string) $request->query('priority', ''));
@@ -66,16 +75,46 @@ class BranchExpansionReportController extends Controller
             'regency_code' => trim((string) $request->query('regency_code', '')),
             'district_code' => trim((string) $request->query('district_code', '')),
             'priority' => $priority,
-            'start_date' => $from,
-            'end_date' => $to,
+            'month' => (string) $month,
+            'year' => (string) $year,
+            'period_start' => $periodStart,
+            'period_end' => $periodEnd,
             'per_page' => $this->perPage($request->query('per_page')),
         ];
     }
 
+    private function monthOptions(): array
+    {
+        return [
+            ['value' => '1', 'label' => 'Januari'],
+            ['value' => '2', 'label' => 'Februari'],
+            ['value' => '3', 'label' => 'Maret'],
+            ['value' => '4', 'label' => 'April'],
+            ['value' => '5', 'label' => 'Mei'],
+            ['value' => '6', 'label' => 'Juni'],
+            ['value' => '7', 'label' => 'Juli'],
+            ['value' => '8', 'label' => 'Agustus'],
+            ['value' => '9', 'label' => 'September'],
+            ['value' => '10', 'label' => 'Oktober'],
+            ['value' => '11', 'label' => 'November'],
+            ['value' => '12', 'label' => 'Desember'],
+        ];
+    }
+
+    private function yearOptions(): array
+    {
+        $current = (int) now()->year;
+
+        return collect(range($current - 5, $current + 1))
+            ->map(fn (int $year) => ['value' => (string) $year, 'label' => (string) $year])
+            ->values()
+            ->all();
+    }
+
     private function regionRows(array $filters)
     {
-        $start = Carbon::parse($filters['start_date'])->startOfDay();
-        $end = Carbon::parse($filters['end_date'])->endOfDay();
+        $start = Carbon::parse($filters['period_start'])->startOfDay();
+        $end = Carbon::parse($filters['period_end'])->endOfDay();
 
         $paidStatuses = "LOWER(p.status::text) IN ('paid','success','settlement','capture','completed')";
 

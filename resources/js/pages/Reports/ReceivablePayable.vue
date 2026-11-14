@@ -181,7 +181,7 @@ const formatDate = (value: string | null) => {
     <div class="rp-page">
         <header class="rp-header">
             <div>
-                <span class="rp-eyebrow">Reports / Penjualan</span>
+                <span class="rp-eyebrow">Laporan / Penjualan</span>
                 <h1>Catatan Piutang & Hutang</h1>
                 <p>Pencatatan manual piutang dan hutang beserta jatuh tempo dan status pelunasan.</p>
             </div>

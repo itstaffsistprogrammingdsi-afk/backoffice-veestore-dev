@@ -4,7 +4,9 @@ import { Head, router } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import ReportTableControls from '@/components/ui/ReportTableControls.vue';
 import { downloadExcelTable } from '@/composables/useExcelExport';
+import { useReportTableColumns, useReportTableDensity } from '@/composables/useReportTable';
 
 defineOptions({ layout: AppLayout });
 
@@ -60,6 +62,24 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const priceMarginColumns = [
+    { key: 'product_name', label: 'Produk' },
+    { key: 'category_name', label: 'Kategori' },
+    { key: 'brand_name', label: 'Merek' },
+    { key: 'base_price', label: 'Harga acuan' },
+    { key: 'store_price', label: 'Harga toko' },
+    { key: 'store_margin', label: 'Margin toko' },
+    { key: 'ecommerce_price', label: 'Harga e-commerce' },
+    { key: 'ecommerce_margin', label: 'Margin e-commerce' },
+    { key: 'status', label: 'Status' },
+];
+const priceMarginSimpleColumns = ['product_name', 'base_price', 'store_margin', 'ecommerce_margin', 'status'];
+const { density, isCompact, toggleDensity } = useReportTableDensity();
+const { visibleColumns, isVisible, toggleColumn, showAll, applyPreset, columnCount } = useReportTableColumns(
+    'veestore.price-margin.columns',
+    priceMarginColumns.map((column) => column.key),
+);
+
 const form = reactive({
     q: props.filters.q ?? '',
     category_id: props.filters.category_id ?? '',
@@ -79,10 +99,10 @@ const brandOptions = computed(() => props.brands.map((brand) => ({
 })));
 
 const summaryCards = computed(() => [
-    { label: 'Produk dengan Harga', value: formatNumber(props.summary.total_products) },
-    { label: 'Harga Belum Lengkap', value: formatNumber(props.summary.missing_price), tone: 'is-info' },
-    { label: 'Di Bawah Harga Base', value: formatNumber(props.summary.below_base), tone: 'is-danger' },
-    { label: `Margin < ${formatPercent(props.filters.min_margin)}`, value: formatNumber(props.summary.below_min_margin), tone: 'is-warning' },
+    { label: 'Produk dengan harga', value: formatNumber(props.summary.total_products) },
+    { label: 'Harga belum lengkap', value: formatNumber(props.summary.missing_price), tone: 'is-info' },
+    { label: 'Di bawah harga acuan', value: formatNumber(props.summary.below_base), tone: 'is-danger' },
+    { label: `Margin di bawah ${formatPercent(props.filters.min_margin)}`, value: formatNumber(props.summary.below_min_margin), tone: 'is-warning' },
 ]);
 
 const applyFilters = () => {
@@ -166,9 +186,9 @@ const marginClass = (value: number | null) => {
     <div class="price-margin-page">
         <header class="price-margin-header">
             <div>
-                <span class="price-margin-eyebrow">Reports / Penjualan</span>
+                <span class="price-margin-eyebrow">Laporan / Penjualan</span>
                 <h1>Kontrol Margin Harga</h1>
-                <p>Bandingkan harga store dan ecommerce terhadap harga base. Batas margin aktif: {{ formatPercent(props.filters.min_margin) }}.</p>
+                <p>Bandingkan harga toko dan e-commerce terhadap harga acuan. Batas margin aktif {{ formatPercent(props.filters.min_margin) }}.</p>
             </div>
             <button class="btn btn-light btn-sm" type="button" @click="exportRows">
                 <i class="mdi mdi-file-excel-outline me-1" aria-hidden="true"></i>
@@ -188,15 +208,15 @@ const marginClass = (value: number | null) => {
             <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                 <div class="col-md-4">
                     <label for="price-margin-q" class="form-label">Pencarian</label>
-                    <input id="price-margin-q" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama produk, kode, kategori, brand..." />
+                    <input id="price-margin-q" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama produk, kode, kategori, atau merek..." />
                 </div>
                 <div class="col-md-3">
                     <label for="price-margin-category" class="form-label">Kategori</label>
                     <SearchableSelect id="price-margin-category" v-model="form.category_id" :options="categoryOptions" placeholder="Semua kategori" search-placeholder="Cari kategori..." />
                 </div>
                 <div class="col-md-3">
-                    <label for="price-margin-brand" class="form-label">Brand</label>
-                    <SearchableSelect id="price-margin-brand" v-model="form.brand_id" :options="brandOptions" placeholder="Semua brand" search-placeholder="Cari brand..." />
+                    <label for="price-margin-brand" class="form-label">Merek</label>
+                    <SearchableSelect id="price-margin-brand" v-model="form.brand_id" :options="brandOptions" placeholder="Semua merek" search-placeholder="Cari merek..." />
                 </div>
                 <div class="col-md-2">
                     <label for="price-margin-status" class="form-label">Status</label>
@@ -206,7 +226,7 @@ const marginClass = (value: number | null) => {
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label for="price-margin-per-page" class="form-label">Per Halaman</label>
+                    <label for="price-margin-per-page" class="form-label">Baris per halaman</label>
                     <select id="price-margin-per-page" v-model.number="form.per_page" class="form-select form-select-sm">
                         <option :value="10">10</option>
                         <option :value="25">25</option>
@@ -224,43 +244,54 @@ const marginClass = (value: number | null) => {
         <section class="price-margin-table-card" aria-labelledby="price-margin-table-title">
             <div class="price-margin-table-head">
                 <div>
-                    <h2 id="price-margin-table-title">Daftar Harga</h2>
-                    <p>{{ props.rows.total }} produk sesuai filter.</p>
+                    <h2 id="price-margin-table-title">Daftar harga</h2>
+                    <p>{{ props.rows.total }} produk sesuai filter. Margin dihitung dari harga jual terhadap harga acuan.</p>
                 </div>
+                <ReportTableControls
+                    :columns="priceMarginColumns"
+                    :visible="visibleColumns"
+                    :density="density"
+                    :simple-preset="priceMarginSimpleColumns"
+                    @toggle-density="toggleDensity"
+                    @toggle-column="toggleColumn"
+                    @show-all="showAll"
+                    @apply-simple="applyPreset(priceMarginSimpleColumns)"
+                />
             </div>
 
-            <div class="table-responsive">
+            <div class="table-responsive report-table-wrap" :class="{ 'is-compact': isCompact }" tabindex="0" role="region" aria-label="Daftar harga dan margin produk">
                 <table class="table align-middle mb-0">
+                    <caption class="visually-hidden">Harga toko dan e-commerce beserta margin terhadap harga acuan</caption>
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th>Kategori</th>
-                            <th>Brand</th>
-                            <th class="text-end">Base</th>
-                            <th class="text-end">Store</th>
-                            <th class="text-end">Margin Store</th>
-                            <th class="text-end">Ecommerce</th>
-                            <th class="text-end">Margin Ecommerce</th>
-                            <th>Status</th>
+                            <th v-if="isVisible('product_name')">Produk</th>
+                            <th v-if="isVisible('category_name')">Kategori</th>
+                            <th v-if="isVisible('brand_name')">Merek</th>
+                            <th v-if="isVisible('base_price')" class="text-end">Harga acuan</th>
+                            <th v-if="isVisible('store_price')" class="text-end">Harga toko</th>
+                            <th v-if="isVisible('store_margin')" class="text-end">Margin toko</th>
+                            <th v-if="isVisible('ecommerce_price')" class="text-end">Harga e-commerce</th>
+                            <th v-if="isVisible('ecommerce_margin')" class="text-end">Margin e-commerce</th>
+                            <th v-if="isVisible('status')">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="row in props.rows.data" :key="row.id">
-                            <td>
+                            <td v-if="isVisible('product_name')">
                                 <strong>{{ row.product_name }}</strong>
                                 <small class="price-margin-note">{{ row.product_code ?? '-' }}</small>
                             </td>
-                            <td>{{ row.category_name ?? '-' }}</td>
-                            <td>{{ row.brand_name ?? '-' }}</td>
-                            <td class="text-end">{{ formatCurrency(row.base_price) }}</td>
-                            <td class="text-end">{{ formatCurrency(row.store_price) }}</td>
-                            <td class="text-end" :class="marginClass(row.store_margin_percent)">{{ formatPercent(row.store_margin_percent) }}</td>
-                            <td class="text-end">{{ formatCurrency(row.ecommerce_price) }}</td>
-                            <td class="text-end" :class="marginClass(row.ecommerce_margin_percent)">{{ formatPercent(row.ecommerce_margin_percent) }}</td>
-                            <td><span class="badge" :class="statusClass(row.margin_status)">{{ row.margin_status_label }}</span></td>
+                            <td v-if="isVisible('category_name')">{{ row.category_name ?? '-' }}</td>
+                            <td v-if="isVisible('brand_name')">{{ row.brand_name ?? '-' }}</td>
+                            <td v-if="isVisible('base_price')" class="text-end">{{ formatCurrency(row.base_price) }}</td>
+                            <td v-if="isVisible('store_price')" class="text-end">{{ formatCurrency(row.store_price) }}</td>
+                            <td v-if="isVisible('store_margin')" class="text-end" :class="marginClass(row.store_margin_percent)" :title="`Margin toko ${formatPercent(row.store_margin_percent)} dari harga acuan`">{{ formatPercent(row.store_margin_percent) }}</td>
+                            <td v-if="isVisible('ecommerce_price')" class="text-end">{{ formatCurrency(row.ecommerce_price) }}</td>
+                            <td v-if="isVisible('ecommerce_margin')" class="text-end" :class="marginClass(row.ecommerce_margin_percent)" :title="`Margin e-commerce ${formatPercent(row.ecommerce_margin_percent)} dari harga acuan`">{{ formatPercent(row.ecommerce_margin_percent) }}</td>
+                            <td v-if="isVisible('status')"><span class="badge" :class="statusClass(row.margin_status)">{{ row.margin_status_label }}</span></td>
                         </tr>
                         <tr v-if="props.rows.data.length === 0">
-                            <td colspan="9" class="price-margin-empty">
+                            <td :colspan="columnCount" class="price-margin-empty">
                                 <i class="mdi mdi-scale-balance" aria-hidden="true"></i>
                                 <strong>Tidak ada produk yang cocok</strong>
                                 <span>Coba ubah filter atau pastikan harga produk sudah diisi.</span>
@@ -282,23 +313,24 @@ const marginClass = (value: number | null) => {
 .price-margin-page { color: var(--app-ink); }
 .price-margin-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.4rem; margin-bottom: 1rem; border-radius: 0.9rem; background: var(--app-hero-bg); color: var(--app-hero-text); }
 .price-margin-header > div { max-width: 52rem; }
-.price-margin-eyebrow { display: inline-block; margin-bottom: 0.35rem; color: var(--app-hero-eyebrow); font-size: 0.7rem; font-weight: 700; }
-.price-margin-header h1 { margin: 0 0 0.35rem; font-size: clamp(1.3rem, 2vw, 1.6rem); }
-.price-margin-header p { margin: 0; color: var(--app-hero-muted); font-size: 0.86rem; }
+.price-margin-eyebrow { display: inline-block; margin-bottom: 0.35rem; color: var(--app-hero-eyebrow); font-size: var(--app-text-xs); font-weight: var(--app-weight-semibold); }
+.price-margin-header h1 { margin: 0 0 0.35rem; font-size: clamp(1.3rem, 2vw, 1.6rem); font-weight: var(--app-weight-semibold); }
+.price-margin-header p { margin: 0; color: var(--app-hero-muted); font-size: var(--app-text-sm); }
 .price-margin-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-.price-margin-summary-card { padding: 0.85rem 1rem; border: 1px solid var(--app-border); border-radius: 0.7rem; background: var(--app-surface); }
-.price-margin-summary-card span { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 600; }
-.price-margin-summary-card strong { display: block; margin-top: 0.2rem; font-size: 1.25rem; font-weight: 800; }
+.price-margin-summary-card { padding: 0.85rem 1rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); }
+.price-margin-summary-card span { display: block; color: var(--app-muted); font-size: var(--app-text-xs); font-weight: var(--app-weight-medium); }
+.price-margin-summary-card strong { display: block; margin-top: 0.2rem; font-size: var(--app-text-2xl); font-weight: var(--app-weight-semibold); font-variant-numeric: tabular-nums; }
 .price-margin-summary-card strong.is-danger { color: var(--app-danger-ink); }
 .price-margin-summary-card strong.is-warning { color: var(--app-warning-ink); }
 .price-margin-summary-card strong.is-info { color: var(--app-info-ink); }
-.price-margin-filter, .price-margin-table-card { padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.8rem; background: var(--app-surface); }
-.price-margin-filter h2, .price-margin-table-head h2 { margin: 0 0 0.65rem; font-size: 0.95rem; font-weight: 800; }
-.price-margin-table-head { margin-bottom: 0.85rem; }
-.price-margin-table-head p { margin: 0.2rem 0 0; color: var(--app-muted); font-size: 0.78rem; }
-.price-margin-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: 0.7rem; }
-.price-margin-page .table th { color: var(--app-muted); font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
-.price-margin-page .table td { font-size: 0.8rem; vertical-align: middle; }
+.price-margin-filter, .price-margin-table-card { padding: 1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-lg); background: var(--app-surface); }
+.price-margin-filter h2, .price-margin-table-head h2 { margin: 0 0 0.65rem; font-size: var(--app-text-md); font-weight: var(--app-weight-semibold); }
+.price-margin-table-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.65rem 1rem; margin-bottom: 0.85rem; }
+.price-margin-table-head > div:first-child { min-width: 0; }
+.price-margin-table-head p { margin: 0.2rem 0 0; color: var(--app-muted); font-size: var(--app-text-sm); }
+.price-margin-note { display: block; margin-top: 0.1rem; color: var(--app-muted); font-size: var(--app-text-xs); }
+.price-margin-page .table th { color: var(--app-muted); font-size: var(--app-text-xs); font-weight: var(--app-weight-semibold); white-space: nowrap; }
+.price-margin-page .table td { font-size: var(--app-text-sm); vertical-align: middle; }
 .price-margin-empty { padding: 2.5rem 1rem; color: var(--app-muted); text-align: center; }
 .price-margin-empty i { display: block; margin-bottom: 0.35rem; font-size: 1.8rem; }
 .price-margin-empty strong { display: block; color: var(--app-ink); font-size: 0.9rem; }

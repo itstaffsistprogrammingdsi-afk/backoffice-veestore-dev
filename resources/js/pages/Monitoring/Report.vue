@@ -5,7 +5,9 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import StockReservationDetailModal from '@/components/StockReservationDetailModal.vue';
+import ReportPeriodPresets from '@/components/ui/ReportPeriodPresets.vue';
 import { downloadExcelTable } from '@/composables/useExcelExport';
+import { useReportTableDensity } from '@/composables/useReportTable';
 
 defineOptions({ layout: AppLayout });
 
@@ -296,6 +298,8 @@ const ALLOWED_FILTERS = new Set([
     'inbound_type',
     'outbound_type',
     'period_status',
+    'month',
+    'year',
     'is_active',
     'is_paid',
     'registration_channel',
@@ -419,6 +423,8 @@ const FILTER_LABELS: Record<string, string> = {
     inbound_type: 'Tipe Inbound',
     outbound_type: 'Tipe Outbound',
     period_status: 'Status Periode',
+    month: 'Bulan',
+    year: 'Tahun',
     is_active: 'Status Aktif',
     registration_channel: 'Channel Registrasi',
     registration_store_id: 'Cabang Registrasi',
@@ -436,7 +442,7 @@ const FILTER_LABELS: Record<string, string> = {
     type: 'Tipe',
     mode: 'Mode',
     scope: 'Cakupan',
-    channel: 'Channel',
+    channel: 'Kanal',
     group_by: 'Kelompokkan',
     promo: 'Promo',
     aging_bucket: 'Rentang Aging',
@@ -576,6 +582,8 @@ const OPTION_SOURCES: Record<string, { keys: string[]; labels?: string[] }> = {
     anomaly_type: { keys: [] },
     issue_type: { keys: ['issueTypes'] },
     period_status: { keys: [] },
+    month: { keys: ['months'] },
+    year: { keys: ['years'] },
     is_active: { keys: [] },
     exception_only: { keys: [] },
     scope: { keys: [] },
@@ -668,8 +676,8 @@ const PRESET_OPTIONS: Record<string, FilterOption[]> = {
         { value: 'store', label: 'Store' },
     ],
     channel: [
-        { value: 'store', label: 'Store' },
-        { value: 'ecommerce', label: 'Ecommerce' },
+        { value: 'store', label: 'Toko' },
+        { value: 'ecommerce', label: 'E-commerce' },
     ],
     group_by: [
         { value: 'product', label: 'Produk' },
@@ -689,23 +697,23 @@ const PRESET_OPTIONS: Record<string, FilterOption[]> = {
         { value: 'gt_365', label: 'Lebih dari 365 hari' },
     ],
     registration_channel: [
-        { value: 'store', label: 'Store' },
-        { value: 'ecommerce', label: 'Ecommerce' },
+        { value: 'store', label: 'Toko' },
+        { value: 'ecommerce', label: 'E-commerce' },
     ],
     payment_status: [
-        { value: 'paid', label: 'Paid' },
-        { value: 'pending', label: 'Pending' },
-        { value: 'failed', label: 'Failed' },
-        { value: 'cancelled', label: 'Cancelled' },
+        { value: 'paid', label: 'Lunas' },
+        { value: 'pending', label: 'Menunggu' },
+        { value: 'failed', label: 'Gagal' },
+        { value: 'cancelled', label: 'Dibatalkan' },
     ],
     order_status: [
-        { value: 'pending', label: 'Pending' },
-        { value: 'paid', label: 'Paid' },
-        { value: 'processing', label: 'Processing' },
-        { value: 'processed', label: 'Processed' },
-        { value: 'shipped', label: 'Shipped' },
-        { value: 'completed', label: 'Completed' },
-        { value: 'cancelled', label: 'Cancelled' },
+        { value: 'pending', label: 'Menunggu bayar' },
+        { value: 'paid', label: 'Dibayar' },
+        { value: 'processing', label: 'Diproses' },
+        { value: 'processed', label: 'Diproses' },
+        { value: 'shipped', label: 'Dikirim' },
+        { value: 'completed', label: 'Selesai' },
+        { value: 'cancelled', label: 'Dibatalkan' },
         { value: 'refunded', label: 'Refunded' },
     ],
     handled_type: [
@@ -998,7 +1006,16 @@ const COLUMN_LABELS: Record<string, string> = {
     last_activity_at: 'Aktivitas Terakhir',
     last_inbound_at: 'Inbound Terakhir',
     last_mutation_at: 'Mutasi Terakhir',
-    grand_total: 'Grand Total',
+    grand_total: 'Total Pesanan',
+    outstanding_amount: 'Sisa Tagihan',
+    shipping_method_type: 'Tipe Pengiriman',
+    shipping_method_label: 'Metode Pengiriman',
+    payment_detail_statuses: 'Status Detail Pembayaran',
+    payment_completed_at: 'Pembayaran Selesai',
+    payment_method_descriptions: 'Deskripsi Metode Pembayaran',
+    transaction_refs: 'Referensi Transaksi',
+    product_names: 'Produk',
+    total_payment_detail_amount: 'Total Detail Pembayaran',
     detail_value: 'Nilai Detail',
     total_amount: 'Total Pembayaran',
     gross_sales: 'Omset Kotor',
@@ -1369,6 +1386,7 @@ const HIDDEN_COLUMNS = new Set([
     'latest_history_location_id',
     'rfid_tag_id',
     'payment_id',
+    'is_paid',
     'order_id',
     'store_cart_id',
     'ecommerce_order_id',
@@ -1500,8 +1518,9 @@ const isNumberKey = (key: string): boolean =>
     /(qty|quantity|count|total|items|sku|stock|stok|points?|minutes|days|aging|score|priority|usage|visit|shift|inbound|outbound|scanned|missing|extra|mismatch|diff|system|physical|selisih|destroyed|balance)/i.test(key);
 
 const isStatusKey = (key: string): boolean =>
-    /(status|condition|anomaly|type|label|severity|tone|state)/i.test(key) &&
-    !/status_summary|condition_names|_count$|_at$|_date$|_id$|_days$|_minutes$/i.test(key);
+    /(^|_)(status|condition|anomaly|severity|tone|state)$/i.test(key) ||
+    /(status|condition|anomaly)_label$/i.test(key) ||
+    ['is_paid', 'is_late', 'is_overtime', 'is_active', 'is_guest', 'is_clearance'].includes(key);
 
 const isLongTextKey = (key: string): boolean => LONG_TEXT_KEYS.has(key);
 
@@ -1539,7 +1558,9 @@ const emptyOptionLabel = (field: FilterField): string => {
         is_active: 'Semua status',
         source: 'Semua sumber',
         scope: 'Semua cakupan',
-        channel: 'Semua channel',
+        channel: 'Semua kanal',
+        month: 'Pilih bulan',
+        year: 'Pilih tahun',
         group_by: 'Default',
         promo: 'Semua transaksi',
         mode: 'Default',
@@ -1755,6 +1776,28 @@ const rawFilterEntries = computed<Map<string, any>>(() => {
     return entries;
 });
 
+const quickPeriodKeys = computed<{ from: string; to: string } | null>(() => {
+    const keys = rawFilterEntries.value;
+
+    if (keys.has('month') && keys.has('year')) {
+        return null;
+    }
+
+    if (keys.has('start_date') && keys.has('end_date')) {
+        return { from: 'start_date', to: 'end_date' };
+    }
+
+    if (keys.has('date_from') && keys.has('date_to')) {
+        return { from: 'date_from', to: 'date_to' };
+    }
+
+    if (keys.has('from') && keys.has('to')) {
+        return { from: 'from', to: 'to' };
+    }
+
+    return null;
+});
+
 const filterSignature = computed(() => JSON.stringify(Array.from(rawFilterEntries.value.entries()).sort()));
 
 const filterValues = reactive<Record<string, string>>({});
@@ -1804,6 +1847,7 @@ const filterFields = computed<FilterField[]>(() => {
     const rank = (field: FilterField): number => {
         if (SEARCH_KEYS.has(field.key)) return 0;
         if (field.type === 'date') return 1;
+        if (field.key === 'month' || field.key === 'year') return 1.5;
         if (field.type === 'select') return 2;
         if (field.type === 'number') return 3;
         return 4;
@@ -1819,8 +1863,13 @@ const visibleFilterFields = computed<FilterField[]>(() =>
         const source = filterValues.source ?? '';
         const handled = filterValues.handled_type ?? '';
 
+        if ((field.key === 'start_date' || field.key === 'end_date') && filterValues.month && filterValues.year) {
+            return false;
+        }
+
         if (field.key === 'store_id') {
             return !(
+                filterValues.channel === 'ecommerce' ||
                 mode === 'all' ||
                 mode === 'warehouse' ||
                 scope === 'warehouse' ||
@@ -1848,8 +1897,12 @@ const visibleFilterFields = computed<FilterField[]>(() =>
 const visibleFilterKeys = computed(() => new Set(visibleFilterFields.value.map((field) => field.key)));
 
 watch(
-    () => [filterValues.mode, filterValues.scope, filterValues.source, filterValues.handled_type],
+    () => [filterValues.channel, filterValues.mode, filterValues.scope, filterValues.source, filterValues.handled_type],
     () => {
+        if (filterValues.channel === 'ecommerce') {
+            filterValues.store_id = '';
+        }
+
         if (filterValues.mode === 'all') {
             filterValues.store_id = '';
             filterValues.warehouse_id = '';
@@ -2228,37 +2281,42 @@ const summarySource = computed<Record<string, any>>(() => {
 
 const summaryLabel = (key: string): string => {
     const labels: Record<string, string> = {
-        total: 'Total Data',
-        orders: 'Total Pesanan',
-        ecommerce: 'Pesanan Ecommerce',
-        pending: 'Pending',
-        pending_payment: 'Pembayaran Pending',
-        without_payment: 'Tanpa Pembayaran',
-        exceptions: 'Exception Aktif',
-        cancelled_orders: 'Pesanan Dibatalkan',
-        detail_mismatch: 'Detail Tidak Cocok',
-        without_handler: 'Belum Ditangani',
-        without_awb: 'Tanpa Resi',
-        over_24h: 'Lewat 24 Jam',
-        paid: 'Sudah Dibayar',
-        unpaid: 'Belum Dibayar',
+        total: 'Total data',
+        orders: 'Total pesanan',
+        matched: 'Pembayaran cocok',
+        findings: 'Temuan',
+        needs_review: 'Perlu ditinjau',
+        failed_payment: 'Pembayaran gagal',
+        total_paid_amount: 'Total pembayaran',
+        ecommerce: 'Pesanan e-commerce',
+        pending: 'Menunggu',
+        pending_payment: 'Pembayaran menunggu',
+        without_payment: 'Tanpa pembayaran',
+        exceptions: 'Anomali aktif',
+        cancelled_orders: 'Pesanan dibatalkan',
+        detail_mismatch: 'Detail tidak cocok',
+        without_handler: 'Belum ditangani',
+        without_awb: 'Tanpa resi',
+        over_24h: 'Lewat 24 jam',
+        paid: 'Sudah dibayar',
+        unpaid: 'Belum dibayar',
         failed: 'Gagal',
         rejected: 'Ditolak',
         cancelled: 'Dibatalkan',
         active: 'Aktif',
-        inactive: 'Tidak Aktif',
-        today: 'Hari Ini',
-        warehouse: 'Warehouse',
-        store: 'Store',
+        inactive: 'Tidak aktif',
+        today: 'Hari ini',
+        warehouse: 'Gudang',
+        store: 'Toko',
         changes_today: 'Perubahan Hari Ini',
         failed_changes: 'Perubahan Gagal',
         open_fraud: 'Fraud Terbuka',
         failed_login: 'Login Gagal',
-        total_customer: 'Total Customer',
-        total_items: 'Total Item',
+        total_customer: 'Total pelanggan',
+        total_items: 'Total item',
         total_sku: 'Total SKU',
-        total_qty: 'Total Qty',
-        total_rows: 'Jumlah Baris',
+        total_qty: 'Total qty',
+        total_rows: 'Jumlah baris',
         total_qty_real: 'Qty Nyata',
         total_qty_reserved: 'Qty Reservasi',
         total_qty_available: 'Qty Tersedia',
@@ -2266,16 +2324,23 @@ const summaryLabel = (key: string): string => {
         received_today: 'Diterima Hari Ini',
         total_value: 'Total Nilai',
         total_header_value: 'Total Nilai Header',
-        total_nominal: 'Total Nilai',
-        total_amount: 'Total Nominal',
-        total_transactions: 'Total Transaksi',
-        total_attendance: 'Total Absensi',
+        total_nominal: 'Total nilai',
+        total_amount: 'Total nominal',
+        total_paid: 'Total dibayar',
+        total_change: 'Total kembalian',
+        total_stores: 'Total toko',
+        total_store_transactions: 'Transaksi toko',
+        total_ecommerce_transactions: 'Transaksi e-commerce',
+        total_store_amount: 'Nominal toko',
+        total_ecommerce_amount: 'Nominal e-commerce',
+        total_transactions: 'Total transaksi',
+        total_attendance: 'Total absensi',
         total_late: 'Terlambat',
         total_overtime: 'Lembur',
         total_not_clock_in: 'Belum Clock In',
         total_not_clock_out: 'Belum Clock Out',
-        total_suppliers: 'Total Supplier',
-        suppliers_monitored: 'Supplier Dimonitor',
+        total_suppliers: 'Total pemasok',
+        suppliers_monitored: 'Pemasok dipantau',
         damaged_items: 'Item Rusak',
         returned_items: 'Item Retur',
         total_referral: 'Total Referral',
@@ -2303,8 +2368,8 @@ const summaryLabel = (key: string): string => {
         dead_qty: 'Qty Deadstock',
         expiring_qty: 'Qty Mendekati Kedaluwarsa',
         expired_qty: 'Qty Sudah Kedaluwarsa',
-        total_store: 'Total Store',
-        total_warehouse: 'Total Warehouse',
+        total_store: 'Total toko',
+        total_warehouse: 'Total gudang',
         total_good: 'Kondisi Baik',
         total_good_after_repair: 'Baik Setelah Perbaikan',
         total_bad: 'Kondisi Rusak',
@@ -2329,8 +2394,8 @@ const summaryLabel = (key: string): string => {
         total_cash: 'Total Kas',
         total_non_cash: 'Total Non-Tunai',
         total_products: 'Total Produk',
-        total_customers: 'Total Customer',
-        total_revenue: 'Total Pendapatan',
+        total_customers: 'Total pelanggan',
+        total_revenue: 'Total pendapatan',
         total_spend: 'Total Belanja',
         total_point: 'Total Poin',
         total_members: 'Total Member',
@@ -2345,7 +2410,6 @@ const summaryLabel = (key: string): string => {
         total_grand_total: 'Nilai Pesanan',
         total_sub_total: 'Subtotal Pesanan',
         total_discount: 'Total Diskon',
-        total_paid_amount: 'Pembayaran Diterima',
         total_outstanding: 'Sisa Tagihan',
         average_order_value: 'Rata-rata Pembayaran',
         total_cash_amount: 'Total Tunai',
@@ -2606,6 +2670,45 @@ const formatDateValue = (value: unknown, key: string): string => {
     return new Intl.DateTimeFormat('id-ID', options).format(parsed);
 };
 
+const STATUS_TEXT: Record<string, string> = {
+    pending: 'Menunggu',
+    waiting: 'Menunggu',
+    unpaid: 'Belum dibayar',
+    paid: 'Dibayar',
+    settlement: 'Lunas',
+    capture: 'Lunas',
+    success: 'Berhasil',
+    processed: 'Diproses',
+    processing: 'Diproses',
+    packing: 'Dikemas',
+    shipped: 'Dikirim',
+    received: 'Diterima',
+    completed: 'Selesai',
+    cancelled: 'Dibatalkan',
+    canceled: 'Dibatalkan',
+    dibatalkan: 'Dibatalkan',
+    expired: 'Kedaluwarsa',
+    failed: 'Gagal',
+    rejected: 'Ditolak',
+    approved: 'Disetujui',
+    authorized: 'Disetujui',
+    requested: 'Diminta',
+    active: 'Aktif',
+    inactive: 'Tidak aktif',
+    on_hold: 'Ditahan',
+    refunded: 'Dikembalikan',
+    void: 'Void',
+    voided: 'Void',
+    received_all: 'Diterima semua',
+    partial: 'Sebagian',
+};
+
+const statusText = (value: unknown): string => {
+    const raw = String(value ?? '').trim();
+
+    return STATUS_TEXT[raw.toLowerCase()] ?? raw;
+};
+
 const statusTone = (value: unknown, key: string): string => {
     const text = String(value ?? '').toLowerCase();
 
@@ -2731,7 +2834,7 @@ const buildCell = (row: Row, key: string): TableCell => {
 
     if (isStatusKey(key)) {
         return {
-            text: String(value),
+            text: statusText(value),
             kind: 'badge',
             tone: statusTone(value, key),
             title: String(value),
@@ -2857,6 +2960,7 @@ const COLUMN_PRIORITY: Record<string, number> = {
     last_mutation_at: 2,
     date: 2,
     grand_total: 3,
+    outstanding_amount: 3,
     detail_value: 3,
     total_header_value: 3,
     total_amount: 3,
@@ -2883,7 +2987,27 @@ const COLUMN_PRIORITY: Record<string, number> = {
     risk_score: 3,
 };
 
+const pageColumnPriority: Record<string, number> = props.title === 'Pembayaran Ecommerce'
+    ? {
+        order_number: 0,
+        transaction_number: 0,
+        customer_name: 0,
+        payment_methods: 0,
+        order_status: 1,
+        payment_status: 1,
+        grand_total: 1,
+        total_amount: 1,
+        paid_amount: 1,
+        outstanding_amount: 1,
+        sub_total: 2,
+        discount_total: 2,
+        change_amount: 2,
+        tax_amount: 2,
+    }
+    : {};
+
 const columnRank = (key: string): number => {
+    if (pageColumnPriority[key] !== undefined) return pageColumnPriority[key];
     if (COLUMN_PRIORITY[key] !== undefined) return COLUMN_PRIORITY[key];
     if (isStatusKey(key)) return 1;
     if (isDateKey(key)) return 2;
@@ -2920,6 +3044,39 @@ const visibleColumns = computed<TableColumn[]>(() =>
     showAllColumns.value ? allColumns.value : allColumns.value.slice(0, 14),
 );
 const hasMoreColumns = computed(() => allColumns.value.length > 12);
+const { isCompact, toggleDensity } = useReportTableDensity();
+
+const isMobile = ref(false);
+let mobileMedia: MediaQueryList | null = null;
+const onMobileMediaChange = (event: MediaQueryListEvent) => {
+    isMobile.value = event.matches;
+};
+
+const mobileColumnKeys = computed(() => (
+    props.title === 'Pembayaran Ecommerce'
+        ? ['order_number', 'grand_total', 'payment_status']
+        : []
+));
+
+const displayColumns = computed<TableColumn[]>(() => {
+    if (!isMobile.value || mobileColumnKeys.value.length === 0) {
+        return visibleColumns.value;
+    }
+
+    const filtered = visibleColumns.value.filter((column) => mobileColumnKeys.value.includes(column.key));
+
+    return filtered.length > 0 ? filtered : visibleColumns.value;
+});
+
+onMounted(() => {
+    mobileMedia = window.matchMedia('(max-width: 767.98px)');
+    isMobile.value = mobileMedia.matches;
+    mobileMedia.addEventListener('change', onMobileMediaChange);
+});
+
+onBeforeUnmount(() => {
+    mobileMedia?.removeEventListener('change', onMobileMediaChange);
+});
 
 const loading = ref(false);
 const errorMessage = computed(() => String(props.data?.errorMessage ?? '').trim());
@@ -3257,7 +3414,7 @@ const selectDataset = (key: string) => {
                 </Link>
                 <Link href="/monitoring" class="monitor-back-link">
                     <i class="mdi mdi-arrow-left" aria-hidden="true"></i>
-                    Command Center
+                    Pusat Komando
                 </Link>
             </div>
         </header>
@@ -3421,6 +3578,17 @@ const selectDataset = (key: string) => {
                     </span>
                 </div>
 
+                <ReportPeriodPresets
+                    v-if="quickPeriodKeys"
+                    class="monitor-period-presets"
+                    :route="props.urls.index"
+                    :from-key="quickPeriodKeys.from"
+                    :to-key="quickPeriodKeys.to"
+                    :from="filterValues[quickPeriodKeys.from] ?? ''"
+                    :to="filterValues[quickPeriodKeys.to] ?? ''"
+                    :query="filterValues"
+                />
+
                 <form class="monitor-filter-grid" @submit.prevent="applyFilters">
                     <div
                         v-for="field in visibleFilterFields"
@@ -3570,7 +3738,7 @@ const selectDataset = (key: string) => {
 
                 <div v-if="financeSummary.channels?.length" class="monitor-finance-channels">
                     <h3>Rincian per kanal</h3>
-                    <div class="table-responsive">
+                    <div class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Rincian laporan per kanal">
                         <table class="table monitor-finance-table mb-0">
                             <thead>
                                 <tr>
@@ -3698,6 +3866,16 @@ const selectDataset = (key: string) => {
                 </div>
 
                 <div class="monitor-data-tools">
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary"
+                        :aria-pressed="isCompact"
+                        :title="isCompact ? 'Gunakan kepadatan nyaman' : 'Gunakan kepadatan ringkas'"
+                        @click="toggleDensity"
+                    >
+                        <i class="mdi" :class="isCompact ? 'mdi-table-large' : 'mdi-table'" aria-hidden="true"></i>
+                        {{ isCompact ? 'Ringkas' : 'Nyaman' }}
+                    </button>
                     <Link v-if="operationsUrl" :href="operationsUrl" class="btn btn-sm btn-outline-secondary">
                         <i class="mdi mdi-open-in-app" aria-hidden="true"></i>
                         Buka Operasional
@@ -3742,10 +3920,16 @@ const selectDataset = (key: string) => {
                 </button>
             </div>
 
-            <div v-if="loading" class="monitor-state" role="status" aria-live="polite">
-                <i class="mdi mdi-loading mdi-spin monitor-state-icon" aria-hidden="true"></i>
-                <strong>Memuat data</strong>
-                <p>Filter sedang diterapkan ke laporan.</p>
+            <div v-if="loading" class="monitor-loading" role="status" aria-live="polite">
+                <span class="visually-hidden">Memuat data laporan, filter sedang diterapkan.</span>
+                <div class="monitor-loading-table" aria-hidden="true">
+                    <div v-for="row in 6" :key="`loading-${row}`" class="monitor-loading-row">
+                        <span class="skeleton skeleton-text" style="width: 90%"></span>
+                        <span class="skeleton skeleton-text" style="width: 72%"></span>
+                        <span class="skeleton skeleton-text" style="width: 84%"></span>
+                        <span class="skeleton skeleton-text" style="width: 58%"></span>
+                    </div>
+                </div>
             </div>
 
             <div v-else-if="rows.length === 0" class="monitor-state">
@@ -3762,17 +3946,20 @@ const selectDataset = (key: string) => {
                 </button>
             </div>
 
-            <div v-else class="monitor-table-wrap">
-                <table class="table table-hover align-middle monitor-table mb-0">
+            <div v-else class="monitor-table-wrap report-table-scroll" :class="{ 'is-compact': isCompact }" tabindex="0" role="region" aria-label="Tabel data laporan">
+                <p v-if="isMobile && mobileColumnKeys.length" class="monitor-mobile-note">
+                    Tampilan mobile menampilkan kolom utama. Buka di desktop atau gunakan ekspor untuk rincian lengkap.
+                </p>
+                <table class="table table-hover align-middle monitor-table mb-0" :class="{ 'monitor-table-mobile': isMobile && mobileColumnKeys.length }">
                     <caption class="visually-hidden">Data {{ props.title }} - {{ activeDataset?.label ?? 'Data' }}</caption>
                     <thead>
                         <tr>
                             <th scope="col" class="monitor-row-number">#</th>
                             <th
-                                v-for="column in visibleColumns"
+                                v-for="(column, columnIndex) in displayColumns"
                                 :key="column.key"
                                 scope="col"
-                                :class="column.align"
+                                :class="[column.align, { 'monitor-cell-sticky': columnIndex === 0 }]"
                             >
                                 {{ column.label }}
                             </th>
@@ -3784,9 +3971,9 @@ const selectDataset = (key: string) => {
                         <tr v-for="(row, index) in rows" :key="`${activeDataset?.key ?? 'data'}-${row.id ?? row.uuid ?? index}`">
                             <td class="monitor-row-number">{{ rowStart + index }}</td>
                             <td
-                                v-for="column in visibleColumns"
+                                v-for="(column, columnIndex) in displayColumns"
                                 :key="column.key"
-                                :class="[column.align, { 'monitor-cell-wrap': column.wrap }]"
+                                :class="[column.align, { 'monitor-cell-wrap': column.wrap, 'monitor-cell-sticky': columnIndex === 0 }]"
                             >
                                 <template v-if="column.key === 'qty_reserved' && canOpenReservations(row)">
                                     <button
@@ -3905,7 +4092,7 @@ const selectDataset = (key: string) => {
 
                         <section v-if="detailRows.length" class="monitor-detail-products" aria-labelledby="monitor-detail-products-title">
                             <h3 id="monitor-detail-products-title">{{ detailSectionTitle }}</h3>
-                            <div class="table-responsive">
+                            <div class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel detail laporan">
                                 <table class="table table-sm align-middle monitor-detail-table mb-0">
                                     <thead>
                                         <tr>
@@ -4046,10 +4233,10 @@ const selectDataset = (key: string) => {
     gap: 0.4rem;
     margin-bottom: 0.55rem;
     color: var(--app-hero-eyebrow);
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .monitor-breadcrumb a {
@@ -4394,6 +4581,10 @@ const selectDataset = (key: string) => {
     font-weight: 700;
 }
 
+.monitor-period-presets {
+    margin-bottom: 0.75rem;
+}
+
 .monitor-filter-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
@@ -4550,10 +4741,10 @@ const selectDataset = (key: string) => {
 
 .monitor-summary-label {
     color: var(--app-muted);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-medium);
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .monitor-summary-value {
@@ -4625,10 +4816,38 @@ const selectDataset = (key: string) => {
     color: var(--app-accent-ink);
 }
 
+.monitor-loading {
+    padding: 1rem;
+}
+
+.monitor-loading-table {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+    border: 1px solid var(--app-border);
+    border-radius: var(--app-radius-lg);
+    background: var(--app-surface);
+}
+
+.monitor-loading-row {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr 0.8fr;
+    gap: 0.75rem;
+}
+
 .monitor-table-wrap {
     max-height: 68vh;
     overflow: auto;
     overscroll-behavior: contain;
+}
+
+.monitor-mobile-note {
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--app-border);
+    background: var(--app-surface-2);
+    color: var(--app-muted);
+    font-size: var(--app-text-xs);
 }
 
 .monitor-table {
@@ -4644,10 +4863,10 @@ const selectDataset = (key: string) => {
     border-bottom: 1px solid var(--app-border);
     background: var(--app-surface-2);
     color: var(--app-muted);
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    letter-spacing: 0;
+    text-transform: none;
     white-space: nowrap;
 }
 
@@ -4657,6 +4876,17 @@ const selectDataset = (key: string) => {
     color: var(--app-ink);
     vertical-align: middle;
     white-space: nowrap;
+}
+
+.monitor-table-wrap.is-compact .monitor-table thead th {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+}
+
+.monitor-table-wrap.is-compact .monitor-table tbody td {
+    padding-top: 0.3rem;
+    padding-bottom: 0.3rem;
+    font-size: var(--app-text-xs);
 }
 
 .monitor-table tbody tr:last-child td {
@@ -4840,6 +5070,43 @@ const selectDataset = (key: string) => {
     outline-offset: 2px;
 }
 
+@media (max-width: 991.98px) {
+    .monitor-table .monitor-row-number {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background: var(--app-surface);
+    }
+
+    .monitor-table thead .monitor-row-number {
+        z-index: 4;
+        background: var(--app-surface-2);
+    }
+
+    .monitor-table .monitor-cell-sticky {
+        position: sticky;
+        left: 3rem;
+        z-index: 3;
+        background: var(--app-surface);
+        box-shadow: 8px 0 12px -12px rgba(0, 0, 0, 0.35);
+    }
+
+    .monitor-table thead .monitor-cell-sticky {
+        z-index: 4;
+        background: var(--app-surface-2);
+    }
+
+    .monitor-table tbody tr:nth-child(even) .monitor-row-number,
+    .monitor-table tbody tr:nth-child(even) .monitor-cell-sticky {
+        background: color-mix(in srgb, var(--app-accent) 2.5%, var(--app-surface));
+    }
+
+    .monitor-table tbody tr:hover .monitor-row-number,
+    .monitor-table tbody tr:hover .monitor-cell-sticky {
+        background: var(--app-surface-2);
+    }
+}
+
 @media (max-width: 767.98px) {
     .monitor-header {
         align-items: flex-start;
@@ -4899,6 +5166,66 @@ const selectDataset = (key: string) => {
 
     .monitor-table-wrap {
         max-height: none;
+    }
+
+    .monitor-table.monitor-table-mobile {
+        min-width: 0;
+        width: 100%;
+        table-layout: fixed;
+        font-size: var(--app-text-xs);
+    }
+
+    .monitor-table.monitor-table-mobile thead th,
+    .monitor-table.monitor-table-mobile tbody td {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .monitor-table-mobile th:nth-child(1),
+    .monitor-table-mobile td:nth-child(1) {
+        display: none;
+    }
+
+    .monitor-table-mobile th:nth-child(2),
+    .monitor-table-mobile td:nth-child(2) {
+        width: 42%;
+    }
+
+    .monitor-table-mobile th:nth-child(3),
+    .monitor-table-mobile td:nth-child(3) {
+        width: 30%;
+    }
+
+    .monitor-table-mobile th:nth-child(4),
+    .monitor-table-mobile td:nth-child(4) {
+        width: 28%;
+    }
+
+    .monitor-table-mobile .monitor-badge {
+        padding-right: 0.35rem;
+        padding-left: 0.35rem;
+        font-size: 0.625rem;
+        white-space: nowrap;
+    }
+
+    .monitor-table-mobile th,
+    .monitor-table-mobile td {
+        padding: 0.4rem 0.3rem;
+    }
+
+    .monitor-table-mobile .monitor-row-number {
+        display: none;
+    }
+
+    .monitor-table-mobile .monitor-cell-sticky {
+        position: static;
+        box-shadow: none;
+    }
+
+    .monitor-table-mobile th,
+    .monitor-table-mobile td {
+        padding-right: 0.3rem;
+        padding-left: 0.3rem;
     }
 
     .monitor-footer {
@@ -4975,10 +5302,10 @@ const selectDataset = (key: string) => {
 .monitor-modal-footer { justify-content: flex-end; border-top: 1px solid var(--app-border); background: var(--app-surface-2); }
 .monitor-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.55rem; margin: 0 0 1rem; }
 .monitor-detail-grid > div { padding: 0.55rem 0.65rem; border: 1px solid var(--app-border); border-radius: 0.55rem; background: var(--app-surface-2); }
-.monitor-detail-grid dt { color: var(--app-muted); font-size: 0.66rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.monitor-detail-grid dd { margin: 0.15rem 0 0; font-size: 0.8rem; overflow-wrap: anywhere; }
-.monitor-detail-products h3 { margin: 0 0 0.5rem; font-size: 0.9rem; }
-.monitor-detail-table th { padding: 0.5rem 0.55rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.66rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.monitor-detail-grid dt { color: var(--app-muted); font-size: var(--app-text-xs); font-weight: var(--app-weight-medium); letter-spacing: 0; text-transform: none; }
+.monitor-detail-grid dd { margin: 0.15rem 0 0; font-size: var(--app-text-sm); overflow-wrap: anywhere; }
+.monitor-detail-products h3 { margin: 0 0 0.5rem; font-size: var(--app-text-md); }
+.monitor-detail-table th { padding: 0.5rem 0.55rem; background: var(--app-surface-2); color: var(--app-muted); font-size: var(--app-text-xs); letter-spacing: 0; font-weight: var(--app-weight-semibold); text-transform: none; white-space: nowrap; }
 .monitor-detail-table td { padding: 0.5rem 0.55rem; font-size: 0.78rem; vertical-align: middle; }
 @media (max-width: 767.98px) {
     .monitor-detail-grid { grid-template-columns: 1fr; }
@@ -5066,10 +5393,10 @@ const selectDataset = (key: string) => {
 .monitor-finance-kpi span {
     display: block;
     color: var(--app-muted);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-medium);
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .monitor-finance-step strong,
@@ -5171,10 +5498,10 @@ const selectDataset = (key: string) => {
     padding: 0.5rem 0.6rem;
     background: var(--app-surface-2);
     color: var(--app-muted);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    font-size: var(--app-text-xs);
+    font-weight: var(--app-weight-semibold);
+    letter-spacing: 0;
+    text-transform: none;
     white-space: nowrap;
 }
 

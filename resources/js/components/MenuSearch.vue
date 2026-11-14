@@ -759,7 +759,7 @@ onBeforeUnmount(() => {
         aria-controls="menu-search-dialog"
         aria-keyshortcuts="Control+K Meta+K"
         :aria-expanded="open"
-        :aria-label="strings.triggerLabel"
+        :aria-label="`${strings.triggerLabel} (${shortcutHint})`"
         :title="`${strings.triggerLabel} (${shortcutHint})`"
         @click="openDialog"
     >

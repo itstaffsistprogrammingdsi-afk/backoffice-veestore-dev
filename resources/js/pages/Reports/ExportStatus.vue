@@ -115,7 +115,7 @@ const statusLabel = (status: string) => {
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .report-header h1 {

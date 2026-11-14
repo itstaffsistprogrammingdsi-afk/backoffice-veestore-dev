@@ -26,7 +26,7 @@ const yAxis = computed(() => {
 
     return {
         max: step * 3,
-        ticks: [0, step, step * 2, step * 3],
+        ticks: [step * 3, step * 2, step, 0],
     };
 });
 
