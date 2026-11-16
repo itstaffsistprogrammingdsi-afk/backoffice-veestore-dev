@@ -89,7 +89,7 @@ interface Props {
     statuses: string[];
     stores: Array<{ id: string; name: string; code: string | null }>;
     mdr: { credit_percent: number; debit_percent: number; settlement_days: number };
-    readiness: { has_edc_bca_method: boolean; method_names: string[] };
+    readiness: { has_edc_method: boolean; method_names: string[] };
     filters: {
         q: string;
         store_id: string | null;
@@ -192,14 +192,14 @@ const exportUrl = computed(() => {
 </script>
 
 <template>
-    <Head title="EDC BCA" />
+    <Head title="EDC" />
 
     <div class="edc-page">
         <section class="edc-header">
             <div>
                 <span class="edc-eyebrow">Monitoring / Pembayaran</span>
-                <h1>EDC BCA</h1>
-                <p>Pantau transaksi kartu BCA dari EDC/POS, lengkap dengan terminal, approval code, estimasi MDR, dan settlement.</p>
+                <h1>EDC</h1>
+                <p>Pantau transaksi kartu debit/kredit lewat EDC/POS dari semua acquirer, lengkap dengan terminal, approval code, estimasi MDR, dan settlement.</p>
             </div>
             <div class="edc-header-actions">
                 <Link :href="props.urls.payments_page" class="edc-button edc-button-light">
@@ -211,11 +211,11 @@ const exportUrl = computed(() => {
             </div>
         </section>
 
-        <div v-if="!props.readiness.has_edc_bca_method" class="edc-readiness mb-3">
+        <div v-if="!props.readiness.has_edc_method" class="edc-readiness mb-3">
             <i class="mdi mdi-credit-card-off-outline"></i>
             <div>
-                <strong>Metode EDC BCA belum terdaftar</strong>
-                <p>Transaksi BCA CC/BCA DEBIT tetap dipantau. Tambahkan metode <b>EDC BCA</b> di master data agar terminal EDC dapat dikenali terpisah.</p>
+                <strong>Metode EDC belum terdaftar</strong>
+                <p>Transaksi kartu debit/kredit tetap dipantau. Tambahkan metode <b>EDC</b> di master data agar terminal EDC dapat dikenali terpisah.</p>
             </div>
             <Link :href="props.urls.payment_methods" class="btn btn-sm btn-outline-primary">Kelola Metode</Link>
         </div>
@@ -272,7 +272,7 @@ const exportUrl = computed(() => {
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="edc-method">Metode</label>
-                        <SearchableSelect id="edc-method" v-model="filters.method_id" :options="methodOptions" placeholder="Semua metode BCA" search-placeholder="Cari metode..." aria-label="Filter metode pembayaran" />
+                        <SearchableSelect id="edc-method" v-model="filters.method_id" :options="methodOptions" placeholder="Semua metode EDC" search-placeholder="Cari metode..." aria-label="Filter metode pembayaran" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="edc-status">Status</label>
@@ -301,14 +301,14 @@ const exportUrl = computed(() => {
             <div class="col-12 col-xl-8">
                 <div class="card edc-card h-100">
                     <div class="edc-card-header">
-                        <div><h2>Transaksi EDC BCA</h2><p>Klik detail untuk melihat metadata terminal dan approval.</p></div>
+                        <div><h2>Transaksi EDC</h2><p>Klik detail untuk melihat metadata terminal dan approval.</p></div>
                         <span class="edc-card-meta">{{ formatNumber(props.rows.total) }} transaksi</span>
                     </div>
 
                     <div v-if="props.rows.data.length === 0" class="edc-empty">
                         <i class="mdi mdi-credit-card-off-outline"></i>
-                        <strong>Belum ada transaksi EDC BCA</strong>
-                        <span>Transaksi akan muncul setelah POS mengirim pembayaran BCA CC/DEBIT/EDC.</span>
+                        <strong>Belum ada transaksi EDC</strong>
+                        <span>Transaksi akan muncul setelah POS mengirim pembayaran EDC/kartu debit/kredit.</span>
                     </div>
 
                     <div v-else class="table-responsive">
@@ -382,7 +382,7 @@ const exportUrl = computed(() => {
 
             <div class="col-12 col-xl-4">
                 <div class="card edc-card mb-3">
-                    <div class="edc-card-header"><div><h2>Per Metode</h2><p>Estimasi MDR dan settlement per metode BCA.</p></div></div>
+                    <div class="edc-card-header"><div><h2>Per Metode</h2><p>Estimasi MDR dan settlement per metode EDC.</p></div></div>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 edc-mini-table">
                             <thead><tr><th>Metode</th><th class="text-end">Trx</th><th class="text-end">Settlement</th></tr></thead>
@@ -399,7 +399,7 @@ const exportUrl = computed(() => {
                 </div>
 
                 <div class="card edc-card">
-                    <div class="edc-card-header"><div><h2>Per Toko</h2><p>Nominal transaksi BCA per toko.</p></div></div>
+                    <div class="edc-card-header"><div><h2>Per Toko</h2><p>Nominal transaksi EDC per toko.</p></div></div>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 edc-mini-table">
                             <thead><tr><th>Toko</th><th class="text-end">Trx</th><th class="text-end">Gross</th></tr></thead>
@@ -419,7 +419,7 @@ const exportUrl = computed(() => {
 
         <div class="edc-note">
             <i class="mdi mdi-information-outline"></i>
-            <span>MDR adalah estimasi dari konfigurasi backoffice, bukan nilai settlement bank final. Ubah persentase melalui environment <code>BACKOFFICE_EDC_BCA_CREDIT_MDR_PERCENT</code> dan <code>BACKOFFICE_EDC_BCA_DEBIT_MDR_PERCENT</code>.</span>
+            <span>MDR adalah estimasi dari konfigurasi backoffice, bukan nilai settlement bank final. Ubah persentase melalui environment <code>BACKOFFICE_EDC_CREDIT_MDR_PERCENT</code> dan <code>BACKOFFICE_EDC_DEBIT_MDR_PERCENT</code>.</span>
         </div>
     </div>
 </template>

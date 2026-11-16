@@ -2,24 +2,33 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use Inertia\Inertia;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 
 class AnomalyItemMonitoringController extends Controller
 {
+    private const SNAPSHOT_TABLE = 'anomaly_item_snapshot';
+
     public function index(Request $request)
     {
         $filters = $this->getFilters($request);
 
-        $rows = $this->buildAnomalyQuery($filters)
-            ->paginate($filters['per_page'])
-            ->withQueryString();
+        [$rows, $summary, $demographicData] = DB::transaction(function () use ($filters): array {
+            $this->materializeSnapshot($filters);
 
-        $summary = $this->getSummary($filters);
-        $demographicData = $this->getDemographicData($filters);
+            $rows = DB::table(self::SNAPSHOT_TABLE)
+                ->orderByDesc('risk_score')
+                ->orderByDesc('location_move_count')
+                ->orderByDesc('damage_condition_count')
+                ->orderBy('product_name')
+                ->paginate($filters['per_page'])
+                ->withQueryString();
+
+            return [$rows, $this->getSummary(), $this->getDemographicData()];
+        });
 
         $locations = DB::table('locations')
             ->when(Schema::hasColumn('locations', 'deleted_at'), function ($q) {
@@ -39,28 +48,28 @@ class AnomalyItemMonitoringController extends Controller
             'title' => 'Anomali Item',
             'description' => 'Laporan monitoring.',
             'data' => [
-            'rows' => $rows,
-            'summary' => $summary,
-            'demographicSummary' => $demographicData['summary'],
-            'productDemographicRows' => $demographicData['products'],
-            'areaDemographicRows' => $demographicData['areas'],
-            'conditionDemographicRows' => $demographicData['conditions'],
-            'anomalyDemographicRows' => $demographicData['anomalies'],
-            'riskDemographicRows' => $demographicData['risks'],
-            'locations' => $locations,
-            'conditions' => $conditions,
+                'rows' => $rows,
+                'summary' => $summary,
+                'demographicSummary' => $demographicData['summary'],
+                'productDemographicRows' => $demographicData['products'],
+                'areaDemographicRows' => $demographicData['areas'],
+                'conditionDemographicRows' => $demographicData['conditions'],
+                'anomalyDemographicRows' => $demographicData['anomalies'],
+                'riskDemographicRows' => $demographicData['risks'],
+                'locations' => $locations,
+                'conditions' => $conditions,
 
-            'q' => $filters['q'],
-            'locationId' => $filters['location_id'],
-            'conditionId' => $filters['condition_id'],
-            'anomalyType' => $filters['anomaly_type'],
-            'startDate' => $filters['start_date'],
-            'endDate' => $filters['end_date'],
-            'minMoveCount' => $filters['min_move_count'],
-            'minDamageCount' => $filters['min_damage_count'],
-            'perPage' => $filters['per_page'],
-            'lastUpdate' => now()->format('d-m-Y H:i:s'),
-        ],
+                'q' => $filters['q'],
+                'locationId' => $filters['location_id'],
+                'conditionId' => $filters['condition_id'],
+                'anomalyType' => $filters['anomaly_type'],
+                'startDate' => $filters['start_date'],
+                'endDate' => $filters['end_date'],
+                'minMoveCount' => $filters['min_move_count'],
+                'minDamageCount' => $filters['min_damage_count'],
+                'perPage' => $filters['per_page'],
+                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+            ],
             'filters' => request()->query(),
             'urls' => ['index' => url()->current()],
         ]);
@@ -107,7 +116,7 @@ class AnomalyItemMonitoringController extends Controller
 
         $itemData = $itemData->first();
 
-        abort_if(!$itemData, 404);
+        abort_if(! $itemData, 404);
 
         $locationHistories = DB::table('item_location_histories as ilh')
             ->leftJoin('locations as l', 'l.id', '=', 'ilh.location_id')
@@ -192,7 +201,7 @@ class AnomalyItemMonitoringController extends Controller
     {
         $perPage = (int) ($request->query('per_page', 10) ?: 10);
 
-        if (!in_array($perPage, [10, 25, 50, 100, 200], true)) {
+        if (! in_array($perPage, [10, 25, 50, 100, 200], true)) {
             $perPage = 10;
         }
 
@@ -402,27 +411,27 @@ class AnomalyItemMonitoringController extends Controller
             ->orderBy('p.name');
     }
 
-    private function getDemographicData(array $filters): array
+    private function getDemographicData(): array
     {
         $summary = DB::query()
-            ->fromSub($this->buildAnomalyQuery($filters), 'x')
-            ->selectRaw("COUNT(*)::int AS total_anomaly_item")
-            ->selectRaw("COUNT(DISTINCT x.product_id)::int AS total_product_affected")
-            ->selectRaw("COUNT(DISTINCT x.current_location_id)::int AS total_location_affected")
-            ->selectRaw("COALESCE(SUM(x.location_move_count), 0)::int AS total_location_move")
-            ->selectRaw("COALESCE(SUM(x.damage_condition_count), 0)::int AS total_damage_event")
-            ->selectRaw("COALESCE(ROUND(AVG(x.risk_score)::numeric, 2), 0) AS average_risk_score")
+            ->from(self::SNAPSHOT_TABLE.' as x')
+            ->selectRaw('COUNT(*)::int AS total_anomaly_item')
+            ->selectRaw('COUNT(DISTINCT x.product_id)::int AS total_product_affected')
+            ->selectRaw('COUNT(DISTINCT x.current_location_id)::int AS total_location_affected')
+            ->selectRaw('COALESCE(SUM(x.location_move_count), 0)::int AS total_location_move')
+            ->selectRaw('COALESCE(SUM(x.damage_condition_count), 0)::int AS total_damage_event')
+            ->selectRaw('COALESCE(ROUND(AVG(x.risk_score)::numeric, 2), 0) AS average_risk_score')
             ->first();
 
         $products = DB::query()
-            ->fromSub($this->buildAnomalyQuery($filters), 'x')
+            ->from(self::SNAPSHOT_TABLE.' as x')
             ->selectRaw("COALESCE(x.product_name, 'Produk Tidak Diketahui') AS label")
             ->selectRaw("COALESCE(x.product_code, '-') AS code")
-            ->selectRaw("COUNT(*)::int AS total_item")
-            ->selectRaw("COUNT(CASE WHEN x.risk_score >= 5 THEN 1 END)::int AS high_risk_item")
-            ->selectRaw("COALESCE(SUM(x.location_move_count), 0)::int AS total_move")
-            ->selectRaw("COALESCE(SUM(x.damage_condition_count), 0)::int AS total_damage")
-            ->selectRaw("COALESCE(MAX(x.risk_score), 0)::int AS max_risk")
+            ->selectRaw('COUNT(*)::int AS total_item')
+            ->selectRaw('COUNT(CASE WHEN x.risk_score >= 5 THEN 1 END)::int AS high_risk_item')
+            ->selectRaw('COALESCE(SUM(x.location_move_count), 0)::int AS total_move')
+            ->selectRaw('COALESCE(SUM(x.damage_condition_count), 0)::int AS total_damage')
+            ->selectRaw('COALESCE(MAX(x.risk_score), 0)::int AS max_risk')
             ->groupBy('label', 'code')
             ->orderByDesc('total_item')
             ->orderByDesc('max_risk')
@@ -430,39 +439,39 @@ class AnomalyItemMonitoringController extends Controller
             ->get();
 
         $areas = DB::query()
-            ->fromSub($this->buildAnomalyQuery($filters), 'x')
+            ->from(self::SNAPSHOT_TABLE.' as x')
             ->selectRaw("COALESCE(x.current_area_label, 'Lokasi Lain') AS label")
-            ->selectRaw("COUNT(*)::int AS total_item")
-            ->selectRaw("COUNT(DISTINCT x.product_id)::int AS total_product")
-            ->selectRaw("COUNT(CASE WHEN x.risk_score >= 5 THEN 1 END)::int AS high_risk_item")
+            ->selectRaw('COUNT(*)::int AS total_item')
+            ->selectRaw('COUNT(DISTINCT x.product_id)::int AS total_product')
+            ->selectRaw('COUNT(CASE WHEN x.risk_score >= 5 THEN 1 END)::int AS high_risk_item')
             ->groupBy('label')
             ->orderByDesc('total_item')
             ->get();
 
         $conditions = DB::query()
-            ->fromSub($this->buildAnomalyQuery($filters), 'x')
+            ->from(self::SNAPSHOT_TABLE.' as x')
             ->selectRaw("COALESCE(x.current_condition_name, 'Kondisi Tidak Diisi') AS label")
-            ->selectRaw("COUNT(*)::int AS total_item")
-            ->selectRaw("COUNT(CASE WHEN x.risk_score >= 5 THEN 1 END)::int AS high_risk_item")
+            ->selectRaw('COUNT(*)::int AS total_item')
+            ->selectRaw('COUNT(CASE WHEN x.risk_score >= 5 THEN 1 END)::int AS high_risk_item')
             ->groupBy('label')
             ->orderByDesc('total_item')
             ->limit(8)
             ->get();
 
         $anomalies = DB::query()
-            ->fromSub($this->buildAnomalyQuery($filters), 'x')
+            ->from(self::SNAPSHOT_TABLE.' as x')
             ->selectRaw("COALESCE(x.anomaly_label, 'Normal') AS label")
-            ->selectRaw("COUNT(*)::int AS total_item")
-            ->selectRaw("COUNT(DISTINCT x.product_id)::int AS total_product")
+            ->selectRaw('COUNT(*)::int AS total_item')
+            ->selectRaw('COUNT(DISTINCT x.product_id)::int AS total_product')
             ->groupBy('label')
             ->orderByDesc('total_item')
             ->get();
 
         $risks = DB::query()
-            ->fromSub($this->buildAnomalyQuery($filters), 'x')
+            ->from(self::SNAPSHOT_TABLE.' as x')
             ->selectRaw("CASE WHEN x.risk_score >= 5 THEN 'Risiko Tinggi' WHEN x.risk_score = 4 THEN 'Perlu Dicek' WHEN x.risk_score >= 3 THEN 'Risiko Sedang' ELSE 'Normal' END AS label")
-            ->selectRaw("COUNT(*)::int AS total_item")
-            ->selectRaw("COUNT(DISTINCT x.product_id)::int AS total_product")
+            ->selectRaw('COUNT(*)::int AS total_item')
+            ->selectRaw('COUNT(DISTINCT x.product_id)::int AS total_product')
             ->groupBy('label')
             ->orderByDesc('total_item')
             ->get();
@@ -477,18 +486,36 @@ class AnomalyItemMonitoringController extends Controller
         ];
     }
 
-    private function getSummary(array $filters)
+    private function materializeSnapshot(array $filters): void
     {
-        $base = $this->buildAnomalyQuery($filters);
+        // Postgres underestimates the condition aggregate and turns it into a
+        // nested loop that re-aggregates for every item. Force hash joins for
+        // this transaction so the page stays within the gateway timeout.
+        DB::statement('SET LOCAL enable_nestloop = off');
 
+        $query = $this->buildAnomalyQuery($filters)->reorder();
+
+        DB::statement('DROP TABLE IF EXISTS '.self::SNAPSHOT_TABLE);
+        DB::statement(
+            'CREATE TEMP TABLE '.self::SNAPSHOT_TABLE.' ON COMMIT DROP AS '.$query->toSql(),
+            $query->getBindings()
+        );
+
+        DB::statement('CREATE INDEX ON '.self::SNAPSHOT_TABLE.' (risk_score DESC, location_move_count DESC, damage_condition_count DESC, product_name)');
+        DB::statement('CREATE INDEX ON '.self::SNAPSHOT_TABLE.' (product_id)');
+        DB::statement('CREATE INDEX ON '.self::SNAPSHOT_TABLE.' (anomaly_label)');
+    }
+
+    private function getSummary()
+    {
         return DB::query()
-            ->fromSub($base, 'x')
+            ->from(self::SNAPSHOT_TABLE.' as x')
             ->selectRaw('COUNT(*)::int as total_item')
-            ->selectRaw("COUNT(CASE WHEN x.risk_score >= 3 THEN 1 END)::int as total_anomaly")
+            ->selectRaw('COUNT(CASE WHEN x.risk_score >= 3 THEN 1 END)::int as total_anomaly')
             ->selectRaw("COUNT(CASE WHEN x.anomaly_label = 'Sering pindah lokasi' THEN 1 END)::int as total_frequent_move")
             ->selectRaw("COUNT(CASE WHEN x.anomaly_label = 'Indikasi salah naruh / lokasi tidak sinkron' THEN 1 END)::int as total_location_mismatch")
             ->selectRaw("COUNT(CASE WHEN x.anomaly_label = 'Kondisi sering rusak' THEN 1 END)::int as total_frequent_damage")
-            ->selectRaw("COUNT(CASE WHEN x.repaired_then_damaged_count > 0 THEN 1 END)::int as total_repaired_then_damaged")
+            ->selectRaw('COUNT(CASE WHEN x.repaired_then_damaged_count > 0 THEN 1 END)::int as total_repaired_then_damaged')
             ->first();
     }
 
@@ -596,7 +623,7 @@ class AnomalyItemMonitoringController extends Controller
 
     private function normalizeDate($value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

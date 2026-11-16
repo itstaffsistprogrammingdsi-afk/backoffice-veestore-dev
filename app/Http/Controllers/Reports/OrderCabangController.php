@@ -30,51 +30,76 @@ class OrderCabangController extends Controller
         'partial_received',
     ];
 
+    private const STATUS_LABELS = [
+        'draft' => 'Draft',
+        'requested' => 'Menunggu approval',
+        'approved' => 'Disetujui',
+        'partial_approved' => 'Disetujui sebagian',
+        'rejected' => 'Ditolak',
+        'processing' => 'Diproses',
+        'packing' => 'Packing',
+        'shipped' => 'Dikirim',
+        'received' => 'Diterima',
+        'partial_received' => 'Diterima sebagian',
+        'cancelled' => 'Dibatalkan',
+    ];
+
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
 
         $status = $request->has('status')
-            ? trim((string) $request->query('status', ''))
-            : 'requested';
+            ? strtolower(trim((string) $request->query('status', '')))
+            : '';
 
-        $statusLower = strtolower($status);
-
-        if ($status !== '' && ! in_array($statusLower, self::VALID_STATUSES, true)) {
-            $status = 'requested';
-            $statusLower = 'requested';
+        if ($status !== '' && ! in_array($status, self::VALID_STATUSES, true)) {
+            $status = '';
         }
 
-        $hasCustomDate = $request->filled('from') || $request->filled('to');
+        $from = $request->query('from') ?: null;
+        $to = $request->query('to') ?: null;
 
-        if ($hasCustomDate) {
-            $from = $request->query('from') ?: now()->startOfMonth()->toDateString();
-            $to = $request->query('to') ?: now()->toDateString();
-        } else {
-            if ($statusLower === 'requested') {
-                $from = null;
-                $to = null;
-            } else {
-                $from = now()->startOfMonth()->toDateString();
-                $to = now()->toDateString();
-            }
+        if ($from && $to && $from > $to) {
+            [$from, $to] = [$to, $from];
         }
+
+        $dateExpression = 'COALESCE(date, requested_at::date, created_at::date)';
 
         $orders = StoreOrder::with(['store:id,name', 'warehouse:id,name'])
             ->whereRaw("COALESCE(order_number, '') NOT LIKE 'TRF-%'")
             ->withSum('details', 'requested_qty')
+            ->withSum('details', 'approved_qty')
+            ->withSum('details', 'received_qty')
             ->when($q !== '', function ($qq) use ($q) {
                 $qq->where('order_number', 'ILIKE', "%{$q}%");
             })
             ->when($status !== '', function ($qq) use ($status) {
                 $qq->where('status', $status);
             })
-            ->when($from && $to, function ($qq) use ($from, $to) {
-                $qq->whereBetween('date', [$from, $to]);
-            })
+            ->when($from, fn ($qq) => $qq->whereRaw("{$dateExpression} >= ?", [$from]))
+            ->when($to, fn ($qq) => $qq->whereRaw("{$dateExpression} <= ?", [$to]))
             ->orderByDesc('created_at')
             ->paginate(10)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (StoreOrder $order): array => [
+                'id' => (string) $order->id,
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'status_label' => self::STATUS_LABELS[$order->status] ?? $order->status,
+                'date' => optional($order->date)->toDateString(),
+                'created_at' => optional($order->created_at)->toIso8601String(),
+                'store' => $order->store ? [
+                    'id' => (string) $order->store->id,
+                    'name' => $order->store->name,
+                ] : null,
+                'warehouse' => $order->warehouse ? [
+                    'id' => (string) $order->warehouse->id,
+                    'name' => $order->warehouse->name,
+                ] : null,
+                'requested_qty' => (int) ($order->details_sum_requested_qty ?? 0),
+                'approved_qty' => (int) ($order->details_sum_approved_qty ?? 0),
+                'received_qty' => (int) ($order->details_sum_received_qty ?? 0),
+            ]);
 
         $stores = DB::table('stores')->orderBy('name')->get(['id', 'name']);
 
@@ -144,6 +169,7 @@ class OrderCabangController extends Controller
             'id' => $order->id,
             'order_number' => $order->order_number,
             'status' => $order->status,
+            'status_label' => self::STATUS_LABELS[$order->status] ?? $order->status,
             'date' => optional($order->date)->toDateString(),
             'store_id' => $order->store_id,
             'warehouse_id' => $order->warehouse_id,

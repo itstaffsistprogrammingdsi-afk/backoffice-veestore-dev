@@ -126,8 +126,8 @@ final class EdcMetadata
         $debit = str_contains(strtolower($methodName), 'debit');
 
         $rate = $debit
-            ? (float) config('backoffice.edc_bca.debit_mdr_percent', 1.0)
-            : (float) config('backoffice.edc_bca.credit_mdr_percent', 2.0);
+            ? (float) config('backoffice.edc.debit_mdr_percent', 1.0)
+            : (float) config('backoffice.edc.credit_mdr_percent', 2.0);
 
         return max(0, min(100, $rate));
     }

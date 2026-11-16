@@ -5,7 +5,7 @@ namespace App\Domain\Payments\Queries;
 use App\Domain\Payments\Support\EdcMetadata;
 use Illuminate\Support\Facades\DB;
 
-class EdcBcaQuery
+class EdcQuery
 {
     public function build(
         string $q,
@@ -24,8 +24,8 @@ class EdcBcaQuery
             ->withQueryString()
             ->through(fn (object $row): object => $this->transformRow($row));
 
-        $creditRate = (float) config('backoffice.edc_bca.credit_mdr_percent', 2.0);
-        $debitRate = (float) config('backoffice.edc_bca.debit_mdr_percent', 1.0);
+        $creditRate = (float) config('backoffice.edc.credit_mdr_percent', 2.0);
+        $debitRate = (float) config('backoffice.edc.debit_mdr_percent', 1.0);
 
         $summary = DB::query()
             ->fromSub((clone $base)->reorder(), 'rows')
@@ -115,10 +115,10 @@ class EdcBcaQuery
             'mdr' => [
                 'credit_percent' => $creditRate,
                 'debit_percent' => $debitRate,
-                'settlement_days' => (int) config('backoffice.edc_bca.settlement_days', 1),
+                'settlement_days' => (int) config('backoffice.edc.settlement_days', 1),
             ],
             'readiness' => [
-                'has_edc_bca_method' => $methods->contains(fn (object $method): bool => str_contains(strtolower($method->name), 'edc')),
+                'has_edc_method' => $methods->contains(fn (object $method): bool => str_contains(strtolower($method->name), 'edc')),
                 'method_names' => $methods->pluck('name')->values()->all(),
             ],
             'filters' => [

@@ -20,7 +20,7 @@ Durasi target: 30–40 menit termasuk demo dan tanya jawab.
 - Satu backoffice untuk master data, operasional, dan laporan.
 - Alur transfer toko yang tercatat.
 - Kontrol max diskon lintas kanal.
-- Rekonsiliasi EDC BCA.
+- Rekonsiliasi EDC.
 - Laporan pembelian per shift.
 - Halaman kesiapan integrasi.
 
@@ -49,7 +49,7 @@ Demo: buat transfer, setujui, kirim, terima.
 
 Demo: filter mismatch, samakan ke global.
 
-## Slide 7 — EDC BCA
+## Slide 7 — EDC
 
 - Metadata terminal, approval code, batch, dan kartu.
 - Estimasi MDR kredit dan debit.

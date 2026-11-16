@@ -14,11 +14,14 @@ interface OrderRow {
     id: string;
     order_number: string | null;
     status: string;
+    status_label: string;
     date: string | null;
     created_at: string | null;
     store: Option | null;
     warehouse: Option | null;
-    details_sum_requested_qty: number | null;
+    requested_qty: number;
+    approved_qty: number;
+    received_qty: number;
 }
 
 interface DetailRow {
@@ -89,7 +92,7 @@ const apply = () => {
 
 const reset = () => {
     form.q = '';
-    form.status = 'requested';
+    form.status = '';
     form.from = '';
     form.to = '';
     apply();
@@ -147,6 +150,20 @@ const statusClass = (status: string) => {
     return 'bg-warning';
 };
 
+const statusLabel = (status: string) => ({
+    draft: 'Draft',
+    requested: 'Menunggu approval',
+    approved: 'Disetujui',
+    partial_approved: 'Disetujui sebagian',
+    rejected: 'Ditolak',
+    processing: 'Diproses',
+    packing: 'Packing',
+    shipped: 'Dikirim',
+    received: 'Diterima',
+    partial_received: 'Diterima sebagian',
+    cancelled: 'Dibatalkan',
+}[status] ?? status);
+
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value)) : '-';
 const formatNumber = (value: number | null | undefined) => new Intl.NumberFormat('id-ID').format(Number(value ?? 0));
 
@@ -157,13 +174,17 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
     { key: 'warehouse', label: 'Warehouse' },
     { key: 'status', label: 'Status' },
     { key: 'requested_quantity', label: 'Qty Diminta' },
+    { key: 'approved_quantity', label: 'Qty Disetujui' },
+    { key: 'received_quantity', label: 'Qty Diterima' },
 ], props.orders.data.map((order) => ({
     order_number: order.order_number ?? order.id,
     date: order.date ?? order.created_at,
     store: order.store?.name ?? '',
     warehouse: order.warehouse?.name ?? '',
-    status: order.status,
-    requested_quantity: Number(order.details_sum_requested_qty ?? 0),
+    status: order.status_label || statusLabel(order.status),
+    requested_quantity: Number(order.requested_qty ?? 0),
+    approved_quantity: Number(order.approved_qty ?? 0),
+    received_quantity: Number(order.received_qty ?? 0),
 })), {
     title: 'Order Cabang',
     filters: [
@@ -196,7 +217,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="apply">
                     <div class="col-md-3"><label class="form-label">Cari</label><input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Order number..." /></div>
-                    <div class="col-md-2"><label class="form-label">Status</label><select v-model="form.status" class="form-select form-select-sm"><option value="">Semua</option><option v-for="status in statuses" :key="status" :value="status">{{ status }}</option></select></div>
+                    <div class="col-md-2"><label class="form-label">Status</label><select v-model="form.status" class="form-select form-select-sm"><option value="">Semua</option><option v-for="status in statuses" :key="status" :value="status">{{ statusLabel(status) }}</option></select></div>
                     <div class="col-md-2"><label class="form-label">Dari</label><input v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label class="form-label">Sampai</label><input v-model="form.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Filter</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="reset">Reset</button></div>
@@ -207,18 +228,20 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
         <div class="card report-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Order</th><th>Tanggal</th><th>Store</th><th>Warehouse</th><th>Status</th><th class="text-end">Qty</th><th>Aksi</th></tr></thead>
+                    <thead><tr><th>Order</th><th>Tanggal</th><th>Store</th><th>Warehouse</th><th>Status</th><th class="text-end">Diminta</th><th class="text-end">Disetujui</th><th class="text-end">Diterima</th><th>Aksi</th></tr></thead>
                     <tbody>
                         <tr v-for="order in orders.data" :key="order.id">
                             <td class="fw-semibold">{{ order.order_number ?? order.id }}</td>
-                            <td>{{ formatDate(order.date) }}</td>
+                            <td>{{ formatDate(order.date ?? order.created_at) }}</td>
                             <td>{{ order.store?.name ?? '-' }}</td>
                             <td>{{ order.warehouse?.name ?? '-' }}</td>
-                            <td><span class="badge" :class="statusClass(order.status)">{{ order.status }}</span></td>
-                            <td class="text-end">{{ formatNumber(order.details_sum_requested_qty) }}</td>
+                            <td><span class="badge" :class="statusClass(order.status)">{{ order.status_label || statusLabel(order.status) }}</span></td>
+                            <td class="text-end">{{ formatNumber(order.requested_qty) }}</td>
+                            <td class="text-end">{{ formatNumber(order.approved_qty) }}</td>
+                            <td class="text-end">{{ formatNumber(order.received_qty) }}</td>
                             <td><button class="btn btn-sm btn-outline-primary" type="button" @click="openOrder(order)">Kelola</button></td>
                         </tr>
-                        <tr v-if="orders.data.length === 0"><td colspan="7" class="report-empty">Belum ada order.</td></tr>
+                        <tr v-if="orders.data.length === 0"><td colspan="9" class="report-empty">Belum ada order.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -227,7 +250,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
 
         <div v-if="selected" class="card report-card mt-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Order {{ selected.order_number ?? selected.id }}</h6>
+                <h6 class="mb-0">Order {{ selected.order_number ?? selected.id }} <span class="badge ms-2" :class="statusClass(selected.status)">{{ selected.status_label || statusLabel(selected.status) }}</span></h6>
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeOrder">Tutup</button>
             </div>
             <div class="card-body">
