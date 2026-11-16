@@ -37,7 +37,7 @@ class Navigation
                     'key' => 'reports',
                     'label' => 'Laporan',
                     'description' => 'Analitik, pemantauan, dan ekspor',
-                    'url' => self::url('reports.index'),
+                    'url' => self::url('reports.business-overview.index'),
                     'icon' => 'mdi-chart-box-outline',
                     'groups' => self::filterGroups(self::reportsGroups($user)),
                 ],
@@ -200,7 +200,7 @@ class Navigation
                     ['SLA Pembayaran', 'monitoring.payment-sla.index', 'mdi-timer-sand-complete', null],
                     ['Shift Kasir', 'monitoring.cashier-shift-report.index', 'mdi-account-clock-outline', null],
                     ['Pembelian per Shift', 'monitoring.shift-purchases.index', 'mdi-basket-outline', 'view monitoring-cashier-shift-report'],
-                    ['Void & Cancel', 'monitoring.void-cancel-customer.index', 'mdi-cancel', null],
+                    ['Void & Pembatalan', 'monitoring.void-cancel-customer.index', 'mdi-cancel', null],
                 ]),
             ],
             [
@@ -245,8 +245,8 @@ class Navigation
                 'icon' => 'mdi-clipboard-check-outline',
                 'items' => self::items($user, [
                     ['Pesanan Cabang', 'reports.order-cabang.index', 'mdi-clipboard-list-outline', null],
-                    ['Order Handled', 'monitoring.order-handled.index', 'mdi-clipboard-check-multiple-outline', null],
-                    ['Fulfillment & SLA', 'monitoring.fulfillment-control.index', 'mdi-truck-check-outline', null],
+                    ['Pesanan Ditangani', 'monitoring.order-handled.index', 'mdi-clipboard-check-multiple-outline', null],
+                    ['Pemenuhan & SLA', 'monitoring.fulfillment-control.index', 'mdi-truck-check-outline', null],
                 ]),
             ],
             [
@@ -254,7 +254,7 @@ class Navigation
                 'icon' => 'mdi-shield-account-outline',
                 'items' => self::items($user, [
                     ['Akses Pengguna Harian', 'monitoring.user-monitoring.index', 'mdi-account-clock-outline', null],
-                    ['Audit Pengguna Gudang', 'monitoring.warehouse-user-audit.index', 'mdi-warehouse-cog', null],
+                    ['Audit Pengguna Gudang', 'monitoring.warehouse-user-audit.index', 'mdi-clipboard-account-outline', null],
                     ['Audit Center', 'monitoring.audit-center.index', 'mdi-shield-search', null],
                     ['Kesiapan Presentasi', 'management.presentation-readiness.index', 'mdi-presentation', null],
                     ['Riwayat Perubahan Master', 'monitoring.master-change-history.index', 'mdi-history', null],

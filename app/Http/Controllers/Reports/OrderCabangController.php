@@ -32,12 +32,12 @@ class OrderCabangController extends Controller
 
     private const STATUS_LABELS = [
         'draft' => 'Draft',
-        'requested' => 'Menunggu approval',
+        'requested' => 'Diminta',
         'approved' => 'Disetujui',
         'partial_approved' => 'Disetujui sebagian',
         'rejected' => 'Ditolak',
         'processing' => 'Diproses',
-        'packing' => 'Packing',
+        'packing' => 'Dikemas',
         'shipped' => 'Dikirim',
         'received' => 'Diterima',
         'partial_received' => 'Diterima sebagian',

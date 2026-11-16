@@ -389,10 +389,10 @@ const followUps = computed(() => {
     color: var(--app-hero-text);
 }
 .monitoring-header-copy { max-width: 38rem; }
-.monitoring-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.monitoring-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
 .monitoring-header h1 { margin: 0 0 0.35rem; font-size: clamp(1.3rem, 2vw, 1.6rem); color: var(--app-hero-text); }
 .monitoring-header p { margin: 0; color: var(--app-hero-muted); }
-.monitoring-header-tools { display: flex; flex: 1 1 24rem; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem; }
+.monitoring-header-tools { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.5rem; }
 .monitoring-overview-link { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0.55rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface); color: var(--app-ink); font-size: 0.8rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .monitoring-overview-link:hover { background: var(--app-accent-soft); color: var(--app-accent-ink); }
 .monitoring-search { position: relative; flex: 1 1 20rem; max-width: 30rem; }
@@ -405,12 +405,12 @@ const followUps = computed(() => {
 .monitoring-meta { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 1rem; color: var(--app-muted); font-size: 0.8rem; }
 .monitoring-summary { padding: 1.1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-xl); background: var(--app-surface); }
 .monitoring-summary-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 0.9rem; }
-.monitoring-summary-kicker { display: inline-block; margin-bottom: 0.2rem; color: var(--app-accent-ink); font-size: var(--app-text-2xs); font-weight: var(--app-weight-black); letter-spacing: 0.01em; text-transform: uppercase; }
+.monitoring-summary-kicker { display: inline-block; margin-bottom: 0.2rem; color: var(--app-accent-ink); font-size: var(--app-text-2xs); font-weight: var(--app-weight-black); letter-spacing: 0.01em; text-transform: none; }
 .monitoring-summary-head h2 { margin: 0 0 0.15rem; font-size: var(--app-text-lg); }
 .monitoring-summary-head p { margin: 0; color: var(--app-muted); font-size: var(--app-text-sm); }
 .monitoring-summary-meta { color: var(--app-muted); font-size: var(--app-text-2xs); font-variant-numeric: tabular-nums; }
 .monitoring-kpi { display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 0.85rem 0.9rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); background: var(--app-surface-2); }
-.monitoring-kpi-label { color: var(--app-muted); font-size: var(--app-text-2xs); font-weight: var(--app-weight-bold); letter-spacing: 0.01em; text-transform: uppercase; }
+.monitoring-kpi-label { color: var(--app-muted); font-size: var(--app-text-2xs); font-weight: var(--app-weight-bold); letter-spacing: 0.01em; text-transform: none; }
 .monitoring-kpi-value { display: block; margin: 0.15rem 0; font-size: var(--app-text-xl); font-weight: var(--app-weight-black); font-variant-numeric: tabular-nums; line-height: 1.25; overflow-wrap: anywhere; }
 .monitoring-kpi small { color: var(--app-muted); font-size: var(--app-text-xs); }
 .monitoring-followup h3 { margin: 0 0 0.5rem; font-size: var(--app-text-base); }
@@ -431,7 +431,7 @@ const followUps = computed(() => {
 .monitoring-transfer-link { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2.4rem; padding: 0.45rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface); color: var(--app-accent-ink); font-size: 0.8rem; font-weight: 700; text-decoration: none; }
 .monitoring-transfer-link:hover { background: var(--app-accent-soft); }
 .monitoring-transfer-table { font-size: 0.8rem; }
-.monitoring-transfer-table th { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--app-border); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.monitoring-transfer-table th { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--app-border); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: none; white-space: nowrap; }
 .monitoring-transfer-table td { padding: 0.6rem 0.75rem; border-color: var(--app-border); vertical-align: middle; }
 .monitoring-transfer-table td small { display: block; color: var(--app-muted); font-size: 0.7rem; }
 .monitoring-transfer-overdue { color: var(--app-danger-ink); font-weight: 700; }

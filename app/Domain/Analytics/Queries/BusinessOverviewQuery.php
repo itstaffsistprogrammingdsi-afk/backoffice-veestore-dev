@@ -1199,14 +1199,33 @@ class BusinessOverviewQuery
         }
 
         return $items
-            ->map(function ($row) {
+            ->map(function ($row) use ($filters) {
                 $status = (string) $row->status;
                 $type = (string) $row->type;
 
+                $dateFilters = [
+                    'from' => $filters['date_from'],
+                    'to' => $filters['date_to'],
+                ];
+
                 $actionUrl = match ($type) {
-                    'Pesanan Ecommerce' => route('ecommerce.orders.show', $row->id),
-                    'Permintaan Store' => route('operations.store-orders.show', $row->id),
-                    'Retur Store' => route('operations.store-returns.show', $row->id),
+                    'Pesanan Ecommerce' => route('ecommerce.orders.index', [
+                        'q' => $row->reference,
+                        'from' => $dateFilters['from'],
+                        'to' => $dateFilters['to'],
+                    ]),
+                    'Permintaan Store' => route('operations.store-orders.index', [
+                        'q' => $row->reference,
+                        'status' => 'all',
+                        'from' => $dateFilters['from'],
+                        'to' => $dateFilters['to'],
+                    ]),
+                    'Retur Store' => route('operations.store-returns.index', [
+                        'q' => $row->reference,
+                        'status' => 'all',
+                        'from' => $dateFilters['from'],
+                        'to' => $dateFilters['to'],
+                    ]),
                     default => null,
                 };
 

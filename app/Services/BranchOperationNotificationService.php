@@ -172,7 +172,7 @@ class BranchOperationNotificationService
                 'menu_slug' => $isStore ? 'operations-store-stock' : 'operations-stock',
                 'title' => $title,
                 'subtitle' => number_format($count, 0, ',', '.').' produk perlu ditinjau',
-                'icon' => 'mdi-package-variant-closed-alert',
+                'icon' => 'mdi-package-variant-closed-remove',
                 'severity' => 'danger',
                 'url' => $url,
                 'open_url' => route('notifications.open', [
