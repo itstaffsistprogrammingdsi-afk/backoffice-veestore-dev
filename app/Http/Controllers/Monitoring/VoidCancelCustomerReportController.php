@@ -113,7 +113,11 @@ class VoidCancelCustomerReportController extends Controller
             ->selectRaw('DISTINCT vt.status::text as status')
             ->whereNotNull('vt.status')
             ->orderBy('status')
-            ->pluck('status');
+            ->pluck('status')
+            ->merge(['requested', 'approved', 'authorized', 'rejected', 'cancelled'])
+            ->unique()
+            ->sort()
+            ->values();
 
         $summary = DB::query()
             ->fromSub(
@@ -304,7 +308,7 @@ class VoidCancelCustomerReportController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Void & Pembatalan',
-            'description' => 'Pengajuan void transaksi POS. Jika kosong, belum ada pengajuan void pada periode ini.',
+            'description' => 'Sumber data: pengajuan void transaksi POS pada tabel void_transactions. Pembatalan order e-commerce tidak dihitung di halaman ini; gunakan laporan Pembayaran E-commerce dengan status pesanan Dibatalkan. Jika kosong, memang belum ada pengajuan void POS pada periode tersebut.',
             'data' => compact(
                 'rows',
                 'detailItems',

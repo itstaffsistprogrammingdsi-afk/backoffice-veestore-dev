@@ -9,13 +9,17 @@ const fallback = (status: string): StatusMeta => ({
 });
 
 const orderStatuses: Record<string, StatusMeta> = {
+    draft: { label: 'Draft', tone: 'bg-label-secondary' },
     pending: { label: 'Menunggu bayar', tone: 'bg-label-warning' },
     paid: { label: 'Dibayar', tone: 'bg-label-success' },
     processed: { label: 'Diproses', tone: 'bg-label-info' },
+    processing: { label: 'Diproses', tone: 'bg-label-info' },
     packing: { label: 'Dikemas', tone: 'bg-label-info' },
     shipped: { label: 'Dikirim', tone: 'bg-label-info' },
+    completed: { label: 'Selesai', tone: 'bg-label-success' },
     received: { label: 'Diterima', tone: 'bg-label-success' },
     cancelled: { label: 'Dibatalkan', tone: 'bg-label-danger' },
+    on_hold: { label: 'Ditahan', tone: 'bg-label-warning' },
 };
 
 const paymentStatuses: Record<string, StatusMeta> = {

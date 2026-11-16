@@ -681,17 +681,6 @@ onBeforeUnmount(() => {
                         <i class="mdi mdi-menu" aria-hidden="true"></i>
                     </button>
                     <button
-                        class="app-sidebar-toggle d-none d-lg-inline-flex"
-                        type="button"
-                        aria-controls="app-sidebar"
-                        :aria-expanded="!sidebarCollapsed"
-                        :aria-label="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
-                        :title="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
-                        @click="toggleSidebar"
-                    >
-                        <i class="mdi" :class="sidebarCollapsed ? 'mdi-chevron-double-right' : 'mdi-chevron-double-left'" aria-hidden="true"></i>
-                    </button>
-                    <button
                         class="app-back-button"
                         type="button"
                         aria-label="Kembali ke halaman sebelumnya"
@@ -705,6 +694,18 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <button
+                        class="app-sidebar-toggle d-none d-lg-inline-flex"
+                        type="button"
+                        aria-controls="app-sidebar"
+                        :aria-expanded="!sidebarCollapsed"
+                        :aria-label="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
+                        :title="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
+                        @click="toggleSidebar"
+                    >
+                        <i class="mdi mdi-page-layout-sidebar-left" aria-hidden="true"></i>
+                    </button>
+
                     <MenuSearch :areas="navigation.areas" @open="onMenuSearchOpen" />
 
                     <div class="locale-toggle" role="group" aria-label="Bahasa antarmuka">
@@ -734,12 +735,13 @@ onBeforeUnmount(() => {
                     </button>
 
                     <div ref="userMenuRef" class="app-user">
-                    <button ref="userMenuButtonRef" class="app-user-button" type="button" aria-controls="app-user-menu" :aria-label="`Akun ${user?.name ?? 'User'}${user?.email ? `, ${user.email}` : ''}`" :aria-expanded="userMenuOpen" @click.stop="userMenuOpen = !userMenuOpen">
-                        <span class="app-avatar">{{ (user?.name ?? 'U').slice(0, 1).toUpperCase() }}</span>
+                    <button ref="userMenuButtonRef" class="app-user-button" type="button" aria-controls="app-user-menu" aria-haspopup="menu" :aria-expanded="userMenuOpen" @click.stop="userMenuOpen = !userMenuOpen">
+                        <span class="app-avatar" aria-hidden="true">{{ (user?.name ?? 'U').slice(0, 1).toUpperCase() }}</span>
                         <span class="d-none d-md-block text-start">
                             <strong>{{ user?.name ?? 'User' }}</strong>
                             <small>{{ user?.email ?? '' }}</small>
                         </span>
+                        <span class="visually-hidden">Menu akun</span>
                         <i class="mdi mdi-chevron-down d-none d-md-block" aria-hidden="true"></i>
                     </button>
 

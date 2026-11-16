@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .sync-page { color: var(--app-ink); }
 .sync-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; }
-.sync-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.sync-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
 .sync-header h1 { margin: 0 0 0.35rem; color: var(--app-hero-text) !important; font-size: 1.5rem; }
 .sync-header p { max-width: 760px; margin: 0; color: var(--app-hero-muted) !important; }
 .sync-header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -450,7 +450,7 @@ onBeforeUnmount(() => {
 .sync-button-light { background: var(--app-surface); color: var(--app-ink); }
 .sync-summary { display: flex; align-items: center; gap: 0.85rem; height: 100%; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .sync-summary-icon { display: grid; flex: 0 0 auto; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: 0.65rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.25rem; }
-.sync-summary span:not(.sync-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.sync-summary span:not(.sync-summary-icon) { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: none; }
 .sync-summary strong { display: block; margin-top: 0.15rem; font-size: 1.35rem; }
 .sync-summary-warning .sync-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .sync-summary-info .sync-summary-icon { background: var(--app-accent-soft); color: var(--app-accent-ink); }
@@ -460,7 +460,7 @@ onBeforeUnmount(() => {
 .sync-card-header h2 { margin: 0 0 0.2rem; font-size: 1rem; }
 .sync-card-header p { margin: 0; color: var(--app-muted); font-size: 0.8rem; }
 .sync-card-meta { color: var(--app-muted); font-size: 0.78rem; white-space: nowrap; }
-.sync-table th { padding: 0.6rem 0.9rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.sync-table th { padding: 0.6rem 0.9rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: none; }
 .sync-table td { padding: 0.8rem 0.9rem; border-color: var(--app-border); color: var(--app-ink); }
 .sync-main strong, .sync-main small, .sync-subvalue { display: block; }
 .sync-main strong { font-size: 0.86rem; }

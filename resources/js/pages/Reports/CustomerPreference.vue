@@ -7,6 +7,7 @@ import { computed, reactive } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import PaginationLinks from '@/components/PaginationLinks.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import ReportPeriodPresets from '@/components/ui/ReportPeriodPresets.vue';
 import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
 
 interface Option {
@@ -279,14 +280,14 @@ const resetFilters = () => {
 </script>
 
 <template>
-    <Head title="Customer Product Preference" />
+    <Head title="Preferensi Produk Pelanggan" />
 
     <div class="pref-page">
         <section class="pref-header">
             <div>
-                <span class="pref-eyebrow">Reports / CRM</span>
-                <h1>Preferensi Produk Customer</h1>
-                <p>Hubungkan profil demografi customer dengan produk yang dibeli untuk menjawab pertanyaan seperti “customer usia berapa yang paling banyak membeli item A?”.</p>
+                <span class="pref-eyebrow">Laporan / Pelanggan</span>
+                <h1>Preferensi Produk Pelanggan</h1>
+                <p>Hubungkan profil demografi pelanggan dengan produk yang dibeli untuk menjawab pertanyaan seperti “pelanggan usia berapa yang paling banyak membeli item A?”.</p>
             </div>
             <div class="pref-header-actions">
                 <Link :href="props.urls.demographics" class="pref-hero-button">
@@ -344,6 +345,15 @@ const resetFilters = () => {
         </div>
 
         <section class="pref-filter" aria-label="Filter preferensi produk customer">
+            <ReportPeriodPresets
+                class="mb-2"
+                :route="props.urls.index"
+                from-key="date_from"
+                to-key="date_to"
+                :from="props.filters.date_from"
+                :to="props.filters.date_to"
+                :query="form"
+            />
             <form @submit.prevent="applyFilters">
                 <div class="row g-2 align-items-end">
                     <div class="col-6 col-lg-2">
@@ -607,7 +617,7 @@ const resetFilters = () => {
 <style scoped>
 .pref-page { color: var(--app-ink); }
 .pref-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--app-hero-bg); color: #fff; }
-.pref-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.pref-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
 .pref-header h1 { margin: 0 0 0.35rem; color: var(--app-hero-text) !important; font-size: 1.5rem; }
 .pref-header p { max-width: 820px; margin: 0; color: var(--app-hero-muted) !important; }
 .pref-header-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -615,21 +625,21 @@ const resetFilters = () => {
 .pref-hero-button-accent { background: var(--app-accent-strong); color: var(--app-on-accent); }
 .pref-summary { display: flex; align-items: flex-start; gap: 0.7rem; height: 100%; padding: 0.9rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
 .pref-summary-icon { display: grid; flex: 0 0 auto; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.1rem; }
-.pref-summary-label { display: block; color: var(--app-muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.pref-summary-label { display: block; color: var(--app-muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: none; }
 .pref-summary-value { display: block; margin-top: 0.1rem; font-size: 1.15rem; line-height: 1.25; }
 .pref-summary-value-text { font-size: 0.95rem; }
 .pref-summary small { display: block; margin-top: 0.15rem; color: var(--app-muted); font-size: 0.7rem; }
 .pref-summary-success .pref-summary-icon { background: var(--app-success-bg); color: var(--app-success-ink); }
 .pref-summary-warning .pref-summary-icon { background: var(--app-warning-bg); color: var(--app-warning-ink); }
 .pref-filter { padding: 1rem 1.1rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
-.pref-filter .form-label { margin-bottom: 0.3rem; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.pref-filter .form-label { margin-bottom: 0.3rem; color: var(--app-muted); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; text-transform: none; }
 .pref-filter-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--app-border); }
 .pref-filter-meta { color: var(--app-muted); font-size: 0.78rem; }
 .pref-insight { display: flex; align-items: flex-start; gap: 1rem; padding: 1.1rem 1.2rem; margin-bottom: 1rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface-2); box-shadow: none; }
 .pref-insight-empty { background: var(--app-surface); }
 .pref-insight-icon { display: grid; flex: 0 0 auto; width: 2.6rem; height: 2.6rem; place-items: center; border-radius: 0.7rem; background: var(--app-accent-strong); color: var(--app-on-accent); font-size: 1.4rem; }
 .pref-insight-content { flex: 1 1 auto; min-width: 0; }
-.pref-insight-eyebrow { color: var(--app-accent-ink); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.pref-insight-eyebrow { color: var(--app-accent-ink); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em; text-transform: none; }
 .pref-insight h2 { margin: 0.2rem 0 0.35rem; font-size: 1.15rem; line-height: 1.4; }
 .pref-insight p { margin: 0; color: var(--app-muted); font-size: 0.85rem; }
 .pref-insight-meter { overflow: hidden; height: 0.4rem; margin: 0.75rem 0 0.55rem; border-radius: 999px; background: var(--app-surface-3); }
@@ -646,7 +656,7 @@ const resetFilters = () => {
 .pref-clear-link { color: var(--app-accent-ink); font-size: 0.72rem; font-weight: 700; text-decoration: none; }
 .pref-clear-link:hover { text-decoration: underline; }
 .pref-matrix { min-width: 780px; }
-.pref-matrix th { padding: 0.6rem 0.7rem; color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.pref-matrix th { padding: 0.6rem 0.7rem; color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.03em; text-transform: none; }
 .pref-matrix thead th { background: var(--app-surface-2); }
 .pref-matrix th:first-child { position: sticky; left: 0; z-index: 2; min-width: 220px; background: var(--app-surface); }
 .pref-matrix thead th:first-child { z-index: 3; background: var(--app-surface-2); }
@@ -669,7 +679,7 @@ const resetFilters = () => {
 .pref-breakdown-bar span { display: block; height: 100%; border-radius: inherit; background: var(--app-accent); }
 .pref-breakdown-item small { display: block; margin-top: 0.2rem; color: var(--app-muted); font-size: 0.68rem; }
 .pref-detail-table { min-width: 1000px; }
-.pref-detail-table th { padding: 0.6rem 0.85rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+.pref-detail-table th { padding: 0.6rem 0.85rem; background: var(--app-surface-2); color: var(--app-muted); font-size: 0.68rem; letter-spacing: 0.04em; text-transform: none; }
 .pref-detail-table td { padding: 0.75rem 0.85rem; border-color: var(--app-border); font-size: 0.82rem; }
 .pref-detail-table td:first-child { min-width: 260px; }
 .pref-cell-note { display: block; color: var(--app-muted); font-size: 0.7rem; }

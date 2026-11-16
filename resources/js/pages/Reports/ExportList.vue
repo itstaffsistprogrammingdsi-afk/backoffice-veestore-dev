@@ -140,7 +140,7 @@ const exportHistory = () => downloadExcelTable('Export-Saya', 'Ekspor Saya', [
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .report-header h1 {
@@ -163,7 +163,7 @@ const exportHistory = () => downloadExcelTable('Export-Saya', 'Ekspor Saya', [
     color: var(--report-muted);
     font-size: 0.75rem;
     letter-spacing: 0.04em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .report-empty {

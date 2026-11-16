@@ -36,12 +36,12 @@ const exportOrders = () => downloadExcelTable('History-Customer-Order-Ecommerce'
 </script>
 
 <template>
-    <Head title="History Customer Ecommerce" />
+    <Head title="Riwayat Pelanggan E-commerce" />
     <div class="report-page">
-        <div class="report-header">
+        <div class="report-header d-flex flex-wrap align-items-start justify-content-between gap-3">
             <div>
-                <span class="report-eyebrow">Reports / History Customer</span>
-                <h1>Detail Ecommerce</h1>
+                <span class="report-eyebrow">Laporan / Pelanggan</span>
+                <h1>Riwayat Pelanggan E-commerce</h1>
                 <p>Customer {{ props.customerId }} | {{ props.from }} sampai {{ props.to }}</p>
             </div>
             <div class="d-flex gap-2">
@@ -69,7 +69,7 @@ const exportOrders = () => downloadExcelTable('History-Customer-Order-Ecommerce'
 <style scoped>
 .report-page { --report-ink: var(--app-ink); --report-border: var(--app-border); --report-muted: var(--app-muted); color: var(--report-ink); }
 .report-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.5rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--report-ink); color: #fff; }
-.report-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.report-eyebrow { display: inline-block; margin-bottom: 0.5rem; color: var(--app-hero-eyebrow); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: none; }
 .report-header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; }
 .report-header p { margin: 0; color: var(--app-hero-muted); }
 .report-card { border: 1px solid var(--report-border); border-radius: 0.9rem; box-shadow: 0 0.35rem 1rem rgba(23, 17, 31, 0.05); }

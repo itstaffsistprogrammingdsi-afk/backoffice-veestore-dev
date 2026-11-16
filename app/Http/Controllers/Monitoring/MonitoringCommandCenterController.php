@@ -135,7 +135,7 @@ class MonitoringCommandCenterController extends Controller
                 return [
                     'slug' => $group['slug'] ?? '',
                     'name' => $group['name'] ?? 'Monitoring',
-                    'icon' => $groupIcons[$group['slug'] ?? ''] ?? 'mdi-monitor-eye-outline',
+                    'icon' => $groupIcons[$group['slug'] ?? ''] ?? 'mdi-monitor-eye',
                     'description' => $groupDescriptions[$group['slug'] ?? ''] ?? 'Akses fitur monitoring pada kategori ini.',
                     'source' => 'monitoring',
                     'items' => $items,
@@ -362,7 +362,13 @@ class MonitoringCommandCenterController extends Controller
 
         $rows = $reconciliation->rows($filters, $filters['per_page']);
         $rows->getCollection()->transform(function ($row) {
-            $row->order_url = $row->id ? route('ecommerce.orders.show', $row->id) : null;
+            $orderDate = $row->created_at ? Carbon::parse($row->created_at)->toDateString() : null;
+
+            $row->order_url = $row->id ? route('ecommerce.orders.index', array_filter([
+                'q' => $row->order_number,
+                'from' => $orderDate,
+                'to' => $orderDate,
+            ])) : null;
 
             return $row;
         });
@@ -383,7 +389,7 @@ class MonitoringCommandCenterController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Rekonsiliasi Pembayaran',
-            'description' => 'Basis tanggal: tanggal order. Nilai order dibandingkan dengan total_amount pembayaran; jumlah payment_details sukses ditampilkan terpisah. Order dibatalkan dipisahkan dari anomali pembayaran.',
+            'description' => 'Basis tanggal: tanggal order. Nilai order dibandingkan dengan total nominal pembayaran; jumlah detail pembayaran sukses ditampilkan terpisah. Order dibatalkan dipisahkan dari anomali pembayaran.',
             'data' => compact(
                 'rows',
                 'summary',
@@ -400,7 +406,7 @@ class MonitoringCommandCenterController extends Controller
                     'Detail pembayaran berbeda',
                     'Pembayaran belum selesai',
                 ],
-                'lastUpdate' => now()->format('d-m-Y H:i:s'),
+                'lastUpdate' => now()->format('d M Y, H.i').' WIB',
             ],
             'filters' => request()->query(),
             'urls' => [

@@ -73,6 +73,7 @@
     --app-sidebar-w: 280px;
     --app-sidebar-w-collapsed: 84px;
     --app-content-max: 1500px;
+    --app-topbar-h: 78px;
 }
 
 html[data-theme="dark"] {

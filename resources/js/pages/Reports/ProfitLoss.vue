@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import ReportTableControls from '@/components/ui/ReportTableControls.vue';
+import { useReportTableDensity } from '@/composables/useReportTable';
 
 defineOptions({ layout: AppLayout });
 
@@ -79,6 +81,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const { density, isCompact, toggleDensity } = useReportTableDensity();
 const page = usePage();
 const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
@@ -197,10 +200,10 @@ const formatDate = (value: string | null) => {
 <template>
     <Head title="Estimasi Laba Operasional" />
 
-    <div class="pnl-page">
+    <div class="pnl-page" :class="{ 'is-table-compact': isCompact }">
         <header class="pnl-header">
             <div>
-                <span class="pnl-eyebrow">Reports / Penjualan</span>
+                <span class="pnl-eyebrow">Laporan / Penjualan</span>
                 <h1>Estimasi Laba Operasional</h1>
                 <p>Estimasi manajemen periode {{ props.periodLabel }}. Basis tanggal: tanggal transaksi. Harga dasar adalah harga jual acuan, bukan HPP. Beban operasional diinput manual.</p>
             </div>
@@ -212,6 +215,7 @@ const formatDate = (value: string | null) => {
                     <i class="mdi mdi-file-excel-outline me-1" aria-hidden="true"></i>
                     Ekspor
                 </a>
+                <ReportTableControls :density="density" @toggle-density="toggleDensity" />
             </div>
         </header>
 
@@ -240,7 +244,7 @@ const formatDate = (value: string | null) => {
                         <h2 id="pnl-statement-title">Laporan Estimasi Laba Operasional</h2>
                         <span class="pnl-note">Margin estimasi {{ formatPercent(props.summary.gross_margin_percent) }}</span>
                     </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Rincian estimasi laba operasional">
                         <table class="table align-middle mb-0">
                             <tbody>
                                 <tr v-for="row in statementRows" :key="row.label" :class="`pnl-row-${row.kind}`">
@@ -275,7 +279,7 @@ const formatDate = (value: string | null) => {
                     <div class="pnl-card-head">
                         <h2 id="pnl-channel-title">Per Kanal</h2>
                     </div>
-                    <div class="table-responsive">
+                    <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Estimasi laba operasional per kanal">
                         <table class="table align-middle mb-0">
                             <thead>
                                 <tr>
@@ -336,7 +340,7 @@ const formatDate = (value: string | null) => {
                 Hanya peran finance atau management yang dapat mengubah beban operasional.
             </p>
 
-            <div class="table-responsive mt-3">
+            <div class="table-responsive report-table-wrap mt-3" tabindex="0" role="region" aria-label="Daftar beban operasional">
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>

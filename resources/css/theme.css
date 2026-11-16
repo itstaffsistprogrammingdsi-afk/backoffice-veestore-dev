@@ -208,10 +208,10 @@ h6 {
     background: var(--app-surface-3);
     color: var(--app-muted);
     font-size: var(--app-text-xs);
-    font-weight: var(--app-weight-bold);
-    letter-spacing: var(--app-tracking-wide);
+    font-weight: var(--app-weight-semibold);
+    letter-spacing: 0;
     line-height: var(--app-leading-snug);
-    text-transform: uppercase;
+    text-transform: none;
     vertical-align: middle;
 }
 
@@ -402,6 +402,14 @@ h6 {
 
 .text-success {
     color: var(--app-success-ink) !important;
+}
+
+.text-warning {
+    color: var(--app-warning-ink) !important;
+}
+
+.text-info {
+    color: var(--app-info-ink) !important;
 }
 
 .btn-outline-primary {

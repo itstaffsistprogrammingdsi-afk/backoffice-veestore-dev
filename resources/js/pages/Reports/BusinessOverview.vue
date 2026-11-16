@@ -8,7 +8,9 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import CustomerGrowthChart from '@/components/CustomerGrowthChart.vue';
 import AppPageHeader from '@/components/ui/AppPageHeader.vue';
+import ReportTableControls from '@/components/ui/ReportTableControls.vue';
 import { formatCurrency, formatDate, formatNumber } from '@/composables/useFormatters';
+import { useReportTableDensity } from '@/composables/useReportTable';
 import { currentLocale } from '@/i18n';
 import { downloadExcelTable } from '@/composables/useExcelExport';
 
@@ -279,6 +281,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const { density, isCompact, toggleDensity } = useReportTableDensity();
 const showGuide = ref(false);
 const showSalesTrend = ref(true);
 const showMemberChart = ref(false);
@@ -557,16 +560,16 @@ const inventoryCards = computed(() => [
 ]);
 
 const orderBreakdowns = computed(() => [
-    { title: 'Status Pesanan Ecommerce', icon: 'mdi-cart-outline', rows: props.orders.ecommerce_statuses },
-    { title: 'Status Permintaan Store', icon: 'mdi-store-arrow-up', rows: props.orders.store_order_statuses },
-    { title: 'Status Retur Store', icon: 'mdi-keyboard-return', rows: props.orders.return_statuses },
+    { title: 'Status pesanan e-commerce', icon: 'mdi-cart-outline', rows: props.orders.ecommerce_statuses },
+    { title: 'Status permintaan toko', icon: 'mdi-storefront-outline', rows: props.orders.store_order_statuses },
+    { title: 'Status retur toko', icon: 'mdi-keyboard-return', rows: props.orders.return_statuses },
 ]);
 
 const logisticsItems = computed(() => [
     { label: 'Inbound Gudang', data: props.inventory.logistics.warehouse_inbound, url: props.urls.warehouse_inbound, icon: 'mdi-tray-arrow-down' },
     { label: 'Outbound Gudang', data: props.inventory.logistics.warehouse_outbound, url: props.urls.warehouse_outbound, icon: 'mdi-tray-arrow-up' },
-    { label: 'Inbound Cabang', data: props.inventory.logistics.store_inbound, url: props.urls.store_inbound, icon: 'mdi-store-arrow-down' },
-    { label: 'Outbound Cabang', data: props.inventory.logistics.store_outbound, url: props.urls.store_outbound, icon: 'mdi-store-arrow-up' },
+    { label: 'Inbound Cabang', data: props.inventory.logistics.store_inbound, url: props.urls.store_inbound, icon: 'mdi-store-plus-outline' },
+    { label: 'Outbound Cabang', data: props.inventory.logistics.store_outbound, url: props.urls.store_outbound, icon: 'mdi-store-remove-outline' },
     { label: 'Retur Cabang', data: props.inventory.logistics.store_return, url: props.urls.store_returns, icon: 'mdi-backup-restore' },
 ]);
 
@@ -589,7 +592,7 @@ const salesTrendAxis = computed(() => {
 
     return {
         max: step * 3,
-        ticks: [0, step, step * 2, step * 3],
+        ticks: [step * 3, step * 2, step, 0],
     };
 });
 const trendHeight = (value: number) => `${Math.max(4, Math.round((value / salesTrendAxis.value.max) * 100))}%`;
@@ -738,7 +741,7 @@ const exportOverview = () => {
 <template>
     <Head title="Ringkasan Usaha" />
 
-    <div class="overview-page">
+    <div class="overview-page" :class="{ 'is-table-compact': isCompact }">
         <AppPageHeader
             eyebrow="Laporan / Ringkasan Usaha"
             title="Ringkasan Omset, Pesanan, dan Stok"
@@ -757,6 +760,7 @@ const exportOverview = () => {
                     <i class="mdi mdi-clipboard-check-outline me-1" aria-hidden="true"></i>
                     Tindak Lanjut Pesanan
                 </Link>
+                <ReportTableControls :density="density" @toggle-density="toggleDensity" />
             </template>
         </AppPageHeader>
 
@@ -881,7 +885,7 @@ const exportOverview = () => {
                     <p>Omset kotor sebelum diskon dan voucher; omset bersih setelah diskon produk dan voucher, tanpa ongkir dan biaya operasional.</p>
                 </div>
                 <div class="overview-section-links">
-                    <Link :href="props.urls.sales">Pemasukan Realtime</Link>
+                    <Link :href="props.urls.sales">Pemasukan real-time</Link>
                     <Link :href="props.urls.sales_omset">Omzet Cabang</Link>
                     <Link :href="props.urls.top_products">Produk Terlaris</Link>
                 </div>
@@ -980,8 +984,8 @@ const exportOverview = () => {
                     <article class="overview-card h-100">
                         <header class="overview-card-head">
                             <div>
-                                <h3>Kontribusi Omset per Channel</h3>
-                                <p>Perbandingan omset bersih POS dan Ecommerce.</p>
+                                <h3>Kontribusi omset per kanal</h3>
+                                <p>Perbandingan omset bersih POS dan e-commerce.</p>
                             </div>
                         </header>
                         <div class="overview-channel-list">
@@ -1009,23 +1013,29 @@ const exportOverview = () => {
                                 <p>Berdasarkan omset bersih produk pada periode ini.</p>
                             </div>
                         </header>
-                        <div v-if="props.sales.top_stores.length" class="table-responsive">
-                            <table class="table align-middle mb-0 overview-table">
-                                <thead>
-                                    <tr><th scope="col">Cabang</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Pembeli</th><th scope="col" class="text-end">Omset Kotor</th><th scope="col" class="text-end">Omset Bersih</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="row in props.sales.top_stores" :key="row.store_name">
-                                        <td>{{ row.store_name }}</td>
-                                        <td class="text-end">{{ formatNumber(row.transactions) }}</td>
-                                        <td class="text-end">{{ formatNumber(row.buyers) }}</td>
-                                        <td class="text-end">{{ formatCurrency(row.gross_revenue) }}</td>
-                                        <td class="text-end"><strong>{{ formatCurrency(row.net_revenue) }}</strong></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <p v-else class="overview-empty">Belum ada data cabang.</p>
+                        <details class="overview-disclosure">
+                            <summary>
+                                <span>Lihat rincian cabang</span>
+                                <i class="mdi mdi-chevron-down" aria-hidden="true"></i>
+                            </summary>
+                            <div v-if="props.sales.top_stores.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
+                                <table class="table align-middle mb-0 overview-table">
+                                    <thead>
+                                        <tr><th scope="col">Cabang</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Pembeli</th><th scope="col" class="text-end">Omset Kotor</th><th scope="col" class="text-end">Omset Bersih</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="row in props.sales.top_stores" :key="row.store_name">
+                                            <td>{{ row.store_name }}</td>
+                                            <td class="text-end">{{ formatNumber(row.transactions) }}</td>
+                                            <td class="text-end">{{ formatNumber(row.buyers) }}</td>
+                                            <td class="text-end">{{ formatCurrency(row.gross_revenue) }}</td>
+                                            <td class="text-end"><strong>{{ formatCurrency(row.net_revenue) }}</strong></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-else class="overview-empty">Belum ada data cabang.</p>
+                        </details>
                     </article>
                 </div>
                 <div class="col-xl-5">
@@ -1119,37 +1129,43 @@ const exportOverview = () => {
                         </div>
                         <span class="overview-card-meta">{{ formatNumber(props.payments.findings) }} temuan</span>
                     </header>
-                    <div v-if="props.payments.rows.length" class="table-responsive">
-                        <table class="table align-middle mb-0 overview-table">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Order</th>
-                                    <th scope="col">Temuan</th>
-                                    <th scope="col" class="text-end">Nilai Order</th>
-                                    <th scope="col" class="text-end">Total Pembayaran</th>
-                                    <th scope="col">Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="row in props.payments.rows" :key="row.id">
-                                    <td>
-                                        <strong>{{ row.order_number }}</strong>
-                                        <small class="overview-cell-note">{{ formatDate(row.created_at) }}</small>
-                                    </td>
-                                    <td>
-                                        <span class="overview-badge" :class="`is-${paymentFindingTone(row.reconciliation_status)}`">{{ row.reconciliation_status }}</span>
-                                        <small class="overview-cell-note">Pembayaran: {{ row.payment_status ?? 'belum ada' }}</small>
-                                    </td>
-                                    <td class="text-end">{{ formatCurrency(row.grand_total) }}</td>
-                                    <td class="text-end">{{ row.total_amount > 0 ? formatCurrency(row.total_amount) : '-' }}</td>
-                                    <td>
-                                        <Link :href="`${props.urls.payments}?q=${encodeURIComponent(row.order_number)}`" class="overview-action-link">Buka</Link>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p v-else class="overview-empty">Tidak ada temuan pembayaran pada periode ini.</p>
+                    <details class="overview-disclosure">
+                        <summary>
+                            <span>Lihat rincian temuan</span>
+                            <i class="mdi mdi-chevron-down" aria-hidden="true"></i>
+                        </summary>
+                        <div v-if="props.payments.rows.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
+                            <table class="table align-middle mb-0 overview-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Pesanan</th>
+                                        <th scope="col">Temuan</th>
+                                        <th scope="col" class="text-end">Nilai pesanan</th>
+                                        <th scope="col" class="text-end">Total Pembayaran</th>
+                                        <th scope="col">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in props.payments.rows" :key="row.id">
+                                        <td>
+                                            <strong>{{ row.order_number }}</strong>
+                                            <small class="overview-cell-note">{{ formatDate(row.created_at) }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="overview-badge" :class="`is-${paymentFindingTone(row.reconciliation_status)}`">{{ row.reconciliation_status }}</span>
+                                            <small class="overview-cell-note">Pembayaran: {{ row.payment_status ?? 'belum ada' }}</small>
+                                        </td>
+                                        <td class="text-end">{{ formatCurrency(row.grand_total) }}</td>
+                                        <td class="text-end">{{ row.total_amount > 0 ? formatCurrency(row.total_amount) : '-' }}</td>
+                                        <td>
+                                            <Link :href="`${props.urls.payments}?q=${encodeURIComponent(row.order_number)}`" class="overview-action-link">Buka</Link>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p v-else class="overview-empty">Tidak ada temuan pembayaran pada periode ini.</p>
+                    </details>
                     <div class="overview-card-footer">
                         <span v-if="props.payments.rows.length < props.payments.findings">Menampilkan {{ formatNumber(props.payments.rows.length) }} dari {{ formatNumber(props.payments.findings) }} temuan</span>
                         <span>Nilai order, termasuk dibatalkan: <strong>{{ formatCurrency(props.payments.total_value) }}</strong></span>
@@ -1246,32 +1262,38 @@ const exportOverview = () => {
                     </div>
                     <span class="overview-card-meta">{{ formatNumber(props.customers.store_visits.length) }} toko</span>
                 </header>
-                <div v-if="props.customers.store_visits.length" class="table-responsive">
-                    <table class="table align-middle mb-0 overview-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Toko</th>
-                                <th scope="col" class="text-end">Kunjungan</th>
-                                <th scope="col" class="text-end">Pengunjung Teridentifikasi</th>
-                                <th scope="col">Porsi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="row in props.customers.store_visits" :key="row.store_id">
-                                <td><strong>{{ row.store_name }}</strong></td>
-                                <td class="text-end">{{ formatNumber(row.visits) }}</td>
-                                <td class="text-end">{{ formatNumber(row.unique_visitors) }}</td>
-                                <td>
-                                    <div class="overview-progress" aria-hidden="true">
-                                        <span :style="{ width: `${row.share > 0 ? Math.max(2, row.share) : 0}%` }"></span>
-                                    </div>
-                                    <small class="overview-cell-note">{{ row.share }}%</small>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <p v-else class="overview-empty">Belum ada kunjungan toko pada periode ini.</p>
+                <details class="overview-disclosure">
+                    <summary>
+                        <span>Lihat rincian kunjungan</span>
+                        <i class="mdi mdi-chevron-down" aria-hidden="true"></i>
+                    </summary>
+                    <div v-if="props.customers.store_visits.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
+                        <table class="table align-middle mb-0 overview-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Toko</th>
+                                    <th scope="col" class="text-end">Kunjungan</th>
+                                    <th scope="col" class="text-end">Pengunjung Teridentifikasi</th>
+                                    <th scope="col">Porsi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="row in props.customers.store_visits" :key="row.store_id">
+                                    <td><strong>{{ row.store_name }}</strong></td>
+                                    <td class="text-end">{{ formatNumber(row.visits) }}</td>
+                                    <td class="text-end">{{ formatNumber(row.unique_visitors) }}</td>
+                                    <td>
+                                        <div class="overview-progress" aria-hidden="true">
+                                            <span :style="{ width: `${row.share > 0 ? Math.max(2, row.share) : 0}%` }"></span>
+                                        </div>
+                                        <small class="overview-cell-note">{{ row.share }}%</small>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p v-else class="overview-empty">Belum ada kunjungan toko pada periode ini.</p>
+                </details>
             </article>
         </section>
 
@@ -1283,10 +1305,10 @@ const exportOverview = () => {
                     <p>Pesanan ecommerce, permintaan store, dan retur dipisahkan agar mudah ditindaklanjuti.</p>
                 </div>
                 <div class="overview-section-links">
-                    <Link :href="props.urls.orders">Fulfillment & SLA</Link>
-                    <Link :href="props.urls.ecommerce_orders">Pesanan Ecommerce</Link>
-                    <Link :href="props.urls.store_orders">Permintaan Store</Link>
-                    <Link :href="props.urls.store_returns">Retur Store</Link>
+                    <Link :href="props.urls.orders">Pemenuhan & SLA</Link>
+                    <Link :href="props.urls.ecommerce_orders">Pesanan e-commerce</Link>
+                    <Link :href="props.urls.store_orders">Permintaan toko</Link>
+                    <Link :href="props.urls.store_returns">Retur toko</Link>
                 </div>
             </div>
 
@@ -1338,7 +1360,7 @@ const exportOverview = () => {
                     </div>
                     <span class="overview-card-meta">{{ formatNumber(props.orders.attention.length) }} antrean</span>
                 </header>
-                <div v-if="props.orders.attention.length" class="table-responsive">
+                <div v-if="props.orders.attention.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
                     <table class="table align-middle mb-0 overview-table overview-attention-table">
                         <thead>
                             <tr>
@@ -1383,7 +1405,7 @@ const exportOverview = () => {
                     <p>Stok adalah snapshot saat ini; unit = jumlah item, SKU = produk unik. Inbound, outbound, dan retur adalah aktivitas pada periode.</p>
                 </div>
                 <div class="overview-section-links">
-                    <Link :href="props.urls.stock_warehouse">Stok Warehouse</Link>
+                    <Link :href="props.urls.stock_warehouse">Stok gudang</Link>
                     <Link :href="props.urls.stock_store">Stok Cabang</Link>
                     <Link :href="props.urls.expiring">Kedaluwarsa</Link>
                     <Link :href="props.urls.slow_moving">Slow Moving</Link>
@@ -1413,21 +1435,27 @@ const exportOverview = () => {
                             </div>
                             <span class="overview-card-meta">{{ formatNumber(props.inventory.summary.warehouse_units) }} unit</span>
                         </header>
-                        <div v-if="props.inventory.warehouse_stock.length" class="table-responsive">
-                            <table class="table align-middle mb-0 overview-table">
-                                <thead>
-                                    <tr><th scope="col">Gudang</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">SKU</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="row in props.inventory.warehouse_stock" :key="row.location_id">
-                                        <td>{{ row.location_name }}</td>
-                                        <td class="text-end">{{ formatNumber(row.units) }}</td>
-                                        <td class="text-end">{{ formatNumber(row.skus) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <p v-else class="overview-empty">Belum ada stok gudang.</p>
+                        <details class="overview-disclosure">
+                            <summary>
+                                <span>Lihat rincian stok gudang</span>
+                                <i class="mdi mdi-chevron-down" aria-hidden="true"></i>
+                            </summary>
+                            <div v-if="props.inventory.warehouse_stock.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
+                                <table class="table align-middle mb-0 overview-table">
+                                    <thead>
+                                        <tr><th scope="col">Gudang</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">SKU</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="row in props.inventory.warehouse_stock" :key="row.location_id">
+                                            <td>{{ row.location_name }}</td>
+                                            <td class="text-end">{{ formatNumber(row.units) }}</td>
+                                            <td class="text-end">{{ formatNumber(row.skus) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-else class="overview-empty">Belum ada stok gudang.</p>
+                        </details>
                     </article>
                 </div>
                 <div class="col-xl-6">
@@ -1439,21 +1467,27 @@ const exportOverview = () => {
                             </div>
                             <span class="overview-card-meta">{{ formatNumber(props.inventory.summary.store_units) }} unit</span>
                         </header>
-                        <div v-if="props.inventory.store_stock.length" class="table-responsive">
-                            <table class="table align-middle mb-0 overview-table">
-                                <thead>
-                                    <tr><th scope="col">Toko</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">SKU</th></tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="row in props.inventory.store_stock" :key="row.location_id">
-                                        <td>{{ row.location_name }}</td>
-                                        <td class="text-end">{{ formatNumber(row.units) }}</td>
-                                        <td class="text-end">{{ formatNumber(row.skus) }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <p v-else class="overview-empty">Belum ada stok cabang.</p>
+                        <details class="overview-disclosure">
+                            <summary>
+                                <span>Lihat rincian stok cabang</span>
+                                <i class="mdi mdi-chevron-down" aria-hidden="true"></i>
+                            </summary>
+                            <div v-if="props.inventory.store_stock.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
+                                <table class="table align-middle mb-0 overview-table">
+                                    <thead>
+                                        <tr><th scope="col">Toko</th><th scope="col" class="text-end">Unit</th><th scope="col" class="text-end">SKU</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="row in props.inventory.store_stock" :key="row.location_id">
+                                            <td>{{ row.location_name }}</td>
+                                            <td class="text-end">{{ formatNumber(row.units) }}</td>
+                                            <td class="text-end">{{ formatNumber(row.skus) }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p v-else class="overview-empty">Belum ada stok cabang.</p>
+                        </details>
                     </article>
                 </div>
             </div>
@@ -1468,7 +1502,7 @@ const exportOverview = () => {
                             </div>
                             <span class="overview-card-meta">{{ formatNumber(props.inventory.summary.low_stock_alerts) }} lokasi</span>
                         </header>
-                        <div v-if="props.inventory.low_stock.length" class="table-responsive">
+                        <div v-if="props.inventory.low_stock.length" class="table-responsive report-table-wrap report-table-scroll" tabindex="0" role="region" aria-label="Tabel data ringkasan usaha">
                             <table class="table align-middle mb-0 overview-table">
                                 <thead>
                                     <tr>
@@ -1558,7 +1592,7 @@ const exportOverview = () => {
     font-size: var(--app-text-2xs);
     font-weight: var(--app-weight-bold);
     letter-spacing: 0.01em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .overview-presets {
@@ -1676,7 +1710,7 @@ const exportOverview = () => {
     font-size: var(--app-text-2xs);
     font-weight: var(--app-weight-black);
     letter-spacing: 0.01em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .overview-section-head h2 {
@@ -1765,7 +1799,7 @@ const exportOverview = () => {
     font-size: var(--app-text-2xs);
     font-weight: var(--app-weight-bold);
     letter-spacing: 0.01em;
-    text-transform: uppercase;
+    text-transform: none;
 }
 
 .overview-kpi-value {
@@ -2288,6 +2322,51 @@ const exportOverview = () => {
     color: var(--app-muted);
     font-size: var(--app-text-sm);
     text-align: center;
+}
+
+.overview-disclosure {
+    border-top: 1px solid var(--app-border);
+}
+
+.overview-disclosure summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0.65rem 0.9rem;
+    color: var(--app-accent-ink);
+    font-size: var(--app-text-sm);
+    font-weight: var(--app-weight-semibold);
+    cursor: pointer;
+    list-style: none;
+}
+
+.overview-disclosure summary::-webkit-details-marker {
+    display: none;
+}
+
+.overview-disclosure summary:hover,
+.overview-disclosure summary:focus-visible {
+    background: var(--app-surface-2);
+}
+
+.overview-disclosure summary .mdi {
+    transition: transform var(--app-dur-fast) var(--app-ease-out);
+}
+
+.overview-disclosure[open] summary {
+    border-bottom: 1px solid var(--app-border);
+}
+
+.overview-disclosure[open] summary .mdi {
+    transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .overview-disclosure summary .mdi {
+        transition: none;
+    }
 }
 
 @media (max-width: 991.98px) {
