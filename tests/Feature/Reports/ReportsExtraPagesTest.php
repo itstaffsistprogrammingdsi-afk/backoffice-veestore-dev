@@ -3,7 +3,9 @@
 namespace Tests\Feature\Reports;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\InteractsWithBackofficeAdmin;
 use Tests\TestCase;
@@ -115,7 +117,64 @@ class ReportsExtraPagesTest extends TestCase
                 ->has('stores')
                 ->has('statuses')
                 ->has('filters')
-                ->has('urls'));
+                ->has('urls')
+                ->where('filters.status', ''));
+    }
+
+    public function test_order_cabang_report_shows_all_statuses_by_default(): void
+    {
+        $store = DB::table('stores')->whereNull('deleted_at')->first();
+        $warehouse = DB::table('warehouses')->whereNull('deleted_at')->first();
+        $product = DB::table('products')->first();
+        $price = $product
+            ? DB::table('product_prices')->where('product_id', $product->id)->first()
+            : null;
+
+        if (! $store || ! $warehouse || ! $product || ! $price) {
+            $this->markTestSkipped('Data master untuk order cabang tidak tersedia.');
+        }
+
+        $orderId = (string) Str::uuid();
+        $orderNumber = 'POS-TEST-'.Str::upper(Str::random(6));
+
+        DB::table('store_orders')->insert([
+            'id' => $orderId,
+            'order_number' => $orderNumber,
+            'store_id' => $store->id,
+            'warehouse_id' => $warehouse->id,
+            'requested_at' => now(),
+            'approved_at' => now(),
+            'status' => 'received',
+            'date' => now()->toDateString(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('store_order_details')->insert([
+            'id' => (string) Str::uuid(),
+            'store_order_id' => $orderId,
+            'product_id' => $product->id,
+            'product_price_id' => $price->id,
+            'product_price' => $price->price ?? 0,
+            'requested_qty' => 3,
+            'approved_qty' => 2,
+            'received_qty' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('reports.order-cabang.index', ['q' => $orderNumber]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Reports/OrderCabang')
+                ->where('filters.status', '')
+                ->where('orders.total', 1)
+                ->where('orders.data.0.status', 'received')
+                ->where('orders.data.0.status_label', 'Diterima')
+                ->where('orders.data.0.requested_qty', 3)
+                ->where('orders.data.0.approved_qty', 2)
+                ->where('orders.data.0.received_qty', 2));
     }
 
     public function test_retur_cabang_redirects_to_operations_approval_queue(): void

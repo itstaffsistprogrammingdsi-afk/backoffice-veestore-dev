@@ -17,11 +17,14 @@ interface OrderRow {
     id: string;
     order_number: string | null;
     status: string;
+    status_label: string;
     date: string | null;
     created_at: string | null;
     store: Option | null;
     warehouse: Option | null;
-    details_sum_requested_qty: number | null;
+    requested_qty: number;
+    approved_qty: number;
+    received_qty: number;
 }
 
 interface DetailRow {
@@ -71,7 +74,9 @@ const orderColumns = [
     { key: 'store', label: 'Toko' },
     { key: 'warehouse', label: 'Gudang' },
     { key: 'status', label: 'Status' },
-    { key: 'qty', label: 'Qty' },
+    { key: 'requested_qty', label: 'Diminta' },
+    { key: 'approved_qty', label: 'Disetujui' },
+    { key: 'received_qty', label: 'Diterima' },
 ];
 const orderSimpleColumns = ['order_number', 'date', 'store', 'status'];
 const { density, isCompact, toggleDensity } = useReportTableDensity();
@@ -106,7 +111,7 @@ const apply = () => {
 
 const reset = () => {
     form.q = '';
-    form.status = 'requested';
+    form.status = '';
     form.from = '';
     form.to = '';
     apply();
@@ -190,13 +195,17 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
     { key: 'warehouse', label: 'Warehouse' },
     { key: 'status', label: 'Status' },
     { key: 'requested_quantity', label: 'Qty Diminta' },
+    { key: 'approved_quantity', label: 'Qty Disetujui' },
+    { key: 'received_quantity', label: 'Qty Diterima' },
 ], props.orders.data.map((order) => ({
     order_number: order.order_number ?? order.id,
     date: order.date ?? order.created_at,
     store: order.store?.name ?? '',
     warehouse: order.warehouse?.name ?? '',
-    status: order.status,
-    requested_quantity: Number(order.details_sum_requested_qty ?? 0),
+    status: order.status_label || statusLabel(order.status),
+    requested_quantity: Number(order.requested_qty ?? 0),
+    approved_quantity: Number(order.approved_qty ?? 0),
+    received_quantity: Number(order.received_qty ?? 0),
 })), {
     title: 'Order Cabang',
     filters: [
@@ -273,18 +282,22 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                             <th v-if="isVisible('store')">Toko</th>
                             <th v-if="isVisible('warehouse')">Gudang</th>
                             <th v-if="isVisible('status')">Status</th>
-                            <th v-if="isVisible('qty')" class="text-end">Qty</th>
+                            <th v-if="isVisible('requested_qty')" class="text-end">Diminta</th>
+                            <th v-if="isVisible('approved_qty')" class="text-end">Disetujui</th>
+                            <th v-if="isVisible('received_qty')" class="text-end">Diterima</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="order in orders.data" :key="order.id">
                             <td v-if="isVisible('order_number')" class="fw-semibold">{{ order.order_number ?? order.id }}</td>
-                            <td v-if="isVisible('date')">{{ formatDate(order.date) }}</td>
+                            <td v-if="isVisible('date')">{{ formatDate(order.date ?? order.created_at) }}</td>
                             <td v-if="isVisible('store')">{{ order.store?.name ?? '-' }}</td>
                             <td v-if="isVisible('warehouse')">{{ order.warehouse?.name ?? '-' }}</td>
-                            <td v-if="isVisible('status')"><span class="badge" :class="statusClass(order.status)">{{ statusLabel(order.status) }}</span></td>
-                            <td v-if="isVisible('qty')" class="text-end">{{ formatNumber(order.details_sum_requested_qty) }}</td>
+                            <td v-if="isVisible('status')"><span class="badge" :class="statusClass(order.status)">{{ order.status_label || statusLabel(order.status) }}</span></td>
+                            <td v-if="isVisible('requested_qty')" class="text-end">{{ formatNumber(order.requested_qty) }}</td>
+                            <td v-if="isVisible('approved_qty')" class="text-end">{{ formatNumber(order.approved_qty) }}</td>
+                            <td v-if="isVisible('received_qty')" class="text-end">{{ formatNumber(order.received_qty) }}</td>
                             <td><button class="btn btn-sm btn-outline-primary" type="button" @click="openOrder(order)">Kelola</button></td>
                         </tr>
                         <tr v-if="orders.data.length === 0"><td :colspan="columnCount + 1" class="report-empty">Belum ada order pada filter ini. Ubah tanggal atau status.</td></tr>
@@ -296,7 +309,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
 
         <div v-if="selected" class="card report-card mt-3">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Order {{ selected.order_number ?? selected.id }}</h6>
+                <h6 class="mb-0">Order {{ selected.order_number ?? selected.id }} <span class="badge ms-2" :class="statusClass(selected.status)">{{ selected.status_label || statusLabel(selected.status) }}</span></h6>
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeOrder">Tutup</button>
             </div>
             <div class="card-body">

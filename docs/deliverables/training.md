@@ -8,7 +8,7 @@ Peserta mampu:
 
 1. Menjalankan transfer toko ke toko tanpa kesalahan stok.
 2. Menjaga konsistensi max diskon POS dan e-commerce.
-3. Membaca dan merekonsiliasi transaksi EDC BCA.
+3. Membaca dan merekonsiliasi transaksi EDC.
 4. Menyusun laporan pembelian per shift.
 5. Memeriksa kesiapan integrasi Doku dan Biteship.
 
@@ -36,9 +36,9 @@ Peserta mampu:
 
 | Waktu | Materi | Metode |
 |---|---|---|
-| 08.30–10.00 | EDC BCA: membaca transaksi dan metadata | Demo |
+| 08.30–10.00 | EDC: membaca transaksi dan metadata | Demo |
 | 10.00–10.15 | Istirahat | — |
-| 10.15–11.45 | EDC BCA: rekonsiliasi dan ekspor | Latihan |
+| 10.15–11.45 | EDC: rekonsiliasi dan ekspor | Latihan |
 | 11.45–13.00 | Istirahat | — |
 | 13.00–14.30 | Laporan pembelian per shift | Latihan |
 | 14.30–15.15 | Integrasi Doku dan Biteship | Demo |
@@ -61,7 +61,7 @@ Peserta menemukan grup mismatch, menyamakan ke global, dan memverifikasi hasil. 
 
 ### Latihan 4 — Rekonsiliasi EDC
 
-Peserta mengekspor transaksi EDC BCA, menghitung estimasi settlement, dan mencatat selisih. Penilaian: laporan sesuai format.
+Peserta mengekspor transaksi EDC, menghitung estimasi settlement, dan mencatat selisih. Penilaian: laporan sesuai format.
 
 ### Latihan 5 — Laporan shift
 

@@ -8,7 +8,7 @@ Dokumen ini merangkum analisis, implementasi, dan batas integrasi eksternal untu
 |---|---|---|
 | Transfer toko ke toko | Selesai | Halaman `/operations/store-transfers`, alur buat, setujui, kirim, terima, tolak, dan batal. |
 | Sinkronisasi max diskon POS/e-commerce | Selesai | Halaman `/monitoring/discount-sync`, deteksi drift, pelanggaran cap, dan aksi sinkronisasi. |
-| EDC BCA | Selesai | Halaman `/monitoring/edc-bca`, parsing metadata EDC, estimasi MDR, dan settlement. |
+| EDC | Selesai | Halaman `/monitoring/edc`, parsing metadata EDC, estimasi MDR, dan settlement. |
 | Laporan pembelian per shift | Selesai | Halaman `/monitoring/shift-purchases`, agregasi item, produk, sesi, dan transaksi. |
 | Doku dan Biteship | Selesai sebagian | Halaman `/settings/integrations` untuk kesiapan konfigurasi dan aktivitas. Integrasi API penuh tetap membutuhkan kredensial eksternal. |
 | Mobile app | Dokumen | Roadmap dan spesifikasi MVP di `docs/deliverables/mobile-app.md`. |
@@ -51,12 +51,12 @@ Sinkronisasi bekerja pada master `discounts.max_discount` dan `discount_products
 
 Aksi sinkronisasi memerlukan izin `update master-data-discounts` dan tercatat otomatis oleh middleware audit.
 
-### 2.3 EDC BCA
+### 2.3 EDC
 
-- Transaksi dikenali dari `payment_methods.name` yang mengandung BCA dan EDC/DEBIT/CC/KREDIT.
+- Transaksi dikenali dari `payment_methods.name` yang mengandung EDC (semua acquirer), atau kombinasi BCA + EDC/DEBIT/CC/KREDIT.
 - Metadata terminal, approval code, batch, kartu, acquirer, dan merchant diparse dari `payment_details.detail`.
 - MDR adalah estimasi dari konfigurasi, bukan nilai settlement bank final.
-- Konfigurasi: `BACKOFFICE_EDC_BCA_CREDIT_MDR_PERCENT`, `BACKOFFICE_EDC_BCA_DEBIT_MDR_PERCENT`, `BACKOFFICE_EDC_BCA_SETTLEMENT_DAYS`.
+- Konfigurasi: `BACKOFFICE_EDC_CREDIT_MDR_PERCENT`, `BACKOFFICE_EDC_DEBIT_MDR_PERCENT`, `BACKOFFICE_EDC_SETTLEMENT_DAYS`. Variabel lama `BACKOFFICE_EDC_BCA_*` tetap dibaca sebagai fallback.
 
 ### 2.4 Pembelian per shift
 
@@ -88,8 +88,8 @@ Halaman integrasi hanya membaca konfigurasi dan aktivitas. Tidak ada panggilan A
 | PATCH | `/operations/store-transfers/{transfer}/cancel` | `operations.store-transfers.cancel` |
 | GET | `/monitoring/discount-sync` | `monitoring.discount-sync.index` |
 | POST | `/monitoring/discount-sync` | `monitoring.discount-sync.sync` |
-| GET | `/monitoring/edc-bca` | `monitoring.edc-bca.index` |
-| GET | `/monitoring/edc-bca/export` | `monitoring.edc-bca.export` |
+| GET | `/monitoring/edc` | `monitoring.edc.index` |
+| GET | `/monitoring/edc/export` | `monitoring.edc.export` |
 | GET | `/monitoring/shift-purchases` | `monitoring.shift-purchases.index` |
 | GET | `/monitoring/shift-purchases/detail` | `monitoring.shift-purchases.detail` |
 | GET | `/monitoring/shift-purchases/export` | `monitoring.shift-purchases.export` |
@@ -102,7 +102,7 @@ Halaman integrasi hanya membaca konfigurasi dan aktivitas. Tidak ada panggilan A
 |---|---|
 | Transfer toko | `view branch-order-cabang` |
 | Sinkronisasi max diskon | `view monitoring-diskon` dan `update master-data-discounts` |
-| EDC BCA | `view monitoring-store-payment-transactions` |
+| EDC | `view monitoring-store-payment-transactions` |
 | Pembelian per shift | `view monitoring-cashier-shift-report` |
 | Integrasi Doku/Biteship | Cukup login (halaman pengaturan) |
 

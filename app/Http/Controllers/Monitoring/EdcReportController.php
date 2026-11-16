@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Monitoring;
 
-use App\Domain\Payments\Queries\EdcBcaQuery;
-use App\Exports\EdcBcaReportExport;
+use App\Domain\Payments\Queries\EdcQuery;
+use App\Exports\EdcReportExport;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
 
-class EdcBcaReportController extends Controller
+class EdcReportController extends Controller
 {
     public function __construct()
     {
@@ -17,11 +17,11 @@ class EdcBcaReportController extends Controller
             ->only(['index', 'export']);
     }
 
-    public function index(Request $request, EdcBcaQuery $query)
+    public function index(Request $request, EdcQuery $query)
     {
         $filters = $this->filters($request);
 
-        return Inertia::render('Monitoring/EdcBca', [
+        return Inertia::render('Monitoring/Edc', [
             ...$query->build(
                 $filters['q'],
                 $filters['store_id'],
@@ -32,15 +32,15 @@ class EdcBcaReportController extends Controller
                 $filters['per_page']
             ),
             'urls' => [
-                'index' => route('monitoring.edc-bca.index'),
-                'export' => route('monitoring.edc-bca.export'),
+                'index' => route('monitoring.edc.index'),
+                'export' => route('monitoring.edc.export'),
                 'payment_methods' => route('master-data.payment-methods.index'),
                 'payments_page' => route('monitoring.store-payment-transactions.index'),
             ],
         ]);
     }
 
-    public function export(Request $request, EdcBcaQuery $query)
+    public function export(Request $request, EdcQuery $query)
     {
         $filters = $this->filters($request);
 
@@ -63,10 +63,10 @@ class EdcBcaReportController extends Controller
             1
         );
 
-        $filename = 'edc-bca-'.now()->format('Ymd_His').'.xlsx';
+        $filename = 'edc-'.now()->format('Ymd_His').'.xlsx';
 
         return Excel::download(
-            new EdcBcaReportExport(
+            new EdcReportExport(
                 $rows,
                 (array) $summary['summary'],
                 $summary['byMethod']->map(fn ($row) => (array) $row)->all(),

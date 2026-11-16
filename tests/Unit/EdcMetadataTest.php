@@ -53,8 +53,8 @@ class EdcMetadataTest extends TestCase
 
     public function test_it_uses_debit_and_credit_mdr_rates(): void
     {
-        $this->assertSame((float) config('backoffice.edc_bca.credit_mdr_percent', 2.0), EdcMetadata::mdrRate('BCA CC'));
-        $this->assertSame((float) config('backoffice.edc_bca.debit_mdr_percent', 1.0), EdcMetadata::mdrRate('BCA DEBIT'));
+        $this->assertSame((float) config('backoffice.edc.credit_mdr_percent', 2.0), EdcMetadata::mdrRate('BCA CC'));
+        $this->assertSame((float) config('backoffice.edc.debit_mdr_percent', 1.0), EdcMetadata::mdrRate('BCA DEBIT'));
         $this->assertSame(2000.0, EdcMetadata::estimateMdr(100000, 'BCA CC'));
         $this->assertSame(99000.0, EdcMetadata::estimateSettlement(100000, 'BCA DEBIT'));
     }

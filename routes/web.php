@@ -57,7 +57,7 @@ use App\Http\Controllers\Monitoring\CustomerMembershipMonitoringController;
 use App\Http\Controllers\Monitoring\DiscountSyncController;
 use App\Http\Controllers\Monitoring\EcommerceOrderFulfillmentController;
 use App\Http\Controllers\Monitoring\EcommercePaymentController;
-use App\Http\Controllers\Monitoring\EdcBcaReportController;
+use App\Http\Controllers\Monitoring\EdcReportController;
 use App\Http\Controllers\Monitoring\EmployeeShiftAttendanceController;
 use App\Http\Controllers\Monitoring\FifoFefoPriorityReportController;
 use App\Http\Controllers\Monitoring\MasterChangeHistoryReportController;
@@ -825,13 +825,19 @@ Route::middleware('auth')->group(function () {
         Route::get('store-payment-transactions/export', [StorePaymentTransactionController::class, 'export'])
             ->name('store-payment-transactions.export');
 
-        Route::prefix('edc-bca')->name('edc-bca.')->group(function () {
-            Route::get('/', [EdcBcaReportController::class, 'index'])
+        Route::prefix('edc')->name('edc.')->group(function () {
+            Route::get('/', [EdcReportController::class, 'index'])
                 ->name('index');
 
-            Route::get('/export', [EdcBcaReportController::class, 'export'])
+            Route::get('/export', [EdcReportController::class, 'export'])
                 ->name('export');
         });
+
+        Route::get('edc-bca', fn () => redirect()->route('monitoring.edc.index', request()->query()))
+            ->name('edc-bca.index');
+
+        Route::get('edc-bca/export', fn () => redirect()->route('monitoring.edc.export', request()->query()))
+            ->name('edc-bca.export');
 
         Route::prefix('payment-income-realtime')
             ->name('payment-income-realtime.')
