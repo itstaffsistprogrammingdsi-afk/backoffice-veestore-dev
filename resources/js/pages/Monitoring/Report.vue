@@ -153,6 +153,7 @@ const reportDescription = computed(() => {
     return 'Ringkasan dan tabel mengikuti filter yang sama. Gunakan tab data untuk melihat rincian; angka antar tab tidak dijumlahkan.';
 });
 const page = usePage();
+const flash = computed(() => (page.props.flash ?? {}) as { success?: string; error?: string });
 
 const isObject = (value: unknown): value is Record<string, any> =>
     Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -1372,6 +1373,11 @@ const HIDDEN_COLUMNS = new Set([
     'item_conditions',
     'show_detail_button',
     'can_decide',
+    'can_approve',
+    'can_reject',
+    'session_created_by',
+    'session_updated_at',
+    'approval_context',
     'url',
     'order_url',
     'created_by',
@@ -2177,8 +2183,27 @@ const decisionDialog = ref<{ row: Row; action: 'approve' | 'reject' } | null>(nu
 const decisionReason = ref('');
 const decisionError = ref('');
 const decisionWorking = ref(false);
+const decisionMissingSelection = ref<string[]>([]);
 const decisionPrimaryRef = ref<HTMLButtonElement | null>(null);
 const decisionTextareaRef = ref<HTMLTextAreaElement | null>(null);
+
+const decisionMissingItems = computed<Array<{ id: string; identifier: string; product_name: string }>>(() => {
+    const items = decisionDialog.value?.row.approval_context?.missing_items;
+
+    return Array.isArray(items)
+        ? items.filter((item: any) => item && typeof item.id === 'string')
+        : [];
+});
+
+const decisionConditionDecisions = computed<Array<{ name: string; count: number }>>(() => {
+    const decisions = decisionDialog.value?.row.approval_context?.condition_decisions;
+
+    return Array.isArray(decisions) ? decisions : [];
+});
+
+const decisionHasManualException = computed<boolean>(() =>
+    Boolean(decisionDialog.value?.row.approval_context?.has_manual_exception),
+);
 
 const openDecision = (row: Row, action: 'approve' | 'reject') => {
     if (!(action === 'approve' ? props.urls?.approve : props.urls?.reject)) return;
@@ -2186,6 +2211,7 @@ const openDecision = (row: Row, action: 'approve' | 'reject') => {
     decisionDialog.value = { row, action };
     decisionReason.value = '';
     decisionError.value = '';
+    decisionMissingSelection.value = [];
 
     void nextTick(() => {
         if (action === 'reject') {
@@ -2202,6 +2228,7 @@ const closeDecision = () => {
     decisionDialog.value = null;
     decisionReason.value = '';
     decisionError.value = '';
+    decisionMissingSelection.value = [];
 };
 
 const submitDecision = () => {
@@ -2218,16 +2245,48 @@ const submitDecision = () => {
         return;
     }
 
-    if (dialog.action === 'reject' && decisionReason.value.trim() === '') {
-        decisionError.value = 'Alasan penolakan wajib diisi.';
+    const reason = decisionReason.value.trim();
+
+    if (reason.length < 10) {
+        decisionError.value = 'Alasan keputusan minimal 10 karakter.';
 
         return;
+    }
+
+    const payload: Record<string, any> = { reason };
+
+    if (dialog.action === 'approve') {
+        if (decisionHasManualException.value) {
+            decisionError.value = 'Manual exception harus diselesaikan sebelum approval.';
+
+            return;
+        }
+
+        const requiredIds = decisionMissingItems.value.map((item) => item.id).sort();
+        const selectedIds = [...new Set(decisionMissingSelection.value)].sort();
+
+        if (requiredIds.length !== selectedIds.length || requiredIds.some((id, index) => id !== selectedIds[index])) {
+            decisionError.value = 'Konfirmasi setiap item unresolved sebagai explicit missing, atau tolak sesi untuk hitung ulang.';
+
+            return;
+        }
+
+        const reviewedAt = String(dialog.row.session_updated_at ?? '');
+
+        if (!reviewedAt) {
+            decisionError.value = 'Waktu review sesi tidak tersedia. Muat ulang halaman lalu coba lagi.';
+
+            return;
+        }
+
+        payload.missing_item_ids = selectedIds;
+        payload.reviewed_at = reviewedAt;
     }
 
     decisionWorking.value = true;
     decisionError.value = '';
 
-    router.post(url.replace('__ID__', sessionId), { reason: decisionReason.value.trim() }, {
+    router.post(url.replace('__ID__', sessionId), payload, {
         preserveScroll: true,
         onSuccess: () => {
             decisionWorking.value = false;
@@ -3419,6 +3478,9 @@ const selectDataset = (key: string) => {
             </div>
         </header>
 
+        <div v-if="flash.success" class="alert alert-success monitor-alert" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger monitor-alert" role="alert">{{ flash.error }}</div>
+
         <div v-if="hasError" class="alert alert-danger monitor-alert" role="alert">
             <div class="d-flex align-items-start gap-2">
                 <i class="mdi mdi-alert-circle-outline monitor-alert-icon" aria-hidden="true"></i>
@@ -4020,8 +4082,9 @@ const selectDataset = (key: string) => {
                                 <span v-else class="text-muted">-</span>
                             </td>
                             <td v-if="hasApprovalActions" class="text-end">
-                                <template v-if="row.can_decide">
+                                <template v-if="row.can_approve || row.can_reject">
                                     <button
+                                        v-if="row.can_approve"
                                         type="button"
                                         class="btn btn-sm btn-success me-1"
                                         title="Setujui sesi opname"
@@ -4031,6 +4094,7 @@ const selectDataset = (key: string) => {
                                         <i class="mdi mdi-check" aria-hidden="true"></i>
                                     </button>
                                     <button
+                                        v-if="row.can_reject"
                                         type="button"
                                         class="btn btn-sm btn-outline-danger"
                                         title="Tolak sesi opname"
@@ -4151,18 +4215,69 @@ const selectDataset = (key: string) => {
                         <p class="mb-3">
                             Sesi <strong>{{ decisionDialog.row.opname_code ?? decisionDialog.row.session_id ?? '-' }}</strong>
                         </p>
-                        <div v-if="decisionDialog.action === 'reject'" class="mb-3">
-                            <label class="form-label" for="opname-reject-reason">Alasan penolakan</label>
+
+                        <template v-if="decisionDialog.action === 'approve'">
+                            <p class="small text-muted">
+                                Approval hanya menerapkan item yang diputuskan explicit missing dan keputusan kondisi hasil scan.
+                                Stok lain tidak otomatis disamakan dengan angka fisik.
+                            </p>
+
+                            <div v-if="decisionHasManualException" class="alert alert-warning" role="alert">
+                                Manual exception harus diselesaikan di POS sebelum sesi ini dapat disetujui.
+                            </div>
+
+                            <h3 class="h6">Konfirmasi explicit missing</h3>
+                            <div v-if="decisionMissingItems.length" class="list-group mb-3">
+                                <label
+                                    v-for="item in decisionMissingItems"
+                                    :key="item.id"
+                                    class="list-group-item d-flex gap-2 text-start"
+                                >
+                                    <input
+                                        v-model="decisionMissingSelection"
+                                        class="form-check-input mt-1"
+                                        type="checkbox"
+                                        :value="item.id"
+                                    >
+                                    <span>
+                                        <strong>{{ item.product_name }}</strong><br>
+                                        <small>{{ item.identifier }}</small>
+                                    </span>
+                                </label>
+                            </div>
+                            <p v-else class="text-muted small mb-3">
+                                Tidak ada item unresolved yang perlu diputuskan missing.
+                            </p>
+
+                            <div v-if="decisionConditionDecisions.length" class="mb-3">
+                                <h3 class="h6">Keputusan kondisi hasil scan</h3>
+                                <span
+                                    v-for="condition in decisionConditionDecisions"
+                                    :key="condition.name"
+                                    class="badge bg-secondary me-1 mb-1"
+                                >
+                                    {{ condition.name }}: {{ condition.count }}
+                                </span>
+                            </div>
+                        </template>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="opname-decision-reason">
+                                {{ decisionDialog.action === 'approve' ? 'Alasan approval' : 'Alasan penolakan' }}
+                            </label>
                             <textarea
-                                id="opname-reject-reason"
+                                id="opname-decision-reason"
                                 ref="decisionTextareaRef"
                                 v-model="decisionReason"
                                 class="form-control"
                                 rows="4"
                                 maxlength="1000"
-                                placeholder="Jelaskan alasan sesi stok opname ditolak."
+                                :placeholder="decisionDialog.action === 'approve'
+                                    ? 'Tuliskan dasar pemeriksaan dan keputusan approval (minimal 10 karakter).'
+                                    : 'Jelaskan alasan sesi stok opname ditolak (minimal 10 karakter).'"
                             ></textarea>
                         </div>
+
                         <div v-if="decisionError" class="alert alert-danger mb-0" role="alert">{{ decisionError }}</div>
                     </div>
 

@@ -47,10 +47,10 @@ class MasterDataReportTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Monitoring/Report')
-                ->where('canDecide', false)
+                ->where('canDecide', true)
                 ->where('urls.pos_stock_opname', rtrim((string) config('backoffice.pos_app_url'), '/').'/storage/stock-opname')
-                ->missing('urls.approve')
-                ->missing('urls.reject'));
+                ->has('urls.approve')
+                ->has('urls.reject'));
 
         $this->actingAs($admin)
             ->get(route('monitoring.promo-loyalty.index', ['dataset' => 'referralRows']))
@@ -86,20 +86,28 @@ class MasterDataReportTest extends TestCase
                 ->where('monitoringGroups', fn ($groups) => collect($groups)->pluck('items')->flatten(1)->pluck('url')->contains(fn ($url) => str_contains((string) $url, 'monitoring/branch-expansion'))));
     }
 
-    public function test_stock_opname_report_is_read_only_and_points_to_pos(): void
+    public function test_stock_opname_report_exposes_backoffice_decision_flags(): void
     {
         $admin = $this->admin();
         $store = DB::table('stores')->whereNull('deleted_at')->first();
         $location = DB::table('locations')->whereNull('deleted_at')->first();
+        $product = DB::table('products')->whereNull('deleted_at')->first();
+        $creatorId = DB::table('users')
+            ->where('id', '!=', $admin->id)
+            ->whereNull('deleted_at')
+            ->value('id');
 
         $this->assertNotNull($store);
         $this->assertNotNull($location);
+        $this->assertNotNull($product);
+        $this->assertNotNull($creatorId);
 
         $sessionId = (string) Str::uuid();
+        $sessionName = 'Opname Uji BO '.Str::upper(Str::random(6));
 
         DB::table('store_opname_sessions')->insert([
             'id' => $sessionId,
-            'name' => 'Opname Uji Read Only',
+            'name' => $sessionName,
             'type' => 'partial',
             'store_id' => $store->id,
             'location_id' => $location->id,
@@ -108,21 +116,32 @@ class MasterDataReportTest extends TestCase
             'started_at' => now(),
             'finished_at' => now(),
             'counting_round' => 1,
-            'created_by' => $admin->id,
+            'created_by' => $creatorId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('store_opname_session_items')->insert([
+            'id' => (string) Str::uuid(),
+            'opname_session_id' => $sessionId,
+            'product_id' => $product->id,
+            'location_id' => $location->id,
+            'system_stock' => 2,
+            'physical_stock' => 1,
+            'discrepancy_reason' => 'missing',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $this->actingAs($admin)
-            ->post("/monitoring/stock-opname-variance/{$sessionId}/approve", [
-                'reason' => 'Percobaan approval dari Backoffice',
-            ])
-            ->assertNotFound();
-
-        $session = DB::table('store_opname_sessions')->where('id', $sessionId)->first();
-
-        $this->assertSame('pending_approval', $session->status);
-        $this->assertNull($session->approved_by);
-        $this->assertNull($session->approved_at);
+            ->get(route('monitoring.stock-opname-variance.index', ['q' => $sessionName]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Monitoring/Report')
+                ->where('data.rows.data.0.session_id', $sessionId)
+                ->where('data.rows.data.0.can_approve', true)
+                ->where('data.rows.data.0.can_reject', true)
+                ->where('data.rows.data.0.can_decide', true)
+                ->has('data.rows.data.0.approval_context.missing_items'));
     }
 }
