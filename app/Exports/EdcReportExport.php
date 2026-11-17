@@ -9,7 +9,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithTitle;
 
-class EdcBcaReportExport implements WithMultipleSheets
+class EdcReportExport implements WithMultipleSheets
 {
     public function __construct(
         protected array $rows,
@@ -21,13 +21,13 @@ class EdcBcaReportExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new EdcBcaSummarySheet($this->summary, $this->byMethod, $this->mdr),
-            new EdcBcaTransactionSheet(collect($this->rows)),
+            new EdcSummarySheet($this->summary, $this->byMethod, $this->mdr),
+            new EdcTransactionSheet(collect($this->rows)),
         ];
     }
 }
 
-class EdcBcaSummarySheet implements FromCollection, ShouldAutoSize, WithTitle
+class EdcSummarySheet implements FromCollection, ShouldAutoSize, WithTitle
 {
     public function __construct(
         protected array $summary,
@@ -37,13 +37,13 @@ class EdcBcaSummarySheet implements FromCollection, ShouldAutoSize, WithTitle
 
     public function title(): string
     {
-        return 'Ringkasan EDC BCA';
+        return 'Ringkasan EDC';
     }
 
     public function collection(): Collection
     {
         $rows = [
-            ['Ringkasan EDC BCA', ''],
+            ['Ringkasan EDC', ''],
             ['Total Transaksi', (int) ($this->summary['total_transactions'] ?? 0)],
             ['Gross Amount', (float) ($this->summary['gross_amount'] ?? 0)],
             ['Estimasi MDR', (float) ($this->summary['mdr_amount'] ?? 0)],
@@ -69,13 +69,13 @@ class EdcBcaSummarySheet implements FromCollection, ShouldAutoSize, WithTitle
     }
 }
 
-class EdcBcaTransactionSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
+class EdcTransactionSheet implements FromCollection, ShouldAutoSize, WithHeadings, WithTitle
 {
     public function __construct(protected Collection $rows) {}
 
     public function title(): string
     {
-        return 'Transaksi EDC BCA';
+        return 'Transaksi EDC';
     }
 
     public function headings(): array

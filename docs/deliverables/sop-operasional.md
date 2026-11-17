@@ -9,7 +9,7 @@ Dokumen ini menjadi acuan kerja harian untuk staf backoffice, supervisor toko, d
 | Staf toko | Membuat permintaan transfer, menyiapkan barang, menerima barang. |
 | Supervisor toko | Menyetujui transfer, memverifikasi qty, menangani selisih. |
 | Admin backoffice | Memantau antrean, menyinkronkan diskon, memeriksa integrasi. |
-| Tim keuangan | Meninjau MDR EDC BCA, settlement, dan laporan shift. |
+| Tim keuangan | Meninjau MDR EDC, settlement, dan laporan shift. |
 | Tim IT | Menjaga kredensial Doku/Biteship dan endpoint webhook. |
 
 ## 2. SOP Transfer Toko ke Toko
@@ -67,9 +67,9 @@ Dokumen ini menjadi acuan kerja harian untuk staf backoffice, supervisor toko, d
 
 Catatan: sinkronisasi hanya untuk diskon persentase. Diskon nominal tidak memiliki cap.
 
-## 4. SOP EDC BCA
+## 4. SOP EDC
 
-1. Buka **Laporan → EDC BCA**.
+1. Buka **Laporan → EDC**.
 2. Pilih periode dan toko.
 3. Periksa total transaksi, gross, estimasi MDR, dan estimasi settlement.
 4. Buka detail transaksi untuk melihat terminal, approval code, batch, dan kartu.
@@ -102,7 +102,7 @@ Catatan: sinkronisasi hanya untuk diskon persentase. Diskon nominal tidak memili
 - [ ] Antrean transfer menunggu persetujuan sudah ditinjau.
 - [ ] Transfer dalam perjalanan sudah diterima atau dilaporkan.
 - [ ] Tidak ada drift max diskon baru.
-- [ ] Transaksi EDC BCA sudah direkonsiliasi.
+- [ ] Transaksi EDC sudah direkonsiliasi.
 - [ ] Laporan pembelian shift sudah diekspor.
 - [ ] Integrasi Doku/Biteship tanpa kegagalan kritis.
 

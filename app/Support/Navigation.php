@@ -192,7 +192,7 @@ class Navigation
                     ['Produk Terlaris (Fast Moving)', 'monitoring.produk-terlaris.index', 'mdi-fire', null],
                     ['Pemasukan & Pembayaran', 'monitoring.payment-income-realtime.index', 'mdi-cash-register', null],
                     ['Metode Pembayaran & Kembalian', 'monitoring.store-payment-transactions.index', 'mdi-credit-card-check-outline', null],
-                    ['EDC BCA', 'monitoring.edc-bca.index', 'mdi-credit-card-chip-outline', 'view monitoring-store-payment-transactions'],
+                    ['EDC', 'monitoring.edc.index', 'mdi-credit-card-chip-outline', 'view monitoring-store-payment-transactions'],
                     ['Transaksi Gantung', 'monitoring.pending-transactions.index', 'mdi-timer-alert-outline', null],
                     ['Anomali Transaksi', 'monitoring.transaction-anomalies.index', 'mdi-alert-decagram-outline', null],
                     ['Pembayaran E-commerce', 'monitoring.ecommerce-payment.index', 'mdi-receipt-text-outline', 'view monitoring-ecommerce-payment'],

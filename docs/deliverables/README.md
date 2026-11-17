@@ -5,7 +5,7 @@ Folder ini berisi dokumen pendamping untuk fitur yang tidak dapat diselesaikan h
 | Dokumen | Isi |
 |---|---|
 | `mobile-app.md` | Spesifikasi MVP, alur layar, kebutuhan API, roadmap. |
-| `sop-operasional.md` | SOP transfer toko, sinkronisasi diskon, EDC BCA, pembelian shift, dan integrasi. |
+| `sop-operasional.md` | SOP transfer toko, sinkronisasi diskon, EDC, pembelian shift, dan integrasi. |
 | `presentasi.md` | Kerangka presentasi dan catatan demo. |
 | `training.md` | Agenda, latihan, penilaian, dan tindak lanjut training. |
 | `legal-kbli.md` | Checklist KBLI, dokumen perusahaan, data pribadi, pajak, dan operasional. |

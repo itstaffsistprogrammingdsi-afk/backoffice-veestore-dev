@@ -9,17 +9,17 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Tests\Concerns\InteractsWithBackofficeAdmin;
 use Tests\TestCase;
 
-class EdcBcaReportTest extends TestCase
+class EdcReportTest extends TestCase
 {
     use DatabaseTransactions, InteractsWithBackofficeAdmin;
 
-    public function test_edc_bca_page_uses_inertia(): void
+    public function test_edc_page_uses_inertia(): void
     {
         $this->actingAs($this->admin())
-            ->get(route('monitoring.edc-bca.index'))
+            ->get(route('monitoring.edc.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Monitoring/EdcBca')
+                ->component('Monitoring/Edc')
                 ->has('rows')
                 ->has('summary')
                 ->has('byMethod')
@@ -34,7 +34,7 @@ class EdcBcaReportTest extends TestCase
                 ->has('urls'));
     }
 
-    public function test_edc_bca_page_parses_transaction_metadata(): void
+    public function test_edc_page_parses_transaction_metadata(): void
     {
         $suffix = Str::upper(Str::random(6));
 
@@ -80,10 +80,10 @@ class EdcBcaReportTest extends TestCase
         ]);
 
         $this->actingAs($this->admin())
-            ->get(route('monitoring.edc-bca.index', ['q' => $transactionNumber]))
+            ->get(route('monitoring.edc.index', ['q' => $transactionNumber]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Monitoring/EdcBca')
+                ->component('Monitoring/Edc')
                 ->where('summary.total_transactions', 1)
                 ->where('rows.data.0.metadata.terminal_id', 'A01')
                 ->where('rows.data.0.metadata.approval_code', 'APP-1')
@@ -95,7 +95,14 @@ class EdcBcaReportTest extends TestCase
                 ->where('rows.data.0.net_amount', 147000));
 
         $this->actingAs($this->admin())
-            ->get(route('monitoring.edc-bca.export', ['q' => $transactionNumber]))
+            ->get(route('monitoring.edc.export', ['q' => $transactionNumber]))
             ->assertOk();
+    }
+
+    public function test_legacy_edc_bca_url_redirects_to_edc(): void
+    {
+        $this->actingAs($this->admin())
+            ->get('/monitoring/edc-bca?q=test')
+            ->assertRedirect(route('monitoring.edc.index', ['q' => 'test']));
     }
 }
