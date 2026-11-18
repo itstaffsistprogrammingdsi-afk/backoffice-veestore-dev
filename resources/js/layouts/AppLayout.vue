@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/composables/useTheme';
 import VeeAssistantWidget from '@/components/assistant/VeeAssistantWidget.vue';
+import AppConfirmHost from '@/components/ui/AppConfirmHost.vue';
 import AppToastHost from '@/components/ui/AppToastHost.vue';
 import MenuSearch from '@/components/MenuSearch.vue';
 import NotificationBell from '@/components/NotificationBell.vue';
@@ -575,9 +576,12 @@ onBeforeUnmount(() => {
                     :src="branding.logo_url"
                     :alt="branding.name"
                     class="app-brand-logo"
+                    width="608"
+                    height="410"
+                    decoding="async"
                 />
                 <div v-else class="app-mark" :title="`${branding.name} ${branding.tagline}`">
-                    <img :src="branding.logo_url" :alt="branding.name" class="app-mark-logo" />
+                    <img :src="branding.logo_url" :alt="branding.name" class="app-mark-logo" width="608" height="410" decoding="async" />
                 </div>
                 <div class="app-brand-copy">
                     <strong>{{ branding.tagline }}</strong>
@@ -761,7 +765,7 @@ onBeforeUnmount(() => {
                         </div>
                         <button type="button" :disabled="isLoggingOut" @click="logout">
                             <i class="mdi mdi-logout me-1" aria-hidden="true"></i>
-                            {{ isLoggingOut ? 'Keluar...' : 'Keluar' }}
+                            {{ isLoggingOut ? 'Keluar…' : 'Keluar' }}
                         </button>
                     </div>
                     </div>
@@ -844,6 +848,7 @@ onBeforeUnmount(() => {
 
         <VeeAssistantWidget :inert="mobileOpen && !isDesktopViewport" :aria-hidden="mobileOpen && !isDesktopViewport ? 'true' : undefined" />
         <AppToastHost />
+        <AppConfirmHost />
     </div>
 </template>
 

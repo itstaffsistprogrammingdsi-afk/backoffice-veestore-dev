@@ -4,6 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ReportTableControls from '@/components/ui/ReportTableControls.vue';
 import { useReportTableDensity } from '@/composables/useReportTable';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -162,8 +163,15 @@ const addExpense = () => {
     });
 };
 
-const deleteExpense = (expense: Expense) => {
-    if (!window.confirm(`Hapus beban ${expense.category} sebesar ${formatCurrency(expense.amount)}?`)) return;
+const deleteExpense = async (expense: Expense) => {
+    const confirmed = await confirmAction({
+        title: 'Hapus beban?',
+        description: `Beban ${expense.category} sebesar ${formatCurrency(expense.amount)} akan dihapus dari periode ini.`,
+        confirmLabel: 'Hapus beban',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.delete_expense, {
         data: { id: expense.id, period: props.period },

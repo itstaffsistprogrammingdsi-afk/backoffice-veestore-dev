@@ -647,7 +647,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="selectedReturn" class="return-backdrop" @click.self="closeReturn">
-            <section class="return-drawer" role="dialog" aria-modal="true" aria-labelledby="return-drawer-title" :inert="confirmAction ? true : undefined">
+            <section v-focus-trap.no-inert class="return-drawer" role="dialog" aria-modal="true" aria-labelledby="return-drawer-title" :inert="confirmAction ? true : undefined">
                 <header class="return-drawer-header">
                     <div>
                         <span class="return-drawer-eyebrow">Retur store</span>
@@ -847,7 +847,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="confirmAction" class="return-confirm-backdrop" @click.self="closeConfirm">
-            <section class="return-confirm" role="alertdialog" aria-modal="true" aria-labelledby="return-confirm-title" aria-describedby="return-confirm-description">
+            <section v-focus-trap.no-inert class="return-confirm" role="alertdialog" aria-modal="true" aria-labelledby="return-confirm-title" aria-describedby="return-confirm-description">
                 <h3 id="return-confirm-title">{{ confirmAction === 'approve' ? 'Setujui retur ini?' : 'Tolak retur ini?' }}</h3>
                 <p id="return-confirm-description">
                     <template v-if="confirmAction === 'approve'">

@@ -385,7 +385,7 @@ onBeforeUnmount(() => {
                 <span v-if="!triggerLabel" class="searchable-select-placeholder">{{ placeholderText }}</span>
                 <span v-else class="searchable-select-value">{{ triggerLabel }}</span>
                 <span class="searchable-select-indicators">
-                    <i class="mdi searchable-select-chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                    <i class="mdi searchable-select-chevron" :class="open ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                 </span>
             </button>
             <button
@@ -396,7 +396,7 @@ onBeforeUnmount(() => {
                 title="Bersihkan pilihan"
                 @click.stop="clearSelection"
             >
-                <i class="mdi mdi-close-circle"></i>
+                <i class="mdi mdi-close-circle" aria-hidden="true"></i>
             </button>
         </div>
 
@@ -432,7 +432,7 @@ onBeforeUnmount(() => {
                         aria-label="Bersihkan pencarian"
                         @click="search = ''"
                     >
-                        <i class="mdi mdi-close"></i>
+                        <i class="mdi mdi-close" aria-hidden="true"></i>
                     </button>
                 </div>
 

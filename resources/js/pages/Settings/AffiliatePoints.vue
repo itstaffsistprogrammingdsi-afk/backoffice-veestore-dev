@@ -44,8 +44,8 @@ const submit = () => {
 
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card settings-card">
             <div class="card-body">

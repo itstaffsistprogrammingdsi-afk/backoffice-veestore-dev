@@ -68,8 +68,8 @@ const isActive = (code: VoucherCode) => Boolean(code.is_active);
 
         <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
-        <div v-if="flash.success" class="alert alert-success"><i class="mdi mdi-check-circle-outline me-1"></i>{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger"><i class="mdi mdi-alert-circle-outline me-1"></i>{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status"><i class="mdi mdi-check-circle-outline me-1"></i>{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert"><i class="mdi mdi-alert-circle-outline me-1"></i>{{ flash.error }}</div>
 
         <div class="card voucher-card">
             <div class="card-header d-flex justify-content-between align-items-center">

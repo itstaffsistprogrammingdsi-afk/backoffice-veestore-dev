@@ -194,7 +194,7 @@ onBeforeUnmount(() => {
         <div class="location-actions">
             <button class="btn btn-sm btn-outline-secondary" type="button" :disabled="locating" @click="locateMe">
                 <i class="mdi mdi-crosshairs-gps me-1"></i>
-                {{ locating ? 'Mencari lokasi...' : 'Gunakan lokasi saya' }}
+                {{ locating ? 'Mencari lokasi…' : 'Gunakan lokasi saya' }}
             </button>
             <button class="btn btn-sm btn-outline-secondary" type="button" @click="clearLocation">
                 <i class="mdi mdi-map-marker-off-outline me-1"></i>

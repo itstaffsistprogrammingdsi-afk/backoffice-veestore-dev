@@ -231,8 +231,8 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
             </button>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card report-card mb-3">
             <div class="card-body">
@@ -332,7 +332,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                                     <td class="text-end">{{ detail.requested_qty }}</td>
                                     <td class="text-end">{{ detail.approved_qty }}</td>
                                     <td class="text-end">{{ detail.received_qty }}</td>
-                                    <td class="text-end"><input v-model.number="receivedQty[detail.id]" class="form-control form-control-sm text-end" type="number" min="0" :max="detail.approved_qty" style="max-width: 100px; margin-left: auto;" /></td>
+                                    <td class="text-end"><input v-model.number="receivedQty[detail.id]" class="form-control form-control-sm text-end" type="number" min="0" :max="detail.approved_qty" style="max-width: 100px; margin-left: auto;" :aria-label="`Jumlah diterima untuk ${detail.product?.name ?? detail.product_id ?? 'produk'}`" /></td>
                                 </tr>
                                 <tr v-if="details.length === 0"><td colspan="5" class="report-empty">Belum ada detail.</td></tr>
                             </tbody>

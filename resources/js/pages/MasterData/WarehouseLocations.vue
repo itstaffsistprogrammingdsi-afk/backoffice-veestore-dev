@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -495,12 +496,19 @@ const downloadPng = async () => {
     window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 };
 
-const destroy = (row: LocationRow) => {
+const destroy = async (row: LocationRow) => {
     const message = row.has_children
         ? `Hapus "${row.name}" beserta seluruh lokasi turunannya?`
         : `Hapus "${row.name}"?`;
 
-    if (!window.confirm(message)) return;
+    const confirmed = await confirmAction({
+        title: 'Hapus lokasi?',
+        description: message,
+        confirmLabel: 'Hapus lokasi',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.destroy.replace('__ID__', row.id), {
         preserveScroll: true,
@@ -608,23 +616,23 @@ onBeforeUnmount(() => {
             </button>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card location-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-5">
-                        <label class="form-label">Cari lokasi</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama, kode, atau warehouse..." />
+                        <label for="warehouse-locations-cari-lokasi-1" class="form-label">Cari lokasi</label>
+                        <input id="warehouse-locations-cari-lokasi-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama, kode, atau warehouse..." />
                     </div>
                     <div class="col-md-3 col-lg-2">
-                        <label class="form-label">Warehouse</label>
-                        <SearchableSelect v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
+                        <label for="warehouse-locations-warehouse-2" class="form-label">Warehouse</label>
+                        <SearchableSelect id="warehouse-locations-warehouse-2" v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
                     </div>
                     <div class="col-md-3 col-lg-2">
-                        <label class="form-label">Tipe</label>
-                        <select v-model="filters.type" class="form-select form-select-sm">
+                        <label for="warehouse-locations-tipe-3" class="form-label">Tipe</label>
+                        <select id="warehouse-locations-tipe-3" v-model="filters.type" class="form-select form-select-sm">
                             <option value="">Semua tipe</option>
                             <option v-for="type in typeOptions" :key="type.value" :value="type.value">{{ type.label }}</option>
                         </select>
@@ -648,13 +656,13 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-3" @submit.prevent="submitCreate">
                     <div class="col-md-6">
-                        <label class="form-label">Nama Lokasi</label>
-                        <input v-model="createForm.name" class="form-control form-control-sm" type="text" required placeholder="Contoh: Gudang Utama" />
+                        <label for="warehouse-locations-nama-lokasi-4" class="form-label">Nama Lokasi</label>
+                        <input id="warehouse-locations-nama-lokasi-4" v-model="createForm.name" class="form-control form-control-sm" type="text" required placeholder="Contoh: Gudang Utama" />
                         <div v-if="createForm.errors.name" class="text-danger small mt-1">{{ createForm.errors.name }}</div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Gudang</label>
-                        <SearchableSelect
+                        <label for="warehouse-locations-gudang-5" class="form-label">Gudang</label>
+                        <SearchableSelect id="warehouse-locations-gudang-5"
                             v-model="createForm.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Pilih gudang"
@@ -666,23 +674,23 @@ onBeforeUnmount(() => {
                     </div>
 
                     <div class="col-6 col-lg-3">
-                        <label class="form-label">Jumlah Room</label>
-                        <input v-model.number="createForm.rooms" class="form-control form-control-sm" type="number" min="1" max="20" required />
+                        <label for="warehouse-locations-jumlah-room-6" class="form-label">Jumlah Room</label>
+                        <input id="warehouse-locations-jumlah-room-6" v-model.number="createForm.rooms" class="form-control form-control-sm" type="number" min="1" max="20" required />
                         <div v-if="createForm.errors.rooms" class="text-danger small mt-1">{{ createForm.errors.rooms }}</div>
                     </div>
                     <div class="col-6 col-lg-3">
-                        <label class="form-label">Staging per Room</label>
-                        <input v-model.number="createForm.staging" class="form-control form-control-sm" type="number" min="0" max="20" required />
+                        <label for="warehouse-locations-staging-per-room-7" class="form-label">Staging per Room</label>
+                        <input id="warehouse-locations-staging-per-room-7" v-model.number="createForm.staging" class="form-control form-control-sm" type="number" min="0" max="20" required />
                         <div v-if="createForm.errors.staging" class="text-danger small mt-1">{{ createForm.errors.staging }}</div>
                     </div>
                     <div class="col-6 col-lg-3">
-                        <label class="form-label">Rack per Room</label>
-                        <input v-model.number="createForm.racks" class="form-control form-control-sm" type="number" min="0" max="50" required />
+                        <label for="warehouse-locations-rack-per-room-8" class="form-label">Rack per Room</label>
+                        <input id="warehouse-locations-rack-per-room-8" v-model.number="createForm.racks" class="form-control form-control-sm" type="number" min="0" max="50" required />
                         <div v-if="createForm.errors.racks" class="text-danger small mt-1">{{ createForm.errors.racks }}</div>
                     </div>
                     <div class="col-6 col-lg-3">
-                        <label class="form-label">Layer per Rack/Staging</label>
-                        <input v-model.number="createForm.layers" class="form-control form-control-sm" type="number" min="0" max="20" required />
+                        <label for="warehouse-locations-layer-per-rack-staging-9" class="form-label">Layer per Rack/Staging</label>
+                        <input id="warehouse-locations-layer-per-rack-staging-9" v-model.number="createForm.layers" class="form-control form-control-sm" type="number" min="0" max="20" required />
                         <div v-if="createForm.errors.layers" class="text-danger small mt-1">{{ createForm.errors.layers }}</div>
                     </div>
 
@@ -805,7 +813,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="quickAdd" class="location-modal-backdrop" @click.self="closeQuickAdd">
-            <div class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="quick-add-title">
+            <div v-focus-trap class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="quick-add-title">
                 <form @submit.prevent="submitQuickAdd">
                     <div class="location-modal-header">
                         <div>
@@ -818,13 +826,13 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="location-modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Name</label>
-                            <input ref="quickAddName" v-model="quickAddForm.name" class="form-control" type="text" required placeholder="Contoh: Room A" />
+                            <label for="warehouse-locations-name-10" class="form-label">Name</label>
+                            <input id="warehouse-locations-name-10" ref="quickAddName" v-model="quickAddForm.name" class="form-control" type="text" required placeholder="Contoh: Room A" />
                             <div v-if="quickAddForm.errors.name" class="text-danger small mt-1">{{ quickAddForm.errors.name }}</div>
                         </div>
                         <div v-if="quickAddNeedsParent" class="mb-3">
-                            <label class="form-label">Parent</label>
-                            <SearchableSelect
+                            <label for="warehouse-locations-parent-11" class="form-label">Parent</label>
+                            <SearchableSelect id="warehouse-locations-parent-11"
                                 v-model="quickAddForm.parent_id"
                                 :options="quickAddParentSelectOptions"
                                 placeholder="Pilih parent"
@@ -857,7 +865,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="renamingGroup" class="location-modal-backdrop" @click.self="closeRename">
-            <div class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="rename-warehouse-title">
+            <div v-focus-trap class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="rename-warehouse-title">
                 <form @submit.prevent="submitRename">
                     <div class="location-modal-header">
                         <div>
@@ -886,7 +894,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="editing" class="location-modal-backdrop" @click.self="cancelEdit">
-            <div class="location-modal" role="dialog" aria-modal="true" aria-labelledby="edit-location-title">
+            <div v-focus-trap class="location-modal" role="dialog" aria-modal="true" aria-labelledby="edit-location-title">
                 <form @submit.prevent="submitEdit">
                     <div class="location-modal-header">
                         <div>
@@ -900,13 +908,13 @@ onBeforeUnmount(() => {
                     <div class="location-modal-body">
                         <div class="row g-3">
                             <div class="col-12">
-                                <label class="form-label">Nama Lokasi</label>
-                                <input ref="editNameInput" v-model="editForm.name" class="form-control" type="text" required />
+                                <label for="warehouse-locations-nama-lokasi-12" class="form-label">Nama Lokasi</label>
+                                <input id="warehouse-locations-nama-lokasi-12" ref="editNameInput" v-model="editForm.name" class="form-control" type="text" required />
                                 <div v-if="editForm.errors.name" class="text-danger small mt-1">{{ editForm.errors.name }}</div>
                             </div>
                             <div class="col-12">
-                                <label class="form-label">Kode</label>
-                                <input v-model="editForm.code" class="form-control" type="text" required />
+                                <label for="warehouse-locations-kode-13" class="form-label">Kode</label>
+                                <input id="warehouse-locations-kode-13" v-model="editForm.code" class="form-control" type="text" required />
                                 <div v-if="editForm.errors.code" class="text-danger small mt-1">{{ editForm.errors.code }}</div>
                             </div>
                             <div class="col-12">
@@ -929,7 +937,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="qrModal" class="location-modal-backdrop" @click.self="closeQr">
-            <div class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+            <div v-focus-trap class="location-modal location-modal-sm" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
                 <div class="location-modal-header">
                     <div>
                         <h5 id="qr-modal-title" class="mb-0">QR {{ qrModal.row.type_label }}</h5>

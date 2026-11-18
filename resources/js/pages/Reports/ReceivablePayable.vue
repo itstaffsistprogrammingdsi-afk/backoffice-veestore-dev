@@ -2,6 +2,7 @@
 import { computed, reactive } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -127,17 +128,29 @@ const submitEntry = () => {
     });
 };
 
-const changeStatus = (entry: Entry) => {
+const changeStatus = async (entry: Entry) => {
     const next = entry.status === 'paid' ? 'open' : 'paid';
     const label = next === 'paid' ? 'lunas' : 'terbuka';
+    const confirmed = await confirmAction({
+        title: 'Ubah status catatan?',
+        description: `Status ${entry.party} akan diubah menjadi ${label}.`,
+        confirmLabel: 'Ubah status',
+    });
 
-    if (!window.confirm(`Ubah status ${entry.party} menjadi ${label}?`)) return;
+    if (!confirmed) return;
 
     router.patch(props.urls.status, { id: entry.id, status: next }, { preserveScroll: true });
 };
 
-const removeEntry = (entry: Entry) => {
-    if (!window.confirm(`Hapus catatan ${entry.party} sebesar ${formatCurrency(entry.amount)}?`)) return;
+const removeEntry = async (entry: Entry) => {
+    const confirmed = await confirmAction({
+        title: 'Hapus catatan?',
+        description: `Catatan ${entry.party} sebesar ${formatCurrency(entry.amount)} akan dihapus.`,
+        confirmLabel: 'Hapus catatan',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.destroy, {
         data: { id: entry.id },

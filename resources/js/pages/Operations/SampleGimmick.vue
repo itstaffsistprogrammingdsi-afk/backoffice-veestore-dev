@@ -753,7 +753,7 @@ const requestReference = (request: RequestRow) => {
 
     <Teleport to="body">
         <div v-if="requestModalOpen" class="sample-modal-backdrop" @click.self="closeRequest">
-            <section
+            <section v-focus-trap
                 class="sample-modal"
                 role="dialog"
                 aria-modal="true"

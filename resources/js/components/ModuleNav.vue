@@ -35,7 +35,7 @@ const moduleNavigation = computed(() => (page.props[props.moduleKey] ?? null) as
             :class="{ 'is-active': moduleNavigation.current === item.key }"
             :aria-current="moduleNavigation.current === item.key ? 'page' : undefined"
         >
-            <i class="mdi" :class="item.icon"></i>
+            <i class="mdi" :class="item.icon" aria-hidden="true"></i>
             <span>{{ item.label }}</span>
         </Link>
     </nav>

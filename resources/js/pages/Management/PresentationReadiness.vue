@@ -428,7 +428,7 @@ onBeforeUnmount(() => {
 
         <Teleport to="body">
             <div v-if="pending" class="presentation-modal-backdrop" @click.self="closeArchive">
-                <section
+                <section v-focus-trap
                     ref="dialogRef"
                     class="presentation-modal"
                     role="dialog"

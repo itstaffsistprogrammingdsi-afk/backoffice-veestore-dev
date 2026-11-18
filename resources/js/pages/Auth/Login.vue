@@ -72,7 +72,7 @@ const submit = () => {
             </label>
 
             <button class="auth-button" type="submit" :disabled="form.processing">
-                {{ form.processing ? 'Memproses...' : 'Masuk' }}
+                {{ form.processing ? 'Memproses…' : 'Masuk' }}
             </button>
         </form>
 

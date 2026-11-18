@@ -95,7 +95,7 @@ const recipientLabel = computed(() => {
 });
 
 const submitLabel = computed(() => {
-    if (processing.value) return 'Mengirim...';
+    if (processing.value) return 'Mengirim…';
 
     return mode.value === 'bulk' ? `Kirim ke ${emailRecipients.value.length} Pelanggan` : 'Kirim Email';
 });
@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="isOpen" class="birthday-modal-backdrop" @click.self="close">
-            <section class="birthday-modal" role="dialog" aria-modal="true" aria-labelledby="birthday-modal-title">
+            <section class="birthday-modal" role="dialog" aria-modal="true" aria-labelledby="birthday-modal-title" v-focus-trap>
                 <header class="birthday-modal-header">
                     <div>
                         <h3 id="birthday-modal-title" class="h5 mb-1">Template Sapaan Ulang Tahun</h3>
@@ -277,7 +277,7 @@ onBeforeUnmount(() => {
                 </header>
 
                 <div class="birthday-modal-body">
-                    <div v-if="errors.customer_ids" class="alert alert-danger py-2 small">{{ errors.customer_ids }}</div>
+                    <div v-if="errors.customer_ids" class="alert alert-danger py-2 small" role="alert">{{ errors.customer_ids }}</div>
 
                     <div class="mb-3">
                         <label class="form-label" for="birthday-subject">Subjek Email</label>
@@ -286,6 +286,7 @@ onBeforeUnmount(() => {
                             ref="subjectInput"
                             v-model="subject"
                             class="form-control"
+                            autofocus
                             type="text"
                             maxlength="150"
                             :class="{ 'is-invalid': errors.subject }"

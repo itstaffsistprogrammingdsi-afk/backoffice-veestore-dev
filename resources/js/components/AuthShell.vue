@@ -42,7 +42,7 @@ defineProps<{
         <div class="auth-panel">
             <div class="auth-topline">
                 <div class="auth-brand">
-                    <img :src="branding.logo_url" :alt="`${branding.name} ${branding.tagline}`" class="auth-logo" />
+                    <img :src="branding.logo_url" :alt="`${branding.name} ${branding.tagline}`" class="auth-logo" width="608" height="410" decoding="async" />
                     <strong class="auth-tagline">{{ branding.tagline }}</strong>
                 </div>
 

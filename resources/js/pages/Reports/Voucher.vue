@@ -156,15 +156,15 @@ const formatDate = (value: string | null) => {
             </div>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card report-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-4">
-                        <label class="form-label">Voucher</label>
-                        <SearchableSelect
+                        <label for="voucher-voucher-1" class="form-label">Voucher</label>
+                        <SearchableSelect id="voucher-voucher-1"
                             v-model="form.voucher"
                             :options="voucherOptions"
                             placeholder="Semua Voucher"
@@ -172,12 +172,12 @@ const formatDate = (value: string | null) => {
                         />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Dari</label>
-                        <input v-model="form.start" class="form-control form-control-sm" type="date" />
+                        <label for="voucher-dari-2" class="form-label">Dari</label>
+                        <input id="voucher-dari-2" v-model="form.start" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="form.end" class="form-control form-control-sm" type="date" />
+                        <label for="voucher-sampai-3" class="form-label">Sampai</label>
+                        <input id="voucher-sampai-3" v-model="form.end" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit">Filter</button>

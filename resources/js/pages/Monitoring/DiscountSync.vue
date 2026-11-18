@@ -374,7 +374,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="syncOpen && syncGroup" class="sync-backdrop" @click.self="closeSync">
-            <div class="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-modal-title">
+            <div v-focus-trap class="sync-modal" role="dialog" aria-modal="true" aria-labelledby="sync-modal-title">
                 <div class="sync-modal-header">
                     <div>
                         <h5 id="sync-modal-title" class="mb-0">Sinkronkan Max Diskon</h5>
@@ -391,8 +391,8 @@ onBeforeUnmount(() => {
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Diskon yang Disinkronkan</label>
-                            <ul class="sync-discount-list">
+                            <h6 id="sync-discount-list-title" class="form-label">Diskon yang Disinkronkan</h6>
+                            <ul class="sync-discount-list" aria-labelledby="sync-discount-list-title">
                                 <li v-for="discount in syncableDiscounts" :key="discount.id">
                                     <span>{{ discount.name }}</span>
                                     <small>{{ discount.type === 'percentage' ? `${formatNumber(discount.value)}%` : formatCurrency(discount.value) }} · max saat ini {{ capLabel(discount.max_discount) }}</small>

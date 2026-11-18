@@ -347,12 +347,12 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
-                        <label class="form-label">Cari order atau SKU</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, warehouse, atau SKU..." />
+                        <label for="outbound-cari-order-atau-sku-1" class="form-label">Cari order atau SKU</label>
+                        <input id="outbound-cari-order-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, warehouse, atau SKU..." />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Warehouse</label>
-                        <SearchableSelect
+                        <label for="outbound-warehouse-2" class="form-label">Warehouse</label>
+                        <SearchableSelect id="outbound-warehouse-2"
                             v-model="filters.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Semua warehouse"
@@ -360,24 +360,24 @@ onBeforeUnmount(() => {
                         />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Channel</label>
-                        <select v-model="filters.channel" class="form-select form-select-sm">
+                        <label for="outbound-channel-3" class="form-label">Channel</label>
+                        <select id="outbound-channel-3" v-model="filters.channel" class="form-select form-select-sm">
                             <option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-4 col-lg-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="filters.status" class="form-select form-select-sm">
+                        <label for="outbound-status-4" class="form-label">Status</label>
+                        <select id="outbound-status-4" v-model="filters.status" class="form-select form-select-sm">
                             <option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
-                        <label class="form-label">Dari Tanggal</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label for="outbound-dari-tanggal-5" class="form-label">Dari Tanggal</label>
+                        <input id="outbound-dari-tanggal-5" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
-                        <label class="form-label">Sampai Tanggal</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label for="outbound-sampai-tanggal-6" class="form-label">Sampai Tanggal</label>
+                        <input id="outbound-sampai-tanggal-6" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 col-md-4 col-lg-6 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
@@ -558,7 +558,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="storeInfoModal" class="sku-docs-backdrop" @click.self="closeStoreInfo">
-            <div class="sku-docs-modal store-info-modal" role="dialog" aria-modal="true" aria-labelledby="store-info-title">
+            <div v-focus-trap class="sku-docs-modal store-info-modal" role="dialog" aria-modal="true" aria-labelledby="store-info-title">
                 <div class="sku-docs-header">
                     <div>
                         <h5 id="store-info-title" class="mb-0">Keterangan Stok Toko</h5>
@@ -583,7 +583,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
-            <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
+            <div v-focus-trap class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header">
                     <div>
                         <h5 id="sku-docs-title" class="mb-0">Referensi SKU Keluar</h5>

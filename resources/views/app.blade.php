@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta name="theme-color" content="#f5f8fc" id="app-theme-color" />
     <script>
         (function () {
             try {
@@ -17,6 +18,11 @@
                     : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
                 document.documentElement.dataset.theme = theme;
                 document.documentElement.classList.toggle('dark', theme === 'dark');
+
+                var themeColor = document.getElementById('app-theme-color');
+                if (themeColor) {
+                    themeColor.setAttribute('content', theme === 'dark' ? '#131b21' : '#f5f8fc');
+                }
             } catch (error) {
                 document.documentElement.dataset.theme = 'light';
             }

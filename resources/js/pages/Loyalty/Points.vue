@@ -98,20 +98,21 @@ const formatDate = (value: string | null) => {
                     class="form-control form-control-sm"
                     type="search"
                     placeholder="Cari nama, email, atau WA..."
+                    aria-label="Cari nasabah"
                 />
-                <button class="btn btn-outline-secondary btn-sm" type="submit">
-                    <i class="mdi mdi-magnify"></i>
+                <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari nasabah" title="Cari nasabah">
+                    <i class="mdi mdi-magnify" aria-hidden="true"></i>
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" @click="reset">
-                    <i class="mdi mdi-refresh"></i>
+                <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset filter" title="Reset filter" @click="reset">
+                    <i class="mdi mdi-refresh" aria-hidden="true"></i>
                 </button>
             </form>
         </div>
 
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="row g-3 mb-3">
             <div class="col-6 col-xl-3">

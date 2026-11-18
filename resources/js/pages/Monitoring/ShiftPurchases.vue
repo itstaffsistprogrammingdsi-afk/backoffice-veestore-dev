@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="detailOpen" class="purchase-backdrop" @click.self="closeDetail">
-            <div class="purchase-modal" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
+            <div v-focus-trap class="purchase-modal" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
                 <div class="purchase-modal-header">
                     <div>
                         <h5 id="purchase-detail-title" class="mb-0">Detail Pembelian Shift</h5>

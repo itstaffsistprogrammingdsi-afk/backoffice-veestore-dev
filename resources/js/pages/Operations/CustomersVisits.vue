@@ -107,8 +107,8 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
         <div class="card customer-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-lg-7"><label class="form-label">Cari customer atau store</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama customer, WhatsApp, email, atau store..." /></div>
-                    <div class="col-md-4 col-lg-3"><label class="form-label">Store</label><SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
+                    <div class="col-lg-7"><label for="customers-visits-cari-customer-atau-store-1" class="form-label">Cari customer atau store</label><input id="customers-visits-cari-customer-atau-store-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama customer, WhatsApp, email, atau store..." /></div>
+                    <div class="col-md-4 col-lg-3"><label for="customers-visits-store-2" class="form-label">Store</label><SearchableSelect id="customers-visits-store-2" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
                     <div class="col-md-6 col-lg-2 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button></div>
                 </form>
             </div>

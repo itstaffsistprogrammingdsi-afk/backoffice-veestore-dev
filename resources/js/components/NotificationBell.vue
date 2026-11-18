@@ -233,7 +233,7 @@ onBeforeUnmount(() => {
                 <div class="notification-panel-body">
                     <div v-if="loading && !summary" class="notification-state" role="status">
                         <i class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
-                        <span>Memuat notifikasi...</span>
+                        <span>Memuat notifikasi…</span>
                     </div>
 
                     <div v-else-if="error && !summary" class="notification-state is-error" role="alert">

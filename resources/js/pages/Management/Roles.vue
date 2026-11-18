@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -82,8 +83,15 @@ const updateRole = (id: string) => {
     });
 };
 
-const deleteRole = (role: RoleRow) => {
-    if (!window.confirm(`Hapus role ${role.name}?`)) {
+const deleteRole = async (role: RoleRow) => {
+    const confirmed = await confirmAction({
+        title: 'Hapus peran?',
+        description: `Peran ${role.name} akan dihapus dari daftar peran backoffice.`,
+        confirmLabel: 'Hapus peran',
+        variant: 'danger',
+    });
+
+    if (!confirmed) {
         return;
     }
 
@@ -116,21 +124,21 @@ const formatDate = (value: string | null) => {
                 <p>Kelola peran yang dapat diberikan ke pengguna backoffice.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applySearch">
-                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari peran..." />
-                <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="mdi mdi-magnify"></i></button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" @click="resetSearch"><i class="mdi mdi-refresh"></i></button>
+                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari peran..." aria-label="Cari peran" />
+                <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari peran" title="Cari peran"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset pencarian" title="Reset pencarian" @click="resetSearch"><i class="mdi mdi-refresh" aria-hidden="true"></i></button>
             </form>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card management-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="createRole">
                     <div class="col-md-5">
-                        <label class="form-label">Peran baru</label>
-                        <input
+                        <label for="roles-peran-baru-1" class="form-label">Peran baru</label>
+                        <input id="roles-peran-baru-1"
                             v-model="createForm.name"
                             class="form-control"
                             :class="{ 'is-invalid': createForm.errors.name }"
@@ -169,6 +177,7 @@ const formatDate = (value: string | null) => {
                                     v-if="editingId === role.id"
                                     v-model="editingName"
                                     class="form-control form-control-sm"
+                                    :aria-label="`Ubah nama peran ${role.name}`"
                                 />
                                 <span v-else class="fw-semibold">{{ role.name }}</span>
                             </td>
@@ -176,19 +185,19 @@ const formatDate = (value: string | null) => {
                             <td>{{ formatDate(role.created_at) }}</td>
                             <td class="text-end">
                                 <template v-if="editingId === role.id">
-                                    <button class="btn btn-sm btn-success me-1" type="button" @click="updateRole(role.id)">
-                                        <i class="mdi mdi-check"></i>
+                                    <button class="btn btn-sm btn-success me-1" type="button" :aria-label="`Simpan nama peran ${role.name}`" title="Simpan" @click="updateRole(role.id)">
+                                        <i class="mdi mdi-check" aria-hidden="true"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="cancelEdit">
-                                        <i class="mdi mdi-close"></i>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" :aria-label="`Batal ubah peran ${role.name}`" title="Batal" @click="cancelEdit">
+                                        <i class="mdi mdi-close" aria-hidden="true"></i>
                                     </button>
                                 </template>
                                 <template v-else>
-                                    <button class="btn btn-sm btn-outline-primary me-1" type="button" @click="startEdit(role)">
-                                        <i class="mdi mdi-pencil"></i>
+                                    <button class="btn btn-sm btn-outline-primary me-1" type="button" :aria-label="`Ubah peran ${role.name}`" title="Ubah" @click="startEdit(role)">
+                                        <i class="mdi mdi-pencil" aria-hidden="true"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" type="button" @click="deleteRole(role)">
-                                        <i class="mdi mdi-delete"></i>
+                                    <button class="btn btn-sm btn-outline-danger" type="button" :aria-label="`Hapus peran ${role.name}`" title="Hapus" @click="deleteRole(role)">
+                                        <i class="mdi mdi-delete" aria-hidden="true"></i>
                                     </button>
                                 </template>
                             </td>

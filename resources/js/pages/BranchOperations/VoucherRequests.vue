@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -117,10 +118,16 @@ const toggleDetail = (id: string) => {
     expandedId.value = expandedId.value === id ? null : id;
 };
 
-const decide = (row: VoucherRequestRow, action: 'approve' | 'reject') => {
-    const label = action === 'approve' ? 'menyetujui' : 'menolak';
+const decide = async (row: VoucherRequestRow, action: 'approve' | 'reject') => {
+    const approving = action === 'approve';
+    const confirmed = await confirmAction({
+        title: approving ? 'Setujui permintaan voucher?' : 'Tolak permintaan voucher?',
+        description: `Permintaan ${row.id} akan ${approving ? 'disetujui' : 'ditolak'}.`,
+        confirmLabel: approving ? 'Setujui' : 'Tolak',
+        variant: approving ? 'primary' : 'danger',
+    });
 
-    if (!window.confirm(`Yakin ingin ${label} request ini?`)) {
+    if (!confirmed) {
         return;
     }
 
@@ -200,34 +207,34 @@ const formatDate = (value: string | null) => {
             </div>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card branch-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-2">
-                        <label class="form-label">Dari</label>
-                        <input v-model="form.from" class="form-control form-control-sm" type="date" />
+                        <label for="voucher-requests-dari-1" class="form-label">Dari</label>
+                        <input id="voucher-requests-dari-1" v-model="form.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="form.to" class="form-control form-control-sm" type="date" />
+                        <label for="voucher-requests-sampai-2" class="form-label">Sampai</label>
+                        <input id="voucher-requests-sampai-2" v-model="form.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Toko</label>
-                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
+                        <label for="voucher-requests-toko-3" class="form-label">Toko</label>
+                        <SearchableSelect id="voucher-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="form.status" class="form-select form-select-sm">
+                        <label for="voucher-requests-status-4" class="form-label">Status</label>
+                        <select id="voucher-requests-status-4" v-model="form.status" class="form-select form-select-sm">
                             <option value="">Semua</option>
                             <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Cari</label>
-                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko, voucher..." />
+                        <label for="voucher-requests-cari-5" class="form-label">Cari</label>
+                        <input id="voucher-requests-cari-5" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko, voucher..." />
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Filter</button>
@@ -269,15 +276,15 @@ const formatDate = (value: string | null) => {
                                 <td><span class="badge" :class="statusClass(row.status)">{{ row.status_label ?? row.status }}</span></td>
                                 <td class="text-end">{{ row.total_items }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" type="button" @click="toggleDetail(row.id)">
-                                        <i class="mdi mdi-eye-outline"></i>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" type="button" :aria-label="`Lihat detail permintaan voucher ${row.id}`" title="Lihat detail" @click="toggleDetail(row.id)">
+                                        <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
                                     </button>
                                     <template v-if="row.status === 'pending'">
-                                        <button class="btn btn-sm btn-success me-1" type="button" @click="decide(row, 'approve')">
-                                            <i class="mdi mdi-check"></i>
+                                        <button class="btn btn-sm btn-success me-1" type="button" aria-label="Setujui permintaan voucher" title="Setujui" @click="decide(row, 'approve')">
+                                            <i class="mdi mdi-check" aria-hidden="true"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" type="button" @click="decide(row, 'reject')">
-                                            <i class="mdi mdi-close"></i>
+                                        <button class="btn btn-sm btn-outline-danger" type="button" aria-label="Tolak permintaan voucher" title="Tolak" @click="decide(row, 'reject')">
+                                            <i class="mdi mdi-close" aria-hidden="true"></i>
                                         </button>
                                     </template>
                                 </td>

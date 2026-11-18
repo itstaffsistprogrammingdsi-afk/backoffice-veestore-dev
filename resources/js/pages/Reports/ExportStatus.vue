@@ -54,10 +54,10 @@ const statusLabel = (status: string) => {
 
         <div class="card report-card">
             <div class="card-body">
-                <div v-if="props.export.status === 'completed'" class="alert alert-success">
+                <div v-if="props.export.status === 'completed'" class="alert alert-success" role="status">
                     {{ statusLabel(props.export.status) }}
                 </div>
-                <div v-else-if="props.export.status === 'failed'" class="alert alert-danger">
+                <div v-else-if="props.export.status === 'failed'" class="alert alert-danger" role="alert">
                     {{ props.export.error ?? statusLabel(props.export.status) }}
                 </div>
                 <div v-else class="alert alert-info">

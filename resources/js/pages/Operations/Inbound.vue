@@ -374,41 +374,41 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
-                        <label class="form-label">Cari dokumen atau SKU</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, batch, supplier, atau SKU..." />
+                        <label for="inbound-cari-dokumen-atau-sku-1" class="form-label">Cari dokumen atau SKU</label>
+                        <input id="inbound-cari-dokumen-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, batch, supplier, atau SKU..." />
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Warehouse Tujuan</label>
-                        <SearchableSelect v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
+                        <label for="inbound-warehouse-tujuan-2" class="form-label">Warehouse Tujuan</label>
+                        <SearchableSelect id="inbound-warehouse-tujuan-2" v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Warehouse Asal</label>
-                        <SearchableSelect v-model="filters.source_warehouse_id" :options="warehouseOptions" placeholder="Semua asal" search-placeholder="Cari warehouse asal..." />
+                        <label for="inbound-warehouse-asal-3" class="form-label">Warehouse Asal</label>
+                        <SearchableSelect id="inbound-warehouse-asal-3" v-model="filters.source_warehouse_id" :options="warehouseOptions" placeholder="Semua asal" search-placeholder="Cari warehouse asal..." />
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Supplier</label>
-                        <SearchableSelect v-model="filters.supplier_id" :options="supplierOptions" placeholder="Semua supplier" search-placeholder="Cari supplier..." />
+                        <label for="inbound-supplier-4" class="form-label">Supplier</label>
+                        <SearchableSelect id="inbound-supplier-4" v-model="filters.supplier_id" :options="supplierOptions" placeholder="Semua supplier" search-placeholder="Cari supplier..." />
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Tipe Inbound</label>
-                        <select v-model="filters.inbound_type" class="form-select form-select-sm">
+                        <label for="inbound-tipe-inbound-5" class="form-label">Tipe Inbound</label>
+                        <select id="inbound-tipe-inbound-5" v-model="filters.inbound_type" class="form-select form-select-sm">
                             <option value="">Semua tipe</option>
                             <option v-for="option in props.inboundTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="filters.status" class="form-select form-select-sm">
+                        <label for="inbound-status-6" class="form-label">Status</label>
+                        <select id="inbound-status-6" v-model="filters.status" class="form-select form-select-sm">
                             <option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Dari Tanggal</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label for="inbound-dari-tanggal-7" class="form-label">Dari Tanggal</label>
+                        <input id="inbound-dari-tanggal-7" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-lg-2">
-                        <label class="form-label">Sampai Tanggal</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label for="inbound-sampai-tanggal-8" class="form-label">Sampai Tanggal</label>
+                        <input id="inbound-sampai-tanggal-8" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 col-lg-4 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
@@ -606,7 +606,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="summaryInfo" class="sku-docs-backdrop" @click.self="closeSummaryInfo">
-            <div class="sku-docs-modal summary-info-modal" role="dialog" aria-modal="true" aria-labelledby="summary-info-title">
+            <div v-focus-trap class="sku-docs-modal summary-info-modal" role="dialog" aria-modal="true" aria-labelledby="summary-info-title">
                 <div class="sku-docs-header">
                     <div>
                         <h5 id="summary-info-title" class="mb-0">{{ summaryInfo === 'value' ? 'Keterangan Nilai Inbound' : 'Keterangan Belum QC' }}</h5>
@@ -642,7 +642,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
-            <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
+            <div v-focus-trap class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header">
                     <div>
                         <h5 id="sku-docs-title" class="mb-0">Referensi SKU Masuk</h5>

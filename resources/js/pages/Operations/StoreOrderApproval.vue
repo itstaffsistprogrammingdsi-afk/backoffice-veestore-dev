@@ -819,7 +819,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="selectedOrder" class="approval-backdrop" @click.self="closeOrder">
-            <section class="approval-drawer" role="dialog" aria-modal="true" aria-labelledby="approval-drawer-title" :inert="confirmAction ? true : undefined">
+            <section v-focus-trap.no-inert class="approval-drawer" role="dialog" aria-modal="true" aria-labelledby="approval-drawer-title" :inert="confirmAction ? true : undefined">
                 <header class="approval-drawer-header">
                     <div>
                         <span class="approval-drawer-eyebrow">Order store</span>
@@ -1020,7 +1020,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="confirmAction" class="approval-confirm-backdrop" @click.self="closeConfirm">
-            <section class="approval-confirm" role="alertdialog" aria-modal="true" aria-labelledby="approval-confirm-title" aria-describedby="approval-confirm-description">
+            <section v-focus-trap.no-inert class="approval-confirm" role="alertdialog" aria-modal="true" aria-labelledby="approval-confirm-title" aria-describedby="approval-confirm-description">
                 <h3 id="approval-confirm-title">{{ confirmAction === 'approve' ? 'Setujui order ini?' : 'Tolak order ini?' }}</h3>
                 <p id="approval-confirm-description">
                     <template v-if="confirmAction === 'approve'">

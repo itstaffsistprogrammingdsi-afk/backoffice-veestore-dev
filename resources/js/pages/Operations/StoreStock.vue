@@ -328,12 +328,12 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-4">
-                        <label class="form-label">Cari produk atau toko</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau store..." />
+                        <label for="store-stock-cari-produk-atau-toko-1" class="form-label">Cari produk atau toko</label>
+                        <input id="store-stock-cari-produk-atau-toko-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau store..." />
                     </div>
                     <div class="col-md-4 col-lg-3">
-                        <label class="form-label">Store</label>
-                        <SearchableSelect
+                        <label for="store-stock-store-2" class="form-label">Store</label>
+                        <SearchableSelect id="store-stock-store-2"
                             v-model="filters.store_id"
                             :options="storeOptions"
                             placeholder="Semua store"
@@ -341,8 +341,8 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                         />
                     </div>
                     <div class="col-md-4 col-lg-2">
-                        <label class="form-label">Movement</label>
-                        <select v-model="filters.movement" class="form-select form-select-sm">
+                        <label for="store-stock-movement-3" class="form-label">Movement</label>
+                        <select id="store-stock-movement-3" v-model="filters.movement" class="form-select form-select-sm">
                             <option value="">Semua movement</option>
                             <option value="slow">Slow Moving</option>
                             <option value="fast">Fast Moving</option>
@@ -773,7 +773,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 
     <Teleport to="body">
         <div v-if="barrierInfoModal" class="stock-info-backdrop" @click.self="closeBarrierInfo">
-            <div class="stock-info-modal" role="dialog" aria-modal="true" aria-labelledby="barrier-info-title">
+            <div v-focus-trap class="stock-info-modal" role="dialog" aria-modal="true" aria-labelledby="barrier-info-title">
                 <div class="stock-info-header">
                     <div>
                         <h5 id="barrier-info-title" class="mb-0">Keterangan Stok Barrier</h5>

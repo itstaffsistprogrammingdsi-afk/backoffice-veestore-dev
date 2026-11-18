@@ -10,6 +10,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import axios from 'axios';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { installLocaleTranslator } from './i18n';
+import { vFocusTrap } from './directives/focusTrap';
 
 axios.defaults.xsrfCookieName = 'VEE_XSRF-TOKEN';
 axios.defaults.xsrfHeaderName = 'X-XSRF-TOKEN';
@@ -30,6 +31,7 @@ createInertiaApp({
 
         createApp({ render: () => h(App, props) })
             .use(plugin)
+            .directive('focus-trap', vFocusTrap)
             .mount(el);
     },
 });

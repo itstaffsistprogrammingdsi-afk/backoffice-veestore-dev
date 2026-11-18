@@ -275,12 +275,12 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
-                        <label class="form-label">Cari dokumen, store, atau SKU</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, store, warehouse, atau SKU..." />
+                        <label for="store-inbound-cari-dokumen-store-atau--1" class="form-label">Cari dokumen, store, atau SKU</label>
+                        <input id="store-inbound-cari-dokumen-store-atau--1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, store, warehouse, atau SKU..." />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Store</label>
-                        <SearchableSelect
+                        <label for="store-inbound-store-2" class="form-label">Store</label>
+                        <SearchableSelect id="store-inbound-store-2"
                             v-model="filters.store_id"
                             :options="storeOptions"
                             placeholder="Semua store"
@@ -288,8 +288,8 @@ onBeforeUnmount(() => {
                         />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Warehouse Asal</label>
-                        <SearchableSelect
+                        <label for="store-inbound-warehouse-asal-3" class="form-label">Warehouse Asal</label>
+                        <SearchableSelect id="store-inbound-warehouse-asal-3"
                             v-model="filters.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Semua warehouse"
@@ -297,18 +297,18 @@ onBeforeUnmount(() => {
                         />
                     </div>
                     <div class="col-12 col-md-4 col-lg-2">
-                        <label class="form-label">Status QC</label>
-                        <select v-model="filters.status" class="form-select form-select-sm">
+                        <label for="store-inbound-status-qc-4" class="form-label">Status QC</label>
+                        <select id="store-inbound-status-qc-4" v-model="filters.status" class="form-select form-select-sm">
                             <option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
-                        <label class="form-label">Dari Tanggal</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label for="store-inbound-dari-tanggal-5" class="form-label">Dari Tanggal</label>
+                        <input id="store-inbound-dari-tanggal-5" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
-                        <label class="form-label">Sampai Tanggal</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label for="store-inbound-sampai-tanggal-6" class="form-label">Sampai Tanggal</label>
+                        <input id="store-inbound-sampai-tanggal-6" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 col-md-4 col-lg-6 d-flex gap-2">
                         <button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
@@ -385,7 +385,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
-            <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
+            <div v-focus-trap class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header"><div><h5 id="sku-docs-title" class="mb-0">Referensi SKU Masuk</h5><small>{{ skuDocsModal.sku.product_name }} &middot; {{ skuDocsModal.sku.product_code }}</small></div><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button></div>
                 <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan invoice, delivery order, atau batch store inbound yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 inbound-detail-table"><thead><tr><th>Referensi Inbound</th><th>Tipe</th><th>Warehouse Asal</th><th>Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
                 <div class="sku-docs-footer"><button class="btn btn-sm btn-outline-secondary" type="button" @click="closeSkuDocs">Tutup</button></div>

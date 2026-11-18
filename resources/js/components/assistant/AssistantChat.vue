@@ -432,7 +432,7 @@ defineExpose({ focusInput: () => input.value?.focus() });
                     @click="reset"
                 >
                     <i class="mdi mdi-refresh" aria-hidden="true"></i>
-                    {{ resetting ? 'Mereset...' : 'Percakapan baru' }}
+                    {{ resetting ? 'Mereset…' : 'Percakapan baru' }}
                 </button>
             </div>
         </div>

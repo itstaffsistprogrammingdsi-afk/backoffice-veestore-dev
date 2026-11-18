@@ -320,6 +320,7 @@
     width: min(440px, 100%);
     max-height: calc(100dvh - 2rem);
     overflow-y: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius-2xl);
     background: var(--app-surface);
@@ -381,16 +382,29 @@
     transform: translateY(8px) scale(0.99);
 }
 
+@media (pointer: coarse) {
+    .app-dialog .btn {
+        min-width: var(--app-control-lg);
+        min-height: var(--app-control-lg);
+    }
+}
+
 /* Toasts */
 .toast-stack {
     position: fixed;
-    right: 1rem;
-    bottom: 1rem;
+    left: calc(1rem + env(safe-area-inset-left));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
     z-index: 1090;
     display: grid;
     gap: 0.5rem;
     width: min(360px, calc(100vw - 2rem));
     pointer-events: none;
+}
+
+@media (min-width: 992px) {
+    .toast-stack {
+        left: calc(var(--app-sidebar-w) + 1rem + env(safe-area-inset-left));
+    }
 }
 
 .toast-card {
@@ -454,6 +468,14 @@
 .toast-close:hover {
     background: var(--app-surface-2);
     color: var(--app-ink);
+}
+
+@media (pointer: coarse) {
+    .toast-close {
+        width: 44px;
+        height: 44px;
+        margin: -0.55rem -0.6rem -0.55rem 0;
+    }
 }
 
 .toast-enter-active,
@@ -800,6 +822,18 @@
     min-height: var(--app-control-sm);
 }
 
+@media (pointer: coarse) {
+    .form-control-sm,
+    .form-select-sm,
+    .table .btn-sm {
+        min-height: var(--app-control-lg);
+    }
+
+    .table .btn-sm {
+        min-width: var(--app-control-lg);
+    }
+}
+
 /* Row action menu */
 .row-actions {
     display: inline-flex;
@@ -870,6 +904,12 @@
     cursor: not-allowed;
 }
 
+@media (pointer: coarse) {
+    .row-actions-item {
+        min-height: 44px;
+    }
+}
+
 /* Pagination */
 .pagination {
     --bs-pagination-padding-x: 0.5rem;
@@ -913,6 +953,13 @@
 
 .pagination .page-item.disabled .page-link {
     cursor: not-allowed;
+}
+
+@media (pointer: coarse) {
+    .pagination .page-link {
+        min-width: 44px;
+        min-height: 44px;
+    }
 }
 
 /* Reduced motion */

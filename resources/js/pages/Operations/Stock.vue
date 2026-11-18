@@ -294,12 +294,12 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-4">
-                        <label class="form-label">Cari produk atau gudang</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau warehouse..." />
+                        <label for="stock-cari-produk-atau-gudang-1" class="form-label">Cari produk atau gudang</label>
+                        <input id="stock-cari-produk-atau-gudang-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau warehouse..." />
                     </div>
                     <div class="col-md-4 col-lg-3">
-                        <label class="form-label">Warehouse</label>
-                        <SearchableSelect
+                        <label for="stock-warehouse-2" class="form-label">Warehouse</label>
+                        <SearchableSelect id="stock-warehouse-2"
                             v-model="filters.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Semua warehouse"
@@ -307,8 +307,8 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                         />
                     </div>
                     <div class="col-md-4 col-lg-2">
-                        <label class="form-label">Movement</label>
-                        <select v-model="filters.movement" class="form-select form-select-sm">
+                        <label for="stock-movement-3" class="form-label">Movement</label>
+                        <select id="stock-movement-3" v-model="filters.movement" class="form-select form-select-sm">
                             <option value="">Semua movement</option>
                             <option value="slow">Slow Moving</option>
                             <option value="fast">Fast Moving</option>

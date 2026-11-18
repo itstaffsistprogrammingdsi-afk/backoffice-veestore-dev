@@ -140,7 +140,7 @@ const onKeydown = (event: KeyboardEvent) => {
                 <div class="vee-widget__body">
                     <div v-if="loading" class="vee-widget__state" role="status">
                         <i class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
-                        Menyiapkan percakapan...
+                        Menyiapkan percakapan…
                     </div>
 
                     <div v-else-if="loadError" class="vee-widget__state vee-widget__state--error" role="alert">

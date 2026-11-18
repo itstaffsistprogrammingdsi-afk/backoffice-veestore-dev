@@ -110,13 +110,13 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
         <div class="card outbound-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-12 col-lg-6"><label class="form-label">Cari order atau SKU</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, store, atau SKU..." /></div>
-                    <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Store</label><SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
-                    <div class="col-6 col-md-4 col-lg-2"><label class="form-label">Channel</label><select v-model="filters.channel" class="form-select form-select-sm"><option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+                    <div class="col-12 col-lg-6"><label for="store-outbound-cari-order-atau-sku-1" class="form-label">Cari order atau SKU</label><input id="store-outbound-cari-order-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, store, atau SKU..." /></div>
+                    <div class="col-6 col-md-4 col-lg-2"><label for="store-outbound-store-2" class="form-label">Store</label><SearchableSelect id="store-outbound-store-2" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
+                    <div class="col-6 col-md-4 col-lg-2"><label for="store-outbound-channel-3" class="form-label">Channel</label><select id="store-outbound-channel-3" v-model="filters.channel" class="form-select form-select-sm"><option v-for="option in channelOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
                     <div class="col-12 col-md-4 col-lg-2">
-                        <label class="form-label">Status</label><select v-model="filters.status" class="form-select form-select-sm"><option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
-                    <div class="col-6 col-md-4 col-lg-3"><label class="form-label">Dari Tanggal</label><input v-model="filters.from" class="form-control form-control-sm" type="date" /></div>
-                    <div class="col-6 col-md-4 col-lg-3"><label class="form-label">Sampai Tanggal</label><input v-model="filters.to" class="form-control form-control-sm" type="date" /></div>
+                        <label for="store-outbound-status-4" class="form-label">Status</label><select id="store-outbound-status-4" v-model="filters.status" class="form-select form-select-sm"><option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+                    <div class="col-6 col-md-4 col-lg-3"><label for="store-outbound-dari-tanggal-5" class="form-label">Dari Tanggal</label><input id="store-outbound-dari-tanggal-5" v-model="filters.from" class="form-control form-control-sm" type="date" /></div>
+                    <div class="col-6 col-md-4 col-lg-3"><label for="store-outbound-sampai-tanggal-6" class="form-label">Sampai Tanggal</label><input id="store-outbound-sampai-tanggal-6" v-model="filters.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-12 col-md-4 col-lg-6 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button></div>
                 </form>
             </div>
@@ -156,7 +156,7 @@ onBeforeUnmount(() => { window.removeEventListener('keydown', onKeydown); docume
 
     <Teleport to="body">
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
-            <div class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
+            <div v-focus-trap class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header"><div><h5 id="sku-docs-title" class="mb-0">Referensi SKU Keluar</h5><small>{{ skuDocsModal.sku.product_name }} &middot; {{ skuDocsModal.sku.product_code }}</small></div><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button></div>
                 <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan order, transaksi, surat jalan, atau resi yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 outbound-detail-table"><thead><tr><th>Referensi</th><th>Tipe</th><th>Store</th><th>Resi (Ecommerce)</th><th>Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ document.shipping_number || '-' }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
                 <div class="sku-docs-footer"><button class="btn btn-sm btn-outline-secondary" type="button" @click="closeSkuDocs">Tutup</button></div>
