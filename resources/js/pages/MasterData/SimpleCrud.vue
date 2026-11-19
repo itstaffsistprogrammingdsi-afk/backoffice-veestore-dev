@@ -608,7 +608,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
             <form id="crud-filter-form" class="d-flex w-100 flex-wrap align-items-end gap-2" @submit.prevent="applySearch">
                 <div class="crud-filter-field">
                     <label class="visually-hidden" for="crud-search">Cari data</label>
-                    <input id="crud-search" v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari...'" />
+                    <input id="crud-search" v-model="search.q" class="form-control form-control-sm" type="search" :placeholder="props.searchPlaceholder ?? 'Cari…'" />
                 </div>
                 <template v-for="filter in (props.extraFilters ?? [])" :key="filter.key">
                     <div v-if="filter.options.length > 8" class="crud-filter-select">
@@ -616,7 +616,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             v-model="extraSearch[filter.key]"
                             :options="filter.options"
                             :placeholder="`Semua ${filter.label.toLowerCase()}`"
-                            :search-placeholder="`Cari ${filter.label.toLowerCase()}...`"
+                            :search-placeholder="`Cari ${filter.label.toLowerCase()}…`"
                             :aria-label="filter.label"
                         />
                     </div>
@@ -665,7 +665,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                         />
                         <div v-if="scanLoading" class="crud-scan-status" role="status">
                             <i class="mdi mdi-loading mdi-spin me-1"></i>
-                            Membaca gambar voucher...
+                            Membaca gambar voucher…
                         </div>
                         <div v-else-if="scanError" class="text-danger small mt-2" role="alert">{{ scanError }}</div>
                         <div v-else-if="createForm.errors.voucher_image" class="text-danger small mt-2" role="alert">{{ createForm.errors.voucher_image }}</div>
@@ -693,7 +693,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             v-model="createForm[field.key]"
                             :options="field.options ?? []"
                             :placeholder="`Pilih ${field.label}`"
-                            :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            :search-placeholder="`Cari ${field.label.toLowerCase()}…`"
                             size="md"
                             multiple
                         />
@@ -706,7 +706,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                             v-model="createForm[field.key]"
                             :options="field.options ?? []"
                             :placeholder="`Pilih ${field.label}`"
-                            :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            :search-placeholder="`Cari ${field.label.toLowerCase()}…`"
                             size="md"
                             :required="field.required"
                             :clearable="!field.required"
@@ -723,7 +723,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                     <div class="col-12 d-flex flex-wrap gap-2">
                         <button class="btn btn-primary" type="submit" :disabled="createForm.processing" :aria-busy="createForm.processing">
                             <i v-if="createForm.processing" class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
-                            {{ createForm.processing ? 'Menyimpan...' : 'Simpan' }}
+                            {{ createForm.processing ? 'Menyimpan…' : 'Simpan' }}
                         </button>
                         <button class="btn btn-outline-secondary" type="button" :disabled="createForm.processing" @click="cancelCreate">Batal</button>
                     </div>
@@ -747,6 +747,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                     <template v-if="column.type === 'image'">
                                         <a v-if="row[column.key]" :href="row[column.key]" target="_blank" rel="noopener">
                                             <img class="crud-thumb" :src="row[column.key]" :alt="column.label" loading="lazy" />
+                                            <span class="visually-hidden">(tab baru)</span>
                                         </a>
                                         <span v-else class="text-muted">-</span>
                                     </template>
@@ -773,7 +774,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                             />
                                             <div v-if="scanLoading" class="crud-scan-status" role="status">
                                                 <i class="mdi mdi-loading mdi-spin me-1"></i>
-                                                Membaca gambar voucher...
+                            Membaca gambar voucher…
                                             </div>
                                             <div v-else-if="scanError" class="text-danger small mt-2" role="alert">{{ scanError }}</div>
                                             <div v-else-if="editForm.errors.voucher_image" class="text-danger small mt-2" role="alert">{{ editForm.errors.voucher_image }}</div>
@@ -801,7 +802,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                                 v-model="editForm[field.key]"
                                                 :options="field.options ?? []"
                                                 :placeholder="`Pilih ${field.label}`"
-                                                :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                                                :search-placeholder="`Cari ${field.label.toLowerCase()}…`"
                                                 size="md"
                                                 multiple
                                             />
@@ -814,7 +815,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                                 v-model="editForm[field.key]"
                                                 :options="field.options ?? []"
                                                 :placeholder="`Pilih ${field.label}`"
-                                                :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                                                :search-placeholder="`Cari ${field.label.toLowerCase()}…`"
                                                 size="md"
                                                 :required="field.required"
                                                 :clearable="!field.required"
@@ -831,7 +832,7 @@ const formFor = (isEdit: boolean) => (isEdit ? editForm : createForm);
                                         <div class="col-12 d-flex flex-wrap gap-2 mt-2">
                                             <button class="btn btn-primary" type="submit" :disabled="editForm.processing" :aria-busy="editForm.processing">
                                                 <i v-if="editForm.processing" class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
-                                                {{ editForm.processing ? 'Menyimpan...' : 'Simpan perubahan' }}
+                                                {{ editForm.processing ? 'Menyimpan…' : 'Simpan perubahan' }}
                                             </button>
                                             <button class="btn btn-outline-secondary" type="button" :disabled="editForm.processing" @click="cancelEdit">Batal</button>
                                         </div>

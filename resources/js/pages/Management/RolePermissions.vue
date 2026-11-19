@@ -63,20 +63,20 @@ const submit = () => {
             </div>
             <button class="btn btn-light btn-sm" type="button" :disabled="processing" @click="submit">
                 <i class="mdi mdi-content-save-outline me-1"></i>
-                {{ processing ? 'Menyimpan...' : 'Simpan Hak Akses' }}
+                {{ processing ? 'Menyimpan…' : 'Simpan Hak Akses' }}
             </button>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card management-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0 permission-table">
                     <thead>
                         <tr>
-                            <th style="min-width: 260px;">Hak Akses</th>
-                            <th v-for="role in roles" :key="role.id" class="text-center">
+                            <th scope="col" style="min-width: 260px;">Hak Akses</th>
+                            <th scope="col" v-for="role in roles" :key="role.id" class="text-center">
                                 {{ role.name }}
                             </th>
                         </tr>
@@ -97,6 +97,7 @@ const submit = () => {
                                         class="form-check-input"
                                         type="checkbox"
                                         :value="permission.name"
+                                        :aria-label="`${permission.display_action} ${permission.display_resource} untuk peran ${role.name}`"
                                     />
                                 </td>
                             </tr>

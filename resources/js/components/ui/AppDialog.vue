@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import { lockAppRoot, unlockAppRoot } from '@/composables/useAppRootInert';
 
 interface Props {
     open: boolean;
@@ -12,6 +13,7 @@ interface Props {
     closeOnBackdrop?: boolean;
     initialFocus?: 'cancel' | 'confirm';
     initialFocusSelector?: string;
+    maxWidth?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
     closeOnBackdrop: true,
     initialFocus: 'cancel',
     initialFocusSelector: undefined,
+    maxWidth: '440px',
 });
 
 const emit = defineEmits<{
@@ -36,10 +39,26 @@ const cancelButtonRef = ref<HTMLButtonElement | null>(null);
 const confirmButtonRef = ref<HTMLButtonElement | null>(null);
 const titleId = useId();
 const descriptionId = useId();
+const dialogStyle = computed(() => ({ width: `min(${props.maxWidth}, 100%)` }));
 
 let previouslyFocused: HTMLElement | null = null;
 let previousOverflow = '';
 let scrollLocked = false;
+let backgroundLocked = false;
+
+const lockBackground = () => {
+    if (backgroundLocked) return;
+
+    lockAppRoot();
+    backgroundLocked = true;
+};
+
+const unlockBackground = () => {
+    if (!backgroundLocked) return;
+
+    unlockAppRoot();
+    backgroundLocked = false;
+};
 
 const lockScroll = () => {
     if (scrollLocked) return;
@@ -113,6 +132,7 @@ watch(
         if (open) {
             previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             lockScroll();
+            lockBackground();
             await nextTick();
             const customTarget = props.initialFocusSelector
                 ? dialogRef.value?.querySelector<HTMLElement>(props.initialFocusSelector)
@@ -124,6 +144,7 @@ watch(
         }
 
         unlockScroll();
+        unlockBackground();
         previouslyFocused?.focus();
         previouslyFocused = null;
     },
@@ -132,6 +153,7 @@ watch(
 
 onBeforeUnmount(() => {
     unlockScroll();
+    unlockBackground();
     previouslyFocused?.focus();
 });
 </script>
@@ -148,6 +170,7 @@ onBeforeUnmount(() => {
                 <div
                     ref="dialogRef"
                     class="app-dialog"
+                    :style="dialogStyle"
                     role="dialog"
                     aria-modal="true"
                     :aria-labelledby="titleId"

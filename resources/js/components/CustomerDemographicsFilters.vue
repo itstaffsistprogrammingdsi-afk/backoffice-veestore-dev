@@ -314,7 +314,7 @@ onMounted(() => {
                         v-model="form.q"
                         class="form-control form-control-sm"
                         type="search"
-                        placeholder="Nama, WhatsApp, email, referral, alamat, atau store..."
+                        placeholder="Nama, WhatsApp, email, referral, alamat, atau store…"
                     />
                 </div>
                 <div class="col-6 col-lg-2">
@@ -444,8 +444,8 @@ onMounted(() => {
                     </div>
                     <div class="col-12 col-lg-2 d-flex align-items-center">
                         <span v-if="loadingRegion" class="demo-filter-loading" role="status">
-                            <i class="mdi mdi-loading mdi-spin"></i>
-                            Memuat wilayah...
+                            <i class="mdi mdi-loading mdi-spin" aria-hidden="true"></i>
+                            Memuat wilayah…
                         </span>
                         <span v-else-if="regionError" class="demo-filter-error" role="alert">{{ regionError }}</span>
                     </div>
@@ -470,7 +470,7 @@ onMounted(() => {
                         aria-controls="demo-advanced-filters"
                         @click="advancedOpen = !advancedOpen"
                     >
-                        <i class="mdi me-1" :class="advancedOpen ? 'mdi-chevron-up' : 'mdi-tune-variant'"></i>
+                        <i class="mdi me-1" :class="advancedOpen ? 'mdi-chevron-up' : 'mdi-tune-variant'" aria-hidden="true"></i>
                         {{ advancedOpen ? 'Sembunyikan filter lanjutan' : 'Filter lanjutan' }}
                     </button>
                 </div>

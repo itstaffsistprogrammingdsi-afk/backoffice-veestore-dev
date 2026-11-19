@@ -156,28 +156,28 @@ const formatDate = (value: string | null) => {
             </div>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card report-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-4">
-                        <label class="form-label">Voucher</label>
-                        <SearchableSelect
+                        <label for="voucher-voucher-1" class="form-label">Voucher</label>
+                        <SearchableSelect id="voucher-voucher-1"
                             v-model="form.voucher"
                             :options="voucherOptions"
                             placeholder="Semua Voucher"
-                            search-placeholder="Cari kode voucher..."
+                            search-placeholder="Cari kode voucher…"
                         />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Dari</label>
-                        <input v-model="form.start" class="form-control form-control-sm" type="date" />
+                        <label for="voucher-dari-2" class="form-label">Dari</label>
+                        <input id="voucher-dari-2" v-model="form.start" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="form.end" class="form-control form-control-sm" type="date" />
+                        <label for="voucher-sampai-3" class="form-label">Sampai</label>
+                        <input id="voucher-sampai-3" v-model="form.end" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit">Filter</button>
@@ -199,15 +199,15 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Code</th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th class="text-end">Value</th>
-                            <th>Context</th>
-                            <th class="text-end">Ecommerce</th>
-                            <th class="text-end">Store</th>
-                            <th class="text-end">Total</th>
-                            <th>Aksi</th>
+                            <th scope="col">Code</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Type</th>
+                            <th scope="col" class="text-end">Value</th>
+                            <th scope="col">Context</th>
+                            <th scope="col" class="text-end">Ecommerce</th>
+                            <th scope="col" class="text-end">Store</th>
+                            <th scope="col" class="text-end">Total</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -229,11 +229,11 @@ const formatDate = (value: string | null) => {
                             </tr>
                             <tr v-if="detailId === row.id">
                                 <td colspan="9" class="report-detail">
-                                    <div v-if="detailLoading" class="text-muted">Memuat detail...</div>
+                                    <div v-if="detailLoading" class="text-muted" role="status">Memuat detail…</div>
                                     <div v-else class="table-responsive">
                                         <table class="table table-sm mb-0">
                                             <thead>
-                                                <tr><th>Order</th><th>Customer</th><th class="text-end">Value</th><th>Tanggal</th><th>Source</th></tr>
+                                                <tr><th scope="col">Order</th><th scope="col">Customer</th><th scope="col" class="text-end">Value</th><th scope="col">Tanggal</th><th scope="col">Source</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="(detail, index) in detailRows" :key="index">

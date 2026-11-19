@@ -353,19 +353,19 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label class="form-label" for="purchase-search">Cari store, kasir, atau produk</label>
-                        <input id="purchase-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama store, kasir, sesi, atau produk..." />
+                        <input id="purchase-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama store, kasir, sesi, atau produk…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="purchase-store">Store</label>
-                        <SearchableSelect id="purchase-store" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." aria-label="Filter store" />
+                        <SearchableSelect id="purchase-store" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store…" aria-label="Filter store" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="purchase-shift">Shift</label>
-                        <SearchableSelect id="purchase-shift" v-model="filters.shift_id" :options="shiftOptions" placeholder="Semua shift" search-placeholder="Cari shift..." aria-label="Filter shift" />
+                        <SearchableSelect id="purchase-shift" v-model="filters.shift_id" :options="shiftOptions" placeholder="Semua shift" search-placeholder="Cari shift…" aria-label="Filter shift" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="purchase-cashier">Kasir</label>
-                        <SearchableSelect id="purchase-cashier" v-model="filters.cashier_id" :options="cashierOptions" placeholder="Semua kasir" search-placeholder="Cari kasir..." aria-label="Filter kasir" />
+                        <SearchableSelect id="purchase-cashier" v-model="filters.cashier_id" :options="cashierOptions" placeholder="Semua kasir" search-placeholder="Cari kasir…" aria-label="Filter kasir" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
                         <label class="form-label" for="purchase-from">Dari</label>
@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 purchase-table">
                     <thead>
-                        <tr><th>Tanggal</th><th>Store / Shift</th><th class="text-end">Kasir / Sesi</th><th class="text-end">Transaksi / Item</th><th class="text-end">Kondisi / Clearance</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th><th class="text-end">Aksi</th></tr>
+                        <tr><th scope="col">Tanggal</th><th scope="col">Store / Shift</th><th scope="col" class="text-end">Kasir / Sesi</th><th scope="col" class="text-end">Transaksi / Item</th><th scope="col" class="text-end">Kondisi / Clearance</th><th scope="col" class="text-end">Gross</th><th scope="col" class="text-end">Diskon</th><th scope="col" class="text-end">Net</th><th scope="col" class="text-end">Aksi</th></tr>
                     </thead>
                     <tbody>
                         <tr v-for="row in props.rows.data" :key="`${row.report_date}-${row.store_id}-${row.shift_id ?? 'none'}`">
@@ -437,7 +437,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 purchase-table">
-                    <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Good / GAR</th><th class="text-end">Clearance</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th><th class="text-end">Sesi</th></tr></thead>
+                    <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Good / GAR</th><th scope="col" class="text-end">Clearance</th><th scope="col" class="text-end">Gross</th><th scope="col" class="text-end">Diskon</th><th scope="col" class="text-end">Net</th><th scope="col" class="text-end">Sesi</th></tr></thead>
                     <tbody>
                         <tr v-for="row in props.productRows" :key="row.product_id">
                             <td><div class="purchase-main"><strong>{{ row.product_name }}</strong><small>{{ row.product_code }}</small></div></td>
@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="detailOpen" class="purchase-backdrop" @click.self="closeDetail">
-            <div class="purchase-modal" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
+            <div v-focus-trap class="purchase-modal" role="dialog" aria-modal="true" aria-labelledby="purchase-detail-title">
                 <div class="purchase-modal-header">
                     <div>
                         <h5 id="purchase-detail-title" class="mb-0">Detail Pembelian Shift</h5>
@@ -467,7 +467,7 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="purchase-modal-body">
-                    <div v-if="detailLoading" class="purchase-hint"><span class="spinner-border spinner-border-sm me-2"></span>Memuat detail...</div>
+                    <div v-if="detailLoading" class="purchase-hint" role="status"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Memuat detail…</div>
                     <div v-else-if="detailError" class="purchase-hint purchase-hint-danger" role="alert">{{ detailError }}</div>
                     <template v-else-if="detail">
                         <div class="purchase-detail-grid">
@@ -484,7 +484,7 @@ onBeforeUnmount(() => {
                         <h6 class="purchase-section-title">Sesi Kasir</h6>
                         <div class="table-responsive">
                             <table class="table table-sm mb-0 purchase-detail-table">
-                                <thead><tr><th>Sesi</th><th>Kasir</th><th>Shift</th><th>Status</th><th class="text-end">Trx</th><th class="text-end">Item</th><th class="text-end">Net</th></tr></thead>
+                                <thead><tr><th scope="col">Sesi</th><th scope="col">Kasir</th><th scope="col">Shift</th><th scope="col">Status</th><th scope="col" class="text-end">Trx</th><th scope="col" class="text-end">Item</th><th scope="col" class="text-end">Net</th></tr></thead>
                                 <tbody>
                                     <tr v-for="session in detail.sessions" :key="session.cashier_session_id">
                                         <td>{{ session.session_number || '-' }}<small>{{ formatDate(session.opened_at, true) }}</small></td>
@@ -502,7 +502,7 @@ onBeforeUnmount(() => {
                         <h6 class="purchase-section-title">Produk Dibeli</h6>
                         <div class="table-responsive">
                             <table class="table table-sm mb-0 purchase-detail-table">
-                                <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Good / GAR</th><th class="text-end">Clearance</th><th class="text-end">Gross</th><th class="text-end">Diskon</th><th class="text-end">Net</th></tr></thead>
+                                <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Good / GAR</th><th scope="col" class="text-end">Clearance</th><th scope="col" class="text-end">Gross</th><th scope="col" class="text-end">Diskon</th><th scope="col" class="text-end">Net</th></tr></thead>
                                 <tbody>
                                     <tr v-for="product in detail.products" :key="product.product_id">
                                         <td>{{ product.product_name }}<small>{{ product.product_code }}</small></td>
@@ -521,7 +521,7 @@ onBeforeUnmount(() => {
                         <h6 class="purchase-section-title">Transaksi</h6>
                         <div class="table-responsive">
                             <table class="table table-sm mb-0 purchase-detail-table">
-                                <thead><tr><th>Transaksi</th><th>Waktu</th><th>Kasir</th><th>Customer</th><th class="text-end">Total</th></tr></thead>
+                                <thead><tr><th scope="col">Transaksi</th><th scope="col">Waktu</th><th scope="col">Kasir</th><th scope="col">Customer</th><th scope="col" class="text-end">Total</th></tr></thead>
                                 <tbody>
                                     <tr v-for="transaction in detail.transactions" :key="transaction.id">
                                         <td>{{ transaction.transaction_number || '-' }}</td>

@@ -66,15 +66,15 @@ const reportUrl = computed(() => {
                 <table class="table table-sm align-middle mb-0 transfer-panel-table">
                     <thead>
                         <tr>
-                            <th>Toko</th>
-                            <th>Order</th>
-                            <th>Gudang</th>
-                            <th class="text-end">Barang Keluar</th>
-                            <th class="text-end">Diterima</th>
-                            <th class="text-end">Selisih</th>
-                            <th>Status</th>
-                            <th>Umur</th>
-                            <th>Tanggal Keluar</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col">Order</th>
+                            <th scope="col">Gudang</th>
+                            <th scope="col" class="text-end">Barang Keluar</th>
+                            <th scope="col" class="text-end">Diterima</th>
+                            <th scope="col" class="text-end">Selisih</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Umur</th>
+                            <th scope="col">Tanggal Keluar</th>
                         </tr>
                     </thead>
                     <tbody>

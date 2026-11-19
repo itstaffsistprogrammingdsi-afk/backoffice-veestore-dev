@@ -83,25 +83,25 @@ const saveRole = (user: UserRow) => {
                 <p>Atur peran backoffice untuk setiap pengguna.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applySearch">
-                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari pengguna..." />
-                <button class="btn btn-outline-secondary btn-sm" type="submit"><i class="mdi mdi-magnify"></i></button>
-                <button class="btn btn-outline-secondary btn-sm" type="button" @click="resetSearch"><i class="mdi mdi-refresh"></i></button>
+                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari pengguna…" aria-label="Cari pengguna" />
+                <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari pengguna" title="Cari pengguna"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset pencarian" title="Reset pencarian" @click="resetSearch"><i class="mdi mdi-refresh" aria-hidden="true"></i></button>
             </form>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card management-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Pengguna</th>
-                            <th>Nama Pengguna</th>
-                            <th>Email</th>
-                            <th style="min-width: 220px;">Peran</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Pengguna</th>
+                            <th scope="col">Nama Pengguna</th>
+                            <th scope="col">Email</th>
+                            <th scope="col" style="min-width: 220px;">Peran</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -110,7 +110,7 @@ const saveRole = (user: UserRow) => {
                             <td>{{ user.username ?? '-' }}</td>
                             <td>{{ user.email ?? '-' }}</td>
                             <td>
-                                <select v-model="selectedRoles[user.id]" class="form-select form-select-sm">
+                                <select v-model="selectedRoles[user.id]" class="form-select form-select-sm" :aria-label="`Peran untuk ${user.name ?? user.username ?? user.email ?? 'pengguna'}`">
                                     <option value="">Tanpa role</option>
                                     <option v-for="role in roles" :key="role.id" :value="role.id">
                                         {{ role.name }}

@@ -785,11 +785,11 @@ const exportOverview = () => {
                     </div>
                     <div class="col-6 col-md-3 col-xl-3">
                         <label class="form-label" for="overview-store">Toko</label>
-                        <SearchableSelect id="overview-store" aria-label="Toko" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
+                        <SearchableSelect id="overview-store" aria-label="Toko" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-12 col-md-6 col-xl-3">
                         <label class="form-label" for="overview-warehouse">Gudang</label>
-                        <SearchableSelect id="overview-warehouse" aria-label="Gudang" v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua gudang" search-placeholder="Cari gudang..." />
+                        <SearchableSelect id="overview-warehouse" aria-label="Gudang" v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua gudang" search-placeholder="Cari gudang…" />
                     </div>
                 </div>
                 <div class="row g-2 align-items-end mt-1">
@@ -936,7 +936,7 @@ const exportOverview = () => {
                                     <div class="overview-chart-axis" aria-hidden="true">
                                         <span v-for="tick in salesTrendAxis.ticks" :key="`sales-axis-${tick}`">{{ formatAxisCurrency(tick) }}</span>
                                     </div>
-                                    <div class="overview-chart-scroll">
+                                    <div class="overview-chart-scroll" tabindex="0" role="region" aria-label="Grafik tren omset harian">
                                         <div class="overview-chart-grid">
                                             <div v-for="row in visibleTrend" :key="row.date" class="overview-chart-column">
                                                 <div class="overview-chart-track">
@@ -1968,6 +1968,8 @@ const exportOverview = () => {
 
 .overview-chart-scroll {
     overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
     min-width: 0;
     flex: 1 1 auto;
 }

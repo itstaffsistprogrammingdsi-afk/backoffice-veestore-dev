@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -92,10 +93,16 @@ const reset = () => {
     applyFilters();
 };
 
-const decide = (row: LabelRequestRow, action: 'approve' | 'reject') => {
-    const label = action === 'approve' ? 'menyetujui' : 'menolak';
+const decide = async (row: LabelRequestRow, action: 'approve' | 'reject') => {
+    const approving = action === 'approve';
+    const confirmed = await confirmAction({
+        title: approving ? 'Setujui permintaan label?' : 'Tolak permintaan label?',
+        description: `Permintaan dari ${row.store_name ?? 'toko ini'} akan ${approving ? 'disetujui' : 'ditolak'}.`,
+        confirmLabel: approving ? 'Setujui' : 'Tolak',
+        variant: approving ? 'primary' : 'danger',
+    });
 
-    if (!window.confirm(`Yakin ingin ${label} request ini?`)) {
+    if (!confirmed) {
         return;
     }
 
@@ -140,19 +147,19 @@ const statusClass = (status: string) => {
             </div>
         </div>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card management-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-3">
-                        <label class="form-label">Cari</label>
-                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Toko, peminta, alasan..." />
+                        <label for="label-requests-cari-1" class="form-label">Cari</label>
+                        <input id="label-requests-cari-1" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Toko, peminta, alasan…" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="form.status" class="form-select form-select-sm">
+                        <label for="label-requests-status-2" class="form-label">Status</label>
+                        <select id="label-requests-status-2" v-model="form.status" class="form-select form-select-sm">
                             <option value="">Semua</option>
                             <option value="pending">Pending</option>
                             <option value="approved">Approved</option>
@@ -160,16 +167,16 @@ const statusClass = (status: string) => {
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Toko</label>
-                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
+                        <label for="label-requests-toko-3" class="form-label">Toko</label>
+                        <SearchableSelect id="label-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Dari</label>
-                        <input v-model="form.from" class="form-control form-control-sm" type="date" />
+                        <label for="label-requests-dari-4" class="form-label">Dari</label>
+                        <input id="label-requests-dari-4" v-model="form.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="form.to" class="form-control form-control-sm" type="date" />
+                        <label for="label-requests-sampai-5" class="form-label">Sampai</label>
+                        <input id="label-requests-sampai-5" v-model="form.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2">
                         <button class="btn btn-sm btn-primary" type="submit">
@@ -189,13 +196,13 @@ const statusClass = (status: string) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Toko</th>
-                            <th>Peminta</th>
-                            <th>Alasan</th>
-                            <th class="text-end">Item</th>
-                            <th>Status</th>
-                            <th>Aksi</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col">Peminta</th>
+                            <th scope="col">Alasan</th>
+                            <th scope="col" class="text-end">Item</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -212,11 +219,11 @@ const statusClass = (status: string) => {
                             </td>
                             <td>
                                 <template v-if="row.status === 'pending'">
-                                    <button class="btn btn-sm btn-success me-1" type="button" @click="decide(row, 'approve')">
-                                        <i class="mdi mdi-check"></i>
+                                    <button class="btn btn-sm btn-success me-1" type="button" aria-label="Setujui permintaan label" title="Setujui" @click="decide(row, 'approve')">
+                                        <i class="mdi mdi-check" aria-hidden="true"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" type="button" @click="decide(row, 'reject')">
-                                        <i class="mdi mdi-close"></i>
+                                    <button class="btn btn-sm btn-outline-danger" type="button" aria-label="Tolak permintaan label" title="Tolak" @click="decide(row, 'reject')">
+                                        <i class="mdi mdi-close" aria-hidden="true"></i>
                                     </button>
                                 </template>
                                 <span v-else class="text-muted small">-</span>

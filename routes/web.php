@@ -708,6 +708,14 @@ Route::middleware('auth')->group(function () {
         Route::get('stock-opname-variance', [StockOpnameVarianceReportController::class, 'index'])
             ->name('stock-opname-variance.index');
 
+        Route::post('stock-opname-variance/{id}/approve', [StockOpnameVarianceReportController::class, 'approve'])
+            ->whereUuid('id')
+            ->name('stock-opname-variance.approve');
+
+        Route::post('stock-opname-variance/{id}/reject', [StockOpnameVarianceReportController::class, 'reject'])
+            ->whereUuid('id')
+            ->name('stock-opname-variance.reject');
+
         Route::get('stock-movements', [StockMovementReportController::class, 'index'])
             ->name('stock-movements.index');
 

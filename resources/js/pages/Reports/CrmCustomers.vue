@@ -119,7 +119,7 @@ const exportCustomers = () => downloadExcelTable('CRM-Customer-Profiles', 'Custo
             <div class="card-body">
                 <form class="d-flex gap-2" @submit.prevent="apply">
                     <label class="visually-hidden" for="customer-search">Cari pelanggan</label>
-                    <input id="customer-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Cari nama, email, atau WA..." />
+                    <input id="customer-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Cari nama, email, atau WA…" />
                     <button class="btn btn-sm btn-primary" type="submit" aria-label="Cari pelanggan"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
                     <button class="btn btn-sm btn-outline-secondary" type="button" @click="reset">Reset</button>
                 </form>
@@ -148,14 +148,14 @@ const exportCustomers = () => downloadExcelTable('CRM-Customer-Profiles', 'Custo
                     <caption class="visually-hidden">Daftar pelanggan beserta kanal registrasi, kontak, dan saldo poin</caption>
                     <thead>
                         <tr>
-                            <th v-if="isVisible('name')">Pelanggan</th>
-                            <th v-if="isVisible('created_at')">Terdaftar</th>
-                            <th v-if="isVisible('registration_channel')">Kanal</th>
-                            <th v-if="isVisible('registration_source_name')">Sumber</th>
-                            <th v-if="isVisible('email')">Email</th>
-                            <th v-if="isVisible('wa_number')">WA</th>
-                            <th v-if="isVisible('current_balance')" class="text-end">Poin</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col" v-if="isVisible('name')">Pelanggan</th>
+                            <th scope="col" v-if="isVisible('created_at')">Terdaftar</th>
+                            <th scope="col" v-if="isVisible('registration_channel')">Kanal</th>
+                            <th scope="col" v-if="isVisible('registration_source_name')">Sumber</th>
+                            <th scope="col" v-if="isVisible('email')">Email</th>
+                            <th scope="col" v-if="isVisible('wa_number')">WA</th>
+                            <th scope="col" v-if="isVisible('current_balance')" class="text-end">Poin</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -188,7 +188,7 @@ const submit = () => {
                     <Link :href="props.resetUrl" class="btn btn-outline-secondary">Reset</Link>
                     <button class="btn btn-primary" type="submit" :disabled="form.processing">
                         <i class="mdi mdi-content-save-outline me-1"></i>
-                        {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
+                        {{ form.processing ? 'Menyimpan…' : 'Simpan' }}
                     </button>
                 </div>
             </div>

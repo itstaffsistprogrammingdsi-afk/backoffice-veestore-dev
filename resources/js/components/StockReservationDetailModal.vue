@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { lockAppRoot, unlockAppRoot } from '@/composables/useAppRootInert';
 
 interface ReservationDetail {
     id: string;
@@ -49,6 +50,7 @@ const closeButton = ref<HTMLButtonElement | null>(null);
 let controller: AbortController | null = null;
 let requestId = 0;
 let previousFocus: HTMLElement | null = null;
+let backgroundLocked = false;
 
 const handlerLabel = computed(() => (props.handlerType === 'store' ? 'Cabang' : 'Gudang'));
 const totalRemaining = computed(() => rows.value.reduce((total, row) => total + Number(row.remaining_quantity ?? 0), 0));
@@ -198,6 +200,11 @@ watch(
             previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
             document.body.style.overflow = 'hidden';
 
+            if (!backgroundLocked) {
+                lockAppRoot();
+                backgroundLocked = true;
+            }
+
             await nextTick();
             closeButton.value?.focus();
             load();
@@ -212,6 +219,12 @@ watch(
         errorMessage.value = '';
         rows.value = [];
         document.body.style.overflow = '';
+
+        if (backgroundLocked) {
+            unlockAppRoot();
+            backgroundLocked = false;
+        }
+
         previousFocus?.focus();
         previousFocus = null;
     },
@@ -224,6 +237,11 @@ onBeforeUnmount(() => {
     window.removeEventListener('keydown', onKeydown);
     controller?.abort();
     document.body.style.overflow = '';
+
+    if (backgroundLocked) {
+        unlockAppRoot();
+        backgroundLocked = false;
+    }
 });
 </script>
 

@@ -144,39 +144,39 @@ const formatDate = (value: string | null) => {
 
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card loyalty-card">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-3">
-                        <label class="form-label">Cari</label>
-                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama, email, atau WA" />
+                        <label for="mutations-cari-1" class="form-label">Cari</label>
+                        <input id="mutations-cari-1" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama, email, atau WA" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Tipe</label>
-                        <select v-model="form.type" class="form-select form-select-sm">
+                        <label for="mutations-tipe-2" class="form-label">Tipe</label>
+                        <select id="mutations-tipe-2" v-model="form.type" class="form-select form-select-sm">
                             <option value="">Semua tipe</option>
                             <option v-for="option in props.typeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Customer Point</label>
-                        <SearchableSelect
+                        <label for="mutations-customer-point-3" class="form-label">Customer Point</label>
+                        <SearchableSelect id="mutations-customer-point-3"
                             v-model="form.clp"
                             :options="customerPointOptions"
                             placeholder="Semua customer"
-                            search-placeholder="Cari nama atau nomor customer..."
+                            search-placeholder="Cari nama atau nomor customer…"
                         />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Dari</label>
-                        <input v-model="form.from" class="form-control form-control-sm" type="date" />
+                        <label for="mutations-dari-4" class="form-label">Dari</label>
+                        <input id="mutations-dari-4" v-model="form.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="form.to" class="form-control form-control-sm" type="date" />
+                        <label for="mutations-sampai-5" class="form-label">Sampai</label>
+                        <input id="mutations-sampai-5" v-model="form.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 mt-2 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit">
@@ -194,13 +194,13 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Waktu</th>
-                            <th>Customer</th>
-                            <th>Tipe</th>
-                            <th class="text-end">Poin</th>
-                            <th class="text-end">Saldo akhir</th>
-                            <th>Referensi</th>
-                            <th>Deskripsi</th>
+                            <th scope="col">Waktu</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Tipe</th>
+                            <th scope="col" class="text-end">Poin</th>
+                            <th scope="col" class="text-end">Saldo akhir</th>
+                            <th scope="col">Referensi</th>
+                            <th scope="col">Deskripsi</th>
                         </tr>
                     </thead>
                     <tbody>

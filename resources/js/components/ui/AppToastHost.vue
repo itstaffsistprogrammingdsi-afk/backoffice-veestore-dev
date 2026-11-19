@@ -1,7 +1,20 @@
 <script setup lang="ts">
+import { watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { useToast, type ToastVariant } from '@/composables/useToast';
 
-const { items, dismiss } = useToast();
+const { items, dismiss, success } = useToast();
+const page = usePage();
+
+watch(
+    () => (page.props.flash as { login_success?: string } | undefined)?.login_success,
+    (message) => {
+        if (message) {
+            success(String(message));
+        }
+    },
+    { immediate: true },
+);
 
 const icons: Record<ToastVariant, string> = {
     success: 'mdi-check-circle-outline',

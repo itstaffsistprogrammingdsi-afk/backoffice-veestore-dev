@@ -199,8 +199,8 @@ const exportRows = () => {
                     <div class="col-md-2"><label for="history-from" class="form-label">Tanggal dari</label><input id="history-from" v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label for="history-to" class="form-label">Tanggal sampai</label><input id="history-to" v-model="form.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label for="history-channel" class="form-label">Kanal</label><select id="history-channel" v-model="form.channel" class="form-select form-select-sm"><option value="pos">POS</option><option value="ecom">E-commerce</option></select></div>
-                    <div class="col-md-3"><label for="history-store" class="form-label">Toko</label><SearchableSelect id="history-store" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." /></div>
-                    <div class="col-md-3"><label for="history-q" class="form-label">Cari</label><input id="history-q" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama, WA, atau produk..." /></div>
+                    <div class="col-md-3"><label for="history-store" class="form-label">Toko</label><SearchableSelect id="history-store" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" /></div>
+                    <div class="col-md-3"><label for="history-q" class="form-label">Cari</label><input id="history-q" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama, WA, atau produk…" /></div>
                     <div class="col-12 d-flex gap-2 mt-2"><button class="btn btn-sm btn-primary" type="submit">Terapkan filter</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="reset">Reset</button></div>
                 </form>
             </div>
@@ -228,12 +228,12 @@ const exportRows = () => {
                     <caption class="visually-hidden">Riwayat transaksi POS pelanggan</caption>
                     <thead>
                         <tr>
-                            <th v-if="isPosVisible('check_in')">Check-in</th>
-                            <th v-if="isPosVisible('paid')">Dibayar</th>
-                            <th v-if="isPosVisible('store')">Toko</th>
-                            <th v-if="isPosVisible('customer')">Pelanggan</th>
-                            <th v-if="isPosVisible('wa')">WA</th>
-                            <th v-if="isPosVisible('product')">Produk</th>
+                            <th scope="col" v-if="isPosVisible('check_in')">Check-in</th>
+                            <th scope="col" v-if="isPosVisible('paid')">Dibayar</th>
+                            <th scope="col" v-if="isPosVisible('store')">Toko</th>
+                            <th scope="col" v-if="isPosVisible('customer')">Pelanggan</th>
+                            <th scope="col" v-if="isPosVisible('wa')">WA</th>
+                            <th scope="col" v-if="isPosVisible('product')">Produk</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -252,13 +252,13 @@ const exportRows = () => {
                     <caption class="visually-hidden">Riwayat transaksi e-commerce pelanggan</caption>
                     <thead>
                         <tr>
-                            <th v-if="isEcomVisible('cart')">Cart</th>
-                            <th v-if="isEcomVisible('paid')">Dibayar</th>
-                            <th v-if="isEcomVisible('order')">Order</th>
-                            <th v-if="isEcomVisible('customer')">Pelanggan</th>
-                            <th v-if="isEcomVisible('wa')">WA</th>
-                            <th v-if="isEcomVisible('product')">Produk</th>
-                            <th v-if="isEcomVisible('qty')" class="text-end">Qty</th>
+                            <th scope="col" v-if="isEcomVisible('cart')">Cart</th>
+                            <th scope="col" v-if="isEcomVisible('paid')">Dibayar</th>
+                            <th scope="col" v-if="isEcomVisible('order')">Order</th>
+                            <th scope="col" v-if="isEcomVisible('customer')">Pelanggan</th>
+                            <th scope="col" v-if="isEcomVisible('wa')">WA</th>
+                            <th scope="col" v-if="isEcomVisible('product')">Produk</th>
+                            <th scope="col" v-if="isEcomVisible('qty')" class="text-end">Qty</th>
                         </tr>
                     </thead>
                     <tbody>

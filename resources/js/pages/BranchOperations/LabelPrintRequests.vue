@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -136,10 +137,16 @@ const toggleDetail = (id: string) => {
     expandedId.value = expandedId.value === id ? null : id;
 };
 
-const decide = (row: LabelRequestRow, action: 'approve' | 'reject') => {
-    const label = action === 'approve' ? 'menyetujui' : 'menolak';
+const decide = async (row: LabelRequestRow, action: 'approve' | 'reject') => {
+    const approving = action === 'approve';
+    const confirmed = await confirmAction({
+        title: approving ? 'Setujui permintaan cetak ulang label?' : 'Tolak permintaan cetak ulang label?',
+        description: `Permintaan ${row.id} akan ${approving ? 'disetujui' : 'ditolak'}.`,
+        confirmLabel: approving ? 'Setujui' : 'Tolak',
+        variant: approving ? 'primary' : 'danger',
+    });
 
-    if (!window.confirm(`Yakin ingin ${label} request ini?`)) {
+    if (!confirmed) {
         return;
     }
 
@@ -189,38 +196,38 @@ const formatDate = (value: string | null) => {
             <input type="hidden" name="_token" :value="csrfToken" />
         </form>
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card branch-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-2">
-                        <label class="form-label">Dari</label>
-                        <input v-model="form.from" class="form-control form-control-sm" type="date" />
+                        <label for="label-print-requests-dari-1" class="form-label">Dari</label>
+                        <input id="label-print-requests-dari-1" v-model="form.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="form.to" class="form-control form-control-sm" type="date" />
+                        <label for="label-print-requests-sampai-2" class="form-label">Sampai</label>
+                        <input id="label-print-requests-sampai-2" v-model="form.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Toko</label>
-                        <SearchableSelect v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
+                        <label for="label-print-requests-toko-3" class="form-label">Toko</label>
+                        <SearchableSelect id="label-print-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="form.status" class="form-select form-select-sm">
+                        <label for="label-print-requests-status-4" class="form-label">Status</label>
+                        <select id="label-print-requests-status-4" v-model="form.status" class="form-select form-select-sm">
                             <option value="">Semua</option>
                             <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Peminta</label>
-                        <SearchableSelect v-model="form.requested_by" :options="userOptions" placeholder="Semua Pengguna" search-placeholder="Cari pengguna..." />
+                        <label for="label-print-requests-peminta-5" class="form-label">Peminta</label>
+                        <SearchableSelect id="label-print-requests-peminta-5" v-model="form.requested_by" :options="userOptions" placeholder="Semua Pengguna" search-placeholder="Cari pengguna…" />
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Cari</label>
-                        <input v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko..." />
+                        <label for="label-print-requests-cari-6" class="form-label">Cari</label>
+                        <input id="label-print-requests-cari-6" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko…" />
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Filter</button>
@@ -235,15 +242,15 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Permintaan</th>
-                            <th>Toko</th>
-                            <th>Peminta</th>
-                            <th>Alasan</th>
-                            <th>Status</th>
-                            <th class="text-end">Barang</th>
-                            <th class="text-end">Dicetak</th>
-                            <th>Aksi</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Permintaan</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col">Peminta</th>
+                            <th scope="col">Alasan</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Barang</th>
+                            <th scope="col" class="text-end">Dicetak</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -258,15 +265,15 @@ const formatDate = (value: string | null) => {
                                 <td class="text-end">{{ row.total_items }}</td>
                                 <td class="text-end">{{ row.total_printed }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" type="button" @click="toggleDetail(row.id)">
-                                        <i class="mdi mdi-eye-outline"></i>
+                                    <button class="btn btn-sm btn-outline-secondary me-1" type="button" :aria-label="expandedId === row.id ? `Tutup detail permintaan ${row.id}` : `Lihat detail permintaan ${row.id}`" :aria-expanded="expandedId === row.id" :aria-controls="`label-request-detail-${row.id}`" title="Lihat detail" @click="toggleDetail(row.id)">
+                                        <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
                                     </button>
                                     <template v-if="props.canDecide && row.status === 'pending'">
-                                        <button class="btn btn-sm btn-success me-1" type="button" title="Setujui" @click="decide(row, 'approve')">
-                                            <i class="mdi mdi-check"></i>
+                                        <button class="btn btn-sm btn-success me-1" type="button" title="Setujui" aria-label="Setujui permintaan cetak ulang label" @click="decide(row, 'approve')">
+                                            <i class="mdi mdi-check" aria-hidden="true"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger me-1" type="button" title="Tolak" @click="decide(row, 'reject')">
-                                            <i class="mdi mdi-close"></i>
+                                        <button class="btn btn-sm btn-outline-danger me-1" type="button" title="Tolak" aria-label="Tolak permintaan cetak ulang label" @click="decide(row, 'reject')">
+                                            <i class="mdi mdi-close" aria-hidden="true"></i>
                                         </button>
                                     </template>
                                     <button
@@ -274,18 +281,19 @@ const formatDate = (value: string | null) => {
                                         class="btn btn-sm btn-outline-primary"
                                         type="button"
                                         title="Cetak label"
+                                        aria-label="Cetak label"
                                         @click="printRequest(row)"
                                     >
-                                        <i class="mdi mdi-printer-outline"></i>
+                                        <i class="mdi mdi-printer-outline" aria-hidden="true"></i>
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expandedId === row.id">
+                            <tr v-if="expandedId === row.id" :id="`label-request-detail-${row.id}`">
                                 <td colspan="9" class="branch-detail">
                                     <div class="table-responsive">
                                         <table class="table table-sm mb-0">
                                             <thead>
-                                                <tr><th>Item ID</th><th>Product Code</th><th>Product Name</th><th>Status</th><th>Cetakan ke-</th><th>Dicetak Oleh</th><th>Waktu Cetak</th></tr>
+                                                <tr><th scope="col">Item ID</th><th scope="col">Product Code</th><th scope="col">Product Name</th><th scope="col">Status</th><th scope="col">Cetakan ke-</th><th scope="col">Dicetak Oleh</th><th scope="col">Waktu Cetak</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="item in detailItems[row.id] ?? []" :key="item.id">

@@ -243,7 +243,7 @@ const formatNumber = (value: number, digits = 0) =>
                     <button class="btn btn-primary" type="submit" :disabled="form.processing" :aria-busy="form.processing">
                         <i v-if="form.processing" class="mdi mdi-loading mdi-spin me-1" aria-hidden="true"></i>
                         <i v-else class="mdi mdi-content-save-outline me-1" aria-hidden="true"></i>
-                        {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
+                        {{ form.processing ? 'Menyimpan…' : 'Simpan' }}
                     </button>
                 </div>
             </div>

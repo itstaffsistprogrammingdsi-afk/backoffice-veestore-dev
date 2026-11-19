@@ -294,21 +294,21 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-4">
-                        <label class="form-label">Cari produk atau gudang</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau warehouse..." />
+                        <label for="stock-cari-produk-atau-gudang-1" class="form-label">Cari produk atau gudang</label>
+                        <input id="stock-cari-produk-atau-gudang-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau warehouse…" />
                     </div>
                     <div class="col-md-4 col-lg-3">
-                        <label class="form-label">Warehouse</label>
-                        <SearchableSelect
+                        <label for="stock-warehouse-2" class="form-label">Warehouse</label>
+                        <SearchableSelect id="stock-warehouse-2"
                             v-model="filters.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Semua warehouse"
-                            search-placeholder="Cari warehouse..."
+                            search-placeholder="Cari warehouse…"
                         />
                     </div>
                     <div class="col-md-4 col-lg-2">
-                        <label class="form-label">Movement</label>
-                        <select v-model="filters.movement" class="form-select form-select-sm">
+                        <label for="stock-movement-3" class="form-label">Movement</label>
+                        <select id="stock-movement-3" v-model="filters.movement" class="form-select form-select-sm">
                             <option value="">Semua movement</option>
                             <option value="slow">Slow Moving</option>
                             <option value="fast">Fast Moving</option>
@@ -435,7 +435,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 aria-controls="stock-availability-panel"
                 @click="activeTab = 'availability'"
             >
-                <i class="mdi mdi-view-list-outline me-1"></i>
+                <i class="mdi mdi-view-list-outline me-1" aria-hidden="true"></i>
                 Ketersediaan per Produk
             </button>
             <button
@@ -448,7 +448,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 aria-controls="stock-import-panel"
                 @click="activeTab = 'import'"
             >
-                <i class="mdi mdi-truck-delivery-outline me-1"></i>
+                <i class="mdi mdi-truck-delivery-outline me-1" aria-hidden="true"></i>
                 Perlu Import
                 <span class="stock-tab-count">{{ importCountLabel }}</span>
             </button>
@@ -473,14 +473,14 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 <table class="table align-middle mb-0 stock-table">
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th class="text-end">Available</th>
-                            <th>Gudang dengan Stok</th>
-                            <th>Movement</th>
-                            <th>Aging</th>
-                            <th>FEFO / FIFO</th>
-                            <th>Status Barrier</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col" class="text-end">Available</th>
+                            <th scope="col">Gudang dengan Stok</th>
+                            <th scope="col">Movement</th>
+                            <th scope="col">Aging</th>
+                            <th scope="col">FEFO / FIFO</th>
+                            <th scope="col">Status Barrier</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -523,31 +523,31 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                     <small v-if="product.below_count > 0" class="stock-status-note">{{ product.below_count }} gudang di bawah barrier</small>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleProduct(product.product_id)">
-                                        <i class="mdi" :class="expanded[product.product_id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" :aria-expanded="Boolean(expanded[product.product_id])" :aria-controls="`stock-detail-${product.product_id}`" @click="toggleProduct(product.product_id)">
+                                        <i class="mdi" :class="expanded[product.product_id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                                         {{ expanded[product.product_id] ? 'Tutup' : 'Detail' }}
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expanded[product.product_id]" class="stock-detail-row">
+                            <tr v-if="expanded[product.product_id]" :id="`stock-detail-${product.product_id}`" class="stock-detail-row">
                                 <td colspan="7">
                                     <div class="stock-detail-wrap">
                                         <table class="table table-sm mb-0 stock-detail-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Gudang</th>
-                                                    <th class="text-end">On Hand</th>
-                                                    <th class="text-end">Reserved</th>
-                                                    <th class="text-end">Available</th>
-                                                    <th class="text-end">Barrier</th>
-                                                    <th v-if="props.showThreshold" class="text-end">Threshold</th>
-                                                    <th class="text-end">Outbound 30d</th>
-                                                    <th>Movement</th>
-                                                    <th>FIFO</th>
-                                                    <th>FEFO</th>
-                                                    <th>Status</th>
-                                                    <th class="text-end">Saran Import</th>
-                                                    <th class="text-end">Aksi</th>
+                                                    <th scope="col">Gudang</th>
+                                                    <th scope="col" class="text-end">On Hand</th>
+                                                    <th scope="col" class="text-end">Reserved</th>
+                                                    <th scope="col" class="text-end">Available</th>
+                                                    <th scope="col" class="text-end">Barrier</th>
+                                                    <th scope="col" v-if="props.showThreshold" class="text-end">Threshold</th>
+                                                    <th scope="col" class="text-end">Outbound 30d</th>
+                                                    <th scope="col">Movement</th>
+                                                    <th scope="col">FIFO</th>
+                                                    <th scope="col">FEFO</th>
+                                                    <th scope="col">Status</th>
+                                                    <th scope="col" class="text-end">Saran Import</th>
+                                                    <th scope="col" class="text-end">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -620,14 +620,14 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 <table class="table align-middle mb-0 stock-table">
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th>Gudang</th>
-                            <th class="text-end">Available</th>
-                            <th class="text-end">Barrier</th>
-                            <th v-if="props.showThreshold" class="text-end">Threshold</th>
-                            <th class="text-end">Saran Import</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col">Gudang</th>
+                            <th scope="col" class="text-end">Available</th>
+                            <th scope="col" class="text-end">Barrier</th>
+                            <th scope="col" v-if="props.showThreshold" class="text-end">Threshold</th>
+                            <th scope="col" class="text-end">Saran Import</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -698,7 +698,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 </p>
                 <div v-if="props.summary.reconciliation.inbound_only.length > 0" class="table-responsive">
                     <table class="table table-sm mb-0 stock-detail-table">
-                        <thead><tr><th>Produk</th><th class="text-end">Qty Inbound</th><th class="text-end">Referensi</th><th>Inbound Terakhir</th></tr></thead>
+                        <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty Inbound</th><th scope="col" class="text-end">Referensi</th><th scope="col">Inbound Terakhir</th></tr></thead>
                         <tbody>
                             <tr v-for="row in props.summary.reconciliation.inbound_only" :key="row.product_id">
                                 <td><strong>{{ row.product_name }}</strong><small>{{ row.product_code }}</small></td>
@@ -723,7 +723,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             </summary>
             <div class="table-responsive">
                 <table class="table table-sm mb-0 stock-detail-table">
-                    <thead><tr><th>Gudang</th><th>Produk</th><th class="text-end">Qty Hilang</th><th>Terakhir Diperbarui</th></tr></thead>
+                    <thead><tr><th scope="col">Gudang</th><th scope="col">Produk</th><th scope="col" class="text-end">Qty Hilang</th><th scope="col">Terakhir Diperbarui</th></tr></thead>
                     <tbody>
                         <tr v-for="row in props.missingStock" :key="`${row.warehouse_id}-${row.product_id}`">
                             <td><strong>{{ row.warehouse_name }}</strong><small>{{ row.warehouse_code || '-' }}</small></td>
@@ -792,8 +792,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 .stock-recon-grid > div { padding: 0.6rem 0.7rem; border-radius: 0.55rem; background: var(--app-surface-2); }
 .stock-recon-grid span { display: block; color: var(--app-muted); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
 .stock-recon-grid strong { display: block; margin-top: 0.15rem; font-size: 1rem; }
-.stock-recon-note { color: var(--app-muted); font-size: 0.8rem; }
-.stock-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; overflow-x: auto; }
+.stock-recon-note { color: var(--app-muted); font-size: 0.8rem; }.stock-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; overflow-x: auto; }
 .stock-tab { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.55rem 0.8rem; border: 1px solid transparent; border-radius: 0.55rem; background: transparent; color: var(--app-muted); font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
 .stock-tab:hover { background: var(--app-surface-2); color: var(--app-ink); }
 .stock-tab.is-active { border-color: var(--app-accent); background: var(--app-accent-soft); color: var(--app-accent-ink); }
@@ -814,7 +813,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 .stock-no-stock { color: var(--app-muted); font-size: 0.75rem; }
 .stock-status-note { display: block; margin-top: 0.3rem; color: var(--app-muted); font-size: 0.72rem; }
 .stock-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.stock-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; }
+.stock-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .stock-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .stock-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .stock-detail-table td strong, .stock-detail-table td small { display: block; }
@@ -835,5 +834,10 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 }
 @media (max-width: 575.98px) {
     .stock-alert { align-items: flex-start; flex-direction: column; }
+}
+
+@media (pointer: coarse) {
+    .stock-tab { min-height: 44px; }
+    .stock-reserved-trigger { min-height: 44px; padding: 0.5rem 0.65rem; }
 }
 </style>

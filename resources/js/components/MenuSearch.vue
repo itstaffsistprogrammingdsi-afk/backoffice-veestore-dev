@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { lockAppRoot, unlockAppRoot } from '@/composables/useAppRootInert';
 import { router } from '@inertiajs/vue3';
 import { currentLocale, switchLocale, translateText } from '@/i18n';
 import { useTheme } from '@/composables/useTheme';
@@ -161,7 +162,7 @@ const strings = computed(() => {
     if (isEnglish.value) {
         return {
             triggerLabel: 'Search menus or actions',
-            placeholder: 'Search menus or actions...',
+            placeholder: 'Search menus or actions…',
             dialogTitle: 'Search menus and actions',
             quickActions: 'Quick actions',
             recent: 'Recently opened',
@@ -190,7 +191,7 @@ const strings = computed(() => {
 
     return {
         triggerLabel: 'Cari menu atau fungsi',
-        placeholder: 'Cari menu atau fungsi...',
+        placeholder: 'Cari menu atau fungsi…',
         dialogTitle: 'Cari menu dan fungsi',
         quickActions: 'Fungsi cepat',
         recent: 'Terakhir dibuka',
@@ -568,6 +569,7 @@ const openDialog = async () => {
     activeIndex.value = 0;
     open.value = true;
     document.body.style.overflow = 'hidden';
+    lockAppRoot();
     emit('open');
 
     await nextTick();
@@ -580,6 +582,7 @@ const closeDialog = (restoreFocus = true) => {
 
     open.value = false;
     document.body.style.overflow = previousBodyOverflow;
+    unlockAppRoot();
     emit('close');
 
     if (!restoreFocus) return;
@@ -746,6 +749,7 @@ onBeforeUnmount(() => {
 
     if (open.value) {
         document.body.style.overflow = previousBodyOverflow;
+        unlockAppRoot();
     }
 });
 </script>

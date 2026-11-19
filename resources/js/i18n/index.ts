@@ -233,7 +233,7 @@ const englishToIndonesian: Record<string, string> = {
   Notes: 'Catatan',
   Order: 'Pesanan',
   'Order ID': 'ID Pesanan',
-  'Order number...': 'Nomor pesanan...',
+  'Order number…': 'Nomor pesanan…',
   Outbound: 'Barang Keluar',
   Parent: 'Induk',
   Pending: 'Menunggu',

@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -128,8 +129,15 @@ const submitEdit = () => {
     });
 };
 
-const remove = (row: Row) => {
-    if (!window.confirm('Hapus produk dari diskon ini?')) return;
+const remove = async (row: Row) => {
+    const confirmed = await confirmAction({
+        title: 'Hapus produk dari diskon?',
+        description: `Produk ${row.product_name ?? row.product_code ?? 'ini'} akan dilepas dari diskon ${row.discount_name ?? ''}.`.trim(),
+        confirmLabel: 'Hapus',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.destroy, {
         data: {
@@ -157,44 +165,44 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
 
         <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card pd-card mb-3">
             <div class="card-header"><h6 class="mb-0">Tambah Produk Diskon</h6></div>
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
                     <div class="col-md-4">
-                        <label class="form-label">Diskon</label>
-                        <SearchableSelect
+                        <label for="product-discounts-diskon-1" class="form-label">Diskon</label>
+                        <SearchableSelect id="product-discounts-diskon-1"
                             v-model="createForm.discount_id"
                             :options="discountOptions"
                             placeholder="Pilih diskon"
-                            search-placeholder="Cari diskon..."
+                            search-placeholder="Cari diskon…"
                             required
                             :clearable="false"
                         />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label">Berlaku Untuk</label>
-                        <select v-model="createForm.applied_to" class="form-select form-select-sm">
+                        <label for="product-discounts-berlaku-untuk-2" class="form-label">Berlaku Untuk</label>
+                        <select id="product-discounts-berlaku-untuk-2" v-model="createForm.applied_to" class="form-select form-select-sm">
                             <option v-for="option in appliedToOptions" :key="option" :value="option">{{ option }}</option>
                         </select>
                     </div>
                     <div v-if="createForm.applied_to === 'store'" class="col-md-3">
-                        <label class="form-label">Store</label>
-                        <SearchableSelect v-model="createForm.store_id" :options="storeOptions" placeholder="Pilih store" search-placeholder="Cari store..." />
+                        <label for="product-discounts-store-3" class="form-label">Store</label>
+                        <SearchableSelect id="product-discounts-store-3" v-model="createForm.store_id" :options="storeOptions" placeholder="Pilih store" search-placeholder="Cari store…" />
                     </div>
                     <div class="col-md-2">
                         <div class="form-check"><input id="all-products" v-model="createForm.all_products" class="form-check-input" type="checkbox" /><label class="form-check-label" for="all-products">Semua Produk</label></div>
                     </div>
                     <div v-if="!createForm.all_products" class="col-md-12">
-                        <label class="form-label">Produk</label>
-                        <SearchableSelect
+                        <label for="product-discounts-produk-4" class="form-label">Produk</label>
+                        <SearchableSelect id="product-discounts-produk-4"
                             v-model="createForm.product_id"
                             :options="productOptions"
                             placeholder="Pilih satu atau beberapa produk"
-                            search-placeholder="Cari nama atau kode produk..."
+                            search-placeholder="Cari nama atau kode produk…"
                             multiple
                         />
                     </div>
@@ -206,9 +214,9 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
         <div class="card pd-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="apply">
-                    <div class="col-md-4"><label class="form-label">Cari Produk</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk" /></div>
-                    <div class="col-md-3"><label class="form-label">Diskon</label><SearchableSelect v-model="filters.discount_id" :options="discountOptions" placeholder="Semua diskon" search-placeholder="Cari diskon..." /></div>
-                    <div class="col-md-3"><label class="form-label">Store</label><SearchableSelect v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
+                    <div class="col-md-4"><label for="product-discounts-cari-produk-5" class="form-label">Cari Produk</label><input id="product-discounts-cari-produk-5" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk" /></div>
+                    <div class="col-md-3"><label for="product-discounts-diskon-6" class="form-label">Diskon</label><SearchableSelect id="product-discounts-diskon-6" v-model="filters.discount_id" :options="discountOptions" placeholder="Semua diskon" search-placeholder="Cari diskon…" /></div>
+                    <div class="col-md-3"><label for="product-discounts-store-7" class="form-label">Store</label><SearchableSelect id="product-discounts-store-7" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store…" /></div>
                     <div class="col-md-2 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Filter</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="resetFilters">Reset</button></div>
                 </form>
             </div>
@@ -217,7 +225,7 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
         <div class="card pd-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Produk</th><th>Diskon</th><th>Berlaku</th><th>Store</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th scope="col">Produk</th><th scope="col">Diskon</th><th scope="col">Berlaku</th><th scope="col">Store</th><th scope="col" class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in rows.data" :key="`${row.discount_id}-${row.product_id}-${row.store_id_single ?? 'all'}`">
                             <tr>
@@ -227,17 +235,17 @@ const formatNumber = (value: string | number) => new Intl.NumberFormat('id-ID').
                                 <td>{{ row.store_name }}</td>
                                 <td class="text-end">
                                     <div class="d-inline-flex gap-1">
-                                        <button class="btn btn-sm btn-outline-primary" type="button" @click="startEdit(row)"><i class="mdi mdi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-outline-danger" type="button" @click="remove(row)"><i class="mdi mdi-delete"></i></button>
+                                        <button class="btn btn-sm btn-outline-primary" type="button" :aria-label="`Ubah diskon ${row.product_name ?? row.product_code ?? 'produk'}`" title="Ubah" @click="startEdit(row)"><i class="mdi mdi-pencil" aria-hidden="true"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" type="button" :aria-label="`Hapus diskon ${row.product_name ?? row.product_code ?? 'produk'}`" title="Hapus" @click="remove(row)"><i class="mdi mdi-delete" aria-hidden="true"></i></button>
                                     </div>
                                 </td>
                             </tr>
                             <tr v-if="editing && editing.discount_id === row.discount_id && editing.product_id === row.product_id">
                                 <td colspan="5" class="pd-edit">
                                     <form class="row g-2 align-items-end" @submit.prevent="submitEdit">
-                                        <div class="col-md-3"><label class="form-label">Diskon Baru</label><SearchableSelect v-model="editForm.discount_id" :options="discountOptions" placeholder="Pilih diskon" search-placeholder="Cari diskon..." :clearable="false" /></div>
-                                        <div class="col-md-2"><label class="form-label">Berlaku</label><select v-model="editForm.applied_to" class="form-select form-select-sm"><option v-for="option in appliedToOptions" :key="option" :value="option">{{ option }}</option></select></div>
-                                        <div class="col-md-3"><label class="form-label">Store</label><SearchableSelect v-model="editForm.store_id" :options="storeOptions" placeholder="Tanpa store" search-placeholder="Cari store..." /></div>
+                                        <div class="col-md-3"><label for="product-discounts-diskon-baru-8" class="form-label">Diskon Baru</label><SearchableSelect id="product-discounts-diskon-baru-8" v-model="editForm.discount_id" :options="discountOptions" placeholder="Pilih diskon" search-placeholder="Cari diskon…" :clearable="false" /></div>
+                                        <div class="col-md-2"><label for="product-discounts-berlaku-9" class="form-label">Berlaku</label><select id="product-discounts-berlaku-9" v-model="editForm.applied_to" class="form-select form-select-sm"><option v-for="option in appliedToOptions" :key="option" :value="option">{{ option }}</option></select></div>
+                                        <div class="col-md-3"><label for="product-discounts-store-10" class="form-label">Store</label><SearchableSelect id="product-discounts-store-10" v-model="editForm.store_id" :options="storeOptions" placeholder="Tanpa store" search-placeholder="Cari store…" /></div>
                                         <div class="col-md-2 d-flex gap-2"><button class="btn btn-sm btn-success" type="submit">Simpan</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="editing = null">Batal</button></div>
                                     </form>
                                 </td>

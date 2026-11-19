@@ -2,6 +2,7 @@
 import { computed, reactive } from 'vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -127,17 +128,29 @@ const submitEntry = () => {
     });
 };
 
-const changeStatus = (entry: Entry) => {
+const changeStatus = async (entry: Entry) => {
     const next = entry.status === 'paid' ? 'open' : 'paid';
     const label = next === 'paid' ? 'lunas' : 'terbuka';
+    const confirmed = await confirmAction({
+        title: 'Ubah status catatan?',
+        description: `Status ${entry.party} akan diubah menjadi ${label}.`,
+        confirmLabel: 'Ubah status',
+    });
 
-    if (!window.confirm(`Ubah status ${entry.party} menjadi ${label}?`)) return;
+    if (!confirmed) return;
 
     router.patch(props.urls.status, { id: entry.id, status: next }, { preserveScroll: true });
 };
 
-const removeEntry = (entry: Entry) => {
-    if (!window.confirm(`Hapus catatan ${entry.party} sebesar ${formatCurrency(entry.amount)}?`)) return;
+const removeEntry = async (entry: Entry) => {
+    const confirmed = await confirmAction({
+        title: 'Hapus catatan?',
+        description: `Catatan ${entry.party} sebesar ${formatCurrency(entry.amount)} akan dihapus.`,
+        confirmLabel: 'Hapus catatan',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.destroy, {
         data: { id: entry.id },
@@ -242,7 +255,7 @@ const formatDate = (value: string | null) => {
                 <div class="col-md-3">
                     <button class="btn btn-sm btn-primary" type="submit" :disabled="form.processing">
                         <i class="mdi mdi-plus me-1" aria-hidden="true"></i>
-                        {{ form.processing ? 'Menyimpan...' : 'Tambah Catatan' }}
+                        {{ form.processing ? 'Menyimpan…' : 'Tambah Catatan' }}
                     </button>
                 </div>
             </form>
@@ -259,7 +272,7 @@ const formatDate = (value: string | null) => {
             <form class="row g-2 align-items-end mb-3" @submit.prevent="applyFilters">
                 <div class="col-md-3">
                     <label for="rp-search" class="form-label">Pencarian</label>
-                    <input id="rp-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama pihak, referensi, catatan..." />
+                    <input id="rp-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama pihak, referensi, catatan…" />
                 </div>
                 <div class="col-md-2">
                     <label for="rp-filter-type" class="form-label">Jenis</label>
@@ -296,14 +309,14 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Jenis</th>
-                            <th>Pihak</th>
-                            <th>Referensi</th>
-                            <th class="text-end">Nominal</th>
-                            <th>Jatuh Tempo</th>
-                            <th>Status</th>
-                            <th>Catatan</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Jenis</th>
+                            <th scope="col">Pihak</th>
+                            <th scope="col">Referensi</th>
+                            <th scope="col" class="text-end">Nominal</th>
+                            <th scope="col">Jatuh Tempo</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Catatan</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

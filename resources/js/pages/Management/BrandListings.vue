@@ -4,6 +4,8 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
 import PaginationLinks from '@/components/PaginationLinks.vue';
+import AppDialog from '@/components/ui/AppDialog.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -160,20 +162,69 @@ const submitCreate = () => {
     });
 };
 
-const decide = (row: BrandListingRow, action: 'approve' | 'reject') => {
-    if (action === 'approve') {
-        if (!window.confirm(`Setujui listing brand ${row.brand_name}?`)) return;
+const rejectTarget = ref<BrandListingRow | null>(null);
+const rejectReason = ref('');
+const rejectError = ref('');
+const rejectProcessing = ref(false);
 
-        router.put(props.urls.approve.replace('__ID__', row.id), {}, { preserveScroll: true });
+const closeReject = () => {
+    if (rejectProcessing.value) return;
+
+    rejectTarget.value = null;
+    rejectReason.value = '';
+    rejectError.value = '';
+};
+
+const submitReject = () => {
+    const target = rejectTarget.value;
+
+    if (!target || rejectProcessing.value) return;
+
+    const reason = rejectReason.value.trim();
+
+    if (reason.length < 5) {
+        rejectError.value = 'Alasan penolakan minimal 5 karakter.';
 
         return;
     }
 
-    const reason = window.prompt(`Alasan menolak listing brand ${row.brand_name}:`)?.trim() ?? '';
+    rejectProcessing.value = true;
+    rejectError.value = '';
 
-    if (!reason) return;
+    router.put(props.urls.reject.replace('__ID__', target.id), { review_notes: reason }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            rejectProcessing.value = false;
+            closeReject();
+        },
+        onError: (errors) => {
+            rejectError.value = (Object.values(errors)[0] as string | undefined)
+                ?? 'Penolakan belum dapat disimpan. Coba lagi.';
+        },
+        onFinish: () => {
+            rejectProcessing.value = false;
+        },
+    });
+};
 
-    router.put(props.urls.reject.replace('__ID__', row.id), { review_notes: reason }, { preserveScroll: true });
+const decide = async (row: BrandListingRow, action: 'approve' | 'reject') => {
+    if (action === 'reject') {
+        rejectTarget.value = row;
+        rejectReason.value = '';
+        rejectError.value = '';
+
+        return;
+    }
+
+    const confirmed = await confirmAction({
+        title: 'Setujui pengajuan listing brand?',
+        description: `Pengajuan ${row.brand_name} dari ${row.store_name ?? 'store ini'} akan disetujui.`,
+        confirmLabel: 'Setujui pengajuan',
+    });
+
+    if (!confirmed) return;
+
+    router.put(props.urls.approve.replace('__ID__', row.id), {}, { preserveScroll: true });
 };
 
 const formatDate = (value: string | null) => {
@@ -242,7 +293,7 @@ const fileName = (path: string | null) => {
                         v-model="createForm.store_id"
                         :options="storeOptions"
                         placeholder="Pilih store"
-                        search-placeholder="Cari store..."
+                        search-placeholder="Cari store…"
                     />
                     <small v-if="createForm.errors.store_id" class="text-danger">{{ createForm.errors.store_id }}</small>
                 </div>
@@ -280,7 +331,7 @@ const fileName = (path: string | null) => {
                 <div class="col-12 d-flex flex-wrap gap-2">
                     <button class="btn btn-primary" type="submit" :disabled="createForm.processing">
                         <i class="mdi mdi-send-outline me-1" aria-hidden="true"></i>
-                        {{ createForm.processing ? 'Mengirim...' : 'Kirim Pengajuan' }}
+                        {{ createForm.processing ? 'Mengirim…' : 'Kirim Pengajuan' }}
                     </button>
                     <button class="btn btn-outline-secondary" type="button" @click="toggleCreate">Batal</button>
                 </div>
@@ -294,7 +345,7 @@ const fileName = (path: string | null) => {
             <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                 <div class="col-md-4">
                     <label for="brand-filter-q" class="form-label">Pencarian</label>
-                    <input id="brand-filter-q" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Brand, kontak, store..." />
+                    <input id="brand-filter-q" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Brand, kontak, store…" />
                 </div>
                 <div class="col-md-3">
                     <label for="brand-filter-status" class="form-label">Status</label>
@@ -310,7 +361,7 @@ const fileName = (path: string | null) => {
                         v-model="filters.store_id"
                         :options="storeOptions"
                         placeholder="Semua store"
-                        search-placeholder="Cari store..."
+                        search-placeholder="Cari store…"
                     />
                 </div>
                 <div class="col-md-2">
@@ -340,14 +391,14 @@ const fileName = (path: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Brand</th>
-                            <th>Store</th>
-                            <th>Kontak</th>
-                            <th>Lampiran</th>
-                            <th>Status</th>
-                            <th>Diajukan</th>
-                            <th>Reviewer</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Brand</th>
+                            <th scope="col">Store</th>
+                            <th scope="col">Kontak</th>
+                            <th scope="col">Lampiran</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Diajukan</th>
+                            <th scope="col">Reviewer</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -380,10 +431,10 @@ const fileName = (path: string | null) => {
                             </td>
                             <td class="text-end">
                                 <template v-if="props.canDecide && row.status === 'pending'">
-                                    <button class="btn btn-sm btn-success me-1" type="button" title="Setujui pengajuan" @click="decide(row, 'approve')">
+                                    <button class="btn btn-sm btn-success me-1" type="button" title="Setujui pengajuan" aria-label="Setujui pengajuan listing brand" @click="decide(row, 'approve')">
                                         <i class="mdi mdi-check" aria-hidden="true"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" type="button" title="Tolak pengajuan" @click="decide(row, 'reject')">
+                                    <button class="btn btn-sm btn-outline-danger" type="button" title="Tolak pengajuan" aria-label="Tolak pengajuan listing brand" @click="decide(row, 'reject')">
                                         <i class="mdi mdi-close" aria-hidden="true"></i>
                                     </button>
                                 </template>
@@ -406,6 +457,31 @@ const fileName = (path: string | null) => {
                 <PaginationLinks :links="props.rows.links" />
             </div>
         </section>
+
+        <AppDialog
+            :open="rejectTarget !== null"
+            title="Tolak pengajuan listing brand"
+            :description="rejectTarget ? `Pengajuan ${rejectTarget.brand_name} akan ditolak.` : undefined"
+            confirm-label="Tolak pengajuan"
+            cancel-label="Batal"
+            variant="danger"
+            :loading="rejectProcessing"
+            initial-focus-selector="#brand-reject-reason"
+            @update:open="closeReject"
+            @confirm="submitReject"
+            @cancel="closeReject"
+        >
+            <label class="form-label" for="brand-reject-reason">Alasan penolakan</label>
+            <textarea
+                id="brand-reject-reason"
+                v-model="rejectReason"
+                class="form-control"
+                rows="3"
+                maxlength="1000"
+                placeholder="Jelaskan alasan pengajuan ditolak."
+            ></textarea>
+            <div v-if="rejectError" class="invalid-feedback d-block" role="alert">{{ rejectError }}</div>
+        </AppDialog>
     </div>
 </template>
 

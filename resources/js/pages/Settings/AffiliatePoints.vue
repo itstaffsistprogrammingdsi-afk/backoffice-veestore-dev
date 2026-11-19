@@ -44,8 +44,8 @@ const submit = () => {
 
         <ModuleNav module-key="loyaltyModule" aria-label="Modul Loyalty" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card settings-card">
             <div class="card-body">
@@ -75,7 +75,7 @@ const submit = () => {
                     <div class="d-flex gap-2 mt-4">
                         <button class="btn btn-primary" type="submit" :disabled="form.processing">
                             <i class="mdi mdi-content-save-outline me-1"></i>
-                            {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
+                            {{ form.processing ? 'Menyimpan…' : 'Simpan' }}
                         </button>
                         <Link :href="props.resetUrl" class="btn btn-outline-secondary">Reset</Link>
                     </div>

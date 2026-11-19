@@ -35,7 +35,9 @@ const props = defineProps<Props>();
 }
 
 .auth-back {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     margin-top: 1rem;
     color: var(--app-accent-ink);
     font-size: 0.85rem;

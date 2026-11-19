@@ -527,7 +527,7 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label class="form-label" for="return-search">Cari retur, store, atau produk</label>
-                        <input id="return-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor retur, store, catatan, atau SKU..." />
+                        <input id="return-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor retur, store, catatan, atau SKU…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="return-status">Status</label>
@@ -542,7 +542,7 @@ onBeforeUnmount(() => {
                             v-model="filters.store_id"
                             :options="storeOptions"
                             placeholder="Semua store"
-                            search-placeholder="Cari store..."
+                            search-placeholder="Cari store…"
                         />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
@@ -595,12 +595,12 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 return-table">
                     <thead>
                         <tr>
-                            <th>Retur</th>
-                            <th>Store</th>
-                            <th class="d-none d-md-table-cell">Barang</th>
-                            <th class="d-none d-lg-table-cell">Gudang tujuan</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Retur</th>
+                            <th scope="col">Store</th>
+                            <th scope="col" class="d-none d-md-table-cell">Barang</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Gudang tujuan</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -614,6 +614,12 @@ onBeforeUnmount(() => {
                             <td>
                                 <strong>{{ row.store_name ?? '-' }}</strong>
                                 <small class="return-subvalue">{{ row.store_code ?? 'Tanpa kode' }}</small>
+                                <small class="return-subvalue d-md-none">
+                                    {{ formatNumber(row.total_items) }} barang &middot; {{ formatNumber(row.remaining_items) }} menunggu
+                                </small>
+                                <small class="return-subvalue d-lg-none">
+                                    Gudang: {{ row.warehouse_name ?? 'Belum dipilih' }}
+                                </small>
                             </td>
                             <td class="d-none d-md-table-cell">
                                 <strong>{{ formatNumber(row.total_items) }} barang</strong>
@@ -647,7 +653,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="selectedReturn" class="return-backdrop" @click.self="closeReturn">
-            <section class="return-drawer" role="dialog" aria-modal="true" aria-labelledby="return-drawer-title" :inert="confirmAction ? true : undefined">
+            <section v-focus-trap.no-inert class="return-drawer" role="dialog" aria-modal="true" aria-labelledby="return-drawer-title" :inert="confirmAction ? true : undefined">
                 <header class="return-drawer-header">
                     <div>
                         <span class="return-drawer-eyebrow">Retur store</span>
@@ -667,7 +673,7 @@ onBeforeUnmount(() => {
                 </header>
 
                 <div class="return-drawer-body">
-                    <div v-if="loadingDetail" class="return-state" aria-live="polite">
+                    <div v-if="loadingDetail" class="return-state" role="status" aria-live="polite">
                         <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
                         <strong>Memuat detail retur</strong>
                         <span>Menyiapkan barang, kondisi, dan gudang tujuan.</span>
@@ -728,7 +734,7 @@ onBeforeUnmount(() => {
                                         v-model="warehouseId"
                                         :options="warehouseSelectOptions(returnDetail.warehouses)"
                                         placeholder="Pilih gudang"
-                                        search-placeholder="Cari gudang..."
+                                        search-placeholder="Cari gudang…"
                                         size="md"
                                         :disabled="!returnDetail.is_editable || !returnDetail.can_change_warehouse || working"
                                     />
@@ -847,7 +853,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="confirmAction" class="return-confirm-backdrop" @click.self="closeConfirm">
-            <section class="return-confirm" role="alertdialog" aria-modal="true" aria-labelledby="return-confirm-title" aria-describedby="return-confirm-description">
+            <section v-focus-trap.no-inert class="return-confirm" role="alertdialog" aria-modal="true" aria-labelledby="return-confirm-title" aria-describedby="return-confirm-description">
                 <h3 id="return-confirm-title">{{ confirmAction === 'approve' ? 'Setujui retur ini?' : 'Tolak retur ini?' }}</h3>
                 <p id="return-confirm-description">
                     <template v-if="confirmAction === 'approve'">

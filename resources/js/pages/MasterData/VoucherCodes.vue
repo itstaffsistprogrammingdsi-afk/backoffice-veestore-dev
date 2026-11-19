@@ -68,8 +68,8 @@ const isActive = (code: VoucherCode) => Boolean(code.is_active);
 
         <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
-        <div v-if="flash.success" class="alert alert-success"><i class="mdi mdi-check-circle-outline me-1"></i>{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger"><i class="mdi mdi-alert-circle-outline me-1"></i>{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status"><i class="mdi mdi-check-circle-outline me-1"></i>{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert"><i class="mdi mdi-alert-circle-outline me-1"></i>{{ flash.error }}</div>
 
         <div class="card voucher-card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -81,7 +81,7 @@ const isActive = (code: VoucherCode) => Boolean(code.is_active);
             </div>
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>#</th><th>Kode</th><th>Berakhir</th><th>Penggunaan</th><th>Status Kode</th><th class="text-center">Aksi</th></tr></thead>
+                    <thead><tr><th scope="col">#</th><th scope="col">Kode</th><th scope="col">Berakhir</th><th scope="col">Penggunaan</th><th scope="col">Status Kode</th><th scope="col" class="text-center">Aksi</th></tr></thead>
                     <tbody>
                         <tr v-for="(code, index) in codes.data" :key="code.id">
                             <td>{{ (codes.from ?? 1) + index }}</td>

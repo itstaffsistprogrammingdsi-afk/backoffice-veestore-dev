@@ -99,8 +99,8 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
 
         <ModuleNav module-key="promoModule" aria-label="Modul Promo" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <form @submit.prevent="submit">
             <div class="row g-3">
@@ -109,21 +109,21 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                         <div class="card-header"><h6 class="mb-0">Promo</h6></div>
                         <div class="card-body">
                             <div class="row g-3">
-                                <div class="col-md-6"><label class="form-label">Nama Promo</label><input v-model="form.promo_name" class="form-control" required /><div v-if="form.errors.promo_name" class="text-danger small">{{ form.errors.promo_name }}</div></div>
-                                <div class="col-md-6"><label class="form-label">Kode Promo</label><input v-model="form.promo_code" class="form-control" required /><div v-if="form.errors.promo_code" class="text-danger small">{{ form.errors.promo_code }}</div></div>
-                                <div class="col-12"><label class="form-label">Deskripsi</label><textarea v-model="form.promo_description" class="form-control" rows="2"></textarea></div>
-                                <div class="col-md-6"><label class="form-label">Mulai</label><input v-model="form.start_date" class="form-control" type="date" required /></div>
-                                <div class="col-md-6"><label class="form-label">Selesai</label><input v-model="form.end_date" class="form-control" type="date" required /></div>
+                                <div class="col-md-6"><label for="promo-setup-nama-promo-1" class="form-label">Nama Promo</label><input id="promo-setup-nama-promo-1" v-model="form.promo_name" class="form-control" required /><div v-if="form.errors.promo_name" class="text-danger small">{{ form.errors.promo_name }}</div></div>
+                                <div class="col-md-6"><label for="promo-setup-kode-promo-2" class="form-label">Kode Promo</label><input id="promo-setup-kode-promo-2" v-model="form.promo_code" class="form-control" required /><div v-if="form.errors.promo_code" class="text-danger small">{{ form.errors.promo_code }}</div></div>
+                                <div class="col-12"><label for="promo-setup-deskripsi-3" class="form-label">Deskripsi</label><textarea id="promo-setup-deskripsi-3" v-model="form.promo_description" class="form-control" rows="2"></textarea></div>
+                                <div class="col-md-6"><label for="promo-setup-mulai-4" class="form-label">Mulai</label><input id="promo-setup-mulai-4" v-model="form.start_date" class="form-control" type="date" required /></div>
+                                <div class="col-md-6"><label for="promo-setup-selesai-5" class="form-label">Selesai</label><input id="promo-setup-selesai-5" v-model="form.end_date" class="form-control" type="date" required /></div>
                                 <div class="col-12">
                                     <div class="form-check"><input id="all-stores" v-model="form.all_stores" class="form-check-input" type="checkbox" /><label class="form-check-label" for="all-stores">Semua Store</label></div>
                                 </div>
                                 <div v-if="!form.all_stores" class="col-12">
-                                    <label class="form-label">Stores</label>
-                                    <SearchableSelect
+                                    <label for="promo-setup-stores-6" class="form-label">Stores</label>
+                                    <SearchableSelect id="promo-setup-stores-6"
                                         v-model="form.store_ids"
                                         :options="storeOptions"
                                         placeholder="Pilih satu atau beberapa store"
-                                        search-placeholder="Cari store..."
+                                        search-placeholder="Cari store…"
                                         multiple
                                         size="md"
                                     />
@@ -139,21 +139,21 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                         <div class="card-header"><h6 class="mb-0">Diskon</h6></div>
                         <div class="card-body">
                             <div class="row g-3">
-                                <div class="col-md-6"><label class="form-label">Nama Diskon</label><input v-model="form.discount_name" class="form-control" required /></div>
-                                <div class="col-md-6"><label class="form-label">Tipe</label><select v-model="form.discount_type" class="form-select"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select></div>
-                                <div class="col-md-4"><label class="form-label">Nilai</label><input v-model="form.discount_value" class="form-control" type="number" min="0" required /></div>
-                                <div class="col-md-4"><label class="form-label">Min Belanja</label><input v-model="form.min_purchase" class="form-control" type="number" min="0" /></div>
-                                <div class="col-md-4"><label class="form-label">Max Diskon</label><input v-model="form.max_discount" class="form-control" type="number" min="0" /></div>
+                                <div class="col-md-6"><label for="promo-setup-nama-diskon-7" class="form-label">Nama Diskon</label><input id="promo-setup-nama-diskon-7" v-model="form.discount_name" class="form-control" required /></div>
+                                <div class="col-md-6"><label for="promo-setup-tipe-8" class="form-label">Tipe</label><select id="promo-setup-tipe-8" v-model="form.discount_type" class="form-select"><option value="percentage">Percentage</option><option value="fixed">Fixed</option></select></div>
+                                <div class="col-md-4"><label for="promo-setup-nilai-9" class="form-label">Nilai</label><input id="promo-setup-nilai-9" v-model="form.discount_value" class="form-control" type="number" min="0" required /></div>
+                                <div class="col-md-4"><label for="promo-setup-min-belanja-10" class="form-label">Min Belanja</label><input id="promo-setup-min-belanja-10" v-model="form.min_purchase" class="form-control" type="number" min="0" /></div>
+                                <div class="col-md-4"><label for="promo-setup-max-diskon-11" class="form-label">Max Diskon</label><input id="promo-setup-max-diskon-11" v-model="form.max_discount" class="form-control" type="number" min="0" /></div>
                                 <div class="col-12">
                                     <div class="form-check"><input id="all-products" v-model="form.all_products" class="form-check-input" type="checkbox" /><label class="form-check-label" for="all-products">Semua Produk</label></div>
                                 </div>
                                 <div v-if="!form.all_products" class="col-12">
-                                    <label class="form-label">Produk</label>
-                                    <SearchableSelect
+                                    <label for="promo-setup-produk-12" class="form-label">Produk</label>
+                                    <SearchableSelect id="promo-setup-produk-12"
                                         v-model="form.product_ids"
                                         :options="productOptions"
                                         placeholder="Pilih satu atau beberapa produk"
-                                        search-placeholder="Cari nama atau kode produk..."
+                                        search-placeholder="Cari nama atau kode produk…"
                                         multiple
                                         size="md"
                                     />
@@ -178,46 +178,46 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                     <template v-else-if="form.create_voucher">
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label">Nama Voucher</label>
-                                <input v-model="form.voucher_name" class="form-control" placeholder="Mengikuti nama promo" />
+                                <label for="promo-setup-nama-voucher-13" class="form-label">Nama Voucher</label>
+                                <input id="promo-setup-nama-voucher-13" v-model="form.voucher_name" class="form-control" placeholder="Mengikuti nama promo" />
                                 <div v-if="form.errors.voucher_name" class="text-danger small">{{ form.errors.voucher_name }}</div>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Tipe Voucher</label>
-                                <select v-model="form.voucher_type" class="form-select">
+                                <label for="promo-setup-tipe-voucher-14" class="form-label">Tipe Voucher</label>
+                                <select id="promo-setup-tipe-voucher-14" v-model="form.voucher_type" class="form-select">
                                     <option value="">Ikuti tipe diskon</option>
                                     <option value="percentage">Percentage</option>
                                     <option value="fixed">Fixed</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">Nilai Voucher</label>
-                                <input v-model="form.voucher_value" class="form-control" type="number" min="0" placeholder="Ikuti nilai diskon" />
+                                <label for="promo-setup-nilai-voucher-15" class="form-label">Nilai Voucher</label>
+                                <input id="promo-setup-nilai-voucher-15" v-model="form.voucher_value" class="form-control" type="number" min="0" placeholder="Ikuti nilai diskon" />
                                 <div v-if="form.errors.voucher_value" class="text-danger small">{{ form.errors.voucher_value }}</div>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Min Belanja</label>
-                                <input v-model="form.voucher_min_purchase" class="form-control" type="number" min="0" placeholder="Ikuti min belanja" />
+                                <label for="promo-setup-min-belanja-16" class="form-label">Min Belanja</label>
+                                <input id="promo-setup-min-belanja-16" v-model="form.voucher_min_purchase" class="form-control" type="number" min="0" placeholder="Ikuti min belanja" />
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Max Diskon</label>
-                                <input v-model="form.voucher_max_discount" class="form-control" type="number" min="0" placeholder="Ikuti max diskon" />
+                                <label for="promo-setup-max-diskon-17" class="form-label">Max Diskon</label>
+                                <input id="promo-setup-max-diskon-17" v-model="form.voucher_max_discount" class="form-control" type="number" min="0" placeholder="Ikuti max diskon" />
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Batas Pemakaian</label>
-                                <input v-model="form.voucher_usage_limit" class="form-control" type="number" min="1" :required="form.voucher_distribution_type === 'unique_code'" />
+                                <label for="promo-setup-batas-pemakaian-18" class="form-label">Batas Pemakaian</label>
+                                <input id="promo-setup-batas-pemakaian-18" v-model="form.voucher_usage_limit" class="form-control" type="number" min="1" :required="form.voucher_distribution_type === 'unique_code'" />
                                 <div v-if="form.errors.voucher_usage_limit" class="text-danger small">{{ form.errors.voucher_usage_limit }}</div>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Distribusi</label>
-                                <select v-model="form.voucher_distribution_type" class="form-select">
+                                <label for="promo-setup-distribusi-19" class="form-label">Distribusi</label>
+                                <select id="promo-setup-distribusi-19" v-model="form.voucher_distribution_type" class="form-select">
                                     <option value="public">Public</option>
                                     <option value="unique_code">Unique Code</option>
                                 </select>
                             </div>
                             <div class="col-12">
-                                <label class="form-label">Konteks Voucher</label>
-                                <div class="d-flex flex-wrap gap-3">
+                                <label id="promo-setup-konteks-label" class="form-label">Konteks Voucher</label>
+                                <div class="d-flex flex-wrap gap-3" role="group" aria-labelledby="promo-setup-konteks-label">
                                     <div v-for="context in props.voucherContexts" :key="context" class="form-check">
                                         <input :id="`voucher-context-${context}`" v-model="form.voucher_contexts" class="form-check-input" type="checkbox" :value="context" />
                                         <label class="form-check-label" :for="`voucher-context-${context}`">{{ voucherContextLabels[context] ?? context }}</label>
@@ -240,7 +240,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div class="d-flex justify-content-end mt-3">
                 <button class="btn btn-primary" type="submit" :disabled="form.processing">
                     <i class="mdi mdi-content-save-outline me-1"></i>
-                    {{ form.processing ? 'Menyimpan...' : 'Simpan Promo' }}
+                    {{ form.processing ? 'Menyimpan…' : 'Simpan Promo' }}
                 </button>
             </div>
         </form>
@@ -249,7 +249,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div class="card-header"><h6 class="mb-0">Promo Terbaru</h6></div>
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
-                    <thead><tr><th>Nama</th><th>Kode</th><th>Mulai</th><th>Selesai</th><th>Semua Store</th></tr></thead>
+                    <thead><tr><th scope="col">Nama</th><th scope="col">Kode</th><th scope="col">Mulai</th><th scope="col">Selesai</th><th scope="col">Semua Store</th></tr></thead>
                     <tbody>
                         <tr v-for="promo in recentPromos" :key="promo.id"><td>{{ promo.name }}</td><td>{{ promo.code }}</td><td>{{ formatDate(promo.start_date) }}</td><td>{{ formatDate(promo.end_date) }}</td><td>{{ promo.all_store ? 'Ya' : 'Tidak' }}</td></tr>
                         <tr v-if="recentPromos.length === 0"><td colspan="5" class="promo-empty">Belum ada promo.</td></tr>

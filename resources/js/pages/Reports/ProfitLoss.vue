@@ -4,6 +4,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/layouts/AppLayout.vue';
 import ReportTableControls from '@/components/ui/ReportTableControls.vue';
 import { useReportTableDensity } from '@/composables/useReportTable';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -162,8 +163,15 @@ const addExpense = () => {
     });
 };
 
-const deleteExpense = (expense: Expense) => {
-    if (!window.confirm(`Hapus beban ${expense.category} sebesar ${formatCurrency(expense.amount)}?`)) return;
+const deleteExpense = async (expense: Expense) => {
+    const confirmed = await confirmAction({
+        title: 'Hapus beban?',
+        description: `Beban ${expense.category} sebesar ${formatCurrency(expense.amount)} akan dihapus dari periode ini.`,
+        confirmLabel: 'Hapus beban',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.delete_expense, {
         data: { id: expense.id, period: props.period },
@@ -283,10 +291,10 @@ const formatDate = (value: string | null) => {
                         <table class="table align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th>Kanal</th>
-                                    <th class="text-end">Omset Bersih</th>
-                                    <th class="text-end">Selisih Kotor</th>
-                                    <th class="text-end">Margin estimasi</th>
+                                    <th scope="col">Kanal</th>
+                                    <th scope="col" class="text-end">Omset Bersih</th>
+                                    <th scope="col" class="text-end">Selisih Kotor</th>
+                                    <th scope="col" class="text-end">Margin estimasi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -332,7 +340,7 @@ const formatDate = (value: string | null) => {
                 <div class="col-md-3">
                     <button class="btn btn-sm btn-primary" type="submit" :disabled="expenseForm.processing">
                         <i class="mdi mdi-plus me-1" aria-hidden="true"></i>
-                        {{ expenseForm.processing ? 'Menyimpan...' : 'Tambah Beban' }}
+                        {{ expenseForm.processing ? 'Menyimpan…' : 'Tambah Beban' }}
                     </button>
                 </div>
             </form>
@@ -344,12 +352,12 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Kategori</th>
-                            <th>Catatan</th>
-                            <th>Dicatat Oleh</th>
-                            <th>Tanggal</th>
-                            <th class="text-end">Nominal</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Kategori</th>
+                            <th scope="col">Catatan</th>
+                            <th scope="col">Dicatat Oleh</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col" class="text-end">Nominal</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

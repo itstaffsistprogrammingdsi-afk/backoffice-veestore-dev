@@ -23,12 +23,16 @@ const theme = ref<Theme>(readInitialTheme());
 const applyTheme = (value: Theme) => {
     document.documentElement.dataset.theme = value;
     document.documentElement.classList.toggle('dark', value === 'dark');
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+        ?.setAttribute('content', value === 'dark' ? '#131b21' : '#f5f8fc');
     window.localStorage.setItem(STORAGE_KEY, value);
 };
 
 if (typeof document !== 'undefined') {
     document.documentElement.dataset.theme = theme.value;
     document.documentElement.classList.toggle('dark', theme.value === 'dark');
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+        ?.setAttribute('content', theme.value === 'dark' ? '#131b21' : '#f5f8fc');
 }
 
 export const useTheme = () => {

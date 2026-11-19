@@ -388,7 +388,7 @@ defineExpose({ focusInput: () => input.value?.focus() });
                     class="assistant-composer__input"
                     rows="1"
                     maxlength="2000"
-                    placeholder="Tanya sesuatu tentang data VeeStore..."
+                    placeholder="Tanya sesuatu tentang data VeeStore…"
                     :disabled="loading || resetting"
                     @keydown="onKeydown"
                     @input="onInput"
@@ -432,7 +432,7 @@ defineExpose({ focusInput: () => input.value?.focus() });
                     @click="reset"
                 >
                     <i class="mdi mdi-refresh" aria-hidden="true"></i>
-                    {{ resetting ? 'Mereset...' : 'Percakapan baru' }}
+                    {{ resetting ? 'Mereset…' : 'Percakapan baru' }}
                 </button>
             </div>
         </div>

@@ -546,31 +546,31 @@ onBeforeUnmount(() => {
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
-                        <label class="form-label">Cari transfer</label>
-                        <input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor transfer, toko, atau produk..." />
+                        <label for="store-transfers-cari-transfer-1" class="form-label">Cari transfer</label>
+                        <input id="store-transfers-cari-transfer-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor transfer, toko, atau produk…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Toko Asal</label>
-                        <SearchableSelect v-model="filters.source_store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
+                        <label for="store-transfers-toko-asal-2" class="form-label">Toko Asal</label>
+                        <SearchableSelect id="store-transfers-toko-asal-2" v-model="filters.source_store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Toko Tujuan</label>
-                        <SearchableSelect v-model="filters.destination_store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
+                        <label for="store-transfers-toko-tujuan-3" class="form-label">Toko Tujuan</label>
+                        <SearchableSelect id="store-transfers-toko-tujuan-3" v-model="filters.destination_store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
-                        <label class="form-label">Status</label>
-                        <select v-model="filters.status" class="form-select form-select-sm">
+                        <label for="store-transfers-status-4" class="form-label">Status</label>
+                        <select id="store-transfers-status-4" v-model="filters.status" class="form-select form-select-sm">
                             <option value="">Semua status</option>
                             <option v-for="option in props.statusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                         </select>
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
-                        <label class="form-label">Dari</label>
-                        <input v-model="filters.from" class="form-control form-control-sm" type="date" />
+                        <label for="store-transfers-dari-5" class="form-label">Dari</label>
+                        <input id="store-transfers-dari-5" v-model="filters.from" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-1">
-                        <label class="form-label">Sampai</label>
-                        <input v-model="filters.to" class="form-control form-control-sm" type="date" />
+                        <label for="store-transfers-sampai-6" class="form-label">Sampai</label>
+                        <input id="store-transfers-sampai-6" v-model="filters.to" class="form-control form-control-sm" type="date" />
                     </div>
                     <div class="col-12 col-lg-12 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button>
@@ -600,12 +600,12 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 transfer-table">
                     <thead>
                         <tr>
-                            <th>Nomor Transfer</th>
-                            <th>Rute</th>
-                            <th class="text-end">Produk / Qty</th>
-                            <th>Status</th>
-                            <th>Tanggal</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Nomor Transfer</th>
+                            <th scope="col">Rute</th>
+                            <th scope="col" class="text-end">Produk / Qty</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -668,7 +668,7 @@ onBeforeUnmount(() => {
 
     <Teleport to="body">
         <div v-if="createOpen" class="transfer-backdrop" @click.self="closeCreate">
-            <div class="transfer-modal transfer-modal-lg" role="dialog" aria-modal="true" aria-labelledby="transfer-create-title">
+            <div v-focus-trap class="transfer-modal transfer-modal-lg" role="dialog" aria-modal="true" aria-labelledby="transfer-create-title">
                 <div class="transfer-modal-header">
                     <div>
                         <h5 id="transfer-create-title" class="mb-0">Buat Transfer Toko</h5>
@@ -681,18 +681,18 @@ onBeforeUnmount(() => {
                     <div class="transfer-modal-body">
                         <div class="row g-3">
                             <div class="col-12 col-md-6">
-                                <label class="form-label">Toko Asal <span class="text-danger">*</span></label>
-                                <SearchableSelect v-model="form.source_store_id" :options="storeOptions" placeholder="Pilih toko asal" search-placeholder="Cari toko..." :disabled="form.processing" />
+                                <label for="store-transfers-toko-asal-7" class="form-label">Toko Asal <span class="text-danger">*</span></label>
+                                <SearchableSelect id="store-transfers-toko-asal-7" v-model="form.source_store_id" :options="storeOptions" placeholder="Pilih toko asal" search-placeholder="Cari toko…" :disabled="form.processing" />
                                 <div v-if="form.errors.source_store_id" class="invalid-feedback d-block">{{ form.errors.source_store_id }}</div>
                             </div>
                             <div class="col-12 col-md-6">
-                                <label class="form-label">Toko Tujuan <span class="text-danger">*</span></label>
-                                <SearchableSelect v-model="form.destination_store_id" :options="storeOptions" placeholder="Pilih toko tujuan" search-placeholder="Cari toko..." :disabled="form.processing" />
+                                <label for="store-transfers-toko-tujuan-8" class="form-label">Toko Tujuan <span class="text-danger">*</span></label>
+                                <SearchableSelect id="store-transfers-toko-tujuan-8" v-model="form.destination_store_id" :options="storeOptions" placeholder="Pilih toko tujuan" search-placeholder="Cari toko…" :disabled="form.processing" />
                                 <div v-if="form.errors.destination_store_id" class="invalid-feedback d-block">{{ form.errors.destination_store_id }}</div>
                             </div>
                             <div class="col-12">
-                                <label class="form-label">Catatan Transfer</label>
-                                <textarea v-model="form.note" class="form-control form-control-sm" rows="2" placeholder="Opsional: alasan atau instruksi pengiriman..." :disabled="form.processing"></textarea>
+                                <label for="store-transfers-catatan-transfer-9" class="form-label">Catatan Transfer</label>
+                                <textarea id="store-transfers-catatan-transfer-9" v-model="form.note" class="form-control form-control-sm" rows="2" placeholder="Opsional: alasan atau instruksi pengiriman…" :disabled="form.processing"></textarea>
                                 <div v-if="form.errors.note" class="invalid-feedback d-block">{{ form.errors.note }}</div>
                             </div>
                         </div>
@@ -714,11 +714,11 @@ onBeforeUnmount(() => {
 
                         <div class="row g-3">
                             <div class="col-12 col-lg-5">
-                                <label class="form-label">Cari Produk</label>
-                                <input v-model="stockSearch" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk..." :disabled="!form.source_store_id || stockLoading" />
+                                <label for="store-transfers-cari-produk-10" class="form-label">Cari Produk</label>
+                                <input id="store-transfers-cari-produk-10" v-model="stockSearch" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk…" :disabled="!form.source_store_id || stockLoading" />
 
                                 <div v-if="!form.source_store_id" class="transfer-hint">Pilih toko asal untuk melihat stok.</div>
-                                <div v-else-if="stockLoading" class="transfer-hint"><span class="spinner-border spinner-border-sm me-2"></span>Memuat stok...</div>
+                                <div v-else-if="stockLoading" class="transfer-hint" role="status"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Memuat stok…</div>
                                 <div v-else-if="stockError" class="transfer-hint transfer-hint-danger" role="alert">{{ stockError }}</div>
                                 <div v-else-if="stockProducts.length === 0" class="transfer-hint">Tidak ada produk dengan stok tersedia.</div>
                                 <div v-else class="transfer-stock-list">
@@ -750,10 +750,10 @@ onBeforeUnmount(() => {
                                     <table class="table table-sm mb-0 transfer-selected-table">
                                         <thead>
                                             <tr>
-                                                <th>Produk</th>
-                                                <th class="text-end" style="width: 110px;">Qty</th>
-                                                <th class="text-end" style="width: 130px;">Subtotal</th>
-                                                <th class="text-end" style="width: 48px;"></th>
+                                                <th scope="col">Produk</th>
+                                                <th scope="col" class="text-end" style="width: 110px;">Qty</th>
+                                                <th scope="col" class="text-end" style="width: 130px;">Subtotal</th>
+                                                <th scope="col" class="text-end" style="width: 48px;"></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -763,7 +763,7 @@ onBeforeUnmount(() => {
                                                     <small>{{ productFor(item.product_id)?.product_code }} · tersedia {{ formatNumber(productFor(item.product_id)?.available_qty ?? 0) }} pcs</small>
                                                 </td>
                                                 <td class="text-end">
-                                                    <input v-model.number="item.qty" class="form-control form-control-sm text-end" type="number" min="1" :max="productFor(item.product_id)?.available_qty ?? 1" :disabled="form.processing" />
+                                                    <input v-model.number="item.qty" class="form-control form-control-sm text-end" type="number" min="1" :max="productFor(item.product_id)?.available_qty ?? 1" :disabled="form.processing" :aria-label="`Jumlah transfer untuk ${productFor(item.product_id)?.product_name ?? item.product_id}`" />
                                                 </td>
                                                 <td class="text-end">{{ formatCurrency(Number(item.qty || 0) * Number(productFor(item.product_id)?.product_price || 0)) }}</td>
                                                 <td class="text-end">
@@ -800,7 +800,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="detailOpen" class="transfer-backdrop" @click.self="closeDetail">
-            <div class="transfer-modal transfer-modal-lg" role="dialog" aria-modal="true" aria-labelledby="transfer-detail-title">
+            <div v-focus-trap class="transfer-modal transfer-modal-lg" role="dialog" aria-modal="true" aria-labelledby="transfer-detail-title">
                 <div class="transfer-modal-header">
                     <div>
                         <h5 id="transfer-detail-title" class="mb-0">Detail Transfer</h5>
@@ -811,7 +811,7 @@ onBeforeUnmount(() => {
 
                 <div class="transfer-modal-body">
                     <div v-if="actionError" class="transfer-hint transfer-hint-danger mb-2" role="alert">{{ actionError }}</div>
-                    <div v-if="detailLoading" class="transfer-hint"><span class="spinner-border spinner-border-sm me-2"></span>Memuat detail...</div>
+                    <div v-if="detailLoading" class="transfer-hint" role="status"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Memuat detail…</div>
                     <div v-else-if="detailError" class="transfer-hint transfer-hint-danger" role="alert">{{ detailError }}</div>
                     <template v-else-if="detail">
                         <div class="transfer-detail-grid">
@@ -839,12 +839,12 @@ onBeforeUnmount(() => {
                             <table class="table table-sm align-middle mb-0 transfer-detail-table">
                                 <thead>
                                     <tr>
-                                        <th>Produk</th>
-                                        <th class="text-end">Harga</th>
-                                        <th class="text-end">Diminta</th>
-                                        <th class="text-end">Disetujui</th>
-                                        <th class="text-end">Discan</th>
-                                        <th class="text-end">Diterima</th>
+                                        <th scope="col">Produk</th>
+                                        <th scope="col" class="text-end">Harga</th>
+                                        <th scope="col" class="text-end">Diminta</th>
+                                        <th scope="col" class="text-end">Disetujui</th>
+                                        <th scope="col" class="text-end">Discan</th>
+                                        <th scope="col" class="text-end">Diterima</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -868,7 +868,7 @@ onBeforeUnmount(() => {
                             <summary>Barang yang dialokasikan ({{ detail.items.length }} item)</summary>
                             <div class="table-responsive">
                                 <table class="table table-sm mb-0">
-                                    <thead><tr><th>Produk</th><th>Status</th><th>RFID</th></tr></thead>
+                                    <thead><tr><th scope="col">Produk</th><th scope="col">Status</th><th scope="col">RFID</th></tr></thead>
                                     <tbody>
                                         <tr v-for="item in detail.items" :key="item.id">
                                             <td>{{ item.product_name }} <small class="text-muted">{{ item.product_code }}</small></td>
@@ -885,13 +885,13 @@ onBeforeUnmount(() => {
                             <p class="text-muted small">Isi qty yang diterima. Qty yang belum diterima tetap tercatat dalam perjalanan.</p>
                             <div class="table-responsive">
                                 <table class="table table-sm mb-0">
-                                    <thead><tr><th>Produk</th><th class="text-end">Sisa</th><th class="text-end" style="width: 120px;">Diterima</th></tr></thead>
+                                    <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Sisa</th><th scope="col" class="text-end" style="width: 120px;">Diterima</th></tr></thead>
                                     <tbody>
                                         <tr v-for="item in detail.details" :key="`receive-${item.id}`">
                                             <td>{{ item.product_name }}</td>
                                             <td class="text-end">{{ formatNumber(Math.max(0, Number(item.approved_qty || item.requested_qty || 0) - Number(item.received_qty || 0))) }}</td>
                                             <td class="text-end">
-                                                <input v-model.number="receiveQty[item.id]" class="form-control form-control-sm text-end" type="number" min="0" :max="Math.max(0, Number(item.approved_qty || item.requested_qty || 0) - Number(item.received_qty || 0))" />
+                                                <input v-model.number="receiveQty[item.id]" class="form-control form-control-sm text-end" type="number" min="0" :max="Math.max(0, Number(item.approved_qty || item.requested_qty || 0) - Number(item.received_qty || 0))" :aria-label="`Jumlah diterima untuk ${item.product_name}`" />
                                             </td>
                                         </tr>
                                     </tbody>
@@ -920,7 +920,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="confirmAction" class="transfer-backdrop" @click.self="confirmAction = null">
-            <div class="transfer-modal transfer-modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="transfer-confirm-title">
+            <div v-focus-trap class="transfer-modal transfer-modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="transfer-confirm-title">
                 <div class="transfer-modal-header">
                     <div>
                         <h5 id="transfer-confirm-title" class="mb-0">{{ confirmAction.title }}</h5>

@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th class="presentation-check">
+                            <th scope="col" class="presentation-check">
                                 <input
                                     type="checkbox"
                                     class="form-check-input"
@@ -279,11 +279,11 @@ onBeforeUnmount(() => {
                                     @change="toggleAll('products', allProductIds)"
                                 />
                             </th>
-                            <th>Produk</th>
-                            <th>Kode</th>
-                            <th>Brand</th>
-                            <th>Kategori</th>
-                            <th>Dibuat</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col">Kode</th>
+                            <th scope="col">Brand</th>
+                            <th scope="col">Kategori</th>
+                            <th scope="col">Dibuat</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -428,7 +428,7 @@ onBeforeUnmount(() => {
 
         <Teleport to="body">
             <div v-if="pending" class="presentation-modal-backdrop" @click.self="closeArchive">
-                <section
+                <section v-focus-trap
                     ref="dialogRef"
                     class="presentation-modal"
                     role="dialog"
@@ -474,7 +474,7 @@ onBeforeUnmount(() => {
                             @click="submitArchive"
                         >
                             <i class="mdi mdi-archive-arrow-down-outline me-1" aria-hidden="true"></i>
-                            {{ processing ? 'Mengarsipkan...' : 'Arsipkan' }}
+                            {{ processing ? 'Mengarsipkan…' : 'Arsipkan' }}
                         </button>
                     </footer>
                 </section>

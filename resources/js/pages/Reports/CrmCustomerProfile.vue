@@ -97,7 +97,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Riwayat transaksi pelanggan">
                 <table class="table table-sm mb-0">
                     <caption class="visually-hidden">Riwayat transaksi pelanggan per kanal</caption>
-                    <thead><tr><th>Tanggal</th><th>Kanal</th><th>Transaksi</th><th>Toko</th><th>Status</th><th class="text-end">Jumlah</th></tr></thead>
+                    <thead><tr><th scope="col">Tanggal</th><th scope="col">Kanal</th><th scope="col">Transaksi</th><th scope="col">Toko</th><th scope="col">Status</th><th scope="col" class="text-end">Jumlah</th></tr></thead>
                     <tbody>
                         <tr v-for="row in transactions.data" :key="row.transaction_id">
                             <td>{{ formatDate(row.transaction_at) }}</td>
@@ -119,7 +119,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Mutasi poin pelanggan">
                 <table class="table table-sm mb-0">
                     <caption class="visually-hidden">Mutasi poin pelanggan beserta saldo setelah mutasi</caption>
-                    <thead><tr><th>Tanggal</th><th>Tipe</th><th>Mutasi</th><th class="text-end">Poin</th><th class="text-end">Saldo</th><th>Deskripsi</th></tr></thead>
+                    <thead><tr><th scope="col">Tanggal</th><th scope="col">Tipe</th><th scope="col">Mutasi</th><th scope="col" class="text-end">Poin</th><th scope="col" class="text-end">Saldo</th><th scope="col">Deskripsi</th></tr></thead>
                     <tbody>
                         <tr v-for="(row, index) in pointMutations" :key="index"><td>{{ formatDate(row.created_at) }}</td><td>{{ row.type }}</td><td>{{ row.mutation_type ?? '-' }}</td><td class="text-end">{{ formatNumber(row.points) }}</td><td class="text-end">{{ formatNumber(row.balance_after) }}</td><td>{{ row.description ?? '-' }}</td></tr>
                         <tr v-if="pointMutations.length === 0"><td colspan="6" class="report-empty">Belum ada mutasi poin.</td></tr>
@@ -139,6 +139,6 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
 .report-card { border: 1px solid var(--report-border); border-radius: var(--app-radius-lg); box-shadow: none; }
 .report-card th { color: var(--report-muted); font-size: var(--app-text-xs); font-weight: var(--app-weight-semibold); }
 .report-label { color: var(--report-muted); font-size: var(--app-text-xs); font-weight: var(--app-weight-medium); }
-.report-value { margin-top: 0.3rem; font-size: var(--app-text-xl); font-weight: var(--app-weight-semibold); font-variant-numeric: tabular-nums; }
+.report-value { margin-top: 0.3rem; overflow-wrap: anywhere; font-size: var(--app-text-xl); font-weight: var(--app-weight-semibold); font-variant-numeric: tabular-nums; }
 .report-empty { padding: 2rem 1rem; color: var(--report-muted); text-align: center; }
 </style>

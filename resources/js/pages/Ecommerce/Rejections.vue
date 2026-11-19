@@ -471,7 +471,7 @@ const orderLabel = (row: RejectionRow) => row.order?.order_number ?? row.ecommer
 
         <Teleport to="body">
             <div v-if="selectedCase" class="rejection-backdrop" @click.self="closeCase">
-                <div ref="drawerRef" class="rejection-drawer" role="dialog" aria-modal="true" aria-labelledby="rejection-drawer-title">
+                <div v-focus-trap ref="drawerRef" class="rejection-drawer" role="dialog" aria-modal="true" aria-labelledby="rejection-drawer-title">
                     <div class="rejection-drawer-header">
                         <div>
                             <span class="rejection-drawer-kicker">Kendala fulfillment</span>
@@ -571,7 +571,7 @@ const orderLabel = (row: RejectionRow) => row.order?.order_number ?? row.ecommer
                                     v-model="targetStoreId"
                                     :options="storeOptions"
                                     placeholder="Pilih toko tujuan"
-                                    search-placeholder="Cari toko..."
+                                    search-placeholder="Cari toko…"
                                 />
                             </div>
 
@@ -582,7 +582,7 @@ const orderLabel = (row: RejectionRow) => row.order?.order_number ?? row.ecommer
                                     v-model="targetWarehouseId"
                                     :options="warehouseOptions"
                                     placeholder="Pilih gudang tujuan"
-                                    search-placeholder="Cari gudang..."
+                                    search-placeholder="Cari gudang…"
                                 />
                             </div>
 
@@ -605,7 +605,7 @@ const orderLabel = (row: RejectionRow) => row.order?.order_number ?? row.ecommer
                                     Batal
                                 </button>
                                 <button type="button" class="btn btn-primary" :disabled="!canSubmit" @click="submitDecision">
-                                    {{ working ? 'Menyimpan...' : decision === 'cancel' ? 'Batalkan pesanan' : 'Simpan dan selesaikan' }}
+                                    {{ working ? 'Menyimpan…' : decision === 'cancel' ? 'Batalkan pesanan' : 'Simpan dan selesaikan' }}
                                 </button>
                             </div>
                         </section>

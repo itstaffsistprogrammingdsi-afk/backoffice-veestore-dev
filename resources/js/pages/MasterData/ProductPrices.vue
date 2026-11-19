@@ -5,6 +5,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import PaginationLinks from '../../components/PaginationLinks.vue';
 import ModuleNav from '../../components/ModuleNav.vue';
 import SearchableSelect from '@/components/SearchableSelect.vue';
+import { confirmAction } from '@/composables/useConfirm';
 
 defineOptions({ layout: AppLayout });
 
@@ -116,11 +117,20 @@ const submitEdit = () => {
     });
 };
 
-const remove = (row: PriceRow) => {
+const remove = async (row: PriceRow) => {
     const details = props.allPriceDetails[row.product_id] ?? [];
     const first = details[0];
 
-    if (!first || !window.confirm(`Hapus semua harga untuk ${row.product_name}?`)) return;
+    if (!first) return;
+
+    const confirmed = await confirmAction({
+        title: 'Hapus semua harga produk?',
+        description: `Seluruh harga untuk ${row.product_name} akan dihapus.`,
+        confirmLabel: 'Hapus harga',
+        variant: 'danger',
+    });
+
+    if (!confirmed) return;
 
     router.delete(props.urls.destroy.replace('__ID__', first.id), { preserveScroll: true });
 };
@@ -144,30 +154,30 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
 
         <ModuleNav module-key="masterDataModule" aria-label="Modul Master Produk" />
 
-        <div v-if="flash.success" class="alert alert-success">{{ flash.success }}</div>
-        <div v-if="flash.error" class="alert alert-danger">{{ flash.error }}</div>
+        <div v-if="flash.success" class="alert alert-success" role="status">{{ flash.success }}</div>
+        <div v-if="flash.error" class="alert alert-danger" role="alert">{{ flash.error }}</div>
 
         <div class="card price-card mb-3">
             <div class="card-header"><h6 class="mb-0">Tambah Harga Produk</h6></div>
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="submitCreate">
                     <div class="col-md-4">
-                        <label class="form-label">Produk</label>
-                        <SearchableSelect
+                        <label for="product-prices-produk-1" class="form-label">Produk</label>
+                        <SearchableSelect id="product-prices-produk-1"
                             v-model="createForm.product_id"
                             :options="productOptions"
                             placeholder="Pilih produk"
-                            search-placeholder="Cari nama atau kode produk..."
+                            search-placeholder="Cari nama atau kode produk…"
                             required
                             :clearable="false"
                         />
                         <div v-if="createForm.errors.product_id" class="text-danger small">{{ createForm.errors.product_id }}</div>
                     </div>
-                    <div class="col-md-2"><label class="form-label">Berlaku Dari</label><input v-model="createForm.valid_from" class="form-control form-control-sm" type="date" required /></div>
-                    <div class="col-md-2"><label class="form-label">Berlaku Sampai</label><input v-model="createForm.valid_to" class="form-control form-control-sm" type="date" /></div>
-                    <div class="col-md-1"><label class="form-label">Base</label><input v-model="createForm.prices.base" class="form-control form-control-sm" type="number" min="0" required /></div>
-                    <div class="col-md-1"><label class="form-label">Store</label><input v-model="createForm.prices.store" class="form-control form-control-sm" type="number" min="0" required /></div>
-                    <div class="col-md-2"><label class="form-label">Ecommerce</label><input v-model="createForm.prices.ecommerce" class="form-control form-control-sm" type="number" min="0" required /></div>
+                    <div class="col-md-2"><label for="product-prices-berlaku-dari-2" class="form-label">Berlaku Dari</label><input id="product-prices-berlaku-dari-2" v-model="createForm.valid_from" class="form-control form-control-sm" type="date" required /></div>
+                    <div class="col-md-2"><label for="product-prices-berlaku-sampai-3" class="form-label">Berlaku Sampai</label><input id="product-prices-berlaku-sampai-3" v-model="createForm.valid_to" class="form-control form-control-sm" type="date" /></div>
+                    <div class="col-md-1"><label for="product-prices-base-4" class="form-label">Base</label><input id="product-prices-base-4" v-model="createForm.prices.base" class="form-control form-control-sm" type="number" min="0" required /></div>
+                    <div class="col-md-1"><label for="product-prices-store-5" class="form-label">Store</label><input id="product-prices-store-5" v-model="createForm.prices.store" class="form-control form-control-sm" type="number" min="0" required /></div>
+                    <div class="col-md-2"><label for="product-prices-ecommerce-6" class="form-label">Ecommerce</label><input id="product-prices-ecommerce-6" v-model="createForm.prices.ecommerce" class="form-control form-control-sm" type="number" min="0" required /></div>
                     <div class="col-12 d-flex gap-2 mt-2"><button class="btn btn-sm btn-primary" type="submit" :disabled="createForm.processing">Simpan Harga</button></div>
                 </form>
             </div>
@@ -176,10 +186,10 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
         <div class="card price-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="apply">
-                    <div class="col-md-3"><label class="form-label">Cari</label><input v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk" /></div>
-                    <div class="col-md-2"><label class="form-label">Tipe</label><select v-model="filters.price_type" class="form-select form-select-sm"><option value="">Semua</option><option v-for="type in priceTypes" :key="type" :value="type">{{ type }}</option></select></div>
-                    <div class="col-md-2"><label class="form-label">Dari</label><input v-model="filters.from" class="form-control form-control-sm" type="date" /></div>
-                    <div class="col-md-2"><label class="form-label">Sampai</label><input v-model="filters.to" class="form-control form-control-sm" type="date" /></div>
+                    <div class="col-md-3"><label for="product-prices-cari-7" class="form-label">Cari</label><input id="product-prices-cari-7" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama atau kode produk" /></div>
+                    <div class="col-md-2"><label for="product-prices-tipe-8" class="form-label">Tipe</label><select id="product-prices-tipe-8" v-model="filters.price_type" class="form-select form-select-sm"><option value="">Semua</option><option v-for="type in priceTypes" :key="type" :value="type">{{ type }}</option></select></div>
+                    <div class="col-md-2"><label for="product-prices-dari-9" class="form-label">Dari</label><input id="product-prices-dari-9" v-model="filters.from" class="form-control form-control-sm" type="date" /></div>
+                    <div class="col-md-2"><label for="product-prices-sampai-10" class="form-label">Sampai</label><input id="product-prices-sampai-10" v-model="filters.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Filter</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="resetFilters">Reset</button></div>
                 </form>
             </div>
@@ -188,7 +198,7 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
         <div class="card price-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Produk</th><th class="text-end">Base</th><th class="text-end">Store</th><th class="text-end">Ecommerce</th><th class="text-end">Harga Aktif</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Base</th><th scope="col" class="text-end">Store</th><th scope="col" class="text-end">Ecommerce</th><th scope="col" class="text-end">Harga Aktif</th><th scope="col" class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in prices.data" :key="row.product_id">
                             <tr>
@@ -199,19 +209,19 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
                                 <td class="text-end">{{ row.active_count }}</td>
                                 <td class="text-end">
                                     <div class="d-inline-flex gap-1">
-                                        <button class="btn btn-sm btn-outline-primary" type="button" @click="startEdit(row)"><i class="mdi mdi-pencil"></i></button>
-                                        <button class="btn btn-sm btn-outline-danger" type="button" @click="remove(row)"><i class="mdi mdi-delete"></i></button>
+                                        <button class="btn btn-sm btn-outline-primary" type="button" :aria-label="`Ubah harga ${row.product_name ?? row.product_code ?? 'produk'}`" title="Ubah" @click="startEdit(row)"><i class="mdi mdi-pencil" aria-hidden="true"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" type="button" :aria-label="`Hapus harga ${row.product_name ?? row.product_code ?? 'produk'}`" title="Hapus" @click="remove(row)"><i class="mdi mdi-delete" aria-hidden="true"></i></button>
                                     </div>
                                 </td>
                             </tr>
                             <tr v-if="editingId && editingId === (props.allPriceDetails[row.product_id]?.[0]?.id ?? '')">
                                 <td colspan="6" class="price-edit">
                                     <form class="row g-2 align-items-end" @submit.prevent="submitEdit">
-                                        <div class="col-md-2"><label class="form-label">Dari</label><input v-model="editForm.valid_from" class="form-control form-control-sm" type="date" required /></div>
-                                        <div class="col-md-2"><label class="form-label">Sampai</label><input v-model="editForm.valid_to" class="form-control form-control-sm" type="date" /></div>
-                                        <div class="col-md-2"><label class="form-label">Base</label><input v-model="editForm.prices.base" class="form-control form-control-sm" type="number" min="0" required /></div>
-                                        <div class="col-md-2"><label class="form-label">Store</label><input v-model="editForm.prices.store" class="form-control form-control-sm" type="number" min="0" required /></div>
-                                        <div class="col-md-2"><label class="form-label">Ecommerce</label><input v-model="editForm.prices.ecommerce" class="form-control form-control-sm" type="number" min="0" required /></div>
+                                        <div class="col-md-2"><label for="product-prices-dari-11" class="form-label">Dari</label><input id="product-prices-dari-11" v-model="editForm.valid_from" class="form-control form-control-sm" type="date" required /></div>
+                                        <div class="col-md-2"><label for="product-prices-sampai-12" class="form-label">Sampai</label><input id="product-prices-sampai-12" v-model="editForm.valid_to" class="form-control form-control-sm" type="date" /></div>
+                                        <div class="col-md-2"><label for="product-prices-base-13" class="form-label">Base</label><input id="product-prices-base-13" v-model="editForm.prices.base" class="form-control form-control-sm" type="number" min="0" required /></div>
+                                        <div class="col-md-2"><label for="product-prices-store-14" class="form-label">Store</label><input id="product-prices-store-14" v-model="editForm.prices.store" class="form-control form-control-sm" type="number" min="0" required /></div>
+                                        <div class="col-md-2"><label for="product-prices-ecommerce-15" class="form-label">Ecommerce</label><input id="product-prices-ecommerce-15" v-model="editForm.prices.ecommerce" class="form-control form-control-sm" type="number" min="0" required /></div>
                                         <div class="col-md-2 d-flex gap-2"><button class="btn btn-sm btn-success" type="submit">Simpan</button><button class="btn btn-sm btn-outline-secondary" type="button" @click="editingId = null">Batal</button></div>
                                     </form>
                                 </td>

@@ -320,6 +320,7 @@
     width: min(440px, 100%);
     max-height: calc(100dvh - 2rem);
     overflow-y: auto;
+    overscroll-behavior: contain;
     border: 1px solid var(--app-border);
     border-radius: var(--app-radius-2xl);
     background: var(--app-surface);
@@ -381,16 +382,29 @@
     transform: translateY(8px) scale(0.99);
 }
 
+@media (pointer: coarse) {
+    .app-dialog .btn {
+        min-width: var(--app-control-lg);
+        min-height: var(--app-control-lg);
+    }
+}
+
 /* Toasts */
 .toast-stack {
     position: fixed;
-    right: 1rem;
-    bottom: 1rem;
+    left: calc(1rem + env(safe-area-inset-left));
+    bottom: calc(1rem + env(safe-area-inset-bottom));
     z-index: 1090;
     display: grid;
     gap: 0.5rem;
     width: min(360px, calc(100vw - 2rem));
     pointer-events: none;
+}
+
+@media (min-width: 992px) {
+    .toast-stack {
+        left: calc(var(--app-sidebar-w) + 1rem + env(safe-area-inset-left));
+    }
 }
 
 .toast-card {
@@ -454,6 +468,14 @@
 .toast-close:hover {
     background: var(--app-surface-2);
     color: var(--app-ink);
+}
+
+@media (pointer: coarse) {
+    .toast-close {
+        width: 44px;
+        height: 44px;
+        margin: -0.55rem -0.6rem -0.55rem 0;
+    }
 }
 
 .toast-enter-active,
@@ -561,6 +583,12 @@
     overflow-y: auto;
 }
 
+.table-responsive,
+.report-table-wrap {
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
 .table-responsive.is-sticky thead th {
     position: sticky;
     top: 0;
@@ -568,8 +596,12 @@
 }
 
 /* Numeric cells in reports */
+.text-end,
 .cell-num {
     font-variant-numeric: tabular-nums;
+}
+
+.cell-num {
     text-align: right;
     white-space: nowrap;
 }
@@ -800,6 +832,18 @@
     min-height: var(--app-control-sm);
 }
 
+@media (pointer: coarse) {
+    .form-control-sm,
+    .form-select-sm,
+    .table .btn-sm {
+        min-height: var(--app-control-lg);
+    }
+
+    .table .btn-sm {
+        min-width: var(--app-control-lg);
+    }
+}
+
 /* Row action menu */
 .row-actions {
     display: inline-flex;
@@ -870,6 +914,12 @@
     cursor: not-allowed;
 }
 
+@media (pointer: coarse) {
+    .row-actions-item {
+        min-height: 44px;
+    }
+}
+
 /* Pagination */
 .pagination {
     --bs-pagination-padding-x: 0.5rem;
@@ -913,6 +963,94 @@
 
 .pagination .page-item.disabled .page-link {
     cursor: not-allowed;
+}
+
+@media (pointer: coarse) {
+    .pagination .page-link {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Scrollable operational dialogs */
+.sku-docs-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 6rem);
+}
+
+.sku-docs-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.transfer-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 5rem);
+}
+
+.transfer-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (pointer: coarse) {
+    .stock-doc-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0.5rem;
+    }
+
+    .inbound-info-button,
+    .outbound-info-button,
+    .stock-info-button {
+        position: relative;
+    }
+
+    .inbound-info-button::after,
+    .outbound-info-button::after,
+    .stock-info-button::after {
+        position: absolute;
+        inset: -13px;
+        border-radius: 50%;
+        content: '';
+    }
+
+    .monitor-omset-tab,
+    .sample-tab,
+    .overview-card-toggle {
+        min-height: 44px;
+    }
+
+    .overview-card-toggle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .monitoring-links a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    .monitoring-search-clear::after {
+        position: absolute;
+        inset: -6px;
+        border-radius: inherit;
+        content: '';
+    }
+
+    [class*="-hero-button"] {
+        min-height: 44px;
+    }
 }
 
 /* Reduced motion */

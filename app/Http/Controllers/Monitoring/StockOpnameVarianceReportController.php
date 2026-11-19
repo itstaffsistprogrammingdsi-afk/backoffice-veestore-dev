@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class StockOpnameVarianceReportController extends Controller
@@ -63,6 +65,8 @@ class StockOpnameVarianceReportController extends Controller
                 MAX(x.started_at) AS started_at,
                 MAX(x.finished_at) AS finished_at,
                 MAX(x.approved_at) AS approved_at,
+                MAX(x.session_created_by) AS session_created_by,
+                MAX(x.session_updated_at) AS session_updated_at,
                 MAX(x.report_at) AS report_at,
                 COUNT(*)::int AS item_count,
                 COUNT(*) FILTER (WHERE x.difference_qty <> 0)::int AS discrepancy_items,
@@ -103,8 +107,32 @@ class StockOpnameVarianceReportController extends Controller
                 ->groupBy('session_id');
         }
 
-        $rows->through(function ($row) use ($sessionDetails) {
+        $canDecide = $this->canDecide();
+        $scannedSessionIds = $canDecide ? $this->scannedSessionIds($sessionIds) : [];
+        $approvalContexts = $canDecide ? $this->approvalContexts($sessionIds) : [];
+
+        $rows->through(function ($row) use ($sessionDetails, $canDecide, $scannedSessionIds, $approvalContexts) {
             $row->details = $sessionDetails->get($row->session_id, collect())->values()->all();
+
+            $status = strtolower((string) $row->opname_status);
+            $context = $approvalContexts[$row->session_id] ?? [
+                'missing_items' => [],
+                'condition_decisions' => [],
+                'has_manual_exception' => false,
+            ];
+            $isIndependent = $canDecide
+                && (string) $row->session_created_by !== (string) auth()->id()
+                && ! in_array((string) $row->session_id, $scannedSessionIds, true);
+
+            $row->approval_context = $context;
+            $row->can_approve = $isIndependent
+                && $row->approved_at === null
+                && in_array($status, ['pending_approval', 'recount_required'], true)
+                && ! $context['has_manual_exception'];
+            $row->can_reject = $isIndependent
+                && $row->approved_at === null
+                && $status === 'pending_approval';
+            $row->can_decide = $row->can_approve || $row->can_reject;
 
             return $row;
         });
@@ -200,7 +228,7 @@ class StockOpnameVarianceReportController extends Controller
 
         return Inertia::render('Monitoring/Report', [
             'title' => 'Stok Opname, Selisih & Penyesuaian',
-            'description' => 'Rekap selisih stok opname gudang kecil/toko dan display: nilai selisih, PIC, status persetujuan, serta rekap harian, mingguan, dan bulanan. Keputusan approval dan penyesuaian stok dilakukan di aplikasi POS oleh Manager/SPV toko.',
+            'description' => 'Rekap selisih stok opname gudang kecil/toko dan display: nilai selisih, PIC, status persetujuan, serta rekap harian, mingguan, dan bulanan. Keputusan approval dan penyesuaian stok dapat dilakukan dari Backoffice oleh pengguna berwenang atau dari aplikasi POS oleh Manager/SPV toko.',
             'data' => [
                 'rows' => $rows,
                 'opnameItems' => $itemRows,
@@ -219,12 +247,404 @@ class StockOpnameVarianceReportController extends Controller
                 ],
             ],
             'filters' => $request->query(),
-            'urls' => [
+            'urls' => array_merge([
                 'index' => url()->current(),
                 'pos_stock_opname' => rtrim((string) config('backoffice.pos_app_url'), '/').'/storage/stock-opname',
-            ],
-            'canDecide' => false,
+            ], $canDecide ? [
+                'approve' => route('monitoring.stock-opname-variance.approve', ['id' => '__ID__']),
+                'reject' => route('monitoring.stock-opname-variance.reject', ['id' => '__ID__']),
+            ] : []),
+            'canDecide' => $canDecide,
         ]);
+    }
+
+    public function approve(Request $request, string $id)
+    {
+        $this->ensureCanDecide();
+
+        $validated = $request->validate([
+            'missing_item_ids' => ['present', 'array'],
+            'missing_item_ids.*' => ['uuid', 'distinct'],
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+            'reviewed_at' => ['required', 'date'],
+        ]);
+
+        $userId = (string) auth()->id();
+        $missingItemIds = collect($validated['missing_item_ids'])
+            ->map(fn ($value) => (string) $value)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        DB::transaction(function () use ($id, $userId, $validated, $missingItemIds) {
+            $session = DB::table('store_opname_sessions')
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $session) {
+                $this->decisionError('Sesi stok opname tidak ditemukan.');
+            }
+
+            $status = strtolower((string) $session->status);
+
+            if (! in_array($status, ['pending_approval', 'recount_required'], true)) {
+                $this->decisionError('Sesi tidak berada pada tahap keputusan approval.');
+            }
+
+            if ($session->updated_at
+                && ! Carbon::parse((string) $session->updated_at)->equalTo(Carbon::parse((string) $validated['reviewed_at']))) {
+                $this->decisionError('Review sudah kedaluwarsa. Muat ulang data sebelum approval.');
+            }
+
+            $this->ensureIndependentDecision($session, $userId);
+
+            $results = DB::table('store_opname_reconciliation_results')
+                ->where('opname_session_id', $id)
+                ->get(['item_id', 'outcome']);
+
+            if ($results->contains(fn ($result) => $result->outcome === 'manual_exception')) {
+                $this->decisionError('Manual exception harus diselesaikan sebelum approval.');
+            }
+
+            $unresolvedIds = $results
+                ->where('outcome', 'unresolved_discrepancy')
+                ->pluck('item_id')
+                ->map(fn ($value) => (string) $value)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            if ($unresolvedIds !== $missingItemIds) {
+                $this->decisionError('Setiap discrepancy harus diputuskan eksplisit sebagai missing.');
+            }
+
+            $now = now();
+
+            if ($missingItemIds !== []) {
+                $affected = DB::table('items')
+                    ->whereIn('id', $missingItemIds)
+                    ->where('status', '!=', 'missing')
+                    ->whereExists(function ($query) use ($session) {
+                        $query->selectRaw('1')
+                            ->from('store_items')
+                            ->whereColumn('store_items.item_id', 'items.id')
+                            ->where('store_items.store_id', $session->store_id);
+                    })
+                    ->update([
+                        'current_location_id' => null,
+                        'status' => 'missing',
+                        'updated_at' => $now,
+                    ]);
+
+                if ($affected !== count($missingItemIds)) {
+                    $this->decisionError('Data item berubah saat approval; seluruh perubahan dibatalkan.');
+                }
+            }
+
+            $this->applyScannedItemConditions((string) $session->id);
+
+            DB::table('store_opname_approval_audits')->insert([
+                'id' => (string) Str::uuid(),
+                'opname_session_id' => $session->id,
+                'counting_round' => (int) ($session->counting_round ?? 1),
+                'actor_id' => $userId,
+                'action' => 'approved',
+                'reason' => trim((string) $validated['reason']),
+                'reviewed_at' => Carbon::parse((string) $validated['reviewed_at'])->toDateTimeString(),
+                'acted_at' => $now,
+                'item_decisions' => json_encode(array_map(
+                    fn (string $itemId): array => [
+                        'item_id' => $itemId,
+                        'decision' => 'missing',
+                    ],
+                    $missingItemIds
+                ), JSON_THROW_ON_ERROR),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+
+            DB::table('store_opname_sessions')->where('id', $session->id)->update([
+                'status' => 'completed',
+                'approved_by' => $userId,
+                'approved_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+
+        return back()->with('success', 'Sesi stok opname disetujui dan penyesuaian stok telah diterapkan.');
+    }
+
+    public function reject(Request $request, string $id)
+    {
+        $this->ensureCanDecide();
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        $userId = (string) auth()->id();
+
+        DB::transaction(function () use ($id, $userId, $validated) {
+            $session = DB::table('store_opname_sessions')
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $session) {
+                $this->decisionError('Sesi stok opname tidak ditemukan.');
+            }
+
+            if (strtolower((string) $session->status) !== 'pending_approval') {
+                $this->decisionError('Hanya sesi yang menunggu persetujuan yang dapat ditolak.');
+            }
+
+            $this->ensureIndependentDecision($session, $userId);
+
+            $now = now();
+            $reason = trim((string) $validated['reason']);
+
+            DB::table('store_opname_sessions')->where('id', $session->id)->update([
+                'status' => 'recount_required',
+                'rejected_at' => $now,
+                'rejected_by' => $userId,
+                'rejection_reasons' => $reason,
+                'recount_requested_at' => $now,
+                'recount_requested_by' => $userId,
+                'recount_reason' => $reason,
+                'counting_round' => ((int) ($session->counting_round ?? 1)) + 1,
+                'updated_at' => $now,
+            ]);
+
+            DB::table('store_opname_approval_audits')->insert([
+                'id' => (string) Str::uuid(),
+                'opname_session_id' => $session->id,
+                'counting_round' => (int) ($session->counting_round ?? 1),
+                'actor_id' => $userId,
+                'action' => 'rejected',
+                'reason' => $reason,
+                'reviewed_at' => $now,
+                'acted_at' => $now,
+                'item_decisions' => json_encode([], JSON_THROW_ON_ERROR),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+
+        return back()->with('success', 'Sesi stok opname ditolak dan masuk antrean hitung ulang.');
+    }
+
+    private function ensureCanDecide(): void
+    {
+        abort_unless($this->canDecide(), 403);
+    }
+
+    private function decisionError(string $message): never
+    {
+        throw ValidationException::withMessages(['decision' => $message]);
+    }
+
+    private function ensureIndependentDecision(object $session, string $userId): void
+    {
+        if ((string) $session->created_by === $userId) {
+            $this->decisionError('Pembuat sesi tidak boleh mengambil keputusan atas sesi sendiri.');
+        }
+
+        $hasScanned = DB::table('store_opname_session_scans')
+            ->where('opname_session_id', $session->id)
+            ->where('scanned_by', $userId)
+            ->exists();
+
+        if ($hasScanned) {
+            $this->decisionError('Petugas yang pernah memindai tidak boleh menjadi approver.');
+        }
+    }
+
+    private function scannedSessionIds(array $sessionIds): array
+    {
+        $userId = auth()->id();
+
+        if (! $userId || $sessionIds === []) {
+            return [];
+        }
+
+        return DB::table('store_opname_session_scans')
+            ->whereIn('opname_session_id', $sessionIds)
+            ->where('scanned_by', $userId)
+            ->distinct()
+            ->pluck('opname_session_id')
+            ->map(fn ($value) => (string) $value)
+            ->all();
+    }
+
+    private function approvalContexts(array $sessionIds): array
+    {
+        if ($sessionIds === []) {
+            return [];
+        }
+
+        $missingBySession = DB::table('store_opname_reconciliation_results as result')
+            ->leftJoin('store_opname_session_expected_items as expected', function ($join) {
+                $join->on('expected.opname_session_id', '=', 'result.opname_session_id')
+                    ->on('expected.item_id', '=', 'result.item_id');
+            })
+            ->leftJoin('items as item', 'item.id', '=', 'result.item_id')
+            ->leftJoin('products as product', 'product.id', '=', 'item.product_id')
+            ->whereIn('result.opname_session_id', $sessionIds)
+            ->where('result.outcome', 'unresolved_discrepancy')
+            ->orderBy('product.name')
+            ->orderBy('expected.rfid_tag_value')
+            ->get([
+                'result.opname_session_id',
+                'result.item_id',
+                'expected.rfid_tag_value',
+                'product.name as product_name',
+            ])
+            ->groupBy('opname_session_id');
+
+        $manualExceptionSessions = DB::table('store_opname_reconciliation_results')
+            ->whereIn('opname_session_id', $sessionIds)
+            ->where('outcome', 'manual_exception')
+            ->distinct()
+            ->pluck('opname_session_id')
+            ->map(fn ($value) => (string) $value)
+            ->all();
+
+        $conditionsBySession = DB::table('store_opname_session_scans as scan')
+            ->join('item_conditions as condition', 'condition.id', '=', 'scan.item_condition_id')
+            ->whereIn('scan.opname_session_id', $sessionIds)
+            ->whereNotNull('scan.item_condition_id')
+            ->groupBy('scan.opname_session_id', 'condition.id', 'condition.name')
+            ->orderBy('condition.name')
+            ->get([
+                'scan.opname_session_id',
+                'condition.name',
+                DB::raw('COUNT(*)::int AS count'),
+            ])
+            ->groupBy('opname_session_id');
+
+        $contexts = [];
+
+        foreach ($sessionIds as $sessionId) {
+            $missingItems = $missingBySession->get($sessionId, collect())
+                ->map(fn ($row) => [
+                    'id' => (string) $row->item_id,
+                    'identifier' => (string) ($row->rfid_tag_value ?: $row->item_id),
+                    'product_name' => $row->product_name ?: 'Produk tidak diketahui',
+                ])
+                ->values()
+                ->all();
+
+            $conditionDecisions = $conditionsBySession->get($sessionId, collect())
+                ->map(fn ($row) => [
+                    'name' => (string) $row->name,
+                    'count' => (int) $row->count,
+                ])
+                ->values()
+                ->all();
+
+            $contexts[$sessionId] = [
+                'missing_items' => $missingItems,
+                'condition_decisions' => $conditionDecisions,
+                'has_manual_exception' => in_array((string) $sessionId, $manualExceptionSessions, true),
+            ];
+        }
+
+        return $contexts;
+    }
+
+    private function applyScannedItemConditions(string $sessionId): void
+    {
+        $latestScans = DB::table('store_opname_session_scans as scan')
+            ->selectRaw(
+                'DISTINCT ON (scan.item_id) '
+                .'scan.item_id, scan.item_condition_id, '
+                .'scan.id AS reference_id, scan.scanned_by'
+            )
+            ->where('scan.opname_session_id', $sessionId)
+            ->whereNotNull('item_id')
+            ->whereNotNull('item_condition_id')
+            ->orderBy('scan.item_id')
+            ->orderByDesc('scan.scanned_at')
+            ->orderByDesc('scan.id');
+
+        $changes = DB::query()
+            ->fromSub($latestScans, 'latest')
+            ->join('items as item', 'item.id', '=', 'latest.item_id')
+            ->where(function ($query) {
+                $query->whereNull('item.current_condition_id')
+                    ->orWhereColumn('item.current_condition_id', '!=', 'latest.item_condition_id');
+            })
+            ->get([
+                'latest.item_id',
+                'latest.item_condition_id',
+                'latest.reference_id',
+                'latest.scanned_by',
+            ]);
+
+        if ($changes->isEmpty()) {
+            return;
+        }
+
+        $now = now();
+
+        foreach ($changes->chunk(500) as $chunk) {
+            $bindings = [];
+            $values = $chunk->map(function ($change) use (&$bindings): string {
+                $bindings[] = $change->item_id;
+                $bindings[] = $change->item_condition_id;
+
+                return '(?::uuid, ?::uuid)';
+            })->implode(', ');
+
+            DB::update(
+                'UPDATE items AS item '
+                .'SET current_condition_id = changed.item_condition_id, '
+                .'updated_at = CURRENT_TIMESTAMP '
+                ."FROM (VALUES {$values}) "
+                .'AS changed(item_id, item_condition_id) '
+                .'WHERE item.id = changed.item_id',
+                $bindings
+            );
+
+            $historyPayload = $chunk->map(
+                fn ($change): array => [
+                    'id' => (string) Str::uuid(),
+                    'item_id' => $change->item_id,
+                    'item_condition_id' => $change->item_condition_id,
+                    'reference_type' => 'store_stock_opname',
+                    'reference_id' => $change->reference_id,
+                    'changed_at' => $now,
+                    'changed_by' => $change->scanned_by,
+                    'created_at' => $now,
+                ]
+            )->all();
+
+            if ($historyPayload !== []) {
+                DB::table('item_condition_histories')->insert($historyPayload);
+            }
+        }
+    }
+
+    private function canDecide(): bool
+    {
+        $user = auth()->user();
+
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->can('approve store-opname-variance') || $user->can('manage store-opname')) {
+            return true;
+        }
+
+        $managementRoles = ['superadmin', 'administrator', 'admin', 'management', 'manager'];
+
+        return $user->getRoleNames()
+            ->map(fn ($role) => strtolower(preg_replace('/[^a-z0-9]/', '', $role)))
+            ->contains(fn ($role) => in_array($role, $managementRoles, true));
     }
 
     private function baseQuery(Carbon $start, Carbon $end)
@@ -258,6 +678,8 @@ class StockOpnameVarianceReportController extends Controller
                 os.finished_at,
                 os.approved_at,
                 os.created_at AS session_created_at,
+                os.created_by::text AS session_created_by,
+                os.updated_at AS session_updated_at,
                 os.store_id,
                 COALESCE(s.name, '-') AS store_name,
                 COALESCE(s.code, '-') AS store_code,
