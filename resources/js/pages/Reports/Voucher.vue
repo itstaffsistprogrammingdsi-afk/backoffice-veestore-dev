@@ -168,7 +168,7 @@ const formatDate = (value: string | null) => {
                             v-model="form.voucher"
                             :options="voucherOptions"
                             placeholder="Semua Voucher"
-                            search-placeholder="Cari kode voucher..."
+                            search-placeholder="Cari kode voucher…"
                         />
                     </div>
                     <div class="col-md-3">
@@ -199,15 +199,15 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Code</th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th class="text-end">Value</th>
-                            <th>Context</th>
-                            <th class="text-end">Ecommerce</th>
-                            <th class="text-end">Store</th>
-                            <th class="text-end">Total</th>
-                            <th>Aksi</th>
+                            <th scope="col">Code</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Type</th>
+                            <th scope="col" class="text-end">Value</th>
+                            <th scope="col">Context</th>
+                            <th scope="col" class="text-end">Ecommerce</th>
+                            <th scope="col" class="text-end">Store</th>
+                            <th scope="col" class="text-end">Total</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -229,11 +229,11 @@ const formatDate = (value: string | null) => {
                             </tr>
                             <tr v-if="detailId === row.id">
                                 <td colspan="9" class="report-detail">
-                                    <div v-if="detailLoading" class="text-muted">Memuat detail...</div>
+                                    <div v-if="detailLoading" class="text-muted" role="status">Memuat detail…</div>
                                     <div v-else class="table-responsive">
                                         <table class="table table-sm mb-0">
                                             <thead>
-                                                <tr><th>Order</th><th>Customer</th><th class="text-end">Value</th><th>Tanggal</th><th>Source</th></tr>
+                                                <tr><th scope="col">Order</th><th scope="col">Customer</th><th scope="col" class="text-end">Value</th><th scope="col">Tanggal</th><th scope="col">Source</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="(detail, index) in detailRows" :key="index">

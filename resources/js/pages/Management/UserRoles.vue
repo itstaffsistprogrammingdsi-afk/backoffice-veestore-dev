@@ -83,7 +83,7 @@ const saveRole = (user: UserRow) => {
                 <p>Atur peran backoffice untuk setiap pengguna.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applySearch">
-                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari pengguna..." aria-label="Cari pengguna" />
+                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari pengguna…" aria-label="Cari pengguna" />
                 <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari pengguna" title="Cari pengguna"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
                 <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset pencarian" title="Reset pencarian" @click="resetSearch"><i class="mdi mdi-refresh" aria-hidden="true"></i></button>
             </form>
@@ -97,11 +97,11 @@ const saveRole = (user: UserRow) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Pengguna</th>
-                            <th>Nama Pengguna</th>
-                            <th>Email</th>
-                            <th style="min-width: 220px;">Peran</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Pengguna</th>
+                            <th scope="col">Nama Pengguna</th>
+                            <th scope="col">Email</th>
+                            <th scope="col" style="min-width: 220px;">Peran</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

@@ -55,7 +55,7 @@ const exportOrders = () => downloadExcelTable('History-Customer-Order-Ecommerce'
         <div class="card report-card">
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
-                    <thead><tr><th>Order ID</th><th>Tanggal</th></tr></thead>
+                    <thead><tr><th scope="col">Order ID</th><th scope="col">Tanggal</th></tr></thead>
                     <tbody>
                         <tr v-for="order in orders" :key="order.order_id"><td>{{ order.order_id }}</td><td>{{ formatDate(order.order_date) }}</td></tr>
                         <tr v-if="orders.length === 0"><td colspan="2" class="report-empty">Belum ada order.</td></tr>

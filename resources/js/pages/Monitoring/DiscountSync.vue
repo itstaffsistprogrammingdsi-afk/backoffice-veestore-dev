@@ -241,7 +241,7 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
                         <label class="form-label" for="sync-search">Cari promo atau diskon</label>
-                        <input id="sync-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama promo, kode, atau nama diskon..." />
+                        <input id="sync-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama promo, kode, atau nama diskon…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-3">
                         <label class="form-label" for="sync-channel">Cakupan Kanal</label>
@@ -282,12 +282,12 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 sync-table">
                     <thead>
                         <tr>
-                            <th>Promo / Diskon</th>
-                            <th>Cakupan</th>
-                            <th class="text-end">Max POS</th>
-                            <th class="text-end">Max E-commerce</th>
-                            <th class="text-end">Drift</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Promo / Diskon</th>
+                            <th scope="col">Cakupan</th>
+                            <th scope="col" class="text-end">Max POS</th>
+                            <th scope="col" class="text-end">Max E-commerce</th>
+                            <th scope="col" class="text-end">Drift</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -339,7 +339,7 @@ onBeforeUnmount(() => {
                                     <div class="sync-detail-wrap">
                                         <table class="table table-sm mb-0 sync-detail-table">
                                             <thead>
-                                                <tr><th>Diskon</th><th>Tipe</th><th class="text-end">Nilai</th><th class="text-end">Max Diskon</th><th>Cakupan</th><th>Status</th></tr>
+                                                <tr><th scope="col">Diskon</th><th scope="col">Tipe</th><th scope="col" class="text-end">Nilai</th><th scope="col" class="text-end">Max Diskon</th><th scope="col">Cakupan</th><th scope="col">Status</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="discount in row.discounts" :key="discount.id">
@@ -469,7 +469,7 @@ onBeforeUnmount(() => {
 .sync-muted-text { color: var(--app-muted) !important; }
 .sync-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem; }
 .sync-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.sync-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; }
+.sync-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .sync-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .sync-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .sync-detail-table td strong, .sync-detail-table td small { display: block; }

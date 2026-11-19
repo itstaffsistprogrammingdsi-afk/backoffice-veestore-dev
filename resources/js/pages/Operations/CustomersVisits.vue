@@ -107,8 +107,8 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
         <div class="card customer-card mb-3">
             <div class="card-body">
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
-                    <div class="col-lg-7"><label for="customers-visits-cari-customer-atau-store-1" class="form-label">Cari customer atau store</label><input id="customers-visits-cari-customer-atau-store-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama customer, WhatsApp, email, atau store..." /></div>
-                    <div class="col-md-4 col-lg-3"><label for="customers-visits-store-2" class="form-label">Store</label><SearchableSelect id="customers-visits-store-2" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." /></div>
+                    <div class="col-lg-7"><label for="customers-visits-cari-customer-atau-store-1" class="form-label">Cari customer atau store</label><input id="customers-visits-cari-customer-atau-store-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama customer, WhatsApp, email, atau store…" /></div>
+                    <div class="col-md-4 col-lg-3"><label for="customers-visits-store-2" class="form-label">Store</label><SearchableSelect id="customers-visits-store-2" v-model="filters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store…" /></div>
                     <div class="col-md-6 col-lg-2 d-flex gap-2"><button class="btn btn-sm btn-primary flex-grow-1" type="submit"><i class="mdi mdi-magnify me-1"></i>Cari</button><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Reset filter" title="Reset filter" @click="resetFilters"><i class="mdi mdi-refresh"></i></button></div>
                 </form>
             </div>
@@ -119,7 +119,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
             <div v-if="props.rows.data.length === 0" class="customer-empty"><i class="mdi mdi-account-off-outline"></i><strong>Tidak ada customer</strong><span>Coba ubah kata kunci atau filter store.</span></div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 customer-table">
-                    <thead><tr><th>Customer</th><th>Store</th><th>Tier</th><th class="text-end">Poin</th><th class="text-end">Kunjungan</th><th>Terakhir</th><th class="text-end">Item</th><th class="text-end">Total Spending</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th scope="col">Customer</th><th scope="col">Store</th><th scope="col">Tier</th><th scope="col" class="text-end">Poin</th><th scope="col" class="text-end">Kunjungan</th><th scope="col">Terakhir</th><th scope="col" class="text-end">Item</th><th scope="col" class="text-end">Total Spending</th><th scope="col" class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in props.rows.data" :key="`${row.customer_id}-${row.store_id}`">
                             <tr>
@@ -131,15 +131,15 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
                                 <td>{{ formatDate(row.last_visit_at) }}</td>
                                 <td class="text-end">{{ formatNumber(row.item_qty) }}</td>
                                 <td class="text-end"><strong>{{ formatCurrency(row.total_spending) }}</strong></td>
-                                <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggle(`${row.customer_id}-${row.store_id}`)"><i class="mdi" :class="expanded[`${row.customer_id}-${row.store_id}`] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[`${row.customer_id}-${row.store_id}`] ? 'Tutup' : 'Detail' }}</button></td>
+                                <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" :aria-expanded="Boolean(expanded[`${row.customer_id}-${row.store_id}`])" :aria-controls="`customer-detail-${row.customer_id}-${row.store_id}`" @click="toggle(`${row.customer_id}-${row.store_id}`)"><i class="mdi" :class="expanded[`${row.customer_id}-${row.store_id}`] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>{{ expanded[`${row.customer_id}-${row.store_id}`] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
-                            <tr v-if="expanded[`${row.customer_id}-${row.store_id}`]" class="customer-detail-row">
+                            <tr v-if="expanded[`${row.customer_id}-${row.store_id}`]" :id="`customer-detail-${row.customer_id}-${row.store_id}`" class="customer-detail-row">
                                 <td colspan="9">
                                     <div class="customer-detail-wrap">
                                         <p class="mb-2"><strong>Riwayat kunjungan:</strong> {{ row.visits.length }} kunjungan terakhir</p>
                                         <div class="table-responsive mb-3">
                                             <table class="table table-sm mb-0 customer-detail-table">
-                                                <thead><tr><th>Tanggal</th><th>Kode Visit</th><th>Check-in</th><th>Check-out</th><th>Status</th></tr></thead>
+                                                <thead><tr><th scope="col">Tanggal</th><th scope="col">Kode Visit</th><th scope="col">Check-in</th><th scope="col">Check-out</th><th scope="col">Status</th></tr></thead>
                                                 <tbody>
                                                     <tr v-for="visit in row.visits" :key="visit.id">
                                                         <td>{{ formatDate(visit.visit_at) }}</td>
@@ -154,7 +154,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
                                         </div>
                                         <p class="mb-2"><strong>Barang yang sudah dibeli:</strong> {{ row.item_qty }} item dari {{ row.products.length }} SKU</p>
                                         <table class="table table-sm mb-0 customer-detail-table">
-                                            <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Nilai</th></tr></thead>
+                                            <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Nilai</th></tr></thead>
                                             <tbody>
                                                 <tr v-for="product in row.products" :key="product.product_id"><td><strong>{{ product.product_name }}</strong><small>{{ product.product_code }}</small></td><td class="text-end">{{ formatNumber(product.qty) }}</td><td class="text-end">{{ formatCurrency(product.spending) }}</td></tr>
                                                 <tr v-if="row.products.length === 0"><td colspan="3" class="text-center text-muted py-3">Belum ada pembelian.</td></tr>
@@ -196,7 +196,7 @@ const toggle = (id: string) => { expanded.value[id] = !expanded.value[id]; };
 .customer-main small { color: var(--app-muted); font-size: 0.73rem; }
 .customer-main .customer-mobile-meta { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.3rem; }
 .customer-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.customer-detail-wrap { padding: 0.8rem 1rem 1rem 2.2rem; }
+.customer-detail-wrap { padding: 0.8rem 1rem 1rem 2.2rem; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .customer-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .customer-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .customer-detail-table td strong, .customer-detail-table td small { display: block; }

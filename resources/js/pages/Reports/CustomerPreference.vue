@@ -377,7 +377,7 @@ const resetFilters = () => {
                             v-model="form.store_id"
                             :options="storeSelectOptions"
                             placeholder="Semua store"
-                            search-placeholder="Cari store..."
+                            search-placeholder="Cari store…"
                         />
                     </div>
                     <div class="col-12 col-lg-3">
@@ -394,7 +394,7 @@ const resetFilters = () => {
                             v-model="form.product_id"
                             :options="productSelectOptions"
                             placeholder="Semua produk"
-                            search-placeholder="Cari nama atau kode produk..."
+                            search-placeholder="Cari nama atau kode produk…"
                         />
                     </div>
                     <div class="col-6 col-lg-3">
@@ -404,7 +404,7 @@ const resetFilters = () => {
                             v-model="form.category_id"
                             :options="categorySelectOptions"
                             placeholder="Semua kategori"
-                            search-placeholder="Cari kategori..."
+                            search-placeholder="Cari kategori…"
                         />
                     </div>
                     <div class="col-6 col-lg-3">
@@ -414,12 +414,12 @@ const resetFilters = () => {
                             v-model="form.brand_id"
                             :options="brandSelectOptions"
                             placeholder="Semua brand"
-                            search-placeholder="Cari brand..."
+                            search-placeholder="Cari brand…"
                         />
                     </div>
                     <div class="col-12 col-lg-2">
                         <label class="form-label" for="pref-search">Cari produk</label>
-                        <input id="pref-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama / kode / kategori..." />
+                        <input id="pref-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama / kode / kategori…" />
                     </div>
                     <div class="col-6 col-lg-3">
                         <label class="form-label" for="pref-metric">Metrik</label>
@@ -624,9 +624,10 @@ const resetFilters = () => {
 .pref-hero-button { display: inline-flex; align-items: center; padding: 0.55rem 0.8rem; border-radius: 0.55rem; background: var(--app-surface); color: var(--app-ink); font-size: 0.8rem; font-weight: 700; text-decoration: none; }
 .pref-hero-button-accent { background: var(--app-accent-strong); color: var(--app-on-accent); }
 .pref-summary { display: flex; align-items: flex-start; gap: 0.7rem; height: 100%; padding: 0.9rem; border: 1px solid var(--app-border); border-radius: 0.9rem; background: var(--app-surface); box-shadow: var(--app-shadow); }
+.pref-summary > div { min-width: 0; }
 .pref-summary-icon { display: grid; flex: 0 0 auto; width: 2.2rem; height: 2.2rem; place-items: center; border-radius: 0.6rem; background: var(--app-accent-soft); color: var(--app-accent-ink); font-size: 1.1rem; }
 .pref-summary-label { display: block; color: var(--app-muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: none; }
-.pref-summary-value { display: block; margin-top: 0.1rem; font-size: 1.15rem; line-height: 1.25; }
+.pref-summary-value { display: block; margin-top: 0.1rem; font-size: 1.15rem; line-height: 1.25; overflow-wrap: anywhere; }
 .pref-summary-value-text { font-size: 0.95rem; }
 .pref-summary small { display: block; margin-top: 0.15rem; color: var(--app-muted); font-size: 0.7rem; }
 .pref-summary-success .pref-summary-icon { background: var(--app-success-bg); color: var(--app-success-ink); }

@@ -41,6 +41,9 @@ defineProps<{
 }
 
 .auth-login-link a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     color: var(--app-accent-ink);
     font-weight: 600;
     text-decoration: none;

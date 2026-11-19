@@ -167,7 +167,7 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
                             v-model="createForm.product_id"
                             :options="productOptions"
                             placeholder="Pilih produk"
-                            search-placeholder="Cari nama atau kode produk..."
+                            search-placeholder="Cari nama atau kode produk…"
                             required
                             :clearable="false"
                         />
@@ -198,7 +198,7 @@ const priceOf = (row: PriceRow, type: string) => row.prices_by_type[type]?.price
         <div class="card price-card">
             <div class="table-responsive">
                 <table class="table align-middle mb-0">
-                    <thead><tr><th>Produk</th><th class="text-end">Base</th><th class="text-end">Store</th><th class="text-end">Ecommerce</th><th class="text-end">Harga Aktif</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Base</th><th scope="col" class="text-end">Store</th><th scope="col" class="text-end">Ecommerce</th><th scope="col" class="text-end">Harga Aktif</th><th scope="col" class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in prices.data" :key="row.product_id">
                             <tr>

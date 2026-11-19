@@ -260,7 +260,7 @@ const paymentStatus = (status: string | null | undefined) => paymentStatusMeta(s
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label class="form-label" for="orders-search">Cari</label>
-                        <input id="orders-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, produk..." />
+                        <input id="orders-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, produk…" />
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label" for="orders-status">Status</label>
@@ -279,11 +279,11 @@ const paymentStatus = (status: string | null | undefined) => paymentStatusMeta(s
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label" for="orders-store">Toko</label>
-                        <SearchableSelect id="orders-store" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." aria-label="Filter toko" />
+                        <SearchableSelect id="orders-store" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" aria-label="Filter toko" />
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label" for="orders-warehouse">Gudang</label>
-                        <SearchableSelect id="orders-warehouse" v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua gudang" search-placeholder="Cari gudang..." aria-label="Filter gudang" />
+                        <SearchableSelect id="orders-warehouse" v-model="form.warehouse_id" :options="warehouseOptions" placeholder="Semua gudang" search-placeholder="Cari gudang…" aria-label="Filter gudang" />
                     </div>
                     <div class="col-12 col-md-4 col-lg-3">
                         <label class="form-label" for="orders-payment-method">Metode Pembayaran</label>
@@ -398,7 +398,7 @@ const paymentStatus = (status: string | null | undefined) => paymentStatusMeta(s
                                                 v-model="editForm.store_id"
                                                 :options="storeOptions"
                                                 placeholder="Pilih toko"
-                                                search-placeholder="Cari toko..."
+                                                search-placeholder="Cari toko…"
                                                 aria-label="Toko penanganan"
                                             />
                                         </div>
@@ -409,13 +409,13 @@ const paymentStatus = (status: string | null | undefined) => paymentStatusMeta(s
                                                 v-model="editForm.warehouse_id"
                                                 :options="warehouseOptions"
                                                 placeholder="Pilih gudang"
-                                                search-placeholder="Cari gudang..."
+                                                search-placeholder="Cari gudang…"
                                                 aria-label="Gudang penanganan"
                                             />
                                         </div>
                                         <div class="col-md-3 d-flex gap-2">
                                             <button class="btn btn-sm btn-primary" type="button" :disabled="savingId === order.id" @click="save(order)">
-                                                {{ savingId === order.id ? 'Menyimpan...' : 'Simpan' }}
+                                                {{ savingId === order.id ? 'Menyimpan…' : 'Simpan' }}
                                             </button>
                                             <button class="btn btn-sm btn-outline-secondary" type="button" :disabled="savingId === order.id" @click="cancelEdit">Batal</button>
                                         </div>

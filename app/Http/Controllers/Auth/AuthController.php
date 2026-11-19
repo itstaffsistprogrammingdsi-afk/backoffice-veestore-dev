@@ -142,6 +142,11 @@ class AuthController extends Controller
             $request->session()->put('current_session_log_id', $sessionLogId);
         }
 
+        $request->session()->flash(
+            'login_success',
+            'Login berhasil. Selamat datang, '.($authed->name ?: $authed->username ?: 'pengguna').'.'
+        );
+
         return Inertia::location(
             redirect()->intended(route('reports.business-overview.index'))->getTargetUrl()
         );

@@ -4,6 +4,12 @@
  * Elevation rule: data surfaces stay flat, shadows are reserved for overlays and sticky UI.
  */
 :root {
+    /* Brand accents sampled from the VeeStore logo */
+    --app-brand-coral: #f06060;
+    --app-brand-yellow: #e6c31b;
+    --app-brand-green: #62c2a2;
+    --app-brand-purple: #c060a0;
+
     /* Radius scale: 6 / 8 / 10 / 12 / 16 / 20 / pill */
     --app-radius-xs: 0.375rem;
     --app-radius-sm: 0.5rem;

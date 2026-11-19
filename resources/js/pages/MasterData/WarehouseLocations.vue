@@ -624,11 +624,11 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-5">
                         <label for="warehouse-locations-cari-lokasi-1" class="form-label">Cari lokasi</label>
-                        <input id="warehouse-locations-cari-lokasi-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama, kode, atau warehouse..." />
+                        <input id="warehouse-locations-cari-lokasi-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama, kode, atau warehouse…" />
                     </div>
                     <div class="col-md-3 col-lg-2">
                         <label for="warehouse-locations-warehouse-2" class="form-label">Warehouse</label>
-                        <SearchableSelect id="warehouse-locations-warehouse-2" v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
+                        <SearchableSelect id="warehouse-locations-warehouse-2" v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse…" />
                     </div>
                     <div class="col-md-3 col-lg-2">
                         <label for="warehouse-locations-tipe-3" class="form-label">Tipe</label>
@@ -666,7 +666,7 @@ onBeforeUnmount(() => {
                             v-model="createForm.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Pilih gudang"
-                            search-placeholder="Cari gudang..."
+                            search-placeholder="Cari gudang…"
                             required
                             :clearable="false"
                         />
@@ -710,7 +710,7 @@ onBeforeUnmount(() => {
                     <div class="col-12 d-flex gap-2">
                         <button class="btn btn-sm btn-primary" type="submit" :disabled="createForm.processing">
                             <i class="mdi mdi-auto-fix me-1"></i>
-                            {{ createForm.processing ? 'Membuat tata letak...' : 'Buat Tata Letak + QR' }}
+                            {{ createForm.processing ? 'Membuat tata letak…' : 'Buat Tata Letak + QR' }}
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeCreate">Batal</button>
                     </div>
@@ -769,11 +769,11 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 location-table">
                     <thead>
                         <tr>
-                            <th>Lokasi</th>
-                            <th>Kode</th>
-                            <th>Tipe</th>
-                            <th>Parent</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Lokasi</th>
+                            <th scope="col">Kode</th>
+                            <th scope="col">Tipe</th>
+                            <th scope="col">Parent</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -781,7 +781,7 @@ onBeforeUnmount(() => {
                             <td>
                                 <div class="location-name" :style="{ paddingLeft: `${row.depth * 1.15}rem` }">
                                     <button v-if="row.has_children && !filtersActive" class="location-row-toggle" type="button" :aria-expanded="rowExpanded(row.id)" :aria-label="`${rowExpanded(row.id) ? 'Collapse' : 'Expand'} ${row.name}`" @click.stop.prevent="toggleRow(row.id)">
-                                        <i class="mdi" :class="rowExpanded(row.id) ? 'mdi-chevron-down' : 'mdi-chevron-right'"></i>
+                                        <i class="mdi" :class="rowExpanded(row.id) ? 'mdi-chevron-down' : 'mdi-chevron-right'" aria-hidden="true"></i>
                                     </button>
                                     <span v-else class="location-row-toggle-spacer"></span>
                                     <div>
@@ -836,7 +836,7 @@ onBeforeUnmount(() => {
                                 v-model="quickAddForm.parent_id"
                                 :options="quickAddParentSelectOptions"
                                 placeholder="Pilih parent"
-                                search-placeholder="Cari parent..."
+                                search-placeholder="Cari parent…"
                                 size="md"
                                 :disabled="quickAddParentOptions.length === 0"
                             />
@@ -883,7 +883,7 @@ onBeforeUnmount(() => {
                     </div>
                     <div class="location-modal-footer">
                         <button class="btn btn-sm btn-primary" type="submit" :disabled="renameForm.processing || !renameForm.name.trim()">
-                            {{ renameForm.processing ? 'Menyimpan...' : 'Simpan' }}
+                            {{ renameForm.processing ? 'Menyimpan…' : 'Simpan' }}
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeRename">Batal</button>
                     </div>
@@ -949,9 +949,9 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="location-modal-body">
                     <div class="qr-preview">
-                        <div v-if="qrLoading" class="qr-placeholder">
+                        <div v-if="qrLoading" class="qr-placeholder" role="status">
                             <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-                            <span>Memuat QR...</span>
+                            <span>Memuat QR…</span>
                         </div>
                         <div v-else-if="qrError" class="qr-placeholder qr-error">
                             <i class="mdi mdi-alert-circle-outline"></i>

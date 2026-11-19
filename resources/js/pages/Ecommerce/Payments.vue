@@ -234,7 +234,7 @@ Laporan Pembayaran
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
                         <label class="form-label" for="payments-search">Cari order, transaksi, atau customer</label>
-                        <input id="payments-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, nomor transaksi, pelanggan..." />
+                        <input id="payments-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pesanan, nomor transaksi, pelanggan…" />
                     </div>
                     <div class="col-6 col-md-3 col-lg-3">
                         <label class="form-label" for="payments-status">Status Pembayaran</label>

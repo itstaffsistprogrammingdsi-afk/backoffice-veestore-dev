@@ -120,7 +120,7 @@ function topValue(row: Record<string, any>, keys: string[]) {
                     <div class="col-md-2"><label for="crm-from" class="form-label">Tanggal dari</label><input id="crm-from" v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label for="crm-to" class="form-label">Tanggal sampai</label><input id="crm-to" v-model="form.to" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label for="crm-channel" class="form-label">Kanal</label><select id="crm-channel" v-model="form.channel" class="form-select form-select-sm"><option value="">Semua</option><option value="pos">POS</option><option value="ecom">E-commerce</option></select></div>
-                    <div class="col-md-3"><label for="crm-store" class="form-label">Toko</label><SearchableSelect id="crm-store" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." /></div>
+                    <div class="col-md-3"><label for="crm-store" class="form-label">Toko</label><SearchableSelect id="crm-store" v-model="form.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" /></div>
                     <div class="col-md-3 d-flex gap-2"><button class="btn btn-sm btn-primary" type="submit">Terapkan filter</button></div>
                 </form>
             </div>
@@ -141,7 +141,7 @@ function topValue(row: Record<string, any>, keys: string[]) {
                     <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Pembeli dengan transaksi dan belanja terbesar">
                         <table class="table table-sm mb-0">
                             <caption class="visually-hidden">Pembeli teratas berdasarkan transaksi dan belanja</caption>
-                            <thead><tr><th>Pelanggan</th><th class="text-end">Transaksi</th><th class="text-end">Belanja</th></tr></thead>
+                            <thead><tr><th scope="col">Pelanggan</th><th scope="col" class="text-end">Transaksi</th><th scope="col" class="text-end">Belanja</th></tr></thead>
                             <tbody>
                                 <tr v-for="row in purchaseCustomers" :key="row.customer_id"><td>{{ row.customer_name ?? '-' }}</td><td class="text-end">{{ formatNumber(topValue(row, ['total_purchases', 'total_transactions'])) }}</td><td class="text-end">{{ formatCurrency(topValue(row, ['total_spending', 'total_amount'])) }}</td></tr>
                                 <tr v-if="purchaseCustomers.length === 0"><td colspan="3" class="report-empty">Belum ada pembeli pada periode ini. Ubah tanggal atau kanal.</td></tr>
@@ -156,7 +156,7 @@ function topValue(row: Record<string, any>, keys: string[]) {
                     <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Pelanggan dengan kunjungan terbanyak">
                         <table class="table table-sm mb-0">
                             <caption class="visually-hidden">Pelanggan dengan kunjungan toko terbanyak</caption>
-                            <thead><tr><th>Pelanggan</th><th class="text-end">Kunjungan</th></tr></thead>
+                            <thead><tr><th scope="col">Pelanggan</th><th scope="col" class="text-end">Kunjungan</th></tr></thead>
                             <tbody>
                                 <tr v-for="row in visitCustomers" :key="row.customer_id"><td>{{ row.customer_name ?? '-' }}</td><td class="text-end">{{ formatNumber(topValue(row, ['total_visits'])) }}</td></tr>
                                 <tr v-if="visitCustomers.length === 0"><td colspan="2" class="report-empty">Belum ada kunjungan pada periode ini. Ubah tanggal atau kanal.</td></tr>
@@ -171,7 +171,7 @@ function topValue(row: Record<string, any>, keys: string[]) {
                     <div class="table-responsive report-table-wrap" tabindex="0" role="region" aria-label="Omzet toko dan e-commerce per cabang">
                         <table class="table table-sm mb-0">
                             <caption class="visually-hidden">Omzet toko dan e-commerce per cabang</caption>
-                            <thead><tr><th>Toko</th><th class="text-end">Omzet toko</th><th class="text-end">Omzet e-commerce</th><th class="text-end">Total</th></tr></thead>
+                            <thead><tr><th scope="col">Toko</th><th scope="col" class="text-end">Omzet toko</th><th scope="col" class="text-end">Omzet e-commerce</th><th scope="col" class="text-end">Total</th></tr></thead>
                             <tbody>
                                 <tr v-for="row in branchOmsetRows" :key="row.store_id ?? row.store_name"><td>{{ row.store_name ?? '-' }}</td><td class="text-end">{{ formatCurrency(row.store_omset ?? 0) }}</td><td class="text-end">{{ formatCurrency(row.ecommerce_omset ?? 0) }}</td><td class="text-end fw-bold">{{ formatCurrency(row.total_omset ?? 0) }}</td></tr>
                                 <tr v-if="branchOmsetRows.length === 0"><td colspan="4" class="report-empty">Belum ada omzet cabang pada periode ini.</td></tr>

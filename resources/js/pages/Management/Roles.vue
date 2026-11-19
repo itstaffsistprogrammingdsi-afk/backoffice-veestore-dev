@@ -124,7 +124,7 @@ const formatDate = (value: string | null) => {
                 <p>Kelola peran yang dapat diberikan ke pengguna backoffice.</p>
             </div>
             <form class="d-flex gap-2" @submit.prevent="applySearch">
-                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari peran..." aria-label="Cari peran" />
+                <input v-model="search.q" class="form-control form-control-sm" type="search" placeholder="Cari peran…" aria-label="Cari peran" />
                 <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari peran" title="Cari peran"><i class="mdi mdi-magnify" aria-hidden="true"></i></button>
                 <button class="btn btn-outline-secondary btn-sm" type="button" aria-label="Reset pencarian" title="Reset pencarian" @click="resetSearch"><i class="mdi mdi-refresh" aria-hidden="true"></i></button>
             </form>
@@ -164,10 +164,10 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Nama Peran</th>
-                            <th>Guard</th>
-                            <th>Dibuat</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Nama Peran</th>
+                            <th scope="col">Guard</th>
+                            <th scope="col">Dibuat</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

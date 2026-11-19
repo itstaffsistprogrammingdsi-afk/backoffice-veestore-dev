@@ -190,7 +190,7 @@ const verify = async () => {
 
                         <div class="integration-card-actions">
                             <a v-if="provider.docs_url" :href="provider.docs_url" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener noreferrer">
-                                <i class="mdi mdi-book-open-variant me-1"></i>Dokumentasi
+                                <i class="mdi mdi-book-open-variant me-1" aria-hidden="true"></i>Dokumentasi<span class="visually-hidden"> (tab baru)</span>
                             </a>
                             <Link v-if="provider.key === 'doku'" :href="props.urls.payment_methods" class="btn btn-sm btn-outline-primary">
                                 <i class="mdi mdi-credit-card-outline me-1"></i>Metode Pembayaran

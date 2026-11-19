@@ -583,6 +583,12 @@
     overflow-y: auto;
 }
 
+.table-responsive,
+.report-table-wrap {
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
 .table-responsive.is-sticky thead th {
     position: sticky;
     top: 0;
@@ -590,8 +596,12 @@
 }
 
 /* Numeric cells in reports */
+.text-end,
 .cell-num {
     font-variant-numeric: tabular-nums;
+}
+
+.cell-num {
     text-align: right;
     white-space: nowrap;
 }
@@ -958,6 +968,87 @@
 @media (pointer: coarse) {
     .pagination .page-link {
         min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Scrollable operational dialogs */
+.sku-docs-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 6rem);
+}
+
+.sku-docs-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.transfer-modal {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 5rem);
+}
+
+.transfer-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+@media (pointer: coarse) {
+    .stock-doc-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 0.5rem;
+    }
+
+    .inbound-info-button,
+    .outbound-info-button,
+    .stock-info-button {
+        position: relative;
+    }
+
+    .inbound-info-button::after,
+    .outbound-info-button::after,
+    .stock-info-button::after {
+        position: absolute;
+        inset: -13px;
+        border-radius: 50%;
+        content: '';
+    }
+
+    .monitor-omset-tab,
+    .sample-tab,
+    .overview-card-toggle {
+        min-height: 44px;
+    }
+
+    .overview-card-toggle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .monitoring-links a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+
+    .monitoring-search-clear::after {
+        position: absolute;
+        inset: -6px;
+        border-radius: inherit;
+        content: '';
+    }
+
+    [class*="-hero-button"] {
         min-height: 44px;
     }
 }

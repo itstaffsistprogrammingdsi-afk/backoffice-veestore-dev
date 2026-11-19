@@ -195,7 +195,7 @@ const followUps = computed(() => {
                         v-model="search"
                         type="search"
                         class="form-control"
-                        placeholder="Cari menu monitoring dan laporan..."
+                        placeholder="Cari menu monitoring dan laporan…"
                         autocomplete="off"
                     />
                     <button
@@ -297,14 +297,14 @@ const followUps = computed(() => {
                 <table class="table table-sm align-middle mb-0 monitoring-transfer-table">
                     <thead>
                         <tr>
-                            <th>Toko</th>
-                            <th>Order</th>
-                            <th>Gudang</th>
-                            <th class="text-end">Barang Keluar</th>
-                            <th class="text-end">Diterima</th>
-                            <th class="text-end">Selisih</th>
-                            <th>Status</th>
-                            <th>Umur</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col">Order</th>
+                            <th scope="col">Gudang</th>
+                            <th scope="col" class="text-end">Barang Keluar</th>
+                            <th scope="col" class="text-end">Diterima</th>
+                            <th scope="col" class="text-end">Selisih</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Umur</th>
                         </tr>
                     </thead>
                     <tbody>

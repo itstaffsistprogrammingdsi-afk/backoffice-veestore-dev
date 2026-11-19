@@ -948,8 +948,8 @@ html[data-theme="dark"] .auth-login-link {
 }
 
 html[data-theme="dark"] .auth-field input {
-    background: var(--app-surface);
-    border-color: var(--app-border);
+    background: var(--app-surface-2);
+    border-color: var(--app-control-border);
     color: var(--app-ink);
 }
 
@@ -1069,6 +1069,11 @@ html.inertia-sidebar-open body {
     .theme-toggle,
     .app-menu-button,
     .app-close {
+        min-height: 44px;
+    }
+
+    .locale-toggle button {
+        min-width: 44px;
         min-height: 44px;
     }
 }

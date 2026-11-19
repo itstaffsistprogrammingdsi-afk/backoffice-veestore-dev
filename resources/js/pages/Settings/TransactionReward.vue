@@ -72,7 +72,7 @@ const submit = () => {
                     <div class="d-flex gap-2 mt-4">
                         <button class="btn btn-primary" type="submit" :disabled="form.processing">
                             <i class="mdi mdi-content-save-outline me-1"></i>
-                            {{ form.processing ? 'Menyimpan...' : 'Simpan' }}
+                            {{ form.processing ? 'Menyimpan…' : 'Simpan' }}
                         </button>
                         <Link :href="props.resetUrl" class="btn btn-outline-secondary">Reset</Link>
                     </div>

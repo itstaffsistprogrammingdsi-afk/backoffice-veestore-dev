@@ -162,7 +162,7 @@ const strings = computed(() => {
     if (isEnglish.value) {
         return {
             triggerLabel: 'Search menus or actions',
-            placeholder: 'Search menus or actions...',
+            placeholder: 'Search menus or actions…',
             dialogTitle: 'Search menus and actions',
             quickActions: 'Quick actions',
             recent: 'Recently opened',
@@ -191,7 +191,7 @@ const strings = computed(() => {
 
     return {
         triggerLabel: 'Cari menu atau fungsi',
-        placeholder: 'Cari menu atau fungsi...',
+        placeholder: 'Cari menu atau fungsi…',
         dialogTitle: 'Cari menu dan fungsi',
         quickActions: 'Fungsi cepat',
         recent: 'Terakhir dibuka',

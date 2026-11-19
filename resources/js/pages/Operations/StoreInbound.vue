@@ -276,7 +276,7 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
                         <label for="store-inbound-cari-dokumen-store-atau--1" class="form-label">Cari dokumen, store, atau SKU</label>
-                        <input id="store-inbound-cari-dokumen-store-atau--1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, store, warehouse, atau SKU..." />
+                        <input id="store-inbound-cari-dokumen-store-atau--1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, store, warehouse, atau SKU…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label for="store-inbound-store-2" class="form-label">Store</label>
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
                             v-model="filters.store_id"
                             :options="storeOptions"
                             placeholder="Semua store"
-                            search-placeholder="Cari store..."
+                            search-placeholder="Cari store…"
                         />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
@@ -293,7 +293,7 @@ onBeforeUnmount(() => {
                             v-model="filters.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Semua warehouse"
-                            search-placeholder="Cari warehouse..."
+                            search-placeholder="Cari warehouse…"
                         />
                     </div>
                     <div class="col-12 col-md-4 col-lg-2">
@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
             </div>
             <div v-else class="table-responsive">
                 <table class="table align-middle mb-0 inbound-table">
-                    <thead><tr><th>Referensi Inbound</th><th>Store</th><th>Warehouse Asal</th><th class="text-end">Item</th><th class="text-end">Good</th><th class="text-end">Bad</th><th>Tanggal</th><th>Status QC</th><th class="text-end">Aksi</th></tr></thead>
+                    <thead><tr><th scope="col">Referensi Inbound</th><th scope="col">Store</th><th scope="col">Warehouse Asal</th><th scope="col" class="text-end">Item</th><th scope="col" class="text-end">Good</th><th scope="col" class="text-end">Bad</th><th scope="col">Tanggal</th><th scope="col">Status QC</th><th scope="col" class="text-end">Aksi</th></tr></thead>
                     <tbody>
                         <template v-for="row in props.rows.data" :key="row.id">
                             <tr>
@@ -340,9 +340,9 @@ onBeforeUnmount(() => {
                                 <td class="text-end">{{ formatNumber(row.qty_bad) }}</td>
                                 <td><strong>{{ formatDate(row.received_date || row.created_at) }}</strong><small class="inbound-subvalue">{{ row.received_date ? 'Diterima' : 'Dibuat' }}</small></td>
                                 <td><span class="badge" :class="statusClass(row.qc_status)">{{ row.status_label }}</span></td>
-                                <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)"><i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>{{ expanded[row.id] ? 'Tutup' : 'Detail' }}</button></td>
+                                <td class="text-end"><button class="btn btn-sm btn-outline-secondary" type="button" :aria-expanded="Boolean(expanded[row.id])" :aria-controls="`store-inbound-detail-${row.id}`" @click="toggleDetail(row.id)"><i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>{{ expanded[row.id] ? 'Tutup' : 'Detail' }}</button></td>
                             </tr>
-                            <tr v-if="expanded[row.id]" class="inbound-detail-row">
+                            <tr v-if="expanded[row.id]" :id="`store-inbound-detail-${row.id}`" class="inbound-detail-row">
                                 <td colspan="9">
                                     <div class="inbound-detail-wrap">
                                         <div class="inbound-detail-meta">
@@ -356,7 +356,7 @@ onBeforeUnmount(() => {
                                         </div>
                                         <div class="table-responsive">
                                             <table class="table table-sm mb-0 inbound-detail-table">
-                                                <thead><tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">QC Checked</th><th class="text-end">QC Pending</th><th class="text-end">Good</th><th class="text-end">Bad</th></tr></thead>
+                                                <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">QC Checked</th><th scope="col" class="text-end">QC Pending</th><th scope="col" class="text-end">Good</th><th scope="col" class="text-end">Bad</th></tr></thead>
                                                 <tbody>
                                                     <tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`"><td><strong>{{ detail.product_name }}</strong><small>{{ detail.product_code }}</small></td><td class="text-end">{{ formatNumber(detail.qty) }}</td><td class="text-end">{{ formatNumber(detail.qc_checked) }}</td><td class="text-end">{{ formatNumber(detail.qc_pending) }}</td><td class="text-end">{{ formatNumber(detail.qty_good) }}</td><td class="text-end">{{ formatNumber(detail.qty_bad) }}</td></tr>
                                                     <tr v-if="row.product_details.length === 0"><td colspan="6" class="text-center text-muted py-3">Tidak ada detail produk.</td></tr>
@@ -379,7 +379,7 @@ onBeforeUnmount(() => {
                 <span class="inbound-card-meta">{{ formatNumber(props.skuRows.length) }} SKU <i class="mdi mdi-chevron-down inbound-sku-chevron"></i></span>
             </summary>
             <div v-if="props.skuRows.length === 0" class="inbound-empty"><i class="mdi mdi-barcode-off"></i><strong>Tidak ada SKU masuk</strong><span>Coba ubah kata kunci atau filter.</span></div>
-            <div v-else class="table-responsive"><table class="table align-middle mb-0 inbound-table"><thead><tr><th>Produk</th><th class="text-end">Total Qty Masuk</th><th class="text-end">Referensi</th><th>Terakhir Diterima</th></tr></thead><tbody><tr v-for="sku in props.skuRows" :key="sku.product_id"><td><div class="inbound-main"><strong>{{ sku.product_name }}</strong><small>{{ sku.product_code }}</small></div></td><td class="text-end"><strong>{{ formatNumber(sku.qty) }}</strong></td><td class="text-end"><button class="stock-doc-link" type="button" @click="openSkuDocs(sku)">{{ formatNumber(sku.document_count) }}</button></td><td>{{ formatDate(sku.last_received_at) }}</td></tr></tbody></table></div>
+            <div v-else class="table-responsive"><table class="table align-middle mb-0 inbound-table"><thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Total Qty Masuk</th><th scope="col" class="text-end">Referensi</th><th scope="col">Terakhir Diterima</th></tr></thead><tbody><tr v-for="sku in props.skuRows" :key="sku.product_id"><td><div class="inbound-main"><strong>{{ sku.product_name }}</strong><small>{{ sku.product_code }}</small></div></td><td class="text-end"><strong>{{ formatNumber(sku.qty) }}</strong></td><td class="text-end"><button class="stock-doc-link" type="button" @click="openSkuDocs(sku)">{{ formatNumber(sku.document_count) }}</button></td><td>{{ formatDate(sku.last_received_at) }}</td></tr></tbody></table></div>
         </details>
     </div>
 
@@ -387,7 +387,7 @@ onBeforeUnmount(() => {
         <div v-if="skuDocsModal" class="sku-docs-backdrop" @click.self="closeSkuDocs">
             <div v-focus-trap class="sku-docs-modal" role="dialog" aria-modal="true" aria-labelledby="sku-docs-title">
                 <div class="sku-docs-header"><div><h5 id="sku-docs-title" class="mb-0">Referensi SKU Masuk</h5><small>{{ skuDocsModal.sku.product_name }} &middot; {{ skuDocsModal.sku.product_code }}</small></div><button class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup dokumen SKU" @click="closeSkuDocs"><i class="mdi mdi-close"></i></button></div>
-                <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan invoice, delivery order, atau batch store inbound yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 inbound-detail-table"><thead><tr><th>Referensi Inbound</th><th>Tipe</th><th>Warehouse Asal</th><th>Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
+                <div class="sku-docs-body"><p class="text-muted small">Referensi menampilkan invoice, delivery order, atau batch store inbound yang memuat SKU ini.</p><div class="table-responsive"><table class="table table-sm mb-0 inbound-detail-table"><thead><tr><th scope="col">Referensi Inbound</th><th scope="col">Tipe</th><th scope="col">Warehouse Asal</th><th scope="col">Tanggal</th></tr></thead><tbody><tr v-for="document in skuDocsModal.sku.documents" :key="document.id"><td>{{ document.reference }}</td><td>{{ document.type_label }}</td><td>{{ document.warehouse_name }}</td><td>{{ formatDate(document.date) }}</td></tr></tbody></table></div></div>
                 <div class="sku-docs-footer"><button class="btn btn-sm btn-outline-secondary" type="button" @click="closeSkuDocs">Tutup</button></div>
             </div>
         </div>

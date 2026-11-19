@@ -217,12 +217,12 @@ onBeforeUnmount(() => {
             <table class="table table-sm align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Pelanggan</th>
-                        <th>Kontak</th>
-                        <th>Ulang Tahun</th>
-                        <th>Wilayah</th>
-                        <th>Tier</th>
-                        <th class="text-end">Aksi</th>
+                        <th scope="col">Pelanggan</th>
+                        <th scope="col">Kontak</th>
+                        <th scope="col">Ulang Tahun</th>
+                        <th scope="col">Wilayah</th>
+                        <th scope="col">Tier</th>
+                        <th scope="col" class="text-end">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>

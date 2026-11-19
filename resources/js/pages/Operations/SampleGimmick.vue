@@ -502,11 +502,11 @@ const requestReference = (request: RequestRow) => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyRequestFilters">
                     <div class="col-12 col-lg-4">
                         <label for="request-q" class="form-label">Pencarian</label>
-                        <input id="request-q" v-model="requestFilters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pengajuan, nota, toko, atau pengguna..." />
+                        <input id="request-q" v-model="requestFilters.q" class="form-control form-control-sm" type="search" placeholder="Nomor pengajuan, nota, toko, atau pengguna…" />
                     </div>
                     <div class="col-6 col-lg-3">
                         <label for="request-store" class="form-label">Toko</label>
-                        <SearchableSelect id="request-store" v-model="requestFilters.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." />
+                        <SearchableSelect id="request-store" v-model="requestFilters.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-6 col-lg-2">
                         <label for="request-type" class="form-label">Jenis</label>
@@ -558,14 +558,14 @@ const requestReference = (request: RequestRow) => {
                         <table class="table align-middle mb-0">
                             <thead>
                                 <tr>
-                                    <th>Nomor</th>
-                                    <th>Toko</th>
-                                    <th>Jenis</th>
-                                    <th>Referensi</th>
-                                    <th class="text-end">Item</th>
-                                    <th>Diajukan</th>
-                                    <th>Status</th>
-                                    <th class="text-end">Aksi</th>
+                                    <th scope="col">Nomor</th>
+                                    <th scope="col">Toko</th>
+                                    <th scope="col">Jenis</th>
+                                    <th scope="col">Referensi</th>
+                                    <th scope="col" class="text-end">Item</th>
+                                    <th scope="col">Diajukan</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col" class="text-end">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -648,11 +648,11 @@ const requestReference = (request: RequestRow) => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-4">
                         <label for="sample-q" class="form-label">Pencarian</label>
-                        <input id="sample-q" v-model="itemFilters.q" class="form-control form-control-sm" type="search" placeholder="Nama produk, kode, store..." />
+                        <input id="sample-q" v-model="itemFilters.q" class="form-control form-control-sm" type="search" placeholder="Nama produk, kode, store…" />
                     </div>
                     <div class="col-md-3">
                         <label for="sample-store" class="form-label">Store</label>
-                        <SearchableSelect id="sample-store" v-model="itemFilters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store..." />
+                        <SearchableSelect id="sample-store" v-model="itemFilters.store_id" :options="storeOptions" placeholder="Semua store" search-placeholder="Cari store…" />
                     </div>
                     <div class="col-md-3">
                         <label for="sample-category" class="form-label">Kategori</label>
@@ -695,7 +695,7 @@ const requestReference = (request: RequestRow) => {
                     <table class="table align-middle mb-0">
                         <thead>
                             <tr>
-                                <th class="sample-check">
+                                <th scope="col" class="sample-check">
                                     <input
                                         type="checkbox"
                                         class="form-check-input"
@@ -704,13 +704,13 @@ const requestReference = (request: RequestRow) => {
                                         @change="toggleAll"
                                     />
                                 </th>
-                                <th>Produk</th>
-                                <th>Kode</th>
-                                <th>Store</th>
-                                <th>Kategori Produk</th>
-                                <th>Kondisi</th>
-                                <th>Status</th>
-                                <th>Ditambahkan</th>
+                                <th scope="col">Produk</th>
+                                <th scope="col">Kode</th>
+                                <th scope="col">Store</th>
+                                <th scope="col">Kategori Produk</th>
+                                <th scope="col">Kondisi</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Ditambahkan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -765,7 +765,7 @@ const requestReference = (request: RequestRow) => {
                         <h2 id="sample-modal-title">{{ selectedRequest?.request_number ?? 'Detail Pengajuan' }}</h2>
                         <p id="sample-modal-description">
                             <span v-if="selectedRequest">{{ selectedRequest.store_name }} · {{ selectedRequest.type_label }}</span>
-                            <span v-else>Memuat pengajuan.</span>
+                            <span v-else role="status">Memuat pengajuan.</span>
                         </p>
                     </div>
                     <button ref="closeRequestButton" class="btn btn-sm btn-outline-secondary" type="button" aria-label="Tutup detail pengajuan" :disabled="actionProcessing" @click="closeRequest">
@@ -813,11 +813,11 @@ const requestReference = (request: RequestRow) => {
                             <table class="table table-sm align-middle mb-0 sample-modal-table">
                                 <thead>
                                     <tr>
-                                        <th>Produk</th>
-                                        <th>Sumber</th>
-                                        <th>RFID</th>
-                                        <th>Kondisi</th>
-                                        <th class="text-end">Nilai</th>
+                                        <th scope="col">Produk</th>
+                                        <th scope="col">Sumber</th>
+                                        <th scope="col">RFID</th>
+                                        <th scope="col">Kondisi</th>
+                                        <th scope="col" class="text-end">Nilai</th>
                                     </tr>
                                 </thead>
                                 <tbody>

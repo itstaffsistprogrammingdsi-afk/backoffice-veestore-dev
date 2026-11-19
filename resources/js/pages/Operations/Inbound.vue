@@ -375,19 +375,19 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label for="inbound-cari-dokumen-atau-sku-1" class="form-label">Cari dokumen atau SKU</label>
-                        <input id="inbound-cari-dokumen-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, batch, supplier, atau SKU..." />
+                        <input id="inbound-cari-dokumen-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Invoice, DO, batch, supplier, atau SKU…" />
                     </div>
                     <div class="col-6 col-lg-2">
                         <label for="inbound-warehouse-tujuan-2" class="form-label">Warehouse Tujuan</label>
-                        <SearchableSelect id="inbound-warehouse-tujuan-2" v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse..." />
+                        <SearchableSelect id="inbound-warehouse-tujuan-2" v-model="filters.warehouse_id" :options="warehouseOptions" placeholder="Semua warehouse" search-placeholder="Cari warehouse…" />
                     </div>
                     <div class="col-6 col-lg-2">
                         <label for="inbound-warehouse-asal-3" class="form-label">Warehouse Asal</label>
-                        <SearchableSelect id="inbound-warehouse-asal-3" v-model="filters.source_warehouse_id" :options="warehouseOptions" placeholder="Semua asal" search-placeholder="Cari warehouse asal..." />
+                        <SearchableSelect id="inbound-warehouse-asal-3" v-model="filters.source_warehouse_id" :options="warehouseOptions" placeholder="Semua asal" search-placeholder="Cari warehouse asal…" />
                     </div>
                     <div class="col-6 col-lg-2">
                         <label for="inbound-supplier-4" class="form-label">Supplier</label>
-                        <SearchableSelect id="inbound-supplier-4" v-model="filters.supplier_id" :options="supplierOptions" placeholder="Semua supplier" search-placeholder="Cari supplier..." />
+                        <SearchableSelect id="inbound-supplier-4" v-model="filters.supplier_id" :options="supplierOptions" placeholder="Semua supplier" search-placeholder="Cari supplier…" />
                     </div>
                     <div class="col-6 col-lg-2">
                         <label for="inbound-tipe-inbound-5" class="form-label">Tipe Inbound</label>
@@ -437,14 +437,14 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 inbound-table">
                     <thead>
                         <tr>
-                            <th>Referensi Inbound</th>
-                            <th>Asal Inbound</th>
-                            <th>Warehouse Tujuan</th>
-                            <th class="text-end">Qty / Nilai</th>
-                            <th>PIC Penerima</th>
-                            <th>Tanggal</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Referensi Inbound</th>
+                            <th scope="col">Asal Inbound</th>
+                            <th scope="col">Warehouse Tujuan</th>
+                            <th scope="col" class="text-end">Qty / Nilai</th>
+                            <th scope="col">PIC Penerima</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -483,13 +483,13 @@ onBeforeUnmount(() => {
                                     <small class="inbound-subvalue">{{ formatNumber(row.qty_good) }} baik / {{ formatNumber(row.qty_pending_qc) }} belum QC / {{ formatNumber(row.qty_bad) }} rusak</small>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
-                                        <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" :aria-expanded="Boolean(expanded[row.id])" :aria-controls="`inbound-detail-${row.id}`" @click="toggleDetail(row.id)">
+                                        <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                                         {{ expanded[row.id] ? 'Tutup' : 'Detail' }}
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expanded[row.id]" class="inbound-detail-row">
+                            <tr v-if="expanded[row.id]" :id="`inbound-detail-${row.id}`" class="inbound-detail-row">
                                 <td colspan="8">
                                     <div class="inbound-detail-wrap">
                                         <div class="inbound-detail-meta">
@@ -508,18 +508,18 @@ onBeforeUnmount(() => {
                                             <table class="table table-sm mb-0 inbound-detail-table">
                                                 <thead>
                                                     <tr>
-                                                        <th>Produk</th>
-                                                        <th class="text-end">Qty</th>
-                                                        <th class="text-end">Item</th>
-                                                        <th class="text-end">Good</th>
-                                                        <th class="text-end">Baik Perbaikan</th>
-                                                        <th class="text-end">Belum QC</th>
-                                                        <th class="text-end">Bad</th>
-                                                        <th class="text-end">Lain</th>
-                                                        <th>Expired</th>
-                                                        <th class="text-end">Harga IDR</th>
-                                                        <th>Kondisi</th>
-                                                        <th>Catatan</th>
+                                                        <th scope="col">Produk</th>
+                                                        <th scope="col" class="text-end">Qty</th>
+                                                        <th scope="col" class="text-end">Item</th>
+                                                        <th scope="col" class="text-end">Good</th>
+                                                        <th scope="col" class="text-end">Baik Perbaikan</th>
+                                                        <th scope="col" class="text-end">Belum QC</th>
+                                                        <th scope="col" class="text-end">Bad</th>
+                                                        <th scope="col" class="text-end">Lain</th>
+                                                        <th scope="col">Expired</th>
+                                                        <th scope="col" class="text-end">Harga IDR</th>
+                                                        <th scope="col">Kondisi</th>
+                                                        <th scope="col">Catatan</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -580,10 +580,10 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 inbound-table">
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th class="text-end">Total Qty Masuk</th>
-                            <th class="text-end">Referensi</th>
-                            <th>Terakhir Diterima</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col" class="text-end">Total Qty Masuk</th>
+                            <th scope="col" class="text-end">Referensi</th>
+                            <th scope="col">Terakhir Diterima</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -654,7 +654,7 @@ onBeforeUnmount(() => {
                     <p class="text-muted small">Referensi menampilkan invoice, delivery order, transfer, atau batch inbound yang memuat SKU ini.</p>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 inbound-detail-table">
-                            <thead><tr><th>Referensi Inbound</th><th>Tipe</th><th>Warehouse</th><th>Tanggal</th></tr></thead>
+                            <thead><tr><th scope="col">Referensi Inbound</th><th scope="col">Tipe</th><th scope="col">Warehouse</th><th scope="col">Tanggal</th></tr></thead>
                             <tbody>
                                 <tr v-for="document in skuDocsModal.sku.documents" :key="document.id">
                                     <td>{{ document.reference }}</td>

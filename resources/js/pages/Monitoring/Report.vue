@@ -1846,7 +1846,7 @@ const filterFields = computed<FilterField[]>(() => {
             label: filterLabel(key),
             type,
             options,
-            placeholder: SEARCH_KEYS.has(key) ? 'Cari nomor, nama, atau kode...' : '',
+            placeholder: SEARCH_KEYS.has(key) ? 'Cari nomor, nama, atau kode…' : '',
             wide: SEARCH_KEYS.has(key) && key !== 'item_id',
         });
     }
@@ -3472,7 +3472,7 @@ const selectDataset = (key: string) => {
                     class="monitor-back-link"
                 >
                     <i class="mdi mdi-open-in-new" aria-hidden="true"></i>
-                    Buka Stock Opname di POS
+                    Buka Stock Opname di POS<span class="visually-hidden"> (tab baru)</span>
                 </a>
                 <Link v-if="props.urls.email_alert_settings" :href="props.urls.email_alert_settings" class="monitor-back-link">
                     <i class="mdi mdi-email-alert-outline" aria-hidden="true"></i>
@@ -3673,7 +3673,7 @@ const selectDataset = (key: string) => {
                             v-model="filterValues[field.key]"
                             :options="field.options"
                             :placeholder="emptyOptionLabel(field)"
-                            :search-placeholder="`Cari ${field.label.toLowerCase()}...`"
+                            :search-placeholder="`Cari ${field.label.toLowerCase()}…`"
                             :aria-label="field.label"
                         />
 
@@ -3708,7 +3708,7 @@ const selectDataset = (key: string) => {
                         </button>
                         <button class="btn btn-sm btn-primary" type="submit" :disabled="loading">
                             <i class="mdi" :class="loading ? 'mdi-loading mdi-spin' : 'mdi-magnify'" aria-hidden="true"></i>
-                            {{ loading ? 'Memuat...' : 'Terapkan filter' }}
+                            {{ loading ? 'Memuat…' : 'Terapkan filter' }}
                         </button>
                     </div>
                 </form>
@@ -4167,7 +4167,7 @@ const selectDataset = (key: string) => {
                                 <table class="table table-sm align-middle monitor-detail-table mb-0">
                                     <thead>
                                         <tr>
-                                            <th v-for="column in detailColumns" :key="`product-${column.key}`" :class="column.align">{{ column.label }}</th>
+                                            <th scope="col" v-for="column in detailColumns" :key="`product-${column.key}`" :class="column.align">{{ column.label }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -5026,6 +5026,13 @@ const selectDataset = (key: string) => {
 .monitor-reservation-link:hover {
     border-color: var(--app-border);
     background: var(--app-accent-soft);
+}
+
+@media (pointer: coarse) {
+    .monitor-reservation-link {
+        min-height: 44px;
+        padding: 0.5rem 0.65rem;
+    }
 }
 
 .monitor-reservation-link:focus-visible {

@@ -329,7 +329,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-lg-4">
                         <label for="store-stock-cari-produk-atau-toko-1" class="form-label">Cari produk atau toko</label>
-                        <input id="store-stock-cari-produk-atau-toko-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau store..." />
+                        <input id="store-stock-cari-produk-atau-toko-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Kode produk, nama produk, atau store…" />
                     </div>
                     <div class="col-md-4 col-lg-3">
                         <label for="store-stock-store-2" class="form-label">Store</label>
@@ -337,7 +337,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                             v-model="filters.store_id"
                             :options="storeOptions"
                             placeholder="Semua store"
-                            search-placeholder="Cari store..."
+                            search-placeholder="Cari store…"
                         />
                     </div>
                     <div class="col-md-4 col-lg-2">
@@ -451,7 +451,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 aria-controls="stock-availability-panel"
                 @click="activeTab = 'availability'"
             >
-                <i class="mdi mdi-view-list-outline me-1"></i>
+                <i class="mdi mdi-view-list-outline me-1" aria-hidden="true"></i>
                 Ketersediaan per Produk
             </button>
             <button
@@ -464,7 +464,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 aria-controls="stock-import-panel"
                 @click="activeTab = 'import'"
             >
-                <i class="mdi mdi-truck-delivery-outline me-1"></i>
+                <i class="mdi mdi-truck-delivery-outline me-1" aria-hidden="true"></i>
                 Perlu Restock
                 <span class="stock-tab-count">{{ importCountLabel }}</span>
             </button>
@@ -489,14 +489,14 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 <table class="table align-middle mb-0 stock-table">
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th class="text-end">Available</th>
-                            <th>Toko dengan Stok</th>
-                            <th>Movement</th>
-                            <th>Aging</th>
-                            <th>FEFO / FIFO</th>
-                            <th>Status Barrier</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col" class="text-end">Available</th>
+                            <th scope="col">Toko dengan Stok</th>
+                            <th scope="col">Movement</th>
+                            <th scope="col">Aging</th>
+                            <th scope="col">FEFO / FIFO</th>
+                            <th scope="col">Status Barrier</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -539,31 +539,31 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                                     <small v-if="product.below_count > 0" class="stock-status-note">{{ product.below_count }} toko di bawah barrier</small>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleProduct(product.product_id)">
-                                        <i class="mdi" :class="expanded[product.product_id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" :aria-expanded="Boolean(expanded[product.product_id])" :aria-controls="`store-stock-detail-${product.product_id}`" @click="toggleProduct(product.product_id)">
+                                        <i class="mdi" :class="expanded[product.product_id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                                         {{ expanded[product.product_id] ? 'Tutup' : 'Detail' }}
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expanded[product.product_id]" class="stock-detail-row">
+                            <tr v-if="expanded[product.product_id]" :id="`store-stock-detail-${product.product_id}`" class="stock-detail-row">
                                 <td colspan="7">
                                     <div class="stock-detail-wrap">
                                         <table class="table table-sm mb-0 stock-detail-table">
                                             <thead>
                                                 <tr>
-                                                    <th>Toko</th>
-                                                    <th class="text-end">On Hand</th>
-                                                    <th class="text-end">Reserved</th>
-                                                    <th class="text-end">Available</th>
-                                                    <th class="text-end">Barrier</th>
-                                                    <th v-if="props.showThreshold" class="text-end">Threshold</th>
-                                                    <th class="text-end">Outbound 30d</th>
-                                                    <th>Movement</th>
-                                                    <th>FIFO</th>
-                                                    <th>FEFO</th>
-                                                    <th>Status</th>
-                                                    <th class="text-end">Saran Restock</th>
-                                                    <th class="text-end">Aksi</th>
+                                                    <th scope="col">Toko</th>
+                                                    <th scope="col" class="text-end">On Hand</th>
+                                                    <th scope="col" class="text-end">Reserved</th>
+                                                    <th scope="col" class="text-end">Available</th>
+                                                    <th scope="col" class="text-end">Barrier</th>
+                                                    <th scope="col" v-if="props.showThreshold" class="text-end">Threshold</th>
+                                                    <th scope="col" class="text-end">Outbound 30d</th>
+                                                    <th scope="col">Movement</th>
+                                                    <th scope="col">FIFO</th>
+                                                    <th scope="col">FEFO</th>
+                                                    <th scope="col">Status</th>
+                                                    <th scope="col" class="text-end">Saran Restock</th>
+                                                    <th scope="col" class="text-end">Aksi</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -623,14 +623,14 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 <table class="table align-middle mb-0 stock-table">
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th>Toko</th>
-                            <th class="text-end">Available</th>
-                            <th class="text-end">Barrier</th>
-                            <th v-if="props.showThreshold" class="text-end">Threshold</th>
-                            <th class="text-end">Saran Restock</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col" class="text-end">Available</th>
+                            <th scope="col" class="text-end">Barrier</th>
+                            <th scope="col" v-if="props.showThreshold" class="text-end">Threshold</th>
+                            <th scope="col" class="text-end">Saran Restock</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -692,7 +692,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             <div class="stock-recon-body">
                 <div class="table-responsive">
                     <table class="table table-sm mb-0 stock-detail-table">
-                        <thead><tr><th>Toko</th><th class="text-end">Qty Inventaris</th><th class="text-end">Ambang Inventaris</th><th class="text-end">Qty Display</th><th class="text-end">Ambang Display</th><th>Status</th></tr></thead>
+                        <thead><tr><th scope="col">Toko</th><th scope="col" class="text-end">Qty Inventaris</th><th scope="col" class="text-end">Ambang Inventaris</th><th scope="col" class="text-end">Qty Display</th><th scope="col" class="text-end">Ambang Display</th><th scope="col">Status</th></tr></thead>
                         <tbody>
                             <tr v-for="row in props.storeThresholds" :key="row.store_id">
                                 <td><strong>{{ row.store_name }}</strong><small>{{ row.store_code || '-' }}</small></td>
@@ -731,7 +731,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
                 </p>
                 <div v-if="props.summary.reconciliation.inbound_only.length > 0" class="table-responsive">
                     <table class="table table-sm mb-0 stock-detail-table">
-                        <thead><tr><th>Produk</th><th class="text-end">Qty Inbound</th><th class="text-end">Referensi</th><th>Inbound Terakhir</th></tr></thead>
+                        <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty Inbound</th><th scope="col" class="text-end">Referensi</th><th scope="col">Inbound Terakhir</th></tr></thead>
                         <tbody>
                             <tr v-for="row in props.summary.reconciliation.inbound_only" :key="row.product_id">
                                 <td><strong>{{ row.product_name }}</strong><small>{{ row.product_code }}</small></td>
@@ -756,7 +756,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
             </summary>
             <div class="table-responsive">
                 <table class="table table-sm mb-0 stock-detail-table">
-                    <thead><tr><th>Toko</th><th>Produk</th><th class="text-end">Qty Hilang</th><th>Terakhir Diperbarui</th></tr></thead>
+                    <thead><tr><th scope="col">Toko</th><th scope="col">Produk</th><th scope="col" class="text-end">Qty Hilang</th><th scope="col">Terakhir Diperbarui</th></tr></thead>
                     <tbody>
                         <tr v-for="row in props.missingStock" :key="`${row.store_id}-${row.product_id}`">
                             <td><strong>{{ row.store_name }}</strong><small>{{ row.store_code || '-' }}</small></td>
@@ -862,7 +862,7 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
 .stock-no-stock { color: var(--app-muted); font-size: 0.75rem; }
 .stock-status-note { display: block; margin-top: 0.3rem; color: var(--app-muted); font-size: 0.72rem; }
 .stock-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.stock-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; }
+.stock-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .stock-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .stock-detail-table td { padding: 0.55rem; font-size: 0.78rem; }
 .stock-detail-table td strong, .stock-detail-table td small { display: block; }
@@ -879,5 +879,10 @@ const importCountLabel = computed(() => formatNumber(props.importNeeds.length));
     .stock-recon-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 575.98px) {
+}
+
+@media (pointer: coarse) {
+    .stock-tab { min-height: 44px; }
+    .stock-reserved-trigger { min-height: 44px; padding: 0.5rem 0.65rem; }
 }
 </style>

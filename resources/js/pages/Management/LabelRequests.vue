@@ -155,7 +155,7 @@ const statusClass = (status: string) => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-md-3">
                         <label for="label-requests-cari-1" class="form-label">Cari</label>
-                        <input id="label-requests-cari-1" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Toko, peminta, alasan..." />
+                        <input id="label-requests-cari-1" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Toko, peminta, alasan…" />
                     </div>
                     <div class="col-md-2">
                         <label for="label-requests-status-2" class="form-label">Status</label>
@@ -168,7 +168,7 @@ const statusClass = (status: string) => {
                     </div>
                     <div class="col-md-3">
                         <label for="label-requests-toko-3" class="form-label">Toko</label>
-                        <SearchableSelect id="label-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
+                        <SearchableSelect id="label-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-md-2">
                         <label for="label-requests-dari-4" class="form-label">Dari</label>
@@ -196,13 +196,13 @@ const statusClass = (status: string) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Toko</th>
-                            <th>Peminta</th>
-                            <th>Alasan</th>
-                            <th class="text-end">Item</th>
-                            <th>Status</th>
-                            <th>Aksi</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col">Peminta</th>
+                            <th scope="col">Alasan</th>
+                            <th scope="col" class="text-end">Item</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

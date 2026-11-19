@@ -97,7 +97,7 @@ const formatDate = (value: string | null) => {
                     v-model="form.q"
                     class="form-control form-control-sm"
                     type="search"
-                    placeholder="Cari nama, email, atau WA..."
+                    placeholder="Cari nama, email, atau WA…"
                     aria-label="Cari nasabah"
                 />
                 <button class="btn btn-outline-secondary btn-sm" type="submit" aria-label="Cari nasabah" title="Cari nasabah">
@@ -146,12 +146,12 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Customer</th>
-                            <th>Email</th>
-                            <th>WA</th>
-                            <th class="text-end">Balance</th>
-                            <th>Updated</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">WA</th>
+                            <th scope="col" class="text-end">Balance</th>
+                            <th scope="col">Updated</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

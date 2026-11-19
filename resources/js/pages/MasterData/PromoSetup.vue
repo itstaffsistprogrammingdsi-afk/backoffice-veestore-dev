@@ -123,7 +123,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                                         v-model="form.store_ids"
                                         :options="storeOptions"
                                         placeholder="Pilih satu atau beberapa store"
-                                        search-placeholder="Cari store..."
+                                        search-placeholder="Cari store…"
                                         multiple
                                         size="md"
                                     />
@@ -153,7 +153,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
                                         v-model="form.product_ids"
                                         :options="productOptions"
                                         placeholder="Pilih satu atau beberapa produk"
-                                        search-placeholder="Cari nama atau kode produk..."
+                                        search-placeholder="Cari nama atau kode produk…"
                                         multiple
                                         size="md"
                                     />
@@ -240,7 +240,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div class="d-flex justify-content-end mt-3">
                 <button class="btn btn-primary" type="submit" :disabled="form.processing">
                     <i class="mdi mdi-content-save-outline me-1"></i>
-                    {{ form.processing ? 'Menyimpan...' : 'Simpan Promo' }}
+                    {{ form.processing ? 'Menyimpan…' : 'Simpan Promo' }}
                 </button>
             </div>
         </form>
@@ -249,7 +249,7 @@ const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat('id
             <div class="card-header"><h6 class="mb-0">Promo Terbaru</h6></div>
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
-                    <thead><tr><th>Nama</th><th>Kode</th><th>Mulai</th><th>Selesai</th><th>Semua Store</th></tr></thead>
+                    <thead><tr><th scope="col">Nama</th><th scope="col">Kode</th><th scope="col">Mulai</th><th scope="col">Selesai</th><th scope="col">Semua Store</th></tr></thead>
                     <tbody>
                         <tr v-for="promo in recentPromos" :key="promo.id"><td>{{ promo.name }}</td><td>{{ promo.code }}</td><td>{{ formatDate(promo.start_date) }}</td><td>{{ formatDate(promo.end_date) }}</td><td>{{ promo.all_store ? 'Ya' : 'Tidak' }}</td></tr>
                         <tr v-if="recentPromos.length === 0"><td colspan="5" class="promo-empty">Belum ada promo.</td></tr>

@@ -293,7 +293,7 @@ const fileName = (path: string | null) => {
                         v-model="createForm.store_id"
                         :options="storeOptions"
                         placeholder="Pilih store"
-                        search-placeholder="Cari store..."
+                        search-placeholder="Cari store…"
                     />
                     <small v-if="createForm.errors.store_id" class="text-danger">{{ createForm.errors.store_id }}</small>
                 </div>
@@ -331,7 +331,7 @@ const fileName = (path: string | null) => {
                 <div class="col-12 d-flex flex-wrap gap-2">
                     <button class="btn btn-primary" type="submit" :disabled="createForm.processing">
                         <i class="mdi mdi-send-outline me-1" aria-hidden="true"></i>
-                        {{ createForm.processing ? 'Mengirim...' : 'Kirim Pengajuan' }}
+                        {{ createForm.processing ? 'Mengirim…' : 'Kirim Pengajuan' }}
                     </button>
                     <button class="btn btn-outline-secondary" type="button" @click="toggleCreate">Batal</button>
                 </div>
@@ -345,7 +345,7 @@ const fileName = (path: string | null) => {
             <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                 <div class="col-md-4">
                     <label for="brand-filter-q" class="form-label">Pencarian</label>
-                    <input id="brand-filter-q" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Brand, kontak, store..." />
+                    <input id="brand-filter-q" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Brand, kontak, store…" />
                 </div>
                 <div class="col-md-3">
                     <label for="brand-filter-status" class="form-label">Status</label>
@@ -361,7 +361,7 @@ const fileName = (path: string | null) => {
                         v-model="filters.store_id"
                         :options="storeOptions"
                         placeholder="Semua store"
-                        search-placeholder="Cari store..."
+                        search-placeholder="Cari store…"
                     />
                 </div>
                 <div class="col-md-2">
@@ -391,14 +391,14 @@ const fileName = (path: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Brand</th>
-                            <th>Store</th>
-                            <th>Kontak</th>
-                            <th>Lampiran</th>
-                            <th>Status</th>
-                            <th>Diajukan</th>
-                            <th>Reviewer</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Brand</th>
+                            <th scope="col">Store</th>
+                            <th scope="col">Kontak</th>
+                            <th scope="col">Lampiran</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Diajukan</th>
+                            <th scope="col">Reviewer</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

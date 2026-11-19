@@ -255,7 +255,7 @@ const formatDate = (value: string | null) => {
                 <div class="col-md-3">
                     <button class="btn btn-sm btn-primary" type="submit" :disabled="form.processing">
                         <i class="mdi mdi-plus me-1" aria-hidden="true"></i>
-                        {{ form.processing ? 'Menyimpan...' : 'Tambah Catatan' }}
+                        {{ form.processing ? 'Menyimpan…' : 'Tambah Catatan' }}
                     </button>
                 </div>
             </form>
@@ -272,7 +272,7 @@ const formatDate = (value: string | null) => {
             <form class="row g-2 align-items-end mb-3" @submit.prevent="applyFilters">
                 <div class="col-md-3">
                     <label for="rp-search" class="form-label">Pencarian</label>
-                    <input id="rp-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama pihak, referensi, catatan..." />
+                    <input id="rp-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nama pihak, referensi, catatan…" />
                 </div>
                 <div class="col-md-2">
                     <label for="rp-filter-type" class="form-label">Jenis</label>
@@ -309,14 +309,14 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Jenis</th>
-                            <th>Pihak</th>
-                            <th>Referensi</th>
-                            <th class="text-end">Nominal</th>
-                            <th>Jatuh Tempo</th>
-                            <th>Status</th>
-                            <th>Catatan</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Jenis</th>
+                            <th scope="col">Pihak</th>
+                            <th scope="col">Referensi</th>
+                            <th scope="col" class="text-end">Nominal</th>
+                            <th scope="col">Jatuh Tempo</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Catatan</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>

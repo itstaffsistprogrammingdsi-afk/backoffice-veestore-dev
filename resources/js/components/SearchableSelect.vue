@@ -27,7 +27,7 @@ const props = withDefaults(defineProps<{
 }>(), {
     id: undefined,
     placeholder: 'Pilih opsi',
-    searchPlaceholder: 'Cari...',
+    searchPlaceholder: 'Cari…',
     emptyText: 'Belum ada opsi.',
     noResultsText: 'Tidak ada hasil yang cocok.',
     ariaLabel: undefined,
@@ -674,6 +674,14 @@ onBeforeUnmount(() => {
 }
 
 @media (pointer: coarse) {
+    .searchable-select-trigger {
+        min-height: var(--app-control-lg);
+    }
+
+    .searchable-select-search input {
+        font-size: 1rem;
+    }
+
     .searchable-select-option {
         min-height: 44px;
     }

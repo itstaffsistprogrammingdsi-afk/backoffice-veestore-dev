@@ -212,7 +212,7 @@ const formatDate = (value: string | null) => {
                     </div>
                     <div class="col-md-2">
                         <label for="label-print-requests-toko-3" class="form-label">Toko</label>
-                        <SearchableSelect id="label-print-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko..." />
+                        <SearchableSelect id="label-print-requests-toko-3" v-model="form.store_id" :options="storeOptions" placeholder="Semua Toko" search-placeholder="Cari toko…" />
                     </div>
                     <div class="col-md-2">
                         <label for="label-print-requests-status-4" class="form-label">Status</label>
@@ -223,11 +223,11 @@ const formatDate = (value: string | null) => {
                     </div>
                     <div class="col-md-2">
                         <label for="label-print-requests-peminta-5" class="form-label">Peminta</label>
-                        <SearchableSelect id="label-print-requests-peminta-5" v-model="form.requested_by" :options="userOptions" placeholder="Semua Pengguna" search-placeholder="Cari pengguna..." />
+                        <SearchableSelect id="label-print-requests-peminta-5" v-model="form.requested_by" :options="userOptions" placeholder="Semua Pengguna" search-placeholder="Cari pengguna…" />
                     </div>
                     <div class="col-md-2">
                         <label for="label-print-requests-cari-6" class="form-label">Cari</label>
-                        <input id="label-print-requests-cari-6" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko..." />
+                        <input id="label-print-requests-cari-6" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Permintaan, toko…" />
                     </div>
                     <div class="col-12 d-flex gap-2 mt-2">
                         <button class="btn btn-sm btn-primary" type="submit"><i class="mdi mdi-magnify me-1"></i>Filter</button>
@@ -242,15 +242,15 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Permintaan</th>
-                            <th>Toko</th>
-                            <th>Peminta</th>
-                            <th>Alasan</th>
-                            <th>Status</th>
-                            <th class="text-end">Barang</th>
-                            <th class="text-end">Dicetak</th>
-                            <th>Aksi</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Permintaan</th>
+                            <th scope="col">Toko</th>
+                            <th scope="col">Peminta</th>
+                            <th scope="col">Alasan</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Barang</th>
+                            <th scope="col" class="text-end">Dicetak</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -265,7 +265,7 @@ const formatDate = (value: string | null) => {
                                 <td class="text-end">{{ row.total_items }}</td>
                                 <td class="text-end">{{ row.total_printed }}</td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-secondary me-1" type="button" :aria-label="`Lihat detail permintaan ${row.id}`" title="Lihat detail" @click="toggleDetail(row.id)">
+                                    <button class="btn btn-sm btn-outline-secondary me-1" type="button" :aria-label="expandedId === row.id ? `Tutup detail permintaan ${row.id}` : `Lihat detail permintaan ${row.id}`" :aria-expanded="expandedId === row.id" :aria-controls="`label-request-detail-${row.id}`" title="Lihat detail" @click="toggleDetail(row.id)">
                                         <i class="mdi mdi-eye-outline" aria-hidden="true"></i>
                                     </button>
                                     <template v-if="props.canDecide && row.status === 'pending'">
@@ -288,12 +288,12 @@ const formatDate = (value: string | null) => {
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expandedId === row.id">
+                            <tr v-if="expandedId === row.id" :id="`label-request-detail-${row.id}`">
                                 <td colspan="9" class="branch-detail">
                                     <div class="table-responsive">
                                         <table class="table table-sm mb-0">
                                             <thead>
-                                                <tr><th>Item ID</th><th>Product Code</th><th>Product Name</th><th>Status</th><th>Cetakan ke-</th><th>Dicetak Oleh</th><th>Waktu Cetak</th></tr>
+                                                <tr><th scope="col">Item ID</th><th scope="col">Product Code</th><th scope="col">Product Name</th><th scope="col">Status</th><th scope="col">Cetakan ke-</th><th scope="col">Dicetak Oleh</th><th scope="col">Waktu Cetak</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="item in detailItems[row.id] ?? []" :key="item.id">

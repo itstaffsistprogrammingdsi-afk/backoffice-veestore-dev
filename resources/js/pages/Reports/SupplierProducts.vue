@@ -262,7 +262,7 @@ const secondaryStats = computed(() => [
                             v-model="form.supplier_id"
                             :options="supplierOptions"
                             placeholder="Semua pemasok"
-                            search-placeholder="Cari pemasok..."
+                            search-placeholder="Cari pemasok…"
                         />
                     </div>
                     <div class="col-md-3">
@@ -272,7 +272,7 @@ const secondaryStats = computed(() => [
                             v-model="form.product_id"
                             :options="productOptions"
                             placeholder="Semua produk"
-                            search-placeholder="Cari nama atau kode produk..."
+                            search-placeholder="Cari nama atau kode produk…"
                         />
                     </div>
                     <div class="col-md-2">
@@ -293,7 +293,7 @@ const secondaryStats = computed(() => [
                     </div>
                     <div class="col-md-4">
                         <label for="supplier-keyword" class="form-label">Cari</label>
-                        <input id="supplier-keyword" v-model="form.keyword" class="form-control form-control-sm" type="search" placeholder="Pemasok, produk, atau kode..." />
+                        <input id="supplier-keyword" v-model="form.keyword" class="form-control form-control-sm" type="search" placeholder="Pemasok, produk, atau kode…" />
                     </div>
                     <div class="col-md-2">
                         <label for="supplier-per-page" class="form-label">Baris per halaman</label>
@@ -370,16 +370,16 @@ const secondaryStats = computed(() => [
                     <caption class="visually-hidden">Produk per pemasok dengan jumlah inbound dan posisi stok saat ini</caption>
                     <thead>
                         <tr>
-                            <th v-if="isVisible('supplier_name')">Pemasok</th>
-                            <th v-if="isVisible('supplier_country')">Negara</th>
-                            <th v-if="isVisible('product_name')">Produk</th>
-                            <th v-if="isVisible('product_codes')">Kode produk</th>
-                            <th v-if="isVisible('qty_inbound')" class="text-end">Qty masuk</th>
-                            <th v-if="isVisible('stok_now')" class="text-end">Stok saat ini</th>
-                            <th v-if="isVisible('stok_good')" class="text-end">Stok baik</th>
-                            <th v-if="isVisible('stok_bad')" class="text-end">Stok rusak</th>
-                            <th v-if="isVisible('stok_value')" class="text-end">Nilai stok</th>
-                            <th v-if="isVisible('last_inbound_date')">Terakhir diterima</th>
+                            <th scope="col" v-if="isVisible('supplier_name')">Pemasok</th>
+                            <th scope="col" v-if="isVisible('supplier_country')">Negara</th>
+                            <th scope="col" v-if="isVisible('product_name')">Produk</th>
+                            <th scope="col" v-if="isVisible('product_codes')">Kode produk</th>
+                            <th scope="col" v-if="isVisible('qty_inbound')" class="text-end">Qty masuk</th>
+                            <th scope="col" v-if="isVisible('stok_now')" class="text-end">Stok saat ini</th>
+                            <th scope="col" v-if="isVisible('stok_good')" class="text-end">Stok baik</th>
+                            <th scope="col" v-if="isVisible('stok_bad')" class="text-end">Stok rusak</th>
+                            <th scope="col" v-if="isVisible('stok_value')" class="text-end">Nilai stok</th>
+                            <th scope="col" v-if="isVisible('last_inbound_date')">Terakhir diterima</th>
                         </tr>
                     </thead>
                     <tbody>

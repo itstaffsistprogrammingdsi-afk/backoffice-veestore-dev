@@ -208,15 +208,15 @@ const marginClass = (value: number | null) => {
             <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                 <div class="col-md-4">
                     <label for="price-margin-q" class="form-label">Pencarian</label>
-                    <input id="price-margin-q" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama produk, kode, kategori, atau merek..." />
+                    <input id="price-margin-q" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nama produk, kode, kategori, atau merek…" />
                 </div>
                 <div class="col-md-3">
                     <label for="price-margin-category" class="form-label">Kategori</label>
-                    <SearchableSelect id="price-margin-category" v-model="form.category_id" :options="categoryOptions" placeholder="Semua kategori" search-placeholder="Cari kategori..." />
+                    <SearchableSelect id="price-margin-category" v-model="form.category_id" :options="categoryOptions" placeholder="Semua kategori" search-placeholder="Cari kategori…" />
                 </div>
                 <div class="col-md-3">
                     <label for="price-margin-brand" class="form-label">Merek</label>
-                    <SearchableSelect id="price-margin-brand" v-model="form.brand_id" :options="brandOptions" placeholder="Semua merek" search-placeholder="Cari merek..." />
+                    <SearchableSelect id="price-margin-brand" v-model="form.brand_id" :options="brandOptions" placeholder="Semua merek" search-placeholder="Cari merek…" />
                 </div>
                 <div class="col-md-2">
                     <label for="price-margin-status" class="form-label">Status</label>
@@ -264,15 +264,15 @@ const marginClass = (value: number | null) => {
                     <caption class="visually-hidden">Harga toko dan e-commerce beserta margin terhadap harga acuan</caption>
                     <thead>
                         <tr>
-                            <th v-if="isVisible('product_name')">Produk</th>
-                            <th v-if="isVisible('category_name')">Kategori</th>
-                            <th v-if="isVisible('brand_name')">Merek</th>
-                            <th v-if="isVisible('base_price')" class="text-end">Harga acuan</th>
-                            <th v-if="isVisible('store_price')" class="text-end">Harga toko</th>
-                            <th v-if="isVisible('store_margin')" class="text-end">Margin toko</th>
-                            <th v-if="isVisible('ecommerce_price')" class="text-end">Harga e-commerce</th>
-                            <th v-if="isVisible('ecommerce_margin')" class="text-end">Margin e-commerce</th>
-                            <th v-if="isVisible('status')">Status</th>
+                            <th scope="col" v-if="isVisible('product_name')">Produk</th>
+                            <th scope="col" v-if="isVisible('category_name')">Kategori</th>
+                            <th scope="col" v-if="isVisible('brand_name')">Merek</th>
+                            <th scope="col" v-if="isVisible('base_price')" class="text-end">Harga acuan</th>
+                            <th scope="col" v-if="isVisible('store_price')" class="text-end">Harga toko</th>
+                            <th scope="col" v-if="isVisible('store_margin')" class="text-end">Margin toko</th>
+                            <th scope="col" v-if="isVisible('ecommerce_price')" class="text-end">Harga e-commerce</th>
+                            <th scope="col" v-if="isVisible('ecommerce_margin')" class="text-end">Margin e-commerce</th>
+                            <th scope="col" v-if="isVisible('status')">Status</th>
                         </tr>
                     </thead>
                     <tbody>

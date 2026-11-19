@@ -576,18 +576,33 @@ onBeforeUnmount(() => {
                     :src="branding.logo_url"
                     :alt="branding.name"
                     class="app-brand-logo"
-                    width="608"
-                    height="410"
+                    width="482"
+                    height="292"
                     decoding="async"
                 />
                 <div v-else class="app-mark" :title="`${branding.name} ${branding.tagline}`">
-                    <img :src="branding.logo_url" :alt="branding.name" class="app-mark-logo" width="608" height="410" decoding="async" />
+                    <img :src="branding.logo_url" :alt="branding.name" class="app-mark-logo" width="482" height="292" decoding="async" />
                 </div>
                 <div class="app-brand-copy">
                     <strong>{{ branding.tagline }}</strong>
                 </div>
                 <button ref="mobileCloseButtonRef" class="app-close d-lg-none" type="button" aria-label="Tutup menu" @click="closeMobile()">
                     <i class="mdi mdi-close" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div class="app-sidebar-toolbar d-none d-lg-flex">
+                <button
+                    class="app-collapse-button"
+                    type="button"
+                    aria-controls="app-sidebar"
+                    :aria-expanded="!sidebarCollapsed"
+                    :aria-label="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
+                    :title="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
+                    @click="toggleSidebar"
+                >
+                    <i class="mdi" :class="sidebarCollapsed ? 'mdi-chevron-double-right' : 'mdi-chevron-double-left'" aria-hidden="true"></i>
+                    <span v-if="!sidebarCollapsed">Perkecil sidebar</span>
                 </button>
             </div>
 
@@ -698,18 +713,6 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
-                    <button
-                        class="app-sidebar-toggle d-none d-lg-inline-flex"
-                        type="button"
-                        aria-controls="app-sidebar"
-                        :aria-expanded="!sidebarCollapsed"
-                        :aria-label="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
-                        :title="sidebarCollapsed ? 'Perbesar sidebar' : 'Perkecil sidebar'"
-                        @click="toggleSidebar"
-                    >
-                        <i class="mdi mdi-page-layout-sidebar-left" aria-hidden="true"></i>
-                    </button>
-
                     <MenuSearch :areas="navigation.areas" @open="onMenuSearchOpen" />
 
                     <div class="locale-toggle" role="group" aria-label="Bahasa antarmuka">
@@ -928,7 +931,7 @@ onBeforeUnmount(() => {
 
 .app-brand-logo {
     display: block;
-    width: 92px;
+    width: 80px;
     height: auto;
     flex: 0 0 auto;
 }
@@ -964,6 +967,49 @@ onBeforeUnmount(() => {
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.02em;
+}
+
+.app-sidebar-toolbar {
+    padding: 0.4rem 0.85rem 0;
+}
+
+.app-collapse-button {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: 100%;
+    min-height: 36px;
+    padding: 0 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--app-radius-sm);
+    background: transparent;
+    color: var(--app-sidebar-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out);
+}
+
+.app-collapse-button:hover,
+.app-collapse-button:focus-visible {
+    background: var(--app-sidebar-soft);
+    color: var(--app-sidebar-ink);
+}
+
+.app-collapse-button .mdi {
+    flex: 0 0 auto;
+    font-size: 1rem;
+}
+
+.app-sidebar.is-collapsed .app-sidebar-toolbar {
+    padding-inline: 0.5rem;
+}
+
+.app-sidebar.is-collapsed .app-collapse-button {
+    justify-content: center;
+    min-height: 40px;
+    padding: 0;
 }
 
 .app-close {
@@ -1138,8 +1184,7 @@ onBeforeUnmount(() => {
     min-width: 0;
 }
 
-.app-menu-button,
-.app-sidebar-toggle {
+.app-menu-button {
     align-items: center;
     justify-content: center;
     width: 38px;
@@ -1153,15 +1198,12 @@ onBeforeUnmount(() => {
     transition: background-color var(--app-dur-fast) var(--app-ease-out), border-color var(--app-dur-fast) var(--app-ease-out), color var(--app-dur-fast) var(--app-ease-out), transform var(--app-dur-fast) var(--app-ease-out);
 }
 
-.app-menu-button:active,
-.app-sidebar-toggle:active {
+.app-menu-button:active {
     transform: translateY(1px);
 }
 
 .app-menu-button:hover,
-.app-sidebar-toggle:hover,
-.app-menu-button:focus-visible,
-.app-sidebar-toggle:focus-visible {
+.app-menu-button:focus-visible {
     border-color: var(--app-accent);
     background: var(--app-surface-2);
     color: var(--app-accent-ink);
@@ -1586,6 +1628,19 @@ onBeforeUnmount(() => {
     }
 }
 
+@media (max-width: 399.98px) {
+    .app-topbar {
+        padding-inline: 0.75rem;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .app-back-button {
+        display: none;
+    }
+}
+
 @media (max-width: 575.98px) {
     .app-topbar .locale-toggle {
         display: none;
@@ -1625,6 +1680,24 @@ onBeforeUnmount(() => {
     .app-sidebar {
         border-radius: 0 var(--app-radius-xl) var(--app-radius-xl) 0;
         box-shadow: var(--app-shadow-lg);
+    }
+}
+
+@media (pointer: coarse) {
+    .app-menu-button,
+    .app-back-button,
+    .theme-toggle {
+        width: 44px;
+        height: 44px;
+    }
+
+    .app-collapse-button {
+        min-height: 44px;
+    }
+
+    .app-back-button {
+        width: auto;
+        min-width: 44px;
     }
 }
 @media (prefers-reduced-motion: reduce) {

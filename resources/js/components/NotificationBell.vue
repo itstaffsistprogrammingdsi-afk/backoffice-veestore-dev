@@ -618,6 +618,13 @@ onBeforeUnmount(() => {
     }
 }
 
+@media (pointer: coarse) {
+    .notification-bell {
+        width: 44px;
+        height: 44px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .notification-bell,
     .notification-panel-enter-active,

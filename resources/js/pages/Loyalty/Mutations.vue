@@ -167,7 +167,7 @@ const formatDate = (value: string | null) => {
                             v-model="form.clp"
                             :options="customerPointOptions"
                             placeholder="Semua customer"
-                            search-placeholder="Cari nama atau nomor customer..."
+                            search-placeholder="Cari nama atau nomor customer…"
                         />
                     </div>
                     <div class="col-md-2">
@@ -194,13 +194,13 @@ const formatDate = (value: string | null) => {
                 <table class="table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th>Waktu</th>
-                            <th>Customer</th>
-                            <th>Tipe</th>
-                            <th class="text-end">Poin</th>
-                            <th class="text-end">Saldo akhir</th>
-                            <th>Referensi</th>
-                            <th>Deskripsi</th>
+                            <th scope="col">Waktu</th>
+                            <th scope="col">Customer</th>
+                            <th scope="col">Tipe</th>
+                            <th scope="col" class="text-end">Poin</th>
+                            <th scope="col" class="text-end">Saldo akhir</th>
+                            <th scope="col">Referensi</th>
+                            <th scope="col">Deskripsi</th>
                         </tr>
                     </thead>
                     <tbody>

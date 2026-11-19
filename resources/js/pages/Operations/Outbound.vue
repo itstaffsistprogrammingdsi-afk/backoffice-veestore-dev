@@ -348,7 +348,7 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-6">
                         <label for="outbound-cari-order-atau-sku-1" class="form-label">Cari order atau SKU</label>
-                        <input id="outbound-cari-order-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, warehouse, atau SKU..." />
+                        <input id="outbound-cari-order-atau-sku-1" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Cari order, resi, warehouse, atau SKU…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label for="outbound-warehouse-2" class="form-label">Warehouse</label>
@@ -356,7 +356,7 @@ onBeforeUnmount(() => {
                             v-model="filters.warehouse_id"
                             :options="warehouseOptions"
                             placeholder="Semua warehouse"
-                            search-placeholder="Cari warehouse..."
+                            search-placeholder="Cari warehouse…"
                         />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
@@ -406,13 +406,13 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 outbound-table">
                     <thead>
                         <tr>
-                            <th>Referensi Outbound</th>
-                            <th>Warehouse</th>
-                            <th>Tipe / Kurir</th>
-                            <th class="text-end">Item</th>
-                            <th>Tanggal</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Referensi Outbound</th>
+                            <th scope="col">Warehouse</th>
+                            <th scope="col">Tipe / Kurir</th>
+                            <th scope="col" class="text-end">Item</th>
+                            <th scope="col">Tanggal</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -454,13 +454,13 @@ onBeforeUnmount(() => {
                                     </span>
                                 </td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-secondary" type="button" @click="toggleDetail(row.id)">
-                                        <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" :aria-expanded="Boolean(expanded[row.id])" :aria-controls="`outbound-detail-${row.id}`" @click="toggleDetail(row.id)">
+                                        <i class="mdi" :class="expanded[row.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'" aria-hidden="true"></i>
                                         {{ expanded[row.id] ? 'Tutup' : 'Detail' }}
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="expanded[row.id]" class="outbound-detail-row">
+                            <tr v-if="expanded[row.id]" :id="`outbound-detail-${row.id}`" class="outbound-detail-row">
                                 <td colspan="7">
                                     <div class="outbound-detail-wrap">
                                         <div class="outbound-detail-meta">
@@ -479,7 +479,7 @@ onBeforeUnmount(() => {
                                         </div>
                                         <table class="table table-sm mb-0 outbound-detail-table">
                                             <thead>
-                                                <tr><th>Produk</th><th class="text-end">Qty</th><th class="text-end">Good</th><th class="text-end">Bad</th><th class="text-end">Lainnya</th></tr>
+                                                <tr><th scope="col">Produk</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Good</th><th scope="col" class="text-end">Bad</th><th scope="col" class="text-end">Lainnya</th></tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="detail in row.product_details" :key="`${row.id}-${detail.product_code}`">
@@ -528,12 +528,12 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 outbound-table">
                     <thead>
                         <tr>
-                            <th>Produk</th>
-                            <th class="text-end">Qty</th>
-                            <th class="text-end">Store</th>
-                            <th class="text-end">Ecommerce</th>
-                            <th class="text-end">Lainnya</th>
-                            <th class="text-end">Referensi</th>
+                            <th scope="col">Produk</th>
+                            <th scope="col" class="text-end">Qty</th>
+                            <th scope="col" class="text-end">Store</th>
+                            <th scope="col" class="text-end">Ecommerce</th>
+                            <th scope="col" class="text-end">Lainnya</th>
+                            <th scope="col" class="text-end">Referensi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -595,7 +595,7 @@ onBeforeUnmount(() => {
                     <p class="text-muted small">Referensi menampilkan order, invoice, delivery order, atau nomor resi yang memuat SKU ini.</p>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 outbound-detail-table">
-                            <thead><tr><th>Referensi</th><th>Tipe</th><th>Warehouse</th><th>Resi</th><th>Tanggal</th></tr></thead>
+                            <thead><tr><th scope="col">Referensi</th><th scope="col">Tipe</th><th scope="col">Warehouse</th><th scope="col">Resi</th><th scope="col">Tanggal</th></tr></thead>
                             <tbody>
                                 <tr v-for="document in skuDocsModal.sku.documents" :key="document.id">
                                     <td>{{ document.reference }}</td>
@@ -648,7 +648,7 @@ onBeforeUnmount(() => {
 .outbound-main small, .outbound-subvalue { color: var(--app-muted); font-size: 0.73rem; }
 .outbound-main .outbound-awb { color: var(--app-accent-ink); font-weight: 600; }
 .outbound-detail-row > td { padding: 0 !important; background: var(--app-surface-2); }
-.outbound-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; }
+.outbound-detail-wrap { padding: 0.5rem 1rem 1rem 2.2rem; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .outbound-detail-meta { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; margin-bottom: 0.5rem; color: var(--app-muted); font-size: 0.74rem; }
 .outbound-detail-table th { padding: 0.45rem 0.55rem; background: transparent; font-size: 0.64rem; }
 .outbound-detail-table td { padding: 0.55rem; font-size: 0.78rem; }

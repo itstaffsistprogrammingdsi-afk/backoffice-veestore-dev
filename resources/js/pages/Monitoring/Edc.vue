@@ -264,15 +264,15 @@ const exportUrl = computed(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label class="form-label" for="edc-search">Cari transaksi</label>
-                        <input id="edc-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor transaksi, referensi, toko, atau terminal..." />
+                        <input id="edc-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor transaksi, referensi, toko, atau terminal…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="edc-store">Toko</label>
-                        <SearchableSelect id="edc-store" v-model="filters.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko..." aria-label="Filter toko" />
+                        <SearchableSelect id="edc-store" v-model="filters.store_id" :options="storeOptions" placeholder="Semua toko" search-placeholder="Cari toko…" aria-label="Filter toko" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="edc-method">Metode</label>
-                        <SearchableSelect id="edc-method" v-model="filters.method_id" :options="methodOptions" placeholder="Semua metode EDC" search-placeholder="Cari metode..." aria-label="Filter metode pembayaran" />
+                        <SearchableSelect id="edc-method" v-model="filters.method_id" :options="methodOptions" placeholder="Semua metode EDC" search-placeholder="Cari metode…" aria-label="Filter metode pembayaran" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="edc-status">Status</label>
@@ -314,7 +314,7 @@ const exportUrl = computed(() => {
                     <div v-else class="table-responsive">
                         <table class="table align-middle mb-0 edc-table">
                             <thead>
-                                <tr><th>Transaksi</th><th>Toko / Kanal</th><th>Metode</th><th class="text-end">Amount</th><th class="text-end">Settlement</th><th>Status</th><th class="text-end">Aksi</th></tr>
+                                <tr><th scope="col">Transaksi</th><th scope="col">Toko / Kanal</th><th scope="col">Metode</th><th scope="col" class="text-end">Amount</th><th scope="col" class="text-end">Settlement</th><th scope="col">Status</th><th scope="col" class="text-end">Aksi</th></tr>
                             </thead>
                             <tbody>
                                 <template v-for="row in props.rows.data" :key="row.id">
@@ -385,7 +385,7 @@ const exportUrl = computed(() => {
                     <div class="edc-card-header"><div><h2>Per Metode</h2><p>Estimasi MDR dan settlement per metode EDC.</p></div></div>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 edc-mini-table">
-                            <thead><tr><th>Metode</th><th class="text-end">Trx</th><th class="text-end">Settlement</th></tr></thead>
+                            <thead><tr><th scope="col">Metode</th><th scope="col" class="text-end">Trx</th><th scope="col" class="text-end">Settlement</th></tr></thead>
                             <tbody>
                                 <tr v-for="row in props.byMethod" :key="row.payment_method_name">
                                     <td>{{ row.payment_method_name }}</td>
@@ -402,7 +402,7 @@ const exportUrl = computed(() => {
                     <div class="edc-card-header"><div><h2>Per Toko</h2><p>Nominal transaksi EDC per toko.</p></div></div>
                     <div class="table-responsive">
                         <table class="table table-sm mb-0 edc-mini-table">
-                            <thead><tr><th>Toko</th><th class="text-end">Trx</th><th class="text-end">Gross</th></tr></thead>
+                            <thead><tr><th scope="col">Toko</th><th scope="col" class="text-end">Trx</th><th scope="col" class="text-end">Gross</th></tr></thead>
                             <tbody>
                                 <tr v-for="row in props.byStore" :key="row.store_name">
                                     <td>{{ row.store_name }}</td>

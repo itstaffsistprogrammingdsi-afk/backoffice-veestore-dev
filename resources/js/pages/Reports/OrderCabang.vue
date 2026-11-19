@@ -246,7 +246,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                     :query="form"
                 />
                 <form class="row g-2 align-items-end" @submit.prevent="apply">
-                    <div class="col-md-3"><label for="order-cabang-search" class="form-label">Cari</label><input id="order-cabang-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nomor order..." /></div>
+                    <div class="col-md-3"><label for="order-cabang-search" class="form-label">Cari</label><input id="order-cabang-search" v-model="form.q" class="form-control form-control-sm" type="search" placeholder="Nomor order…" /></div>
                     <div class="col-md-2"><label for="order-cabang-status" class="form-label">Status</label><select id="order-cabang-status" v-model="form.status" class="form-select form-select-sm"><option value="">Semua</option><option v-for="status in statuses" :key="status" :value="status">{{ statusLabel(status) }}</option></select></div>
                     <div class="col-md-2"><label for="order-cabang-from" class="form-label">Tanggal dari</label><input id="order-cabang-from" v-model="form.from" class="form-control form-control-sm" type="date" /></div>
                     <div class="col-md-2"><label for="order-cabang-to" class="form-label">Tanggal sampai</label><input id="order-cabang-to" v-model="form.to" class="form-control form-control-sm" type="date" /></div>
@@ -277,15 +277,15 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                     <caption class="visually-hidden">Permintaan order dari toko ke gudang beserta status dan jumlah barang</caption>
                     <thead>
                         <tr>
-                            <th v-if="isVisible('order_number')">Order</th>
-                            <th v-if="isVisible('date')">Tanggal</th>
-                            <th v-if="isVisible('store')">Toko</th>
-                            <th v-if="isVisible('warehouse')">Gudang</th>
-                            <th v-if="isVisible('status')">Status</th>
-                            <th v-if="isVisible('requested_qty')" class="text-end">Diminta</th>
-                            <th v-if="isVisible('approved_qty')" class="text-end">Disetujui</th>
-                            <th v-if="isVisible('received_qty')" class="text-end">Diterima</th>
-                            <th>Aksi</th>
+                            <th scope="col" v-if="isVisible('order_number')">Order</th>
+                            <th scope="col" v-if="isVisible('date')">Tanggal</th>
+                            <th scope="col" v-if="isVisible('store')">Toko</th>
+                            <th scope="col" v-if="isVisible('warehouse')">Gudang</th>
+                            <th scope="col" v-if="isVisible('status')">Status</th>
+                            <th scope="col" v-if="isVisible('requested_qty')" class="text-end">Diminta</th>
+                            <th scope="col" v-if="isVisible('approved_qty')" class="text-end">Disetujui</th>
+                            <th scope="col" v-if="isVisible('received_qty')" class="text-end">Diterima</th>
+                            <th scope="col">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -313,7 +313,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
                 <button class="btn btn-sm btn-outline-secondary" type="button" @click="closeOrder">Tutup</button>
             </div>
             <div class="card-body">
-                <div v-if="loading" class="text-muted">Memuat detail...</div>
+                <div v-if="loading" class="text-muted" role="status">Memuat detail…</div>
                 <template v-else>
                     <div class="row g-2 align-items-end mb-3">
                         <div class="col-md-8 d-flex flex-wrap gap-2">
@@ -325,7 +325,7 @@ const exportOrders = () => downloadExcelTable('Order-Cabang', 'Order Cabang', [
 
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
-                            <thead><tr><th>Produk</th><th class="text-end">Requested</th><th class="text-end">Approved</th><th class="text-end">Received</th><th class="text-end">Receive Qty</th></tr></thead>
+                            <thead><tr><th scope="col">Produk</th><th scope="col" class="text-end">Requested</th><th scope="col" class="text-end">Approved</th><th scope="col" class="text-end">Received</th><th scope="col" class="text-end">Receive Qty</th></tr></thead>
                             <tbody>
                                 <tr v-for="detail in details" :key="detail.id">
                                     <td>{{ detail.product?.name ?? detail.product_id ?? '-' }}</td>

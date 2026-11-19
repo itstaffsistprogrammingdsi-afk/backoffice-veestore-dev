@@ -695,7 +695,7 @@ onBeforeUnmount(() => {
                 <form class="row g-2 align-items-end" @submit.prevent="applyFilters">
                     <div class="col-12 col-lg-4">
                         <label class="form-label" for="approval-search">Cari order, store, atau produk</label>
-                        <input id="approval-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor order, store, atau SKU..." />
+                        <input id="approval-search" v-model="filters.q" class="form-control form-control-sm" type="search" placeholder="Nomor order, store, atau SKU…" />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label" for="approval-status">Status</label>
@@ -711,7 +711,7 @@ onBeforeUnmount(() => {
                             v-model="filters.store_id"
                             :options="storeOptions"
                             placeholder="Semua store"
-                            search-placeholder="Cari store..."
+                            search-placeholder="Cari store…"
                         />
                     </div>
                     <div class="col-6 col-md-4 col-lg-2">
@@ -764,12 +764,12 @@ onBeforeUnmount(() => {
                 <table class="table align-middle mb-0 approval-table">
                     <thead>
                         <tr>
-                            <th>Order</th>
-                            <th>Store</th>
-                            <th class="d-none d-md-table-cell">Kebutuhan</th>
-                            <th class="d-none d-lg-table-cell">Gudang</th>
-                            <th>Status</th>
-                            <th class="text-end">Aksi</th>
+                            <th scope="col">Order</th>
+                            <th scope="col">Store</th>
+                            <th scope="col" class="d-none d-md-table-cell">Kebutuhan</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Gudang</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -783,6 +783,12 @@ onBeforeUnmount(() => {
                             <td>
                                 <strong>{{ order.store?.name ?? '-' }}</strong>
                                 <small class="approval-subvalue">{{ order.store?.code ?? 'Tanpa kode' }}</small>
+                                <small class="approval-subvalue d-md-none">
+                                    {{ formatNumber(order.requested_qty) }} pcs &middot; {{ formatNumber(order.details_count) }} produk
+                                </small>
+                                <small class="approval-subvalue d-lg-none">
+                                    Gudang: {{ order.warehouse?.name ?? 'Belum dipilih' }}
+                                </small>
                             </td>
                             <td class="d-none d-md-table-cell">
                                 <strong>{{ formatNumber(order.requested_qty) }} pcs</strong>
@@ -839,7 +845,7 @@ onBeforeUnmount(() => {
                 </header>
 
                 <div class="approval-drawer-body">
-                    <div v-if="loadingDetail" class="approval-state" aria-live="polite">
+                    <div v-if="loadingDetail" class="approval-state" role="status" aria-live="polite">
                         <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
                         <strong>Memuat detail order</strong>
                         <span>Menyiapkan produk, stok gudang, dan alokasi.</span>
@@ -912,7 +918,7 @@ onBeforeUnmount(() => {
                                                 v-model="row.warehouse_id"
                                                 :options="warehouseSelectOptions(orderDetail.warehouses)"
                                                 placeholder="Pilih gudang"
-                                                search-placeholder="Cari gudang..."
+                                                search-placeholder="Cari gudang…"
                                                 :disabled="!orderDetail.is_editable || working"
                                                 @change="onWarehouseChange(detail, row)"
                                             />
