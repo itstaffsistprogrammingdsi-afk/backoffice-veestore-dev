@@ -75,6 +75,8 @@ class AssistantTest extends TestCase
     {
         $this->assertSame(4, (new VeeAssistant)->maxSteps());
         $this->assertSame(4, (int) config('assistant.limits.max_steps'));
+        $this->assertSame(6, (new VeeAssistant(null, false, 6))->maxSteps());
+        $this->assertSame(6, (int) config('assistant.limits.max_steps_expert'));
     }
 
     public function test_assistant_hides_custom_query_tools_outside_expert_mode(): void

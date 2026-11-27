@@ -63,6 +63,7 @@ class AssistantController extends Controller
             $modelStartedAt = microtime(true);
             $stepTimeout = max(5, (int) config('assistant.limits.step_timeout_seconds', 45));
             $budgetMs = max(5000, (int) config('assistant.limits.fallback_budget_ms', 45000));
+            $agentSteps = $mode === 'expert' ? (int) config('assistant.limits.max_steps_expert', 6) : null;
             $attempts = 0;
 
             foreach ($models as $index => $model) {
@@ -81,7 +82,7 @@ class AssistantController extends Controller
                 $attempts++;
 
                 try {
-                    $response = (new VeeAssistant($model, $mode === 'expert'))->withMessages($history)->prompt($message, timeout: $stepTimeout);
+                    $response = (new VeeAssistant($model, $mode === 'expert', $agentSteps))->withMessages($history)->prompt($message, timeout: $stepTimeout);
                     $usedModel = $model;
 
                     break;
@@ -168,9 +169,10 @@ class AssistantController extends Controller
         $logger = app(ToolCallLogger::class);
         $startedAt = microtime(true);
         $stepTimeout = max(5, (int) config('assistant.limits.step_timeout_seconds', 45));
+        $agentSteps = $mode === 'expert' ? (int) config('assistant.limits.max_steps_expert', 6) : null;
         $intent = app(QuestionIntentGuard::class)->inspect($message);
 
-        return response()->stream(function () use ($request, $message, $mode, $history, $models, $logger, $startedAt, $stepTimeout, $intent): void {
+        return response()->stream(function () use ($request, $message, $mode, $history, $models, $logger, $startedAt, $stepTimeout, $agentSteps, $intent): void {
             while (ob_get_level() > 0) {
                 ob_end_flush();
             }
@@ -203,7 +205,7 @@ class AssistantController extends Controller
                 $attempts++;
 
                 try {
-                    $candidate = (new VeeAssistant($model, $mode === 'expert'))->withMessages($history)->stream($message, timeout: $stepTimeout);
+                    $candidate = (new VeeAssistant($model, $mode === 'expert', $agentSteps))->withMessages($history)->stream($message, timeout: $stepTimeout);
 
                     foreach ($candidate as $event) {
                         if ($event instanceof TextDelta) {

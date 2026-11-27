@@ -29,6 +29,7 @@ return [
         'max_rows' => 100,
         'max_history' => 3,
         'max_steps' => 4,
+        'max_steps_expert' => 6,
         'max_message_length' => 2000,
         'statement_timeout_ms' => 8000,
         'max_customer_rows' => 20,
