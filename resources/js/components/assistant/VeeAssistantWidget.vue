@@ -119,7 +119,7 @@ const onKeydown = (event: KeyboardEvent) => {
     <div v-if="!hidden" class="vee-widget" @keydown="onKeydown">
         <Transition name="vee-panel">
             <section
-                v-if="open"
+                v-show="open"
                 id="vee-assistant-panel"
                 class="vee-widget__panel"
                 aria-label="VEE Assistant"

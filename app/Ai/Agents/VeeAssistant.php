@@ -19,6 +19,7 @@ class VeeAssistant implements Agent, HasTools
     public function __construct(
         private readonly ?string $model = null,
         private readonly bool $allowCustomQueries = false,
+        private readonly ?int $maxSteps = null,
     ) {}
 
     public function model(): string
@@ -28,7 +29,7 @@ class VeeAssistant implements Agent, HasTools
 
     public function maxSteps(): int
     {
-        return (int) config('assistant.limits.max_steps', 4);
+        return $this->maxSteps ?? (int) config('assistant.limits.max_steps', 4);
     }
 
     public function instructions(): Stringable|string
