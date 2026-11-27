@@ -283,7 +283,7 @@ class AssistantController extends Controller
         $messages[] = $this->message('user', $message);
         $messages[] = $this->message('assistant', $answer);
 
-        $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+        $this->storeMessages($request, $messages);
 
         app(AssistantAuditLogger::class)->guard($intent['intent'], $intent['answer_status'], [
             'decision' => 'allow',
@@ -361,7 +361,7 @@ class AssistantController extends Controller
         $messages[] = $this->message('user', $message);
         $messages[] = $this->message('assistant', $answer, $toolCalls, $usage);
 
-        $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+        $this->storeMessages($request, $messages);
 
         app(AssistantAuditLogger::class)->answer(
             $status,
@@ -384,6 +384,18 @@ class AssistantController extends Controller
             'removed_links' => $sanitized['removed'],
             'timings' => $timings,
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $messages
+     */
+    private function storeMessages(Request $request, array $messages): void
+    {
+        $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+
+        // Balasan streaming ditutup setelah middleware selesai, jadi session
+        // harus ditulis sekarang agar riwayat tidak bergantung pada terminate.
+        $request->session()->save();
     }
 
     /**
