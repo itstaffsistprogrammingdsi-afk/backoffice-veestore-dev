@@ -11,6 +11,7 @@ class DataSchemaTool extends AssistantTool
     private const CONNECTIONS = [
         'operational' => 'pgsql',
         'backoffice' => 'immostore_backoffice',
+        'pos' => 'pos',
     ];
 
     public function name(): string
@@ -20,7 +21,7 @@ class DataSchemaTool extends AssistantTool
 
     public function description(): string
     {
-        return 'Lihat skema database VeeStore: daftar tabel, kolom, tipe data, foreign key, nilai enum, dan jumlah baris. Selalu cek skema sebelum menulis query_data agar nama kolom benar.';
+        return 'Lihat skema seluruh database VeeStore (operational, backoffice, dan pos): daftar tabel, kolom, tipe data, foreign key, nilai enum, dan jumlah baris. Selalu cek skema sebelum menulis query_data agar nama kolom benar.';
     }
 
     public function inputSchema(): array
@@ -30,7 +31,7 @@ class DataSchemaTool extends AssistantTool
             'properties' => [
                 'connection' => [
                     'type' => 'string',
-                    'enum' => ['operational', 'backoffice', 'all'],
+                    'enum' => ['operational', 'backoffice', 'pos', 'all'],
                     'default' => 'operational',
                 ],
                 'table' => [
@@ -53,7 +54,7 @@ class DataSchemaTool extends AssistantTool
     protected function execute(array $arguments): array
     {
         $connectionKey = $arguments['connection'] ?? 'operational';
-        $connectionKey = in_array($connectionKey, ['operational', 'backoffice', 'all'], true)
+        $connectionKey = in_array($connectionKey, ['operational', 'backoffice', 'pos', 'all'], true)
             ? $connectionKey
             : 'operational';
 

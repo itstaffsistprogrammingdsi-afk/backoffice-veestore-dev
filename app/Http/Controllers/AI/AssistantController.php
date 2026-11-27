@@ -7,11 +7,13 @@ use App\Ai\Security\AssistantAccessPolicy;
 use App\Ai\Security\PiiRedactor;
 use App\Ai\Support\AnswerStatus;
 use App\Ai\Support\AssistantAuditLogger;
+use App\Ai\Support\AssistantReferenceRegistry;
 use App\Ai\Support\AssistantRouteRegistry;
 use App\Ai\Support\QuestionIntentGuard;
 use App\Ai\Support\ToolCallLogger;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AI\ChatRequest;
+use App\Models\User;
 use App\Services\Assistant\AssistantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -144,7 +146,7 @@ class AssistantController extends Controller
                 }
             }
 
-            $toolCalls = $logger->calls();
+            $toolCalls = $this->attachReferences($logger->calls(), $request->user());
             $evidence = $logger->evidence();
             $status = $logger->status();
 
@@ -376,10 +378,51 @@ class AssistantController extends Controller
 
     /**
      * @param  list<array{name: string, arguments: array}>  $toolCalls
+     * @return list<array{name: string, arguments: array, references: list<array{label: string, url: string}>, url: string|null}>
+     */
+    private function attachReferences(array $toolCalls, ?User $user): array
+    {
+        $registry = app(AssistantReferenceRegistry::class);
+
+        return array_map(function (array $call) use ($registry, $user): array {
+            $references = $registry->forTool(
+                (string) ($call['name'] ?? ''),
+                (array) ($call['arguments'] ?? []),
+                $user,
+            );
+
+            return [
+                ...$call,
+                'references' => $references,
+                'url' => $references[0]['url'] ?? null,
+            ];
+        }, $toolCalls);
+    }
+
+    /**
+     * @param  list<array{name: string, arguments: array, references?: list<array{label: string, url: string}>}>  $toolCalls
      */
     private function appendSources(string $answer, array $toolCalls): string
     {
-        $sources = $this->sourceLabels($toolCalls);
+        $sources = [];
+
+        foreach ($toolCalls as $call) {
+            $references = $call['references'] ?? [];
+
+            if ($references !== []) {
+                foreach ($references as $reference) {
+                    $sources[] = '['.$reference['label'].']('.$reference['url'].')';
+                }
+
+                continue;
+            }
+
+            foreach ($this->sourceLabels([$call]) as $label) {
+                $sources[] = $label;
+            }
+        }
+
+        $sources = array_values(array_unique($sources));
 
         if ($sources === []) {
             return $answer;
@@ -430,9 +473,11 @@ class AssistantController extends Controller
                 'promo_loyalty' => ['Data promo, voucher, poin, dan loyalty'],
                 'system_map' => ['Peta menu dan fitur VeeStore'],
                 'data_schema' => ['Referensi data VeeStore'],
-                'query_data' => [($arguments['connection'] ?? 'operational') === 'backoffice'
-                    ? 'Data backoffice VeeStore'
-                    : 'Data operasional VeeStore'],
+                'query_data' => [match ($arguments['connection'] ?? 'operational') {
+                    'backoffice' => 'Data backoffice VeeStore',
+                    'pos' => 'Data POS VeeStore',
+                    default => 'Data operasional VeeStore',
+                }],
                 default => [],
             };
 

@@ -7,7 +7,7 @@ const escapeHtml = (value: string): string =>
         .replace(/'/g, '&#039;');
 
 const placeholderHref = (value: string): boolean =>
-    /(contoh\/|example\.com|localhost|127\.0\.0\.1|placeholder|your-domain|xxx|\.\.\.)/i.test(value);
+    /(contoh\/|example\.com|placeholder|your-domain|xxx|\.\.\.)/i.test(value);
 
 const safeHref = (value: string): string | null => {
     const url = value.trim();

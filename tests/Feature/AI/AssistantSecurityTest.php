@@ -9,6 +9,7 @@ use App\Ai\Mcp\Tools\DataSchemaTool;
 use App\Ai\Mcp\Tools\MasterDataTool;
 use App\Ai\Mcp\Tools\QueryDataTool;
 use App\Ai\Mcp\Tools\SystemMapTool;
+use App\Ai\Support\AssistantReferenceRegistry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -20,70 +21,85 @@ class AssistantSecurityTest extends TestCase
 {
     use DatabaseTransactions, InteractsWithBackofficeAdmin;
 
-    public function test_mass_customer_request_is_refused_before_model_call(): void
+    public function test_mass_customer_request_reaches_model_for_authorized_admin(): void
     {
-        VeeAssistant::fake(['Seharusnya tidak dipakai.']);
+        VeeAssistant::fake(['Berikut data pelanggan yang Anda minta.']);
 
         $this->actingAs($this->admin())
             ->postJson(route('ai-assistant.chat'), ['message' => 'Data pelanggan lengkap'])
             ->assertOk()
-            ->assertJsonPath('answer_status', 'forbidden')
-            ->assertJsonCount(0, 'tool_calls')
-            ->assertJsonPath('model', null);
+            ->assertJsonPath('answer', 'Berikut data pelanggan yang Anda minta.');
 
-        $answer = $this->actingAs($this->admin())
-            ->postJson(route('ai-assistant.chat'), ['message' => 'Data pelanggan lengkap'])
-            ->json('answer');
-
-        $this->assertStringContainsString('tidak menampilkan data pribadi pelanggan secara massal', $answer);
+        VeeAssistant::assertPrompted('Data pelanggan lengkap');
     }
 
-    public function test_master_data_customers_defaults_to_aggregate(): void
+    public function test_master_data_customers_returns_full_rows_for_authorized_admin(): void
     {
-        $result = $this->actingAs($this->admin())
-            ->callTool(MasterDataTool::class, ['entity' => 'customers']);
+        DB::table('customers')->insert([
+            'id' => (string) Str::uuid(),
+            'name' => 'Vee List '.Str::upper(Str::random(6)),
+            'email' => 'list.'.Str::lower(Str::random(6)).'@example.test',
+            'wa_number' => '081234567891',
+            'gender' => 'female',
+            'is_guest' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
-        $this->assertSame('aggregate_only', $result['answer_status']);
-        $this->assertSame([], $result['rows']);
-        $this->assertArrayHasKey('total_customers', $result['summary']);
+        $result = $this->actingAs($this->admin())
+            ->callTool(MasterDataTool::class, ['entity' => 'customers', 'limit' => 5]);
+
+        $this->assertSame('ok', $result['answer_status']);
+        $this->assertNotEmpty($result['rows']);
+
+        foreach ($result['rows'] as $row) {
+            $this->assertStringNotContainsString('*', (string) $row['name']);
+        }
     }
 
-    public function test_master_data_customer_detail_masks_pii(): void
+    public function test_master_data_customer_detail_shows_full_pii_for_authorized_admin(): void
     {
-        $customer = DB::table('customers')->whereNull('deleted_at')->first();
+        $name = 'Vee Customer '.Str::upper(Str::random(6));
+        $email = 'vee.'.Str::lower(Str::random(6)).'@example.test';
+        $phone = '081234567890';
 
-        if ($customer === null) {
-            $this->markTestSkipped('Tidak ada data customer untuk diuji.');
-        }
-
-        $search = mb_substr((string) $customer->name, 0, 3);
-
-        if (mb_strlen($search) < 3) {
-            $this->markTestSkipped('Nama customer terlalu pendek untuk pencarian aman.');
-        }
+        DB::table('customers')->insert([
+            'id' => (string) Str::uuid(),
+            'name' => $name,
+            'email' => $email,
+            'wa_number' => $phone,
+            'gender' => 'male',
+            'is_guest' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $result = $this->actingAs($this->admin())
-            ->callTool(MasterDataTool::class, ['entity' => 'customers', 'search' => $search, 'limit' => 5]);
+            ->callTool(MasterDataTool::class, ['entity' => 'customers', 'search' => $name, 'limit' => 5]);
 
         $this->assertArrayHasKey('rows', $result);
         $this->assertNotEmpty($result['rows']);
 
-        foreach ($result['rows'] as $row) {
-            $this->assertStringContainsString('*', (string) $row['name']);
-            $this->assertStringContainsString('*', (string) $row['email']);
-            $this->assertStringContainsString('*', (string) $row['wa_number']);
-        }
+        $row = collect($result['rows'])->firstWhere('name', $name);
+
+        $this->assertNotNull($row);
+        $this->assertSame($name, $row['name']);
+        $this->assertSame($email, $row['email']);
+        $this->assertSame($phone, $row['wa_number']);
     }
 
-    public function test_customer_insight_birthday_list_is_redacted(): void
+    public function test_customer_insight_birthday_list_shows_full_pii_for_authorized_admin(): void
     {
+        $email = 'budi.'.Str::lower(Str::random(6)).'@example.test';
+        $birthday = now()->startOfMonth()->toDateString();
+
         DB::table('customers')->insert([
             'id' => (string) Str::uuid(),
             'name' => 'Budi Santoso',
-            'email' => 'budi.'.Str::lower(Str::random(6)).'@example.test',
+            'email' => $email,
             'wa_number' => '081234567890',
             'gender' => 'male',
-            'date_of_birth' => now()->startOfMonth()->toDateString(),
+            'date_of_birth' => $birthday,
             'is_guest' => false,
             'created_at' => now(),
             'updated_at' => now(),
@@ -97,25 +113,28 @@ class AssistantSecurityTest extends TestCase
         $this->assertNotEmpty($result['birthday_customers']);
 
         $row = collect($result['birthday_customers'])
-            ->first(fn (array $item): bool => str_contains((string) ($item['email'] ?? ''), '@example.test'));
+            ->first(fn (array $item): bool => ($item['email'] ?? null) === $email);
 
         $this->assertNotNull($row);
-        $this->assertStringContainsString('*', (string) $row['name']);
-        $this->assertStringContainsString('*', (string) $row['email']);
-        $this->assertStringContainsString('*', (string) $row['wa_number']);
-        $this->assertSame('[disembunyikan]', $row['date_of_birth']);
+        $this->assertSame('Budi Santoso', $row['name']);
+        $this->assertSame($email, $row['email']);
+        $this->assertSame('081234567890', $row['wa_number']);
+        $this->assertSame($birthday, $row['date_of_birth']);
     }
 
-    public function test_query_data_blocks_mass_customer_detail_even_for_admin(): void
+    public function test_query_data_allows_mass_customer_detail_for_authorized_admin(): void
     {
         $result = $this->actingAs($this->admin())->callTool(QueryDataTool::class, [
             'sql' => 'select name, email, wa_number from customers limit 20',
             'limit' => 20,
         ]);
 
-        $this->assertArrayHasKey('error', $result);
-        $this->assertSame('forbidden', $result['answer_status']);
-        $this->assertStringContainsString('Pembatasan privasi', $result['error']);
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertArrayHasKey('rows', $result);
+
+        foreach ($result['rows'] as $row) {
+            $this->assertStringNotContainsString('*', (string) $row['name']);
+        }
     }
 
     public function test_restricted_user_cannot_use_schema_or_customer_detail(): void
@@ -139,6 +158,19 @@ class AssistantSecurityTest extends TestCase
 
         $tools = app(ToolRegistry::class)->toolsFor($user)->map(fn ($tool) => $tool->name())->all();
         $this->assertNotContains('data_schema', $tools);
+    }
+
+    public function test_tool_references_are_clickable_for_authorized_admin(): void
+    {
+        $registry = app(AssistantReferenceRegistry::class);
+
+        $stock = $registry->forTool('stock_health', ['scope' => 'store'], $this->admin());
+        $customer = $registry->forTool('master_data', ['entity' => 'customers'], $this->admin());
+
+        $this->assertNotEmpty($stock);
+        $this->assertSame(route('monitoring.stok-percabang'), $stock[0]['url']);
+        $this->assertNotEmpty($customer);
+        $this->assertSame(route('operations.customers.index'), $customer[0]['url']);
     }
 
     public function test_answer_sanitizer_removes_placeholder_links_and_keeps_registered_link(): void
@@ -187,7 +219,7 @@ class AssistantSecurityTest extends TestCase
         $this->assertStringContainsString('lokasi', $answer);
     }
 
-    public function test_email_and_phone_in_model_answer_are_masked(): void
+    public function test_email_and_phone_in_model_answer_are_shown(): void
     {
         VeeAssistant::fake([
             'Hubungi budi@example.com atau 081234567890.',
@@ -199,9 +231,8 @@ class AssistantSecurityTest extends TestCase
 
         $answer = (string) $response->json('answer');
 
-        $this->assertStringNotContainsString('budi@example.com', $answer);
-        $this->assertStringNotContainsString('081234567890', $answer);
-        $this->assertStringContainsString('***', $answer);
+        $this->assertStringContainsString('budi@example.com', $answer);
+        $this->assertStringContainsString('081234567890', $answer);
     }
 
     public function test_system_map_does_not_expose_table_names_or_counts(): void
@@ -224,7 +255,7 @@ class AssistantSecurityTest extends TestCase
         }
     }
 
-    public function test_mcp_query_data_cannot_dump_customer_list(): void
+    public function test_mcp_query_data_can_read_customer_list(): void
     {
         config(['assistant.mcp.token' => 'test-mcp-token']);
 
@@ -245,9 +276,9 @@ class AssistantSecurityTest extends TestCase
 
         $payload = json_decode((string) $response->json('result.content.0.text'), true);
 
-        $this->assertTrue($response->json('result.isError'));
-        $this->assertSame('forbidden', $payload['answer_status']);
-        $this->assertStringContainsString('Pembatasan privasi', $payload['error']);
+        $this->assertFalse($response->json('result.isError'));
+        $this->assertArrayNotHasKey('error', $payload);
+        $this->assertArrayHasKey('row_count', $payload);
     }
 
     /**

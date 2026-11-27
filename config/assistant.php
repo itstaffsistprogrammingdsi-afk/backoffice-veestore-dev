@@ -31,8 +31,8 @@ return [
         'max_steps' => 8,
         'max_message_length' => 2000,
         'statement_timeout_ms' => 8000,
-        'max_customer_rows' => 5,
-        'max_pii_rows' => 10,
+        'max_customer_rows' => 20,
+        'max_pii_rows' => 20,
     ],
 
     'security' => [
@@ -56,16 +56,19 @@ return [
 
         /*
         |--------------------------------------------------------------------------
-        | Kebijakan nilai penuh
+        | Kebijakan data internal
         |--------------------------------------------------------------------------
         |
-        | Default aman: email, nomor HP, dan nama pelanggan selalu dimasking.
-        | Hanya satu pelanggan yang disebut eksplisit yang boleh ditampilkan,
-        | dan hanya jika toggle ini dinyalakan oleh owner.
+        | VEE hanya dipakai staf internal yang sudah lolos izin route asisten.
+        | Nama pelanggan, nama karyawan, email, nomor HP, alamat, dan tanggal
+        | lahir ditampilkan penuh agar manajemen bisa membaca data bisnis.
+        | Password, token, secret, API key, dan data biometrik tetap disamarkan.
+        | Set ASSISTANT_MASK_PII=true untuk mengaktifkan masking data pribadi.
         |
         */
-        'allow_full_pii' => env('ASSISTANT_ALLOW_FULL_PII', false),
-        'mask_customer_names' => true,
+        'allow_full_pii' => env('ASSISTANT_ALLOW_FULL_PII', true),
+        'mask_customer_names' => env('ASSISTANT_MASK_CUSTOMER_NAMES', true),
+        'mask_pii' => env('ASSISTANT_MASK_PII', false),
     ],
 
     'audit' => [
