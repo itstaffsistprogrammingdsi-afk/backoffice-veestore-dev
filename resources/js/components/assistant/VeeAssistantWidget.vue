@@ -27,6 +27,7 @@ interface AssistantState {
     default_mode: string;
     urls: {
         chat: string;
+        stream: string;
         reset: string;
         state: string;
     };
@@ -50,11 +51,12 @@ const defaults: AssistantState = {
         'Stok apa yang perlu segera diisi ulang?',
         'Pesanan ecommerce mana yang terlambat diproses?',
     ],
-    model: 'cx/gpt-5.6-luna',
+    model: 'ocg/deepseek-v4.1-flash',
     modes: [],
     default_mode: 'auto',
     urls: {
         chat: '/ai-assistant/chat',
+        stream: '/ai-assistant/stream',
         reset: '/ai-assistant/reset',
         state: '/ai-assistant/state',
     },

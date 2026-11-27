@@ -20,8 +20,20 @@ interface ChatMessage {
     created_at?: string;
 }
 
+interface StreamEventPayload {
+    text?: string;
+    label?: string;
+    message?: string;
+    answer?: string;
+    mode?: string;
+    model?: string | null;
+    messages?: ChatMessage[];
+    tool_calls?: ToolTrace[];
+}
+
 interface Urls {
     chat: string;
+    stream: string;
     reset: string;
     state?: string;
 }
@@ -61,6 +73,8 @@ const messages = ref<ChatMessage[]>([...props.initialMessages]);
 const draft = ref('');
 const loading = ref(false);
 const resetting = ref(false);
+const streaming = ref<{ text: string; status: string } | null>(null);
+let lastScrollAt = 0;
 const error = ref('');
 const scrollArea = ref<HTMLElement | null>(null);
 const input = ref<HTMLTextAreaElement | null>(null);
@@ -133,6 +147,82 @@ const formatTime = (value?: string) => {
     }).format(date);
 };
 
+const handleStreamEvent = (event: string, data: StreamEventPayload) => {
+    if (event === 'error') {
+        throw new Error(data.message ?? 'VEE belum dapat menjawab.');
+    }
+
+    if (!streaming.value) {
+        streaming.value = { text: '', status: '' };
+    }
+
+    if (event === 'token') {
+        streaming.value.text += data.text ?? '';
+
+        if (performance.now() - lastScrollAt > 150) {
+            lastScrollAt = performance.now();
+            void scrollToBottom();
+        }
+
+        return;
+    }
+
+    if (event === 'status') {
+        streaming.value.status = data.label ?? '';
+        void scrollToBottom();
+    }
+};
+
+const consumeStream = async (response: Response): Promise<StreamEventPayload | null> => {
+    const reader = response.body?.getReader();
+
+    if (!reader) {
+        throw new Error('Stream jawaban tidak tersedia.');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let payload: StreamEventPayload | null = null;
+
+    const dispatch = (block: string) => {
+        const lines = block.split('\n');
+        const event = lines.find((line) => line.startsWith('event:'))?.slice(6).trim() ?? '';
+        const raw = lines
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trim())
+            .join('\n');
+
+        if (!event || !raw) return;
+
+        const data = JSON.parse(raw) as StreamEventPayload;
+
+        if (event === 'done') {
+            payload = data;
+            return;
+        }
+
+        handleStreamEvent(event, data);
+    };
+
+    for (;;) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        let boundary = buffer.indexOf('\n\n');
+
+        while (boundary !== -1) {
+            dispatch(buffer.slice(0, boundary));
+            buffer = buffer.slice(boundary + 2);
+            boundary = buffer.indexOf('\n\n');
+        }
+    }
+
+    return payload;
+};
+
 const send = async (value?: string) => {
     const text = (value ?? draft.value).trim();
 
@@ -152,14 +242,15 @@ const send = async (value?: string) => {
     draft.value = '';
     error.value = '';
     loading.value = true;
+    streaming.value = { text: '', status: 'Menyiapkan jawaban' };
     emit('activity-change', true);
     await scrollToBottom();
 
     try {
-        const response = await fetch(props.urls.chat, {
+        const response = await fetch(props.urls.stream, {
             method: 'POST',
             headers: {
-                Accept: 'application/json',
+                Accept: 'text/event-stream',
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
             },
@@ -167,17 +258,22 @@ const send = async (value?: string) => {
             body: JSON.stringify({ message: text, mode: selectedMode.value || undefined }),
         });
 
-        const payload = await response.json().catch(() => null);
-
         if (!response.ok) {
-            throw new Error(payload?.message ?? 'VEE belum dapat menjawab.');
+            const failure = await response.json().catch(() => null);
+            throw new Error(failure?.message ?? 'VEE belum dapat menjawab.');
         }
 
-        if (typeof payload?.mode === 'string' && payload.mode !== '' && payload.mode !== selectedMode.value) {
+        const payload = await consumeStream(response);
+
+        if (!payload) {
+            throw new Error('VEE belum dapat menjawab.');
+        }
+
+        if (typeof payload.mode === 'string' && payload.mode !== '' && payload.mode !== selectedMode.value) {
             selectedMode.value = payload.mode;
         }
 
-        servedModel.value = typeof payload?.model === 'string' ? payload.model : '';
+        servedModel.value = typeof payload.model === 'string' ? payload.model : '';
 
         messages.value = payload.messages ?? [
             ...messages.value,
@@ -194,6 +290,7 @@ const send = async (value?: string) => {
         draft.value = text;
         error.value = exception instanceof Error ? exception.message : 'VEE belum dapat menjawab.';
     } finally {
+        streaming.value = null;
         loading.value = false;
         emit('activity-change', false);
         await nextTick();
@@ -353,7 +450,36 @@ defineExpose({ focusInput: () => input.value?.focus() });
                     </div>
                 </div>
 
-                <div v-if="loading" class="assistant-message assistant-message--assistant">
+                <div v-if="streaming" class="assistant-message assistant-message--assistant">
+                    <div class="assistant-message__avatar">
+                        <VeeMascot :scale="0.17" variant="bust" decorative />
+                    </div>
+                    <div class="assistant-message__body">
+                        <div
+                            v-if="streaming.text"
+                            class="assistant-message__content"
+                            v-html="renderAssistantMarkdown(streaming.text)"
+                        ></div>
+                        <div v-else class="assistant-thinking" role="status">
+                            <span class="assistant-thinking__dots" aria-hidden="true">
+                                <span></span><span></span><span></span>
+                            </span>
+                            {{ streaming.status || 'VEE sedang membaca data' }}
+                        </div>
+                        <div
+                            v-if="streaming.text && streaming.status"
+                            class="assistant-thinking assistant-thinking--status"
+                            role="status"
+                        >
+                            <span class="assistant-thinking__dots" aria-hidden="true">
+                                <span></span><span></span><span></span>
+                            </span>
+                            {{ streaming.status }}
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="loading && !streaming" class="assistant-message assistant-message--assistant">
                     <div class="assistant-message__avatar">
                         <VeeMascot :scale="0.17" variant="bust" decorative />
                     </div>
@@ -722,6 +848,13 @@ defineExpose({ focusInput: () => input.value?.focus() });
 .assistant-thinking__dots {
     display: inline-flex;
     gap: 3px;
+}
+
+.assistant-thinking--status {
+    margin-top: 0.5rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 0.6rem;
+    font-size: 0.76rem;
 }
 
 .assistant-thinking__dots span {
