@@ -3,6 +3,7 @@
 namespace Tests\Feature\AI;
 
 use App\Ai\Agents\VeeAssistant;
+use App\Ai\Security\AssistantAccessPolicy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
@@ -78,7 +79,7 @@ class AssistantTest extends TestCase
 
     public function test_assistant_hides_custom_query_tools_outside_expert_mode(): void
     {
-        app(\App\Ai\Security\AssistantAccessPolicy::class)->markServiceRequest();
+        app(AssistantAccessPolicy::class)->markServiceRequest();
 
         $autoTools = collect((new VeeAssistant)->tools())->map(fn ($tool) => $tool->name())->all();
         $expertTools = collect((new VeeAssistant(null, true))->tools())->map(fn ($tool) => $tool->name())->all();
