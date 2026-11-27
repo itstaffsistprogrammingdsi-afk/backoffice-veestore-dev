@@ -374,6 +374,8 @@ const onInput = () => {
 watch(
     () => props.initialMessages,
     (value) => {
+        if (loading.value || streaming.value) return;
+
         messages.value = [...value];
         void scrollToBottom();
     },
