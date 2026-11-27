@@ -82,7 +82,7 @@ class AssistantController extends Controller
                 $attempts++;
 
                 try {
-                    $response = (new VeeAssistant($model, $mode === 'expert', $agentSteps))->withMessages($history)->prompt($message, timeout: $stepTimeout);
+                    $response = (new VeeAssistant($model, $agentSteps))->withMessages($history)->prompt($message, timeout: $stepTimeout);
                     $usedModel = $model;
 
                     break;
@@ -205,7 +205,7 @@ class AssistantController extends Controller
                 $attempts++;
 
                 try {
-                    $candidate = (new VeeAssistant($model, $mode === 'expert', $agentSteps))->withMessages($history)->stream($message, timeout: $stepTimeout);
+                    $candidate = (new VeeAssistant($model, $agentSteps))->withMessages($history)->stream($message, timeout: $stepTimeout);
 
                     foreach ($candidate as $event) {
                         if ($event instanceof TextDelta) {
@@ -709,7 +709,7 @@ class AssistantController extends Controller
                 'customer_insight' => ['Data customer dan membership'],
                 'promo_loyalty' => ['Data promo, voucher, poin, dan loyalty'],
                 'system_map' => ['Peta menu dan fitur VeeStore'],
-                'data_schema' => ['Referensi data VeeStore'],
+                'data_schema' => [],
                 'query_data' => [match ($arguments['connection'] ?? 'operational') {
                     'backoffice' => 'Data backoffice VeeStore',
                     'pos' => 'Data POS VeeStore',

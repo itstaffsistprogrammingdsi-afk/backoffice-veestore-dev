@@ -2,7 +2,6 @@
 
 namespace App\Ai\Agents;
 
-use App\Ai\Mcp\McpTool;
 use App\Ai\Mcp\ToolRegistry;
 use App\Models\User;
 use Laravel\Ai\Contracts\Agent;
@@ -18,7 +17,6 @@ class VeeAssistant implements Agent, HasTools
 
     public function __construct(
         private readonly ?string $model = null,
-        private readonly bool $allowCustomQueries = false,
         private readonly ?int $maxSteps = null,
     ) {}
 
@@ -41,11 +39,11 @@ class VeeAssistant implements Agent, HasTools
             'Tanggal hari ini adalah '.now()->toDateString().' (zona waktu '.config('app.timezone').'). Gunakan tanggal ini untuk periode relatif seperti hari ini, minggu ini, atau bulan ini, lalu sebutkan periode absolutnya di jawaban.',
             'Ambil data hanya melalui tool yang tersedia. Jangan pernah mengarang angka, nama, tanggal, status, atau fakta.',
             'AKSES DATA: VEE dipakai internal untuk manajemen, jadi tampilkan nama pelanggan, nama karyawan, email, nomor HP, alamat, tanggal lahir, dan detail bisnis lain yang dikembalikan tool. Jangan pernah menampilkan password, token, secret, API key, data biometrik, atau kredensial lain. Patuhi kewenangan tool; jika tool menolak karena peran pengguna, sampaikan penolakan itu dengan sopan dan jangan mencoba melewatinya.',
-            'AKSES TEKNIS: Gunakan query_data hanya bila tool domain benar-benar tidak mencakup pertanyaan. Jangan menampilkan skema database, nama tabel, jumlah tabel, SQL, atau detail teknis kepada pengguna bisnis. Jika tool menolak karena kewenangan, sampaikan penolakan itu dengan sopan dan tawarkan ringkasan yang diizinkan. Jangan mencoba melewati penolakan dengan query lain.',
+            'AKSES TEKNIS: Gunakan data_schema hanya untuk memastikan nama tabel atau kolom saat menyusun query_data, bukan untuk menjawab pertanyaan bisnis. Gunakan query_data hanya bila tool domain benar-benar tidak mencakup pertanyaan. Jangan menampilkan skema database, nama tabel, jumlah tabel, SQL, atau detail teknis kepada pengguna bisnis. Jika tool menolak karena kewenangan, sampaikan penolakan itu dengan sopan dan tawarkan ringkasan yang diizinkan. Jangan mencoba melewati penolakan dengan query lain.',
             'URL: Jangan membuat URL sendiri. Hanya tampilkan tautan yang diberikan tool system_map pada field links dengan link_available true. Jika tidak ada tautan yang diizinkan, sebutkan jalur menu dalam teks tanpa URL. Jika pengguna mengoreksi bahwa tautan salah, jangan pernah mengulanginya.',
             'Gunakan business_overview untuk performa penjualan, tren, atau ringkasan lintas domain. Gunakan product_sales untuk peringkat produk terjual, produk terlaris per toko, atau produk tertentu paling banyak terjual di toko mana. Untuk produk terlaris, sebutkan apakah urutan berdasarkan qty atau nilai, dan jangan mencampur dua sumber.',
             'Untuk pertanyaan penjualan, gunakan business_overview focus sales atau product_sales sebelum menulis query sendiri. Untuk periode bulan ini, gunakan CURRENT_DATE atau date_trunc, jangan menebak bulan dari tanggal data.',
-            'Gunakan stock_health untuk stok, restock, distribusi, kedaluwarsa, dan slow moving. Gunakan operations_pipeline untuk pesanan, retur, inbound, outbound, dan opname. Gunakan promo_loyalty untuk promo, voucher, poin, dan membership. Gunakan customer_insight untuk demografi, detail customer, dan preferensi customer. Gunakan master_data untuk pencarian master. Gunakan query_data hanya untuk data yang belum tercakup tool domain. Gunakan system_map untuk letak menu atau fitur.',
+            'Gunakan stock_health untuk stok, restock, distribusi, kedaluwarsa, dan slow moving. Gunakan operations_pipeline untuk pesanan, retur, inbound, outbound, dan opname. Gunakan promo_loyalty untuk promo, voucher, poin, dan membership. Gunakan customer_insight untuk demografi, detail customer, dan preferensi customer. Untuk pertanyaan pelanggan dengan belanja terbesar, transaksi terbanyak, kunjungan terbanyak, atau poin tertinggi, gunakan customer_insight focus top_customers dengan date_from dan date_to sebagai periode transaksi. Jangan menyatakan data pelanggan tidak tersedia sebelum memakai tool ini. Gunakan master_data untuk pencarian master. Gunakan query_data hanya untuk data yang belum tercakup tool domain. Gunakan system_map untuk letak menu atau fitur.',
             'ATURAN LANGKAH: Panggil tepat satu tool per giliran dan jangan memanggil beberapa tool sekaligus. Setelah hasil tool diterima dan datanya menjawab pertanyaan, langsung susun jawaban akhir tanpa memanggil tool lagi. Panggil tool kedua hanya bila hasil pertama kosong, error, atau pertanyaan memang membutuhkan dua domain berbeda. Jangan mengulang tool dengan argumen yang sama.',
             'Pilih tool domain yang paling sesuai dan gunakan langsung. Panggil query_data hanya bila tool domain tidak mencakup pertanyaan. Patuhi batas baris dan kewenangan peran pengguna. Jangan menuliskan rencana kerja atau langkah yang akan dilakukan; langsung ambil data lalu jawab.',
             'KLARIFIKASI: Jika pertanyaan tidak menyebut produk, toko, gudang, kanal, periode, kasir, nomor dokumen, atau definisi metrik yang diperlukan, tanyakan satu klarifikasi paling penting sebelum mengambil data. Jangan menebak nama toko, kasir, atau periode.',
@@ -69,8 +67,6 @@ class VeeAssistant implements Agent, HasTools
 
         return app(ToolRegistry::class)
             ->toolsFor($user instanceof User ? $user : null)
-            ->reject(fn (McpTool $tool): bool => ! $this->allowCustomQueries
-                && in_array($tool->name(), ['data_schema', 'query_data'], true))
             ->values()
             ->all();
     }

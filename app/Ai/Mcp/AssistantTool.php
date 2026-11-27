@@ -133,7 +133,7 @@ abstract class AssistantTool implements McpTool, Tool
             'customer_insight' => 'CRM, Demografi Pelanggan, dan Preferensi Produk',
             'master_data' => 'Master Data',
             'system_map' => 'Peta Menu dan Fitur VeeStore',
-            'data_schema' => 'Referensi Teknis Internal',
+            'data_schema' => '',
             'query_data' => 'Query Data Kustom',
             default => 'Data VeeStore',
         };

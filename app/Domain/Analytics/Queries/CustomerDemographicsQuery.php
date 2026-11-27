@@ -30,6 +30,7 @@ class CustomerDemographicsQuery
         'visits' => ['visit_stats.visit_count', 'desc'],
         'last_visit' => ['visit_stats.last_visit_at', 'desc'],
         'spending' => ['total_spending', 'desc'],
+        'transactions' => ['transactions', 'desc'],
         'points' => ['loyalty_points', 'desc'],
     ];
 
@@ -121,7 +122,27 @@ class CustomerDemographicsQuery
             'is_guest' => $isGuest,
             'joined_from' => $this->normalizeDate($input['joined_from'] ?? null),
             'joined_to' => $this->normalizeDate($input['joined_to'] ?? null),
+            'spent_from' => $this->normalizeDate($input['spent_from'] ?? null),
+            'spent_to' => $this->normalizeDate($input['spent_to'] ?? null),
             'sort' => $sort,
+        ];
+    }
+
+    /**
+     * Peringkat pelanggan berdasarkan periode transaksi tertentu.
+     *
+     * @return array{filters: array<string, string>, period: array{date_from: string, date_to: string}|null, rows: LengthAwarePaginator}
+     */
+    public function topCustomers(array $input, int $limit = 20): array
+    {
+        $filters = $this->normalizeFilters($input);
+
+        return [
+            'filters' => $filters,
+            'period' => ($filters['spent_from'] !== '' || $filters['spent_to'] !== '')
+                ? ['date_from' => $filters['spent_from'], 'date_to' => $filters['spent_to']]
+                : null,
+            'rows' => $this->rows($filters, max(1, min($limit, 100))),
         ];
     }
 
@@ -173,6 +194,8 @@ class CustomerDemographicsQuery
             ->join('payments as p', 'p.id', '=', 'svp.payment_id')
             ->whereNull('p.deleted_at')
             ->whereRaw('LOWER(p.status::text) = ?', ['paid'])
+            ->when($filters['spent_from'] !== '', fn ($query) => $query->whereRaw('COALESCE(p.completed_at, p.created_at)::date >= ?', [$filters['spent_from']]))
+            ->when($filters['spent_to'] !== '', fn ($query) => $query->whereRaw('COALESCE(p.completed_at, p.created_at)::date <= ?', [$filters['spent_to']]))
             ->select('pv.customer_id')
             ->selectRaw('
                 COUNT(DISTINCT p.id)::int AS pos_transactions,
@@ -184,6 +207,8 @@ class CustomerDemographicsQuery
             ->join('payments as ep', 'ep.id', '=', 'eo.payment_id')
             ->whereNull('ep.deleted_at')
             ->whereRaw('LOWER(ep.status::text) = ?', ['paid'])
+            ->when($filters['spent_from'] !== '', fn ($query) => $query->whereRaw('COALESCE(ep.completed_at, eo.created_at)::date >= ?', [$filters['spent_from']]))
+            ->when($filters['spent_to'] !== '', fn ($query) => $query->whereRaw('COALESCE(ep.completed_at, eo.created_at)::date <= ?', [$filters['spent_to']]))
             ->select('eo.customer_id')
             ->selectRaw('
                 COUNT(*)::int AS ecom_orders,
@@ -482,6 +507,8 @@ class CustomerDemographicsQuery
             $query->orderByRaw('visit_stats.last_visit_at DESC NULLS LAST');
         } elseif ($filters['sort'] === 'points') {
             $query->orderByRaw('COALESCE(lp.balance, 0) DESC');
+        } elseif ($filters['sort'] === 'transactions') {
+            $query->orderByRaw('(COALESCE(pos_stats.pos_transactions, 0) + COALESCE(ecom_stats.ecom_orders, 0)) DESC');
         } elseif ($filters['sort'] === 'spending') {
             $query->orderByRaw('(COALESCE(pos_stats.pos_spending, 0) + COALESCE(ecom_stats.ecom_spending, 0)) DESC');
         } elseif ($column === 'customers.date_of_birth') {
