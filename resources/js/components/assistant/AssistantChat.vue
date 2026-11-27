@@ -8,6 +8,8 @@ interface ToolTrace {
     name: string;
     summary?: string;
     duration_ms?: number;
+    url?: string | null;
+    references?: Array<{ label: string; url: string }>;
 }
 
 interface ChatMessage {
@@ -329,15 +331,22 @@ defineExpose({ focusInput: () => input.value?.focus() });
                         <p v-else class="assistant-message__content">{{ message.content }}</p>
 
                         <div v-if="uniqueTools(message.tools).length" class="assistant-tools" aria-label="Jenis sumber yang digunakan">
-                            <span
-                                v-for="tool in uniqueTools(message.tools)"
-                                :key="`${message.id}-${tool.name}`"
-                                class="assistant-tool"
-                                :title="tool.summary"
-                            >
-                                <i class="mdi mdi-database-check-outline" aria-hidden="true"></i>
-                                {{ toolLabels[tool.name] ?? tool.name }}
-                            </span>
+                            <template v-for="tool in uniqueTools(message.tools)" :key="`${message.id}-${tool.name}`">
+                                <a
+                                    v-if="tool.url"
+                                    :href="tool.url"
+                                    class="assistant-tool assistant-tool--link"
+                                    :title="tool.summary"
+                                    @click="onContentClick"
+                                >
+                                    <i class="mdi mdi-database-check-outline" aria-hidden="true"></i>
+                                    {{ toolLabels[tool.name] ?? tool.name }}
+                                </a>
+                                <span v-else class="assistant-tool" :title="tool.summary">
+                                    <i class="mdi mdi-database-check-outline" aria-hidden="true"></i>
+                                    {{ toolLabels[tool.name] ?? tool.name }}
+                                </span>
+                            </template>
                         </div>
 
                         <span class="assistant-message__time">{{ formatTime(message.created_at) }}</span>
@@ -685,6 +694,13 @@ defineExpose({ focusInput: () => input.value?.focus() });
     color: var(--app-muted);
     font-size: 0.64rem;
     font-weight: 700;
+    text-decoration: none;
+}
+
+.assistant-tool--link:hover,
+.assistant-tool--link:focus-visible {
+    border-color: var(--app-accent);
+    color: var(--app-accent);
 }
 
 .assistant-tool i {

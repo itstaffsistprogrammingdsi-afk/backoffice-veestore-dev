@@ -2,6 +2,7 @@
 
 namespace App\Ai\Support;
 
+use App\Ai\Security\AssistantAccessPolicy;
 use Carbon\CarbonImmutable;
 
 class QuestionIntentGuard
@@ -27,11 +28,12 @@ class QuestionIntentGuard
             );
         }
 
-        if ($this->asksForMassCustomerDetail($message)) {
+        if ($this->asksForMassCustomerDetail($message)
+            && ! app(AssistantAccessPolicy::class)->canViewCustomerPii()) {
             return $this->result(
                 'mass_customer_detail',
-                'Saya tidak menampilkan data pribadi pelanggan secara massal, termasuk nama, email, dan nomor HP. '
-                .'Saya bisa menampilkan ringkasan jumlah, segmentasi, atau tren. Untuk detail, sebutkan satu pelanggan secara eksplisit.',
+                'Peran Anda belum berwenang melihat detail pelanggan. '
+                .'Saya bisa menampilkan ringkasan jumlah, segmentasi, atau tren.',
                 AnswerStatus::FORBIDDEN,
                 ['Tanyakan jumlah atau segmentasi pelanggan, misalnya per tier, provinsi, atau bulan registrasi.']
             );
@@ -94,10 +96,6 @@ class QuestionIntentGuard
 
     private function asksForSchemaOrSecret(string $message): bool
     {
-        if (preg_match('/\bselect\s+\*\s+from\s+(users|customers)\b/i', $message)) {
-            return true;
-        }
-
         $secret = '/\b(password|kata sandi|token|secret|api[\s-]?key|private[\s-]?key|biometrik|face[\s-]?descriptor|struktur\s+(database|tabel|data)|skema\s+(database|tabel|data)|isi\s+database|semua\s+tabel|daftar\s+tabel|dump\s+database|sql\s+injection)\b/i';
         $request = '/(tampilkan|lihat|berikan|kirim|akses|ambil|bocorkan|dump|buka|cek|daftar|semua|isi|salin)/i';
 

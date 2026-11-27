@@ -13,6 +13,7 @@ class QueryDataTool extends AssistantTool
     private const CONNECTIONS = [
         'operational' => 'pgsql',
         'backoffice' => 'immostore_backoffice',
+        'pos' => 'pos',
     ];
 
     private const FORBIDDEN = [
@@ -34,7 +35,7 @@ class QueryDataTool extends AssistantTool
 
     public function description(): string
     {
-        return 'Jalankan satu query SELECT read-only ke database VeeStore. Gunakan data_schema lebih dulu untuk memastikan nama tabel dan kolom. Hasil dibatasi maksimal 100 baris, kolom sensitif disamarkan, dan query dibatasi 8 detik.';
+        return 'Jalankan satu query SELECT read-only ke database VeeStore (operational, backoffice, atau pos). Gunakan data_schema lebih dulu untuk memastikan nama tabel dan kolom. Hasil dibatasi maksimal 100 baris, kolom sensitif disamarkan, dan query dibatasi 8 detik.';
     }
 
     public function inputSchema(): array
@@ -48,7 +49,7 @@ class QueryDataTool extends AssistantTool
                 ],
                 'connection' => [
                     'type' => 'string',
-                    'enum' => ['operational', 'backoffice'],
+                    'enum' => ['operational', 'backoffice', 'pos'],
                     'default' => 'operational',
                 ],
                 'limit' => [
@@ -74,7 +75,7 @@ class QueryDataTool extends AssistantTool
             return ['error' => $validator, 'sql' => $sql, 'answer_status' => AnswerStatus::INVALID];
         }
 
-        $scope = $this->validatePiiScope($sql, $arguments);
+        $scope = $this->validatePiiScope($sql);
 
         if ($scope !== null) {
             return ['error' => $scope, 'sql' => $sql, 'answer_status' => AnswerStatus::FORBIDDEN];
@@ -170,10 +171,7 @@ class QueryDataTool extends AssistantTool
         return null;
     }
 
-    /**
-     * @param  array<string, mixed>  $arguments
-     */
-    private function validatePiiScope(string $sql, array $arguments): ?string
+    private function validatePiiScope(string $sql): ?string
     {
         $touchesCustomers = (bool) preg_match('/\b(?:from|join)\s+(?:"?[\w]+"?\.)?"?customers"?\b/i', $sql);
         $touchesUsers = (bool) preg_match('/\b(?:from|join)\s+(?:"?[\w]+"?\.)?"?users"?\b/i', $sql);
@@ -182,30 +180,14 @@ class QueryDataTool extends AssistantTool
             return null;
         }
 
-        $aggregate = (bool) preg_match('/\b(count|sum|avg|min|max)\s*\(/i', $sql)
-            || (bool) preg_match('/\bgroup\s+by\b/i', $sql);
-        $singleFilter = (bool) preg_match('/\bwhere\b[\s\S]*\b(id|email|wa_number|name)\s*=\s*/i', $sql);
-        $limit = (int) ($arguments['limit'] ?? 50);
         $policy = app(AssistantAccessPolicy::class);
 
-        if ($touchesCustomers) {
-            if (! $policy->canViewCustomerPii()) {
-                return 'Query detail pelanggan tidak diizinkan untuk peran ini. Gunakan agregasi jumlah atau segmentasi.';
-            }
-
-            if (! $aggregate && ! $singleFilter && ! ($policy->isService() && $limit <= (int) config('assistant.limits.max_pii_rows', 10))) {
-                return 'Pembatasan privasi: query pelanggan harus berupa agregasi, atau memfilter satu pelanggan berdasarkan id, email, nomor HP, atau nama.';
-            }
+        if ($touchesCustomers && ! $policy->canViewCustomerPii()) {
+            return 'Query detail pelanggan tidak diizinkan untuk peran ini. Gunakan agregasi jumlah atau segmentasi.';
         }
 
-        if ($touchesUsers) {
-            if (! $policy->canViewEmployeeData()) {
-                return 'Query data karyawan tidak diizinkan untuk peran ini.';
-            }
-
-            if (! $aggregate && ! $singleFilter && ! ($policy->isService() && $limit <= (int) config('assistant.limits.max_pii_rows', 10))) {
-                return 'Pembatasan privasi: query karyawan harus berupa agregasi, atau memfilter satu pengguna secara eksplisit.';
-            }
+        if ($touchesUsers && ! $policy->canViewEmployeeData()) {
+            return 'Query data karyawan tidak diizinkan untuk peran ini.';
         }
 
         return null;

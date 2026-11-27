@@ -13,6 +13,10 @@ class PiiRedactor
      */
     public function redactToolResult(string $tool, array $result, array $arguments = []): array
     {
+        if (! $this->shouldMaskPii()) {
+            return $this->redactGeneric($result);
+        }
+
         return match ($tool) {
             'master_data' => $this->redactMasterData($result, $arguments),
             'customer_insight' => $this->redactCustomerInsight($result),
@@ -223,7 +227,7 @@ class PiiRedactor
 
     public function redactText(?string $value): ?string
     {
-        if ($value === null || $value === '') {
+        if (! $this->shouldMaskPii() || $value === null || $value === '') {
             return $value;
         }
 
@@ -321,6 +325,10 @@ class PiiRedactor
      */
     public function redactArguments(string $tool, array $arguments): array
     {
+        if (! $this->shouldMaskPii()) {
+            return $this->redactGeneric($arguments);
+        }
+
         $entity = (string) ($arguments['entity'] ?? '');
 
         foreach ($arguments as $key => $value) {
@@ -356,6 +364,11 @@ class PiiRedactor
         }
 
         return $arguments;
+    }
+
+    private function shouldMaskPii(): bool
+    {
+        return (bool) config('assistant.security.mask_pii', false);
     }
 
     /**

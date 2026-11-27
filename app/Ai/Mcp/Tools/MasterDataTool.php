@@ -3,6 +3,7 @@
 namespace App\Ai\Mcp\Tools;
 
 use App\Ai\Mcp\AssistantTool;
+use App\Ai\Security\AssistantAccessPolicy;
 use App\Ai\Support\AnswerStatus;
 use Illuminate\Support\Facades\DB;
 
@@ -112,7 +113,7 @@ class MasterDataTool extends AssistantTool
     {
         $base = DB::table('customers')->whereNull('deleted_at');
 
-        if ($search === '') {
+        if ($search === '' && ! app(AssistantAccessPolicy::class)->canViewCustomerPii()) {
             $gender = (clone $base)
                 ->selectRaw("COALESCE(NULLIF(LOWER(gender::text), ''), 'belum diisi') AS label, COUNT(*)::int AS total")
                 ->groupByRaw("COALESCE(NULLIF(LOWER(gender::text), ''), 'belum diisi')")
@@ -148,25 +149,29 @@ class MasterDataTool extends AssistantTool
                 'gender' => $gender,
                 'provinces' => $provinces,
                 'rows' => [],
-                'note' => 'Detail pelanggan tidak ditampilkan massal. Sebutkan satu nama, email, atau nomor HP untuk detail satu pelanggan.',
+                'note' => 'Peran ini hanya menerima ringkasan agregat. Detail pelanggan memerlukan kewenangan tambahan.',
             ];
         }
 
-        if (mb_strlen($search) < 3) {
+        if ($search !== '' && mb_strlen($search) < 3) {
             return [
-                'error' => 'Kata kunci pelanggan minimal 3 karakter agar pencarian tidak membuka data massal.',
+                'error' => 'Kata kunci pelanggan minimal 3 karakter.',
                 'answer_status' => AnswerStatus::INVALID,
             ];
         }
 
-        $query = (clone $base)->where(function ($query) use ($search) {
-            $like = '%'.$search.'%';
-            $query->where('name', 'ilike', $like)
-                ->orWhere('email', 'ilike', $like)
-                ->orWhere('wa_number', 'ilike', $like);
-        });
+        $query = clone $base;
 
-        $limit = max(1, min($limit, (int) config('assistant.limits.max_customer_rows', 5)));
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
+                $like = '%'.$search.'%';
+                $query->where('name', 'ilike', $like)
+                    ->orWhere('email', 'ilike', $like)
+                    ->orWhere('wa_number', 'ilike', $like);
+            });
+        }
+
+        $limit = max(1, min($limit, (int) config('assistant.limits.max_customer_rows', 20)));
         $total = (int) (clone $query)->count();
         $rows = $query
             ->orderBy('name')
@@ -185,7 +190,7 @@ class MasterDataTool extends AssistantTool
             'rows' => $rows,
             'note' => $total > count($rows)
                 ? 'Hasil dibatasi. Persempit pencarian jika perlu.'
-                : 'Data pribadi dimasking sesuai kebijakan.',
+                : 'Data pelanggan ditampilkan lengkap untuk peran berwenang.',
         ];
     }
 
@@ -194,40 +199,27 @@ class MasterDataTool extends AssistantTool
      */
     private function users(string $search, int $limit): array
     {
-        $base = DB::table('users')->whereNull('deleted_at');
-
-        if ($search === '') {
-            return [
-                'entity' => 'users',
-                'search' => '',
-                'answer_status' => AnswerStatus::AGGREGATE_ONLY,
-                'summary' => [
-                    'total_users' => (int) (clone $base)->count(),
-                    'backoffice_access' => (int) (clone $base)->where('backoffice_access', true)->count(),
-                    'store_access' => (int) (clone $base)->where('store_access', true)->count(),
-                    'wms_access' => (int) (clone $base)->where('wms_access', true)->count(),
-                    'ecommerce_access' => (int) (clone $base)->where('ecommerce_access', true)->count(),
-                ],
-                'rows' => [],
-                'note' => 'Daftar pengguna massal tidak ditampilkan. Sebutkan nama atau email pengguna untuk detail.',
-            ];
-        }
-
-        if (mb_strlen($search) < 3) {
+        if ($search !== '' && mb_strlen($search) < 3) {
             return [
                 'error' => 'Kata kunci pengguna minimal 3 karakter.',
                 'answer_status' => AnswerStatus::INVALID,
             ];
         }
 
-        $limit = max(1, min($limit, (int) config('assistant.limits.max_pii_rows', 10)));
-        $rows = (clone $base)
-            ->where(function ($query) use ($search) {
+        $query = DB::table('users')->whereNull('deleted_at');
+
+        if ($search !== '') {
+            $query->where(function ($query) use ($search) {
                 $like = '%'.$search.'%';
                 $query->where('name', 'ilike', $like)
                     ->orWhere('username', 'ilike', $like)
                     ->orWhere('email', 'ilike', $like);
-            })
+            });
+        }
+
+        $limit = max(1, min($limit, (int) config('assistant.limits.max_pii_rows', 20)));
+        $total = (int) (clone $query)->count();
+        $rows = $query
             ->orderBy('name')
             ->limit($limit)
             ->get(['id', 'name', 'username', 'email', 'backoffice_access', 'store_access', 'wms_access', 'ecommerce_access', 'created_at'])
@@ -239,9 +231,12 @@ class MasterDataTool extends AssistantTool
             'entity' => 'users',
             'search' => $search,
             'answer_status' => $rows === [] ? AnswerStatus::NO_DATA : AnswerStatus::OK,
+            'total_matches' => $total,
             'row_limit' => $limit,
             'rows' => $rows,
-            'note' => 'Data karyawan dimasking sesuai kebijakan.',
+            'note' => $total > count($rows)
+                ? 'Hasil dibatasi. Persempit pencarian jika perlu.'
+                : 'Data pengguna ditampilkan lengkap untuk peran berwenang.',
         ];
     }
 

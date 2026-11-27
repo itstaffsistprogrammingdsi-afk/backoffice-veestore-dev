@@ -117,7 +117,7 @@ class CustomerInsightTool extends AssistantTool
                 ])->values()->all()
                 : [],
             'note' => $canViewDetail
-                ? 'Detail pelanggan dibatasi dan dimasking. Jangan menampilkan daftar massal.'
+                ? 'Detail pelanggan ditampilkan untuk peran berwenang dan dibatasi per halaman.'
                 : 'Hanya ringkasan agregat yang ditampilkan. Detail pelanggan memerlukan kewenangan tambahan.',
         ];
     }
