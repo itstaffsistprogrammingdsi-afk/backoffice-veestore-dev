@@ -21,6 +21,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Laravel\Ai\Streaming\Events\TextDelta;
+use Laravel\Ai\Streaming\Events\ToolCall as ToolCallEvent;
 use RuntimeException;
 use Throwable;
 
@@ -50,40 +52,7 @@ class AssistantController extends Controller
         $intent = app(QuestionIntentGuard::class)->inspect($message);
 
         if ($intent !== null) {
-            $sanitized = app(AssistantRouteRegistry::class)->sanitize($intent['answer'], $request->user());
-            $answer = app(PiiRedactor::class)->redactText($sanitized['answer']) ?? $sanitized['answer'];
-
-            $messages = $this->messages($request);
-            $messages[] = $this->message('user', $message);
-            $messages[] = $this->message('assistant', $answer);
-
-            $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
-
-            app(AssistantAuditLogger::class)->guard($intent['intent'], $intent['answer_status'], [
-                'decision' => 'allow',
-                'message_length' => mb_strlen($message),
-            ]);
-            app(AssistantAuditLogger::class)->answer(
-                $intent['answer_status'],
-                [],
-                [],
-                (int) round((microtime(true) - $startedAt) * 1000),
-                $sanitized['removed'],
-            );
-
-            return response()->json([
-                'answer' => $answer,
-                'messages' => array_slice($messages, -30),
-                'tool_calls' => [],
-                'model' => null,
-                'mode' => $mode,
-                'usage' => ['input_tokens' => null, 'output_tokens' => null],
-                'answer_status' => $intent['answer_status'],
-                'evidence' => [],
-                'safe_actions' => $intent['safe_actions'],
-                'removed_links' => $sanitized['removed'],
-                'timings' => ['total_ms' => (int) round((microtime(true) - $startedAt) * 1000)],
-            ]);
+            return response()->json($this->guardPayload($request, $message, $mode, $intent, $startedAt));
         }
 
         try {
@@ -92,12 +61,27 @@ class AssistantController extends Controller
             $usedModel = null;
             $lastException = null;
             $modelStartedAt = microtime(true);
+            $stepTimeout = max(5, (int) config('assistant.limits.step_timeout_seconds', 45));
+            $budgetMs = max(5000, (int) config('assistant.limits.fallback_budget_ms', 45000));
+            $attempts = 0;
 
             foreach ($models as $index => $model) {
+                $elapsedMs = (microtime(true) - $startedAt) * 1000;
+
+                if ($index > 0 && $elapsedMs >= $budgetMs) {
+                    Log::warning('VEE melewati model cadangan karena batas waktu.', [
+                        'model' => $model,
+                        'elapsed_ms' => (int) round($elapsedMs),
+                    ]);
+
+                    break;
+                }
+
                 $logger->reset();
+                $attempts++;
 
                 try {
-                    $response = (new VeeAssistant($model))->withMessages($history)->prompt($message, timeout: 120);
+                    $response = (new VeeAssistant($model, $mode === 'expert'))->withMessages($history)->prompt($message, timeout: $stepTimeout);
                     $usedModel = $model;
 
                     break;
@@ -117,7 +101,7 @@ class AssistantController extends Controller
                 throw $lastException ?? new RuntimeException('Tidak ada model asisten yang tersedia.');
             }
 
-            $answer = trim((string) $response);
+            $answer = $this->stripToolMarkup(trim((string) $response));
             $usage = [
                 'input_tokens' => $response->usage->inputTokens ?? null,
                 'output_tokens' => $response->usage->outputTokens ?? null,
@@ -127,15 +111,16 @@ class AssistantController extends Controller
                 try {
                     $finalResponse = (new VeeAssistant($usedModel))
                         ->withTools([])
-                        ->withMessages($response->messages)
                         ->prompt(
                             "Pertanyaan pengguna: {$message}\n\n"
-                            .'Susun jawaban akhir dalam Bahasa Indonesia hanya berdasarkan data tool pada riwayat di atas. '
-                            .'Jangan memanggil tool. Jika sebagian data belum tersedia, sebutkan bagian yang belum bisa dijawab.',
-                            timeout: 120,
+                            .$this->toolResultsContext($response->toolResults)."\n\n"
+                            .'Susun jawaban akhir dalam Bahasa Indonesia hanya berdasarkan data tool di atas. '
+                            .'Jangan memanggil tool dan jangan menuliskan nama tool, SQL, atau markup protokol. '
+                            .'Jika sebagian data belum tersedia, sebutkan bagian yang belum bisa dijawab.',
+                            timeout: $stepTimeout,
                         );
 
-                    $answer = trim((string) $finalResponse);
+                    $answer = $this->stripToolMarkup(trim((string) $finalResponse));
                     $usage['input_tokens'] = ($usage['input_tokens'] ?? 0) + ($finalResponse->usage->inputTokens ?? 0);
                     $usage['output_tokens'] = ($usage['output_tokens'] ?? 0) + ($finalResponse->usage->outputTokens ?? 0);
                 } catch (Throwable $exception) {
@@ -146,68 +131,22 @@ class AssistantController extends Controller
                 }
             }
 
-            $toolCalls = $this->attachReferences($logger->calls(), $request->user());
-            $evidence = $logger->evidence();
-            $status = $logger->status();
-
-            if ($answer === '') {
-                $answer = $response->toolResults->isNotEmpty()
-                    ? 'Data sudah ditemukan, tetapi VEE belum bisa menyusun ringkasan. Coba sebutkan periode, nama produk, atau nama toko yang lebih spesifik.'
-                    : 'VEE belum bisa menyusun jawaban untuk pertanyaan ini. Coba tuliskan pertanyaan dengan periode, nama produk, atau nama toko yang lebih spesifik.';
-                $status = $response->toolResults->isNotEmpty() ? AnswerStatus::NO_DATA : AnswerStatus::NOT_AVAILABLE;
-            }
-
-            $status ??= $toolCalls === [] ? AnswerStatus::NOT_AVAILABLE : AnswerStatus::OK;
-
-            $sanitized = app(AssistantRouteRegistry::class)->sanitize($answer, $request->user());
-            $answer = app(PiiRedactor::class)->redactText($sanitized['answer']) ?? $sanitized['answer'];
-
-            if ($status === AnswerStatus::NOT_YET_OCCURRED) {
-                $answer = $this->futurePeriodAnswer($evidence);
-            }
-
-            if (! in_array($status, [AnswerStatus::FORBIDDEN, AnswerStatus::INVALID], true)) {
-                $answer = $this->appendSources($answer, $toolCalls);
-            }
-
-            if ((bool) config('assistant.evidence.append_to_answer', true)
-                && ! in_array($status, [AnswerStatus::FORBIDDEN, AnswerStatus::INVALID, AnswerStatus::NEEDS_CLARIFICATION], true)) {
-                $answer .= $this->evidenceLine($evidence);
-            }
-
-            $messages = $this->messages($request);
-            $messages[] = $this->message('user', $message);
-            $messages[] = $this->message('assistant', $answer, $toolCalls, $usage);
-
-            $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
-
-            $totalMs = (int) round((microtime(true) - $startedAt) * 1000);
-            $modelMs = (int) round((microtime(true) - $modelStartedAt) * 1000);
-
-            app(AssistantAuditLogger::class)->answer(
-                $status,
-                $toolCalls,
-                $evidence,
-                $totalMs,
-                $sanitized['removed'],
-            );
-
-            return response()->json([
-                'answer' => $answer,
-                'messages' => array_slice($messages, -30),
-                'tool_calls' => $toolCalls,
-                'model' => $usedModel,
-                'mode' => $mode,
-                'usage' => $usage,
-                'answer_status' => $status,
-                'evidence' => $evidence,
-                'safe_actions' => [],
-                'removed_links' => $sanitized['removed'],
-                'timings' => [
-                    'model_ms' => $modelMs,
-                    'total_ms' => $totalMs,
+            return response()->json($this->finish(
+                $request,
+                $message,
+                $mode,
+                $usedModel,
+                $answer,
+                $usage,
+                $logger,
+                $response->toolResults->isNotEmpty(),
+                [
+                    'model_ms' => (int) round((microtime(true) - $modelStartedAt) * 1000),
+                    'llm_ms' => (int) round((microtime(true) - $modelStartedAt) * 1000),
+                    'attempts' => $attempts,
+                    'total_ms' => (int) round((microtime(true) - $startedAt) * 1000),
                 ],
-            ]);
+            ));
         } catch (Throwable $exception) {
             report($exception);
 
@@ -216,6 +155,233 @@ class AssistantController extends Controller
                 'message' => 'VEE belum dapat menghubungi model atau mengambil data. Periksa koneksi 9Router dan coba lagi.',
             ], 503);
         }
+    }
+
+    public function stream(ChatRequest $request, AssistantContext $context)
+    {
+        app(AssistantAccessPolicy::class)->markUserRequest();
+
+        $message = trim($request->validated('message'));
+        $mode = (string) ($request->validated('mode') ?? $context->defaultMode());
+        $history = $this->history($request);
+        $models = $context->modelsFor($mode);
+        $logger = app(ToolCallLogger::class);
+        $startedAt = microtime(true);
+        $stepTimeout = max(5, (int) config('assistant.limits.step_timeout_seconds', 45));
+        $intent = app(QuestionIntentGuard::class)->inspect($message);
+
+        return response()->stream(function () use ($request, $message, $mode, $history, $models, $logger, $startedAt, $stepTimeout, $intent): void {
+            while (ob_get_level() > 0) {
+                ob_end_flush();
+            }
+
+            $emit = function (string $event, array $payload): void {
+                echo 'event: '.$event."\n";
+                echo 'data: '.json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n\n";
+                flush();
+            };
+
+            if ($intent !== null) {
+                $payload = $this->guardPayload($request, $message, $mode, $intent, $startedAt);
+
+                $emit('status', ['label' => 'Menjawab dari pustaka VEE', 'tool' => null]);
+                $emit('token', ['text' => $payload['answer']]);
+                $emit('done', $payload);
+
+                return;
+            }
+
+            $emit('status', ['label' => 'Menyiapkan jawaban', 'tool' => null]);
+
+            $stream = null;
+            $usedModel = null;
+            $attempts = 0;
+            $emitted = false;
+
+            foreach ($models as $model) {
+                $logger->reset();
+                $attempts++;
+
+                try {
+                    $candidate = (new VeeAssistant($model, $mode === 'expert'))->withMessages($history)->stream($message, timeout: $stepTimeout);
+
+                    foreach ($candidate as $event) {
+                        if ($event instanceof TextDelta) {
+                            $emitted = true;
+                            $emit('token', ['text' => $event->delta]);
+                        } elseif ($event instanceof ToolCallEvent) {
+                            $emit('status', [
+                                'label' => 'Mengambil data: '.$event->toolCall->name,
+                                'tool' => $event->toolCall->name,
+                            ]);
+                        }
+                    }
+
+                    $usedModel = $model;
+                    $stream = $candidate;
+
+                    break;
+                } catch (Throwable $exception) {
+                    if ($emitted) {
+                        report($exception);
+
+                        $emit('error', ['message' => 'Koneksi model terputus saat menjawab. Coba ulangi pertanyaan.']);
+
+                        return;
+                    }
+
+                    report($exception);
+                    $logger->reset();
+                }
+            }
+
+            if ($stream === null) {
+                $emit('error', ['message' => 'VEE belum dapat menghubungi model atau mengambil data. Periksa koneksi 9Router dan coba lagi.']);
+
+                return;
+            }
+
+            $payload = $this->finish(
+                $request,
+                $message,
+                $mode,
+                $usedModel,
+                $this->stripToolMarkup((string) $stream->text),
+                [
+                    'input_tokens' => $stream->usage?->inputTokens,
+                    'output_tokens' => $stream->usage?->outputTokens,
+                ],
+                $logger,
+                $logger->calls() !== [],
+                [
+                    'llm_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                    'attempts' => $attempts,
+                    'total_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                ],
+            );
+
+            $emit('done', $payload);
+        }, 200, [
+            'Cache-Control' => 'no-cache, no-transform',
+            'Content-Type' => 'text/event-stream',
+            'X-Accel-Buffering' => 'no',
+        ]);
+    }
+
+    /**
+     * @param  array{intent: string, answer: string, answer_status: string, safe_actions: list<array<string, mixed>>}  $intent
+     * @return array<string, mixed>
+     */
+    private function guardPayload(Request $request, string $message, string $mode, array $intent, float $startedAt): array
+    {
+        $sanitized = app(AssistantRouteRegistry::class)->sanitize($intent['answer'], $request->user());
+        $answer = app(PiiRedactor::class)->redactText($sanitized['answer']) ?? $sanitized['answer'];
+
+        $messages = $this->messages($request);
+        $messages[] = $this->message('user', $message);
+        $messages[] = $this->message('assistant', $answer);
+
+        $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+
+        app(AssistantAuditLogger::class)->guard($intent['intent'], $intent['answer_status'], [
+            'decision' => 'allow',
+            'message_length' => mb_strlen($message),
+        ]);
+        app(AssistantAuditLogger::class)->answer(
+            $intent['answer_status'],
+            [],
+            [],
+            (int) round((microtime(true) - $startedAt) * 1000),
+            $sanitized['removed'],
+        );
+
+        return [
+            'answer' => $answer,
+            'messages' => array_slice($messages, -30),
+            'tool_calls' => [],
+            'model' => null,
+            'mode' => $mode,
+            'usage' => ['input_tokens' => null, 'output_tokens' => null],
+            'answer_status' => $intent['answer_status'],
+            'evidence' => [],
+            'safe_actions' => $intent['safe_actions'],
+            'removed_links' => $sanitized['removed'],
+            'timings' => ['total_ms' => (int) round((microtime(true) - $startedAt) * 1000)],
+        ];
+    }
+
+    /**
+     * @param  array{input_tokens: int|null, output_tokens: int|null}  $usage
+     * @param  array<string, int>  $timings
+     * @return array<string, mixed>
+     */
+    private function finish(
+        Request $request,
+        string $message,
+        string $mode,
+        ?string $usedModel,
+        string $answer,
+        array $usage,
+        ToolCallLogger $logger,
+        bool $hadToolResults,
+        array $timings,
+    ): array {
+        $toolCalls = $this->attachReferences($logger->calls(), $request->user());
+        $evidence = $logger->evidence();
+        $status = $logger->status();
+
+        if ($answer === '') {
+            $answer = $hadToolResults
+                ? 'Data sudah ditemukan, tetapi VEE belum bisa menyusun ringkasan. Coba sebutkan periode, nama produk, atau nama toko yang lebih spesifik.'
+                : 'VEE belum bisa menyusun jawaban untuk pertanyaan ini. Coba tuliskan pertanyaan dengan periode, nama produk, atau nama toko yang lebih spesifik.';
+            $status = $hadToolResults ? AnswerStatus::NO_DATA : AnswerStatus::NOT_AVAILABLE;
+        }
+
+        $status ??= $toolCalls === [] ? AnswerStatus::NOT_AVAILABLE : AnswerStatus::OK;
+
+        $sanitized = app(AssistantRouteRegistry::class)->sanitize($answer, $request->user());
+        $answer = app(PiiRedactor::class)->redactText($sanitized['answer']) ?? $sanitized['answer'];
+
+        if ($status === AnswerStatus::NOT_YET_OCCURRED) {
+            $answer = $this->futurePeriodAnswer($evidence);
+        }
+
+        if (! in_array($status, [AnswerStatus::FORBIDDEN, AnswerStatus::INVALID], true)) {
+            $answer = $this->appendSources($answer, $toolCalls);
+        }
+
+        if ((bool) config('assistant.evidence.append_to_answer', true)
+            && ! in_array($status, [AnswerStatus::FORBIDDEN, AnswerStatus::INVALID, AnswerStatus::NEEDS_CLARIFICATION], true)) {
+            $answer .= $this->evidenceLine($evidence);
+        }
+
+        $messages = $this->messages($request);
+        $messages[] = $this->message('user', $message);
+        $messages[] = $this->message('assistant', $answer, $toolCalls, $usage);
+
+        $request->session()->put(self::SESSION_KEY, array_slice($messages, -30));
+
+        app(AssistantAuditLogger::class)->answer(
+            $status,
+            $toolCalls,
+            $evidence,
+            $timings['total_ms'],
+            $sanitized['removed'],
+        );
+
+        return [
+            'answer' => $answer,
+            'messages' => array_slice($messages, -30),
+            'tool_calls' => $toolCalls,
+            'model' => $usedModel,
+            'mode' => $mode,
+            'usage' => $usage,
+            'answer_status' => $status,
+            'evidence' => $evidence,
+            'safe_actions' => [],
+            'removed_links' => $sanitized['removed'],
+            'timings' => $timings,
+        ];
     }
 
     /**
@@ -342,6 +508,7 @@ class AssistantController extends Controller
                 'index' => route('ai-assistant.index'),
                 'state' => route('ai-assistant.state'),
                 'chat' => route('ai-assistant.chat'),
+                'stream' => route('ai-assistant.stream'),
                 'reset' => route('ai-assistant.reset'),
                 'mcp' => route('mcp.endpoint'),
             ],
@@ -370,10 +537,66 @@ class AssistantController extends Controller
             ->filter(fn (array $message) => in_array($message['role'] ?? '', ['user', 'assistant'], true))
             ->map(fn (array $message) => [
                 'role' => $message['role'],
-                'content' => $message['content'],
+                'content' => $this->historyContent((string) $message['content']),
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Riwayat tidak perlu membawa baris Sumber dan Konteks data karena selalu
+     * ditambahkan ulang pada jawaban baru dan hanya memperbesar prompt.
+     */
+    private function historyContent(string $content): string
+    {
+        $lines = preg_split('/\r?\n/', $content) ?: [];
+
+        $kept = array_filter($lines, function (string $line): bool {
+            $trimmed = trim($line);
+
+            return ! str_starts_with($trimmed, '**Sumber:**')
+                && ! str_starts_with($trimmed, '**Konteks data:**');
+        });
+
+        return trim(implode("\n", $kept));
+    }
+
+    /**
+     * Saat model dihentikan di tengah langkah, sebagian model menuliskan
+     * pemanggilan tool sebagai teks markup. Buang mulai penanda pertama.
+     */
+    private function stripToolMarkup(string $answer): string
+    {
+        $markers = ['<｜DSML｜', '<|DSML|', '<｜｜tool▁calls', '<tool_calls', '<function_call'];
+
+        foreach ($markers as $marker) {
+            $position = mb_strpos($answer, $marker);
+
+            if ($position !== false) {
+                $answer = mb_substr($answer, 0, $position);
+            }
+        }
+
+        return trim($answer);
+    }
+
+    private function toolResultsContext(iterable $toolResults): string
+    {
+        $sections = [];
+
+        foreach ($toolResults as $result) {
+            if (! $result->successful()) {
+                continue;
+            }
+
+            $arguments = json_encode($result->arguments, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '[]';
+
+            $sections[] = 'Tool '.$result->name.' ('.$arguments."):\n".mb_substr($result->text(), 0, 6000);
+        }
+
+        return $sections === []
+            ? 'Tidak ada hasil tool yang berhasil.'
+            : "Data tool:\n\n".implode("\n\n", $sections);
     }
 
     /**

@@ -48,6 +48,7 @@ interface Props {
         index: string;
         state: string;
         chat: string;
+        stream: string;
         reset: string;
         mcp: string;
     };

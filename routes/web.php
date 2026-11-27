@@ -283,6 +283,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [AssistantController::class, 'index'])->name('index');
         Route::get('/state', [AssistantController::class, 'state'])->name('state');
         Route::post('/chat', [AssistantController::class, 'chat'])->name('chat')->middleware('throttle:ai-assistant');
+        Route::post('/stream', [AssistantController::class, 'stream'])->name('stream')->middleware('throttle:ai-assistant');
         Route::post('/reset', [AssistantController::class, 'reset'])->name('reset');
     });
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature\AI;
 
 use App\Ai\Agents\VeeAssistant;
+use App\Ai\Security\AssistantAccessPolicy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
@@ -30,6 +31,7 @@ class AssistantTest extends TestCase
                 ->has('modes')
                 ->has('default_mode')
                 ->has('urls.chat')
+                ->has('urls.stream')
                 ->has('urls.reset')
                 ->has('urls.mcp'));
     }
@@ -52,27 +54,40 @@ class AssistantTest extends TestCase
         VeeAssistant::assertPrompted('Bagaimana omzet bulan ini?');
     }
 
-    public function test_assistant_modes_use_codex_with_opencode_fallbacks(): void
+    public function test_assistant_auto_mode_prioritizes_opencode_models(): void
     {
         $models = (array) config('ai.providers.nine_router.models.text');
 
-        $this->assertSame('cx/gpt-5.6-luna', $models['auto']);
-        $this->assertSame('cx/gpt-5.6-sol', $models['auto_secondary']);
-        $this->assertSame('ocg/deepseek-v4.1-flash', $models['auto_fallback']);
-        $this->assertSame('ocg/glm-5.3-flash', $models['auto_fallback_secondary']);
+        $this->assertSame('ocg/deepseek-v4.1-flash', $models['auto']);
+        $this->assertSame('ocg/glm-5.3-flash', $models['auto_secondary']);
+        $this->assertSame('cx/gpt-5.6-luna', $models['auto_fallback']);
         $this->assertSame('cx/gpt-6.1-sol', $models['expert']);
-        $this->assertSame('ocg/claude-haiku-5-5', $models['expert_fallback']);
+        $this->assertSame('ocg/deepseek-v4.1-flash', $models['expert_fallback']);
 
         $this->assertSame(
-            ['auto', 'auto_secondary', 'auto_fallback', 'auto_fallback_secondary'],
+            ['auto', 'auto_secondary', 'auto_fallback'],
             config('assistant.modes.auto.models')
         );
         $this->assertSame(['expert', 'expert_fallback'], config('assistant.modes.expert.models'));
     }
 
-    public function test_assistant_allows_enough_steps_for_free_form_questions(): void
+    public function test_assistant_caps_agent_steps_to_keep_answers_fast(): void
     {
-        $this->assertGreaterThanOrEqual(8, (new VeeAssistant)->maxSteps());
+        $this->assertSame(4, (new VeeAssistant)->maxSteps());
+        $this->assertSame(4, (int) config('assistant.limits.max_steps'));
+    }
+
+    public function test_assistant_hides_custom_query_tools_outside_expert_mode(): void
+    {
+        app(AssistantAccessPolicy::class)->markServiceRequest();
+
+        $autoTools = collect((new VeeAssistant)->tools())->map(fn ($tool) => $tool->name())->all();
+        $expertTools = collect((new VeeAssistant(null, true))->tools())->map(fn ($tool) => $tool->name())->all();
+
+        $this->assertNotContains('query_data', $autoTools);
+        $this->assertNotContains('data_schema', $autoTools);
+        $this->assertContains('query_data', $expertTools);
+        $this->assertContains('data_schema', $expertTools);
     }
 
     public function test_assistant_chat_uses_expert_mode_model(): void
@@ -126,7 +141,7 @@ class AssistantTest extends TestCase
             $attempts++;
             $seenModels[] = func_get_arg(3);
 
-            if ($attempts < 4) {
+            if ($attempts < 3) {
                 throw new RuntimeException('Model tidak tersedia.');
             }
 
@@ -137,17 +152,16 @@ class AssistantTest extends TestCase
             ->postJson(route('ai-assistant.chat'), ['message' => 'Pertanyaan.'])
             ->assertOk()
             ->assertJsonPath('mode', 'auto')
-            ->assertJsonPath('model', config('ai.providers.nine_router.models.text.auto_fallback_secondary'));
+            ->assertJsonPath('model', config('ai.providers.nine_router.models.text.auto_fallback'));
 
         $this->assertSame([
             config('ai.providers.nine_router.models.text.auto'),
             config('ai.providers.nine_router.models.text.auto_secondary'),
             config('ai.providers.nine_router.models.text.auto_fallback'),
-            config('ai.providers.nine_router.models.text.auto_fallback_secondary'),
         ], $seenModels);
     }
 
-    public function test_assistant_expert_mode_falls_back_to_haiku(): void
+    public function test_assistant_expert_mode_falls_back_to_deepseek(): void
     {
         $attempts = 0;
         $seenModels = [];
@@ -249,6 +263,20 @@ class AssistantTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('ai-assistant.index'))
+            ->assertForbidden();
+    }
+
+    public function test_assistant_stream_requires_permission(): void
+    {
+        $user = User::query()->create([
+            'name' => 'No Role User',
+            'username' => 'no-role-'.Str::lower(Str::random(8)),
+            'email' => Str::lower(Str::random(8)).'@example.test',
+            'password' => 'password',
+        ]);
+
+        $this->actingAs($user)
+            ->postJson(route('ai-assistant.stream'), ['message' => 'Halo'])
             ->assertForbidden();
     }
 }
