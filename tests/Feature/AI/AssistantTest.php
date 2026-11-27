@@ -75,21 +75,19 @@ class AssistantTest extends TestCase
     {
         $this->assertSame(4, (new VeeAssistant)->maxSteps());
         $this->assertSame(4, (int) config('assistant.limits.max_steps'));
-        $this->assertSame(6, (new VeeAssistant(null, false, 6))->maxSteps());
+        $this->assertSame(6, (new VeeAssistant(null, 6))->maxSteps());
         $this->assertSame(6, (int) config('assistant.limits.max_steps_expert'));
     }
 
-    public function test_assistant_hides_custom_query_tools_outside_expert_mode(): void
+    public function test_assistant_exposes_custom_query_tools_for_full_coverage(): void
     {
         app(AssistantAccessPolicy::class)->markServiceRequest();
 
-        $autoTools = collect((new VeeAssistant)->tools())->map(fn ($tool) => $tool->name())->all();
-        $expertTools = collect((new VeeAssistant(null, true))->tools())->map(fn ($tool) => $tool->name())->all();
+        $tools = collect((new VeeAssistant)->tools())->map(fn ($tool) => $tool->name())->all();
 
-        $this->assertNotContains('query_data', $autoTools);
-        $this->assertNotContains('data_schema', $autoTools);
-        $this->assertContains('query_data', $expertTools);
-        $this->assertContains('data_schema', $expertTools);
+        $this->assertContains('query_data', $tools);
+        $this->assertContains('data_schema', $tools);
+        $this->assertContains('customer_insight', $tools);
     }
 
     public function test_assistant_chat_uses_expert_mode_model(): void
